@@ -9,12 +9,12 @@ server.disable('x-powered-by');
 server.use(helmet());
 
 // health checks
-server.get('/cv/samtale/internal/isAlive', (req, res) => res.sendStatus(200));
-server.get('/cv/samtale/internal/isReady', (req, res) => res.sendStatus(200));
+server.get('/cv-samtale/internal/isAlive', (req, res) => res.sendStatus(200));
+server.get('/cv-samtale/internal/isReady', (req, res) => res.sendStatus(200));
 
-server.use('/cv/samtale/static', express.static(path.resolve(__dirname, 'dist')));
+server.use('/cv-samtale/static', express.static(path.resolve(__dirname, 'dist')));
 server.use(
-    '/cv/samtale*',
+    '/cv-samtale*',
     (req: express.Request, res: express.Response) => {
         res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     }
