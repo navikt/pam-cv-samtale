@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "allowJs": false,
+        "noImplicitAny": false,
+        "outDir": ".",
+        "sourceRoot": ".",
+        "sourceMap": false,
+        "allowSyntheticDefaultImports": true,
+        "inlineSourceMap": true
+    },
+    "include": ["./server.ts"],
+    "exclude": ["./src", "node_modules", "build", "scripts", "acceptance-tests", "webpack", "jest", "src/setupTests.ts"]
+}
