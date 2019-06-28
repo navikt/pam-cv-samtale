@@ -35,7 +35,6 @@ node {
         commitHashShort = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
         committer = sh(script: 'git log -1 --pretty=format:"%an"', returnStdout: true).trim()
 
-        majorMinorVersion = sh(script: 'node ./scripts/package-version.js', returnStdout: true).trim()
         releaseVersion = "${env.BUILD_NUMBER}-${commitHashShort}"
         echo "release version: ${releaseVersion}"
         currentBuild.displayName = releaseVersion
