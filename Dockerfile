@@ -7,7 +7,7 @@ COPY package.json package-lock.json elm.json server.ts tsconfig.json ./
 
 RUN npm --version
 RUN npm config set strict-ssl false
-RUN npm ci
+RUN npm ci --allow-root -unsafe-perm=true
 RUN npm run build
 RUN npm run build:server
 
