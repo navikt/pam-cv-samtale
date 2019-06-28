@@ -1,0 +1,5 @@
+{
+  "image": "{{{ image }}}",
+  "namespace": "default",
+  "ingress": "https://arbeidsplassen.nav.no/cv-samtale"
+}

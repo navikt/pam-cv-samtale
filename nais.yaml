@@ -1,0 +1,34 @@
+apiVersion: "nais.io/v1alpha1"
+kind: "Application"
+metadata:
+    name: pam-cv-samtale
+    namespace: {{{ namespace }}}
+    labels:
+        team: teampam
+spec:
+    image: {{{ image }}}
+    port: 8080
+    liveness:
+        path: /cv-samtale/internal/isAlive
+        initialDelay: 20
+    readiness:
+        path: /cv-samtale/internal/isReady
+        initialDelay: 20
+    replicas:
+        min: 1
+        max: 2
+    cpuThresholdPercentage: 50
+    resources:
+        limits:
+            cpu: 500m
+            memory: 512Mi
+        requests:
+            cpu: 200m
+            memory: 256Mi
+    vault:
+        enabled: false
+    prometheus:
+        enabled: false
+        path: /metrics
+    ingresses:
+        - {{{ ingress }}}
