@@ -2,6 +2,7 @@ module Main exposing (main)
 
 import Api
 import Browser
+import Cv.Cv as Cv exposing (Cv)
 import Html exposing (..)
 import Http
 import Personalia exposing (Personalia)
@@ -9,10 +10,6 @@ import Personalia exposing (Personalia)
 
 
 --- MODEL ---
-
-
-type alias Cv =
-    ()
 
 
 type alias RegistreringsProgresjon =
@@ -56,6 +53,7 @@ type Msg
     = PersonaliaHentet (Result Http.Error Personalia)
     | PersonaliaOpprettet (Result Http.Error Personalia)
     | CvHentet (Result Http.Error Cv)
+    | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
 
 
@@ -94,7 +92,35 @@ update msg model =
                     ( model, Cmd.none )
 
         CvHentet result ->
-            ( model, Cmd.none )
+            case model of
+                Loading state ->
+                    case result of
+                        Ok cv ->
+                            ( Loading { state | cv = Just cv }, Cmd.none )
+
+                        Err error ->
+                            case error of
+                                Http.BadStatus 404 ->
+                                    ( model, Api.opprettCv CvOpprettet )
+
+                                _ ->
+                                    ( Failure error, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        CvOpprettet result ->
+            case model of
+                Loading state ->
+                    case result of
+                        Ok cv ->
+                            ( Loading { state | cv = Just cv }, Cmd.none )
+
+                        Err error ->
+                            ( Failure error, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         RegistreringsProgresjonHentet result ->
             ( model, Cmd.none )
@@ -114,7 +140,7 @@ view model =
             viewSuccess successModel
 
         Failure error ->
-            text "Error"
+            Debug.toString error |> text
 
 
 viewSuccess : SuccessModel -> Html Msg
@@ -142,5 +168,8 @@ init flags =
         , personalia = Nothing
         , registreringsProgresjon = Nothing
         }
-    , Api.hentPersonalia PersonaliaHentet
+    , Cmd.batch
+        [ Api.hentPersonalia PersonaliaHentet
+        , Api.hentCv CvHentet
+        ]
     )
