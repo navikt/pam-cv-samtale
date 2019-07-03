@@ -45,11 +45,25 @@ type alias SuccessModel =
     }
 
 
+modelFraLoadingState : LoadingState -> Model
+modelFraLoadingState state =
+    case ( state.cv, state.personalia, state.registreringsProgresjon ) of
+        ( Just cv, Just personalia, Just registreringsProgresjon ) ->
+            Success
+                { cv = cv
+                , personalia = personalia
+                , registreringsProgresjon = registreringsProgresjon
+                }
+
+        _ ->
+            Loading state
+
+
 
 --- UPDATE ---
 
 
-type Msg
+type LoadingMsg
     = PersonaliaHentet (Result Http.Error Personalia)
     | PersonaliaOpprettet (Result Http.Error Personalia)
     | CvHentet (Result Http.Error Cv)
@@ -57,15 +71,22 @@ type Msg
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+
+{--
+TODO: FIXME
+Msg =/= LoadingMsg
+--}
+
+
+sjekkLoadingMsg : LoadingMsg -> Model -> ( Model, Cmd Msg )
+sjekkLoadingMsg msg model =
     case msg of
         PersonaliaHentet result ->
             case model of
                 Loading state ->
                     case result of
                         Ok personalia ->
-                            ( Loading { state | personalia = Just personalia }, Cmd.none )
+                            ( modelFraLoadingState { state | personalia = Just personalia }, Cmd.none )
 
                         Err error ->
                             case error of
@@ -83,7 +104,7 @@ update msg model =
                 Loading state ->
                     case result of
                         Ok personalia ->
-                            ( Loading { state | personalia = Just personalia }, Cmd.none )
+                            ( modelFraLoadingState { state | personalia = Just personalia }, Cmd.none )
 
                         Err error ->
                             ( Failure error, Cmd.none )
@@ -96,7 +117,7 @@ update msg model =
                 Loading state ->
                     case result of
                         Ok cv ->
-                            ( Loading { state | cv = Just cv }, Cmd.none )
+                            ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
 
                         Err error ->
                             case error of
@@ -114,7 +135,7 @@ update msg model =
                 Loading state ->
                     case result of
                         Ok cv ->
-                            ( Loading { state | cv = Just cv }, Cmd.none )
+                            ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
 
                         Err error ->
                             ( Failure error, Cmd.none )
@@ -123,6 +144,21 @@ update msg model =
                     ( model, Cmd.none )
 
         RegistreringsProgresjonHentet result ->
+            ( model, Cmd.none )
+
+
+type Msg
+    = LoadingMsg LoadingMsg
+    | SuccessMsg
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        LoadingMsg lm ->
+            sjekkLoadingMsg lm model
+
+        SuccessMsg ->
             ( model, Cmd.none )
 
 
@@ -161,12 +197,17 @@ main =
         }
 
 
-init : () -> ( Model, Cmd Msg )
+init : () -> ( Model, Cmd LoadingMsg )
 init flags =
     ( Loading
         { cv = Nothing
         , personalia = Nothing
-        , registreringsProgresjon = Nothing
+        , registreringsProgresjon =
+            Just
+                { erDetteFørsteGangManErInneILøsningen = True
+                , personalia = IkkeBegynt
+                , utdanning = IkkeBegynt
+                }
         }
     , Cmd.batch
         [ Api.hentPersonalia PersonaliaHentet

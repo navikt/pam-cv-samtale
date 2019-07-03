@@ -31,7 +31,7 @@ type alias UtdanningInfo =
     , navarende : Maybe Bool ----Maybe bool? ref Dtoen
     , nuskode : Maybe String
     , yrkesskole : String --- Egentlig en enum
-    , harAutorisasjon : Maybe Bool -- Egentlig maybe?
+    , harAutorisasjon : Bool -- Egentlig maybe?
     }
 
 
@@ -98,7 +98,7 @@ yrkesskole (Utdanning info) =
     info.yrkesskole
 
 
-harAutorisasjon : Utdanning -> Maybe Bool
+harAutorisasjon : Utdanning -> Bool
 harAutorisasjon (Utdanning info) =
     info.harAutorisasjon
 
@@ -125,4 +125,4 @@ decodeBackendData =
         |> required "navarende" (nullable bool)
         |> required "nuskode" (nullable string)
         |> required "yrkesskole" string
-        |> required "harAutorisasjon" (nullable bool)
+        |> required "harAutorisasjon" bool

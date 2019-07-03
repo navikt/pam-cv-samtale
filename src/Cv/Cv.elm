@@ -21,7 +21,7 @@ type alias CvInfo =
 
 {--
 
-
+disponererBil:
 
 CVdto:
 
