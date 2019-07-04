@@ -26,9 +26,14 @@ type Seksjonsstatus
 
 
 type Model
-    = Loading LoadingState
+    = Loading LoadingModel
     | Success SuccessModel
     | Failure Http.Error
+
+
+type LoadingModel
+    = VenterPåPerson
+    | VenterPåResten LoadingState
 
 
 type alias LoadingState =
@@ -56,7 +61,7 @@ modelFraLoadingState state =
                 }
 
         _ ->
-            Loading state
+            Loading (VenterPåResten state)
 
 
 
@@ -69,7 +74,9 @@ type Msg
 
 
 type LoadingMsg
-    = PersonaliaHentet (Result Http.Error Personalia)
+    = PersonHentet (Result Http.Error ())
+    | PersonOpprettet (Result Http.Error ())
+    | PersonaliaHentet (Result Http.Error Personalia)
     | PersonaliaOpprettet (Result Http.Error Personalia)
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
@@ -98,7 +105,7 @@ updateLoading msg model =
     case msg of
         PersonaliaHentet result ->
             case model of
-                Loading state ->
+                Loading (VenterPåResten state) ->
                     case result of
                         Ok personalia ->
                             ( modelFraLoadingState { state | personalia = Just personalia }, Cmd.none )
@@ -116,7 +123,7 @@ updateLoading msg model =
 
         PersonaliaOpprettet result ->
             case model of
-                Loading state ->
+                Loading (VenterPåResten state) ->
                     case result of
                         Ok personalia ->
                             ( modelFraLoadingState { state | personalia = Just personalia }, Cmd.none )
@@ -129,7 +136,7 @@ updateLoading msg model =
 
         CvHentet result ->
             case model of
-                Loading state ->
+                Loading (VenterPåResten state) ->
                     case result of
                         Ok cv ->
                             ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
@@ -147,7 +154,7 @@ updateLoading msg model =
 
         CvOpprettet result ->
             case model of
-                Loading state ->
+                Loading (VenterPåResten state) ->
                     case result of
                         Ok cv ->
                             ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
@@ -160,6 +167,48 @@ updateLoading msg model =
 
         RegistreringsProgresjonHentet result ->
             ( model, Cmd.none )
+
+        PersonHentet result ->
+            case result of
+                Ok _ ->
+                    initVenterPåPerson
+
+                Err error ->
+                    case error of
+                        Http.BadStatus 404 ->
+                            ( model, Api.opprettPerson (PersonOpprettet >> LoadingMsg) )
+
+                        _ ->
+                            ( Failure error, Cmd.none )
+
+        PersonOpprettet result ->
+            case result of
+                Ok _ ->
+                    initVenterPåPerson
+
+                Err error ->
+                    ( Failure error, Cmd.none )
+
+
+initVenterPåPerson : ( Model, Cmd Msg )
+initVenterPåPerson =
+    ( Loading
+        (VenterPåResten
+            { cv = Nothing
+            , personalia = Nothing
+            , registreringsProgresjon =
+                Just
+                    { erDetteFørsteGangManErInneILøsningen = True
+                    , personalia = IkkeBegynt
+                    , utdanning = IkkeBegynt
+                    }
+            }
+        )
+    , Cmd.batch
+        [ Api.hentPersonalia (PersonaliaHentet >> LoadingMsg)
+        , Api.hentCv (CvHentet >> LoadingMsg)
+        ]
+    )
 
 
 
@@ -197,20 +246,6 @@ main =
         }
 
 
-init : () -> ( Model, Cmd LoadingMsg )
+init : () -> ( Model, Cmd Msg )
 init flags =
-    ( Loading
-        { cv = Nothing
-        , personalia = Nothing
-        , registreringsProgresjon =
-            Just
-                { erDetteFørsteGangManErInneILøsningen = True
-                , personalia = IkkeBegynt
-                , utdanning = IkkeBegynt
-                }
-        }
-    , Cmd.batch
-        [ Api.hentPersonalia PersonaliaHentet
-        , Api.hentCv CvHentet
-        ]
-    )
+    ( Loading VenterPåPerson, Api.hentPerson (PersonHentet >> LoadingMsg) )

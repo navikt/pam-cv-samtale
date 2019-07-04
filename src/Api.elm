@@ -1,13 +1,32 @@
 module Api exposing
     ( hentCv
+    , hentPerson
     , hentPersonalia
     , opprettCv
+    , opprettPerson
     , opprettPersonalia
     )
 
 import Cv.Cv as Cv exposing (Cv)
 import Http exposing (..)
 import Personalia exposing (Personalia)
+
+
+hentPerson : (Result Error () -> msg) -> Cmd msg
+hentPerson msgConstructor =
+    Http.get
+        { url = "/cv-samtale/api/rest/person"
+        , expect = expectWhatever msgConstructor
+        }
+
+
+opprettPerson : (Result Error () -> msg) -> Cmd msg
+opprettPerson msgConstructor =
+    Http.post
+        { url = "/cv-samtale/api/rest/person"
+        , expect = expectWhatever msgConstructor
+        , body = emptyBody
+        }
 
 
 hentPersonalia : (Result Error Personalia -> msg) -> Cmd msg

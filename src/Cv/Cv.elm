@@ -62,4 +62,4 @@ decodeBackendData =
         |> required "spraakferdighet" (list Spraakferdighet.decode)
         |> required "fagdokumentasjoner" (list Fagdokumentasjon.decode)
         |> required "kompetanseKladdListe" (list KompetanseKladd.decode)
-        |> required "sammendrag" Sammendrag.decode
+        |> required "sammendrag" (nullable Sammendrag.decode)

@@ -11,8 +11,8 @@ module Personalia exposing
     , telefon
     )
 
-import Json.Decode exposing (..)
-import Json.Decode.Pipeline exposing (..)
+import Json.Decode exposing (Decoder, map, nullable, string, succeed)
+import Json.Decode.Pipeline exposing (required)
 
 
 type Personalia
