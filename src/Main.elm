@@ -63,12 +63,27 @@ modelFraLoadingState state =
 --- UPDATE ---
 
 
+type Msg
+    = LoadingMsg LoadingMsg
+    | SuccessMsg
+
+
 type LoadingMsg
     = PersonaliaHentet (Result Http.Error Personalia)
     | PersonaliaOpprettet (Result Http.Error Personalia)
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        LoadingMsg lm ->
+            sjekkLoadingMsg lm model
+
+        SuccessMsg ->
+            ( model, Cmd.none )
 
 
 
@@ -91,7 +106,7 @@ sjekkLoadingMsg msg model =
                         Err error ->
                             case error of
                                 Http.BadStatus 404 ->
-                                    ( model, Api.opprettPersonalia PersonaliaOpprettet )
+                                    ( model, Api.opprettPersonalia (PersonaliaOpprettet >> LoadingMsg) )
 
                                 _ ->
                                     ( Failure error, Cmd.none )
@@ -122,7 +137,7 @@ sjekkLoadingMsg msg model =
                         Err error ->
                             case error of
                                 Http.BadStatus 404 ->
-                                    ( model, Api.opprettCv CvOpprettet )
+                                    ( model, Api.opprettCv (CvOpprettet >> LoadingMsg) )
 
                                 _ ->
                                     ( Failure error, Cmd.none )
@@ -144,21 +159,6 @@ sjekkLoadingMsg msg model =
                     ( model, Cmd.none )
 
         RegistreringsProgresjonHentet result ->
-            ( model, Cmd.none )
-
-
-type Msg
-    = LoadingMsg LoadingMsg
-    | SuccessMsg
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case msg of
-        LoadingMsg lm ->
-            sjekkLoadingMsg lm model
-
-        SuccessMsg ->
             ( model, Cmd.none )
 
 

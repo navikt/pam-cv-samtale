@@ -1,6 +1,7 @@
 module Cv.Cv exposing (Cv, decode)
 
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
+import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
@@ -15,6 +16,7 @@ type alias CvInfo =
     , sistEndretDato : String
     , arbeidserfaring : List Arbeidserfaring
     , utdanninger : List Utdanning
+    , sertifikater : List Sertifikat
     }
 
 
@@ -56,3 +58,4 @@ decodeBackendData =
         |> required "sistEndretDato" string
         |> required "arbeidsErfaring" (list Arbeidserfaring.decode)
         |> required "utdanninger" (list Utdanning.decode)
+        |> required "sertifikater" (list Sertifikat.decode)

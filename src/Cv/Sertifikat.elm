@@ -1,0 +1,90 @@
+module Cv.Sertifikat exposing (Sertifikat, decode, fradato, id, konseptid, sertifikatNavnFritekst, sertifikatnavn, tildato, utsteder)
+
+import Json.Decode exposing (..)
+import Json.Decode.Pipeline exposing (..)
+
+
+type Sertifikat
+    = Sertifikat SertifikatInfo
+
+
+type alias SertifikatInfo =
+    { id : String
+    , sertifikatNavnFritekst : Maybe String
+    , sertifikatnavn : Maybe String
+    , konseptid : Maybe String
+    , utsteder : Maybe String
+    , fradato : Maybe String
+    , tildato : Maybe String
+    }
+
+
+
+{--
+data class SertifikatDto(
+        val id: String?,
+        val sertifikatnavnFritekst: String?,
+        val sertifikatnavn: String?,
+        
+        val konseptId: String?,
+        val utsteder: String?,
+        val fradato: String?,
+        val tildato: String?
+--}
+
+
+id : Sertifikat -> String
+id (Sertifikat info) =
+    info.id
+
+
+sertifikatNavnFritekst : Sertifikat -> Maybe String
+sertifikatNavnFritekst (Sertifikat info) =
+    info.sertifikatNavnFritekst
+
+
+sertifikatnavn : Sertifikat -> Maybe String
+sertifikatnavn (Sertifikat info) =
+    info.sertifikatnavn
+
+
+konseptid : Sertifikat -> Maybe String
+konseptid (Sertifikat info) =
+    info.konseptid
+
+
+fradato : Sertifikat -> Maybe String
+fradato (Sertifikat info) =
+    info.fradato
+
+
+tildato : Sertifikat -> Maybe String
+tildato (Sertifikat info) =
+    info.tildato
+
+
+utsteder : Sertifikat -> Maybe String
+utsteder (Sertifikat info) =
+    info.utsteder
+
+
+
+---- Decoder ----
+
+
+decode : Decoder Sertifikat
+decode =
+    decodeBackendData
+        |> map Sertifikat
+
+
+decodeBackendData : Decoder SertifikatInfo
+decodeBackendData =
+    succeed SertifikatInfo
+        |> required "id" string
+        |> required "sertifikatNavnFritekst" (nullable string)
+        |> required "sertifikatnavn" (nullable string)
+        |> required "konseptid" (nullable string)
+        |> required "utsteder" (nullable string)
+        |> required "fradato" (nullable string)
+        |> required "tildato" (nullable string)
