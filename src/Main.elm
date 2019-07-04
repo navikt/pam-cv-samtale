@@ -9,6 +9,16 @@ import Personalia exposing (Personalia)
 
 
 
+--- SAMTALE ---
+
+
+type Samtale
+    = Introduksjon
+    | Utdanning
+    | ArbeidsErfaring
+
+
+
 --- MODEL ---
 
 
@@ -70,7 +80,12 @@ modelFraLoadingState state =
 
 type Msg
     = LoadingMsg LoadingMsg
-    | SuccessMsg
+    | SuccessMsg SuccessMsg
+
+
+type SuccessMsg
+    = KlarTilÅStarte
+    | OppdaterPersonalia
 
 
 type LoadingMsg
@@ -89,15 +104,23 @@ update msg model =
         LoadingMsg lm ->
             updateLoading lm model
 
-        SuccessMsg ->
-            ( model, Cmd.none )
+        SuccessMsg _ ->
+            case model of
+                Success successModel ->
+                    ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
+updateSuccessModel : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
+updateSuccessModel successMsg model =
+    case successMsg of
+        KlarTilÅStarte ->
+            ( Success model, Cmd.none )
 
-{--
-TODO: FIXME
-Msg =/= LoadingMsg
---}
+        OppdaterPersonalia ->
+            ( Success model, Cmd.none )
 
 
 updateLoading : LoadingMsg -> Model -> ( Model, Cmd Msg )
@@ -230,10 +253,29 @@ view model =
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
-    text "Success"
+    div []
+        [ div []
+            [ text "Navn: "
+            , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia))
+            , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.etternavn successModel.personalia))
+            ]
+        , div []
+            [ text "Telefonnumer: "
+            , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.telefon successModel.personalia))
+            ]
+        ]
 
 
 
+{--
+    text
+        (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia)
+            ++ "\n"
+            ++ Maybe.withDefault "Kunne ikke finne etternavn" (Personalia.etternavn successModel.personalia)
+            ++ "\n"
+            ++ Maybe.withDefault "Kunne ikke finne telefonnummer" (Personalia.telefon successModel.personalia)
+        )
+--}
 --- PROGRAM ---
 
 

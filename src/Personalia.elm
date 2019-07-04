@@ -11,6 +11,7 @@ module Personalia exposing
     , telefon
     )
 
+import Html exposing (Html)
 import Json.Decode exposing (Decoder, map, nullable, string, succeed)
 import Json.Decode.Pipeline exposing (required)
 
