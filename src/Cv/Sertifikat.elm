@@ -19,20 +19,6 @@ type alias SertifikatInfo =
     }
 
 
-
-{--
-data class SertifikatDto(
-        val id: String?,
-        val sertifikatnavnFritekst: String?,
-        val sertifikatnavn: String?,
-        
-        val konseptId: String?,
-        val utsteder: String?,
-        val fradato: String?,
-        val tildato: String?
---}
-
-
 id : Sertifikat -> String
 id (Sertifikat info) =
     info.id

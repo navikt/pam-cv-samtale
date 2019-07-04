@@ -41,24 +41,6 @@ type Yrkesskole
     | Ingen
 
 
-
-{--
-Utdanninger:
-data class UtdanningDto(
-                    val id: String?,
-                    val studiested: String?,
-                    val utdanningsretning: String?,
-                    val fradato: String?,
-                    val tildato: String?,
-                    val beskrivelse: String?,
-                    val navarende: Boolean?,
-                    val nuskode: String?,
-                    val yrkesskole: Yrkesskole? = Yrkesskole.INGEN,
-                    val harAutorisasjon: Boolean? = false
-
---}
-
-
 id : Utdanning -> String
 id (Utdanning info) =
     info.id
