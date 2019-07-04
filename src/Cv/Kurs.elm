@@ -1,4 +1,4 @@
-module Cv.Kurs exposing (Kurs(..), KursInfo, decode, decodeBackendData, id, tidspunkt, tittel, utsteder, varighet, varighetEnhet)
+module Cv.Kurs exposing (Kurs, decode, id, tidspunkt, tittel, utsteder, varighet, varighetEnhet)
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)

@@ -1,5 +1,6 @@
 module Cv.Cv exposing (Cv, decode)
 
+import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
@@ -17,6 +18,7 @@ type alias CvInfo =
     , arbeidserfaring : List Arbeidserfaring
     , utdanninger : List Utdanning
     , sertifikater : List Sertifikat
+    , andreErfaringer : List AnnenErfaring
     }
 
 

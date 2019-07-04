@@ -80,7 +80,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         LoadingMsg lm ->
-            sjekkLoadingMsg lm model
+            updateLoading lm model
 
         SuccessMsg ->
             ( model, Cmd.none )
@@ -93,8 +93,8 @@ Msg =/= LoadingMsg
 --}
 
 
-sjekkLoadingMsg : LoadingMsg -> Model -> ( Model, Cmd Msg )
-sjekkLoadingMsg msg model =
+updateLoading : LoadingMsg -> Model -> ( Model, Cmd Msg )
+updateLoading msg model =
     case msg of
         PersonaliaHentet result ->
             case model of
