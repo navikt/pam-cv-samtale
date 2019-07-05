@@ -4,6 +4,7 @@ import Api
 import Browser
 import Cv.Cv as Cv exposing (Cv)
 import Html exposing (..)
+import Html.Events exposing (onClick)
 import Http
 import Personalia exposing (Personalia)
 
@@ -12,11 +13,31 @@ import Personalia exposing (Personalia)
 --- SAMTALE ---
 
 
-type Samtale
+type SamtaleSeksjon
     = Introduksjon
-    | PersonaligInformasjon
+    | PersonaliaSeksjon PersonaliaSeksjon
     | Utdanning
     | ArbeidsErfaring
+
+
+type PersonaliaSeksjon
+    = Fornavn
+    | Etternavn
+    | Fødselsdato
+    | Telefonnummer
+    | Epost
+    | Boadresse
+
+
+type alias Samtale =
+    { aktivSamtale : SamtaleSeksjon
+    , historikk : List Snakkeboble
+    }
+
+
+type Snakkeboble
+    = Robot String
+    | Bruker String
 
 
 
@@ -59,6 +80,7 @@ type alias SuccessModel =
     { cv : Cv
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
+    , samtale : Samtale
     }
 
 
@@ -70,6 +92,7 @@ modelFraLoadingState state =
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
+                , samtale = { aktivSamtale = Introduksjon, historikk = [] }
                 }
 
         _ ->
@@ -88,6 +111,7 @@ type Msg
 type SuccessMsg
     = KlarTilÅStarte
     | OppdaterPersonalia
+    | BrukerSierHeiIIntroduksjonen
 
 
 type LoadingMsg
@@ -106,10 +130,10 @@ update msg model =
         LoadingMsg lm ->
             updateLoading lm model
 
-        SuccessMsg _ ->
+        SuccessMsg successMsg ->
             case model of
                 Success successModel ->
-                    ( model, Cmd.none )
+                    updateSuccessModel successMsg successModel
 
                 _ ->
                     ( model, Cmd.none )
@@ -123,6 +147,20 @@ updateSuccessModel successMsg model =
 
         OppdaterPersonalia ->
             ( Success model, Cmd.none )
+
+        BrukerSierHeiIIntroduksjonen ->
+            ( nesteSamtaleSteg model (PersonaliaSeksjon Fornavn) |> Success, Cmd.none )
+
+
+nesteSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
+nesteSamtaleSteg ({ samtale } as model) samtaleSeksjon =
+    { model
+        | samtale =
+            { samtale
+                | aktivSamtale = samtaleSeksjon
+                , historikk = model.samtale.historikk ++ [ samtaleTilBoble model.samtale.aktivSamtale ]
+            }
+    }
 
 
 updateLoading : LoadingMsg -> Model -> ( Model, Cmd Msg )
@@ -243,19 +281,80 @@ view model =
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div []
-        [ div []
-            [ text "Navn: "
-            , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia))
-            , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.etternavn successModel.personalia))
-            ]
-        , div []
-            [ text "Telefonnumer: "
-            , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.telefon successModel.personalia))
-            ]
+        [ viewHistorikk successModel.samtale.historikk
+        , viewAktivSamtale successModel.samtale.aktivSamtale
         ]
 
 
+viewHistorikk : List Snakkeboble -> Html Msg
+viewHistorikk historikk =
+    div [] <| List.map viewSnakkeboble historikk
 
+
+viewSnakkeboble : Snakkeboble -> Html Msg
+viewSnakkeboble snakkeboble =
+    case snakkeboble of
+        Robot string ->
+            div []
+                [ text ("Robot: " ++ string)
+                ]
+
+        Bruker string ->
+            div []
+                [ text ("Bruker: " ++ string)
+                ]
+
+
+samtaleTilBoble : SamtaleSeksjon -> Snakkeboble
+samtaleTilBoble samtalesteg =
+    case samtalesteg of
+        Introduksjon ->
+            Robot "Hei!"
+
+        PersonaliaSeksjon _ ->
+            Robot "Personalia"
+
+        _ ->
+            Robot "Ikke implementert"
+
+
+viewAktivSamtale : SamtaleSeksjon -> Html Msg
+viewAktivSamtale aktivSamtale =
+    div []
+        [ aktivSamtale
+            |> samtaleTilBoble
+            |> viewSnakkeboble
+        , viewBrukerInput aktivSamtale
+        ]
+
+
+viewBrukerInput : SamtaleSeksjon -> Html Msg
+viewBrukerInput aktivSamtale =
+    case aktivSamtale of
+        Introduksjon ->
+            button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Hei" ]
+
+        _ ->
+            text ""
+
+
+
+{-
+
+   div []
+       [ div []
+           [ text "Navn: "
+           , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia))
+           , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.etternavn successModel.personalia))
+           ]
+       , div []
+           [ text "Telefonnumer: "
+           , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.telefon successModel.personalia))
+           ]
+       ]
+
+   -
+-}
 {--
     text
         (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia)
