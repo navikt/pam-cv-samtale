@@ -14,6 +14,7 @@ import Personalia exposing (Personalia)
 
 type Samtale
     = Introduksjon
+    | PersonaligInformasjon
     | Utdanning
     | ArbeidsErfaring
 
@@ -43,12 +44,13 @@ type Model
 
 type LoadingModel
     = VenterPåPerson
+    | VenterPåPersonalia
     | VenterPåResten LoadingState
 
 
 type alias LoadingState =
     { cv : Maybe Cv
-    , personalia : Maybe Personalia
+    , personalia : Personalia
     , registreringsProgresjon : Maybe RegistreringsProgresjon
     }
 
@@ -62,11 +64,11 @@ type alias SuccessModel =
 
 modelFraLoadingState : LoadingState -> Model
 modelFraLoadingState state =
-    case ( state.cv, state.personalia, state.registreringsProgresjon ) of
-        ( Just cv, Just personalia, Just registreringsProgresjon ) ->
+    case ( state.cv, state.registreringsProgresjon ) of
+        ( Just cv, Just registreringsProgresjon ) ->
             Success
                 { cv = cv
-                , personalia = personalia
+                , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
                 }
 
@@ -126,36 +128,47 @@ updateSuccessModel successMsg model =
 updateLoading : LoadingMsg -> Model -> ( Model, Cmd Msg )
 updateLoading msg model =
     case msg of
-        PersonaliaHentet result ->
-            case model of
-                Loading (VenterPåResten state) ->
-                    case result of
-                        Ok personalia ->
-                            ( modelFraLoadingState { state | personalia = Just personalia }, Cmd.none )
+        PersonHentet result ->
+            case result of
+                Ok _ ->
+                    ( Loading VenterPåPersonalia, Api.hentPersonalia (PersonaliaHentet >> LoadingMsg) )
 
-                        Err error ->
-                            case error of
-                                Http.BadStatus 404 ->
-                                    ( model, Api.opprettPersonalia (PersonaliaOpprettet >> LoadingMsg) )
+                Err error ->
+                    case error of
+                        Http.BadStatus 404 ->
+                            ( model, Api.opprettPerson (PersonOpprettet >> LoadingMsg) )
 
-                                _ ->
-                                    ( Failure error, Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        PersonaliaOpprettet result ->
-            case model of
-                Loading (VenterPåResten state) ->
-                    case result of
-                        Ok personalia ->
-                            ( modelFraLoadingState { state | personalia = Just personalia }, Cmd.none )
-
-                        Err error ->
+                        _ ->
                             ( Failure error, Cmd.none )
 
-                _ ->
-                    ( model, Cmd.none )
+        PersonOpprettet result ->
+            case result of
+                Ok _ ->
+                    ( Loading VenterPåPersonalia, Api.hentPersonalia (PersonaliaHentet >> LoadingMsg) )
+
+                Err error ->
+                    ( Failure error, Cmd.none )
+
+        PersonaliaHentet result ->
+            case result of
+                Ok personalia ->
+                    initVenterPåResten personalia
+
+                Err error ->
+                    case error of
+                        Http.BadStatus 404 ->
+                            ( model, Api.opprettPersonalia (PersonaliaOpprettet >> LoadingMsg) )
+
+                        _ ->
+                            ( Failure error, Cmd.none )
+
+        PersonaliaOpprettet result ->
+            case result of
+                Ok personalia ->
+                    initVenterPåResten personalia
+
+                Err error ->
+                    ( Failure error, Cmd.none )
 
         CvHentet result ->
             case model of
@@ -191,34 +204,13 @@ updateLoading msg model =
         RegistreringsProgresjonHentet result ->
             ( model, Cmd.none )
 
-        PersonHentet result ->
-            case result of
-                Ok _ ->
-                    initVenterPåPerson
 
-                Err error ->
-                    case error of
-                        Http.BadStatus 404 ->
-                            ( model, Api.opprettPerson (PersonOpprettet >> LoadingMsg) )
-
-                        _ ->
-                            ( Failure error, Cmd.none )
-
-        PersonOpprettet result ->
-            case result of
-                Ok _ ->
-                    initVenterPåPerson
-
-                Err error ->
-                    ( Failure error, Cmd.none )
-
-
-initVenterPåPerson : ( Model, Cmd Msg )
-initVenterPåPerson =
+initVenterPåResten : Personalia -> ( Model, Cmd Msg )
+initVenterPåResten personalia =
     ( Loading
         (VenterPåResten
             { cv = Nothing
-            , personalia = Nothing
+            , personalia = personalia
             , registreringsProgresjon =
                 Just
                     { erDetteFørsteGangManErInneILøsningen = True
@@ -227,10 +219,7 @@ initVenterPåPerson =
                     }
             }
         )
-    , Cmd.batch
-        [ Api.hentPersonalia (PersonaliaHentet >> LoadingMsg)
-        , Api.hentCv (CvHentet >> LoadingMsg)
-        ]
+    , Api.hentCv (CvHentet >> LoadingMsg)
     )
 
 
