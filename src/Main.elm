@@ -108,7 +108,7 @@ type Msg
 type SuccessMsg
     = KlarTilÅStarte
     | OppdaterPersonalia
-    | BrukerSierHeiIIntroduksjonen
+    | BrukerSierHeiIIntroduksjonen String
 
 
 type LoadingMsg
@@ -145,17 +145,17 @@ updateSuccessModel successMsg model =
         OppdaterPersonalia ->
             ( Success model, Cmd.none )
 
-        BrukerSierHeiIIntroduksjonen ->
-            ( nesteSamtaleSteg model (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
+        BrukerSierHeiIIntroduksjonen userInput ->
+            ( nesteSamtaleSteg model userInput (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
 
 
-nesteSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
-nesteSamtaleSteg ({ samtale } as model) samtaleSeksjon =
+nesteSamtaleSteg : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel
+nesteSamtaleSteg ({ samtale } as model) tekst samtaleSeksjon =
     { model
         | samtale =
             { samtale
                 | aktivSamtale = samtaleSeksjon
-                , historikk = model.samtale.historikk ++ [ samtaleTilBoble model.samtale.aktivSamtale ]
+                , historikk = model.samtale.historikk ++ [ samtaleTilBoble model.samtale.aktivSamtale, Bruker tekst ]
             }
     }
 
@@ -329,7 +329,7 @@ viewBrukerInput : SamtaleSeksjon -> Html Msg
 viewBrukerInput aktivSamtale =
     case aktivSamtale of
         Introduksjon ->
-            button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Hei" ]
+            button [ onClick (SuccessMsg (BrukerSierHeiIIntroduksjonen "Hallo på deg, lille robot!")) ] [ text "Hei" ]
 
         _ ->
             text ""
