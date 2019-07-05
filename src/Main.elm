@@ -245,37 +245,41 @@ view model =
             text "spinner"
 
         Success successModel ->
-            viewSuccess successModel
+            viewIntroduksjon successModel
 
         Failure error ->
             Debug.toString error |> text
 
 
-viewSuccess : SuccessModel -> Html Msg
-viewSuccess successModel =
+viewIntroduksjon : SuccessModel -> Html Msg
+viewIntroduksjon successModel =
     div []
         [ div []
-            [ text "Navn: "
+            [ text "Fornavn: "
             , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia))
-            , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.etternavn successModel.personalia))
+            ]
+        , div []
+            [ text "Etternavn: "
+            , text (Maybe.withDefault "Kunne ikke finne etternavn" (Personalia.etternavn successModel.personalia))
             ]
         , div []
             [ text "Telefonnumer: "
             , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.telefon successModel.personalia))
             ]
+        , div []
+            [ text "Epost: "
+            , text (Maybe.withDefault "Kunne ikke finne Epost" (Personalia.epost successModel.personalia))
+            ]
+        , div []
+            [ text "Fødselsdato: "
+            , text (Maybe.withDefault "Kunne ikke finne fødselsdato" (Personalia.fodselsdato successModel.personalia))
+            ]
+        , div []
+            [ text "Er dette riktig?" ]
         ]
 
 
 
-{--
-    text
-        (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia)
-            ++ "\n"
-            ++ Maybe.withDefault "Kunne ikke finne etternavn" (Personalia.etternavn successModel.personalia)
-            ++ "\n"
-            ++ Maybe.withDefault "Kunne ikke finne telefonnummer" (Personalia.telefon successModel.personalia)
-        )
---}
 --- PROGRAM ---
 
 
