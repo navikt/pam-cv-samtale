@@ -7,6 +7,7 @@ import Html exposing (..)
 import Html.Events exposing (onClick)
 import Http
 import Personalia exposing (Personalia)
+import PersonaliaSkjema exposing (PersonaliaSkjema)
 
 
 
@@ -21,12 +22,8 @@ type SamtaleSeksjon
 
 
 type PersonaliaSeksjon
-    = Fornavn
-    | Etternavn
-    | Fødselsdato
-    | Telefonnummer
-    | Epost
-    | Boadresse
+    = BekreftOriginal Personalia
+    | EndreOriginal PersonaliaSkjema
 
 
 type alias Samtale =
@@ -149,7 +146,7 @@ updateSuccessModel successMsg model =
             ( Success model, Cmd.none )
 
         BrukerSierHeiIIntroduksjonen ->
-            ( nesteSamtaleSteg model (PersonaliaSeksjon Fornavn) |> Success, Cmd.none )
+            ( nesteSamtaleSteg model (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
 
 
 nesteSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
