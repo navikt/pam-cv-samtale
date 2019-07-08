@@ -1,5 +1,6 @@
-module Skjema.Personalia exposing (PersonaliaSkjema, fornavn)
+module Skjema.Personalia exposing (Felt(..), PersonaliaSkjema, encode, epost, etternavn, fodselsdato, fornavn, gateadresse, init, oppdaterFelt, postnummer, poststed, telefon)
 
+import Json.Encode
 import Personalia exposing (Personalia)
 
 
@@ -19,12 +20,15 @@ type alias PersonaliaSkjemaInfo =
     }
 
 
-type Adresse
-    = Adresse AdresseInfo
-
-
-type alias AdresseInfo =
-    {}
+type Felt
+    = Fornavn
+    | Etternavn
+    | Fodelsdato
+    | Epost
+    | Telefon
+    | Gateadresse
+    | Postnummer
+    | Poststed
 
 
 fornavn : PersonaliaSkjema -> String
@@ -79,3 +83,47 @@ init personalia =
         , postnummer = Personalia.postnummer personalia |> Maybe.withDefault ""
         , poststed = Personalia.poststed personalia |> Maybe.withDefault ""
         }
+
+
+oppdaterFelt : Felt -> PersonaliaSkjema -> String -> PersonaliaSkjema
+oppdaterFelt felt (PersonaliaSkjema info) input =
+    case felt of
+        Fornavn ->
+            PersonaliaSkjema { info | fornavn = input }
+
+        Etternavn ->
+            PersonaliaSkjema { info | etternavn = input }
+
+        Fodelsdato ->
+            PersonaliaSkjema { info | fodselsdato = input }
+
+        Epost ->
+            PersonaliaSkjema { info | epost = input }
+
+        Telefon ->
+            PersonaliaSkjema { info | telefon = input }
+
+        Gateadresse ->
+            PersonaliaSkjema { info | gateadresse = input }
+
+        Postnummer ->
+            PersonaliaSkjema { info | postnummer = input }
+
+        Poststed ->
+            PersonaliaSkjema { info | poststed = input }
+
+
+encode : PersonaliaSkjema -> String -> Json.Encode.Value
+encode (PersonaliaSkjema info) id =
+    Json.Encode.object
+        [ ( "id", Json.Encode.string id )
+        , ( "fornavn", Json.Encode.string info.fornavn )
+        , ( "etternavn", Json.Encode.string info.etternavn )
+        , ( "fodselsdato", Json.Encode.string info.fodselsdato )
+        , ( "epost", Json.Encode.string info.epost )
+        , ( "telefon", Json.Encode.string info.telefon )
+        , ( "gateadresse", Json.Encode.string info.gateadresse )
+        , ( "postnummer", Json.Encode.string info.postnummer )
+        , ( "poststed", Json.Encode.string info.poststed )
+        , ( "lenker", Json.Encode.string "" )
+        ]

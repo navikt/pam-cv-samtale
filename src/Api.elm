@@ -2,6 +2,7 @@ module Api exposing
     ( hentCv
     , hentPerson
     , hentPersonalia
+    , oppdaterPersonalia
     , opprettCv
     , opprettPerson
     , opprettPersonalia
@@ -10,6 +11,7 @@ module Api exposing
 import Cv.Cv as Cv exposing (Cv)
 import Http exposing (..)
 import Personalia exposing (Personalia)
+import Skjema.Personalia
 
 
 hentPerson : (Result Error () -> msg) -> Cmd msg
@@ -46,6 +48,15 @@ opprettPersonalia msgConstructor =
         }
 
 
+oppdaterPersonalia : (Result Error Personalia -> msg) -> Skjema.Personalia.PersonaliaSkjema -> String -> Cmd msg
+oppdaterPersonalia msgConstructor skjema id =
+    put
+        { url = "/cv-samtale/api/rest/person/personalia"
+        , expect = expectJson msgConstructor Personalia.decode
+        , body = Skjema.Personalia.encode skjema id |> jsonBody
+        }
+
+
 hentCv : (Result Error Cv -> msg) -> Cmd msg
 hentCv msgConstructor =
     Http.get
@@ -60,4 +71,22 @@ opprettCv msgConstructor =
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         , body = emptyBody
+        }
+
+
+put :
+    { url : String
+    , body : Body
+    , expect : Expect msg
+    }
+    -> Cmd msg
+put r =
+    request
+        { method = "PUT"
+        , headers = []
+        , url = r.url
+        , body = r.body
+        , expect = r.expect
+        , timeout = Nothing
+        , tracker = Nothing
         }

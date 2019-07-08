@@ -6,6 +6,7 @@ module Personalia exposing
     , fodselsdato
     , fornavn
     , gateadresse
+    , id
     , postnummer
     , poststed
     , telefon
@@ -21,7 +22,8 @@ type Personalia
 
 
 type alias PersonaliaInfo =
-    { fornavn : Maybe String
+    { id : String
+    , fornavn : Maybe String
     , etternavn : Maybe String
     , epost : Maybe String
     , telefon : Maybe String
@@ -30,6 +32,11 @@ type alias PersonaliaInfo =
     , postnummer : Maybe String
     , poststed : Maybe String
     }
+
+
+id : Personalia -> String
+id (Personalia info) =
+    info.id
 
 
 fornavn : Personalia -> Maybe String
@@ -85,6 +92,7 @@ decode =
 decodeBackendData : Decoder PersonaliaInfo
 decodeBackendData =
     succeed PersonaliaInfo
+        |> required "id" string
         |> required "fornavn" (nullable string)
         |> required "etternavn" (nullable string)
         |> required "epost" (nullable string)

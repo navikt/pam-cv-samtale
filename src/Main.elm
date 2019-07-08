@@ -4,7 +4,8 @@ import Api
 import Browser
 import Cv.Cv as Cv exposing (Cv)
 import Html exposing (..)
-import Html.Events exposing (onClick)
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
 import Http
 import Personalia exposing (Personalia)
 import Skjema.Personalia exposing (PersonaliaSkjema)
@@ -24,6 +25,8 @@ type SamtaleSeksjon
 type PersonaliaSeksjon
     = BekreftOriginal Personalia
     | EndreOriginal PersonaliaSkjema
+    | LagrerEndring PersonaliaSkjema
+    | LagringFeilet Http.Error PersonaliaSkjema
 
 
 type alias Samtale =
@@ -109,6 +112,9 @@ type SuccessMsg
     = BrukerSierHeiIIntroduksjonen
     | OriginalPersonaliaBekreftet
     | BrukerVilEndreOriginalPersonalia
+    | PersonaliaSkjemaEndret Skjema.Personalia.Felt String
+    | PersonaliaskjemaLagreknappTrykket
+    | PersonaliaOppdatert (Result Http.Error Personalia)
 
 
 type LoadingMsg
@@ -146,7 +152,66 @@ updateSuccessModel successMsg model =
             ( nesteSamtaleSteg model "Bekreft" (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
 
         BrukerVilEndreOriginalPersonalia ->
-            ( nesteSamtaleSteg model "Endre" (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
+            ( model.personalia
+                |> Skjema.Personalia.init
+                |> EndreOriginal
+                |> PersonaliaSeksjon
+                |> nesteSamtaleSteg model "Endre"
+                |> Success
+            , Cmd.none
+            )
+
+        PersonaliaSkjemaEndret felt string ->
+            case model.samtale.aktivSamtale of
+                PersonaliaSeksjon (EndreOriginal skjema) ->
+                    ( Skjema.Personalia.oppdaterFelt felt skjema string
+                        |> EndreOriginal
+                        |> PersonaliaSeksjon
+                        |> oppdaterSamtaleSteg model
+                        |> Success
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model |> Success, Cmd.none )
+
+        PersonaliaskjemaLagreknappTrykket ->
+            case model.samtale.aktivSamtale of
+                PersonaliaSeksjon (EndreOriginal skjema) ->
+                    ( skjema
+                        |> LagrerEndring
+                        |> PersonaliaSeksjon
+                        |> nesteSamtaleSteg model "Det jeg fylte ut"
+                        |> Success
+                    , model.personalia
+                        |> Personalia.id
+                        |> Api.oppdaterPersonalia (PersonaliaOppdatert >> SuccessMsg) skjema
+                    )
+
+                _ ->
+                    ( model |> Success, Cmd.none )
+
+        PersonaliaOppdatert result ->
+            case model.samtale.aktivSamtale of
+                PersonaliaSeksjon (LagrerEndring skjema) ->
+                    case result of
+                        Ok personalia ->
+                            ( Utdanning
+                                |> nesteSamtaleSteg model "Ok"
+                                |> Success
+                            , Cmd.none
+                            )
+
+                        Err error ->
+                            ( LagringFeilet error skjema
+                                |> PersonaliaSeksjon
+                                |> nesteSamtaleSteg model "Olø noe gikk galt ass brusjan"
+                                |> Success
+                            , Cmd.none
+                            )
+
+                _ ->
+                    ( model |> Success, Cmd.none )
 
 
 nesteSamtaleSteg : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel
@@ -156,6 +221,16 @@ nesteSamtaleSteg ({ samtale } as model) tekst samtaleSeksjon =
             { samtale
                 | aktivSamtale = samtaleSeksjon
                 , historikk = model.samtale.historikk ++ [ samtaleTilBoble model.samtale.aktivSamtale, Bruker tekst ]
+            }
+    }
+
+
+oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
+oppdaterSamtaleSteg ({ samtale } as model) samtaleSeksjon =
+    { model
+        | samtale =
+            { samtale
+                | aktivSamtale = samtaleSeksjon
             }
     }
 
@@ -331,6 +406,12 @@ personaliaSamtaleTilBoble personaliaSeksjon =
         EndreOriginal personaliaSkjema ->
             Robot "Endre personalia"
 
+        LagrerEndring personaliaSkjema ->
+            Robot "Spinner"
+
+        LagringFeilet error personaliaSkjema ->
+            Robot "Lagring feilet"
+
 
 viewAktivSamtale : SamtaleSeksjon -> Html Msg
 viewAktivSamtale aktivSamtale =
@@ -360,11 +441,67 @@ viewBrukerInputPersonalia personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
             div []
-                [ button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Endre" ]
-                , button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Bekreft" ]
+                [ button [ onClick (SuccessMsg BrukerVilEndreOriginalPersonalia) ] [ text "Endre" ]
+                , button [ onClick (SuccessMsg OriginalPersonaliaBekreftet) ] [ text "Bekreft" ]
                 ]
 
         EndreOriginal personaliaSkjema ->
+            div []
+                [ label [] [ text "Fornavn" ]
+                , input
+                    [ Skjema.Personalia.fornavn personaliaSkjema |> value
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Fornavn >> SuccessMsg)
+                    ]
+                    []
+                , label [] [ text "Etternavn" ]
+                , input
+                    [ Skjema.Personalia.etternavn personaliaSkjema |> value
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Etternavn >> SuccessMsg)
+                    ]
+                    []
+                , label [] [ text "Fødselsdato" ]
+                , input
+                    [ Skjema.Personalia.fodselsdato personaliaSkjema |> value
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Fodelsdato >> SuccessMsg)
+                    ]
+                    []
+                , label [] [ text "Epost" ]
+                , input
+                    [ Skjema.Personalia.epost personaliaSkjema |> value
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Epost >> SuccessMsg)
+                    ]
+                    []
+                , label [] [ text "Telefon" ]
+                , input
+                    [ Skjema.Personalia.telefon personaliaSkjema |> value
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Telefon >> SuccessMsg)
+                    ]
+                    []
+                , label [] [ text "Gateadresse" ]
+                , input
+                    [ Skjema.Personalia.gateadresse personaliaSkjema |> value
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Gateadresse >> SuccessMsg)
+                    ]
+                    []
+                , label [] [ text "Postnummer" ]
+                , input
+                    [ Skjema.Personalia.postnummer personaliaSkjema |> value
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Postnummer >> SuccessMsg)
+                    ]
+                    []
+                , label [] [ text "Poststed" ]
+                , input
+                    [ Skjema.Personalia.poststed personaliaSkjema |> value
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Poststed >> SuccessMsg)
+                    ]
+                    []
+                , button [ onClick (SuccessMsg PersonaliaskjemaLagreknappTrykket) ] [ text "Lagre" ]
+                ]
+
+        LagrerEndring personaliaSkjema ->
+            text ""
+
+        LagringFeilet error personaliaSkjema ->
             text ""
 
 
