@@ -8,40 +8,12 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
 import Personalia exposing (Personalia)
-import Skjema.Personalia exposing (PersonaliaSkjema)
+import Seksjon.Personalia
+import Snakkeboble exposing (Snakkeboble(..))
 
 
 
---- SAMTALE ---
-
-
-type SamtaleSeksjon
-    = Introduksjon
-    | PersonaliaSeksjon PersonaliaSeksjon
-    | Utdanning
-    | ArbeidsErfaring
-
-
-type PersonaliaSeksjon
-    = BekreftOriginal Personalia
-    | EndreOriginal PersonaliaSkjema
-    | LagrerEndring PersonaliaSkjema
-    | LagringFeilet Http.Error PersonaliaSkjema
-
-
-type alias Samtale =
-    { aktivSamtale : SamtaleSeksjon
-    , historikk : List Snakkeboble
-    }
-
-
-type Snakkeboble
-    = Robot String
-    | Bruker String
-
-
-
---- MODEL ---
+--- RegistreringsProgresjon ---
 
 
 type alias RegistreringsProgresjon =
@@ -55,6 +27,10 @@ type Seksjonsstatus
     = IkkeBegynt
     | Begynt
     | Fullført
+
+
+
+--- MODEL ---
 
 
 type Model
@@ -80,23 +56,16 @@ type alias SuccessModel =
     { cv : Cv
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
-    , samtale : Samtale
+    , aktivSamtale : SamtaleSeksjon
+    , historikk : List Snakkeboble
     }
 
 
-modelFraLoadingState : LoadingState -> Model
-modelFraLoadingState state =
-    case ( state.cv, state.registreringsProgresjon ) of
-        ( Just cv, Just registreringsProgresjon ) ->
-            Success
-                { cv = cv
-                , personalia = state.personalia
-                , registreringsProgresjon = registreringsProgresjon
-                , samtale = { aktivSamtale = Introduksjon, historikk = [] }
-                }
-
-        _ ->
-            Loading (VenterPåResten state)
+type SamtaleSeksjon
+    = Introduksjon
+    | PersonaliaSeksjon Seksjon.Personalia.Model
+    | Utdanning
+    | ArbeidsErfaring
 
 
 
@@ -106,15 +75,6 @@ modelFraLoadingState state =
 type Msg
     = LoadingMsg LoadingMsg
     | SuccessMsg SuccessMsg
-
-
-type SuccessMsg
-    = BrukerSierHeiIIntroduksjonen
-    | OriginalPersonaliaBekreftet
-    | BrukerVilEndreOriginalPersonalia
-    | PersonaliaSkjemaEndret Skjema.Personalia.Felt String
-    | PersonaliaskjemaLagreknappTrykket
-    | PersonaliaOppdatert (Result Http.Error Personalia)
 
 
 type LoadingMsg
@@ -127,6 +87,11 @@ type LoadingMsg
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
 
 
+type SuccessMsg
+    = BrukerSierHeiIIntroduksjonen
+    | PersonaliaMsg Seksjon.Personalia.Msg
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -136,103 +101,14 @@ update msg model =
         SuccessMsg successMsg ->
             case model of
                 Success successModel ->
-                    updateSuccessModel successMsg successModel
+                    updateSuccess successMsg successModel
 
                 _ ->
                     ( model, Cmd.none )
 
 
-updateSuccessModel : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
-updateSuccessModel successMsg model =
-    case successMsg of
-        BrukerSierHeiIIntroduksjonen ->
-            ( nesteSamtaleSteg model "Hei!" (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
 
-        OriginalPersonaliaBekreftet ->
-            ( nesteSamtaleSteg model "Bekreft" (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
-
-        BrukerVilEndreOriginalPersonalia ->
-            ( model.personalia
-                |> Skjema.Personalia.init
-                |> EndreOriginal
-                |> PersonaliaSeksjon
-                |> nesteSamtaleSteg model "Endre"
-                |> Success
-            , Cmd.none
-            )
-
-        PersonaliaSkjemaEndret felt string ->
-            case model.samtale.aktivSamtale of
-                PersonaliaSeksjon (EndreOriginal skjema) ->
-                    ( Skjema.Personalia.oppdaterFelt felt skjema string
-                        |> EndreOriginal
-                        |> PersonaliaSeksjon
-                        |> oppdaterSamtaleSteg model
-                        |> Success
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( model |> Success, Cmd.none )
-
-        PersonaliaskjemaLagreknappTrykket ->
-            case model.samtale.aktivSamtale of
-                PersonaliaSeksjon (EndreOriginal skjema) ->
-                    ( skjema
-                        |> LagrerEndring
-                        |> PersonaliaSeksjon
-                        |> nesteSamtaleSteg model "Det jeg fylte ut"
-                        |> Success
-                    , model.personalia
-                        |> Personalia.id
-                        |> Api.oppdaterPersonalia (PersonaliaOppdatert >> SuccessMsg) skjema
-                    )
-
-                _ ->
-                    ( model |> Success, Cmd.none )
-
-        PersonaliaOppdatert result ->
-            case model.samtale.aktivSamtale of
-                PersonaliaSeksjon (LagrerEndring skjema) ->
-                    case result of
-                        Ok personalia ->
-                            ( Utdanning
-                                |> nesteSamtaleSteg model "Ok"
-                                |> Success
-                            , Cmd.none
-                            )
-
-                        Err error ->
-                            ( LagringFeilet error skjema
-                                |> PersonaliaSeksjon
-                                |> nesteSamtaleSteg model "Olø noe gikk galt ass brusjan"
-                                |> Success
-                            , Cmd.none
-                            )
-
-                _ ->
-                    ( model |> Success, Cmd.none )
-
-
-nesteSamtaleSteg : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel
-nesteSamtaleSteg ({ samtale } as model) tekst samtaleSeksjon =
-    { model
-        | samtale =
-            { samtale
-                | aktivSamtale = samtaleSeksjon
-                , historikk = model.samtale.historikk ++ [ samtaleTilBoble model.samtale.aktivSamtale, Bruker tekst ]
-            }
-    }
-
-
-oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
-oppdaterSamtaleSteg ({ samtale } as model) samtaleSeksjon =
-    { model
-        | samtale =
-            { samtale
-                | aktivSamtale = samtaleSeksjon
-            }
-    }
+--- Loading ---
 
 
 updateLoading : LoadingMsg -> Model -> ( Model, Cmd Msg )
@@ -315,6 +191,22 @@ updateLoading msg model =
             ( model, Cmd.none )
 
 
+modelFraLoadingState : LoadingState -> Model
+modelFraLoadingState state =
+    case ( state.cv, state.registreringsProgresjon ) of
+        ( Just cv, Just registreringsProgresjon ) ->
+            Success
+                { cv = cv
+                , personalia = state.personalia
+                , registreringsProgresjon = registreringsProgresjon
+                , aktivSamtale = Introduksjon
+                , historikk = []
+                }
+
+        _ ->
+            Loading (VenterPåResten state)
+
+
 initVenterPåResten : Personalia -> ( Model, Cmd Msg )
 initVenterPåResten personalia =
     ( Loading
@@ -331,6 +223,61 @@ initVenterPåResten personalia =
         )
     , Api.hentCv (CvHentet >> LoadingMsg)
     )
+
+
+
+--- Success ---
+
+
+updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
+updateSuccess successMsg model =
+    case successMsg of
+        BrukerSierHeiIIntroduksjonen ->
+            ( nesteSamtaleSteg model "Hei!" (PersonaliaSeksjon (Seksjon.Personalia.init model.personalia)) |> Success, Cmd.none )
+
+        PersonaliaMsg msg ->
+            case model.aktivSamtale of
+                PersonaliaSeksjon personaliaModel ->
+                    case Seksjon.Personalia.update msg personaliaModel of
+                        Seksjon.Personalia.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> PersonaliaSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (PersonaliaMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Personalia.Ferdig personalia historikk ->
+                            personaliaFerdig model personalia historikk
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+
+nesteSamtaleSteg : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel
+nesteSamtaleSteg model tekst samtaleSeksjon =
+    { model
+        | aktivSamtale = samtaleSeksjon
+        , historikk = model.historikk ++ [ samtaleTilBoble model.aktivSamtale, Bruker tekst ]
+    }
+
+
+personaliaFerdig : SuccessModel -> Personalia -> List Snakkeboble -> ( Model, Cmd Msg )
+personaliaFerdig model personalia historikk =
+    ( Success
+        { model
+            | historikk = model.historikk ++ historikk
+            , aktivSamtale = Utdanning
+        }
+    , Cmd.none
+    )
+
+
+oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
+oppdaterSamtaleSteg model samtaleSeksjon =
+    { model
+        | aktivSamtale = samtaleSeksjon
+    }
 
 
 
@@ -353,9 +300,25 @@ view model =
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div []
-        [ viewHistorikk successModel.samtale.historikk
-        , viewAktivSamtale successModel.samtale.aktivSamtale
+        [ viewHistorikk (successModel.historikk ++ seksjonshistorikk successModel)
+        , viewAktivSamtale successModel.aktivSamtale
         ]
+
+
+seksjonshistorikk : SuccessModel -> List Snakkeboble
+seksjonshistorikk successModel =
+    case successModel.aktivSamtale of
+        Introduksjon ->
+            []
+
+        PersonaliaSeksjon model ->
+            Seksjon.Personalia.historikk model
+
+        Utdanning ->
+            []
+
+        ArbeidsErfaring ->
+            []
 
 
 viewHistorikk : List Snakkeboble -> Html Msg
@@ -384,33 +347,10 @@ samtaleTilBoble samtalesteg =
             Robot "Hei!"
 
         PersonaliaSeksjon personaliaSeksjon ->
-            personaliaSamtaleTilBoble personaliaSeksjon
+            Robot "Ikke implementert"
 
         _ ->
             Robot "Ikke implementert"
-
-
-personaliaSamtaleTilBoble : PersonaliaSeksjon -> Snakkeboble
-personaliaSamtaleTilBoble personaliaSeksjon =
-    case personaliaSeksjon of
-        BekreftOriginal personalia ->
-            Robot
-                ("Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
-                    ++ "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
-                    ++ "Fornavn: "
-                    ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
-                    ++ " Etternavn: "
-                    ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
-                )
-
-        EndreOriginal personaliaSkjema ->
-            Robot "Endre personalia"
-
-        LagrerEndring personaliaSkjema ->
-            Robot "Spinner"
-
-        LagringFeilet error personaliaSkjema ->
-            Robot "Lagring feilet"
 
 
 viewAktivSamtale : SamtaleSeksjon -> Html Msg
@@ -430,107 +370,15 @@ viewBrukerInput aktivSamtale =
             button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Hei!" ]
 
         PersonaliaSeksjon personaliaSeksjon ->
-            viewBrukerInputPersonalia personaliaSeksjon
+            personaliaSeksjon
+                |> Seksjon.Personalia.viewBrukerInput
+                |> Html.map (PersonaliaMsg >> SuccessMsg)
 
         _ ->
             text ""
 
 
-viewBrukerInputPersonalia : PersonaliaSeksjon -> Html Msg
-viewBrukerInputPersonalia personaliaSeksjon =
-    case personaliaSeksjon of
-        BekreftOriginal personalia ->
-            div []
-                [ button [ onClick (SuccessMsg BrukerVilEndreOriginalPersonalia) ] [ text "Endre" ]
-                , button [ onClick (SuccessMsg OriginalPersonaliaBekreftet) ] [ text "Bekreft" ]
-                ]
 
-        EndreOriginal personaliaSkjema ->
-            div []
-                [ label [] [ text "Fornavn" ]
-                , input
-                    [ Skjema.Personalia.fornavn personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Fornavn >> SuccessMsg)
-                    ]
-                    []
-                , label [] [ text "Etternavn" ]
-                , input
-                    [ Skjema.Personalia.etternavn personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Etternavn >> SuccessMsg)
-                    ]
-                    []
-                , label [] [ text "Fødselsdato" ]
-                , input
-                    [ Skjema.Personalia.fodselsdato personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Fodelsdato >> SuccessMsg)
-                    ]
-                    []
-                , label [] [ text "Epost" ]
-                , input
-                    [ Skjema.Personalia.epost personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Epost >> SuccessMsg)
-                    ]
-                    []
-                , label [] [ text "Telefon" ]
-                , input
-                    [ Skjema.Personalia.telefon personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Telefon >> SuccessMsg)
-                    ]
-                    []
-                , label [] [ text "Gateadresse" ]
-                , input
-                    [ Skjema.Personalia.gateadresse personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Gateadresse >> SuccessMsg)
-                    ]
-                    []
-                , label [] [ text "Postnummer" ]
-                , input
-                    [ Skjema.Personalia.postnummer personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Postnummer >> SuccessMsg)
-                    ]
-                    []
-                , label [] [ text "Poststed" ]
-                , input
-                    [ Skjema.Personalia.poststed personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Poststed >> SuccessMsg)
-                    ]
-                    []
-                , button [ onClick (SuccessMsg PersonaliaskjemaLagreknappTrykket) ] [ text "Lagre" ]
-                ]
-
-        LagrerEndring personaliaSkjema ->
-            text ""
-
-        LagringFeilet error personaliaSkjema ->
-            text ""
-
-
-
-{-
-
-   div []
-       [ div []
-           [ text "Navn: "
-           , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia))
-           , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.etternavn successModel.personalia))
-           ]
-       , div []
-           [ text "Telefonnumer: "
-           , text (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.telefon successModel.personalia))
-           ]
-       ]
-
-   -
--}
-{--
-    text
-        (Maybe.withDefault "Kunne ikke finne fornavn" (Personalia.fornavn successModel.personalia)
-            ++ "\n"
-            ++ Maybe.withDefault "Kunne ikke finne etternavn" (Personalia.etternavn successModel.personalia)
-            ++ "\n"
-            ++ Maybe.withDefault "Kunne ikke finne telefonnummer" (Personalia.telefon successModel.personalia)
-        )
---}
 --- PROGRAM ---
 
 
