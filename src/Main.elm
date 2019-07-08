@@ -7,7 +7,7 @@ import Html exposing (..)
 import Html.Events exposing (onClick)
 import Http
 import Personalia exposing (Personalia)
-import PersonaliaSkjema exposing (PersonaliaSkjema)
+import Skjema.Personalia exposing (PersonaliaSkjema)
 
 
 
@@ -106,9 +106,9 @@ type Msg
 
 
 type SuccessMsg
-    = KlarTilÅStarte
-    | OppdaterPersonalia
-    | BrukerSierHeiIIntroduksjonen String
+    = BrukerSierHeiIIntroduksjonen
+    | OriginalPersonaliaBekreftet
+    | BrukerVilEndreOriginalPersonalia
 
 
 type LoadingMsg
@@ -139,14 +139,14 @@ update msg model =
 updateSuccessModel : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
 updateSuccessModel successMsg model =
     case successMsg of
-        KlarTilÅStarte ->
-            ( Success model, Cmd.none )
+        BrukerSierHeiIIntroduksjonen ->
+            ( nesteSamtaleSteg model "Hei!" (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
 
-        OppdaterPersonalia ->
-            ( Success model, Cmd.none )
+        OriginalPersonaliaBekreftet ->
+            ( nesteSamtaleSteg model "Bekreft" (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
 
-        BrukerSierHeiIIntroduksjonen userInput ->
-            ( nesteSamtaleSteg model userInput (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
+        BrukerVilEndreOriginalPersonalia ->
+            ( nesteSamtaleSteg model "Endre" (PersonaliaSeksjon (BekreftOriginal model.personalia)) |> Success, Cmd.none )
 
 
 nesteSamtaleSteg : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel
@@ -308,11 +308,28 @@ samtaleTilBoble samtalesteg =
         Introduksjon ->
             Robot "Hei!"
 
-        PersonaliaSeksjon _ ->
-            Robot "Personalia"
+        PersonaliaSeksjon personaliaSeksjon ->
+            personaliaSamtaleTilBoble personaliaSeksjon
 
         _ ->
             Robot "Ikke implementert"
+
+
+personaliaSamtaleTilBoble : PersonaliaSeksjon -> Snakkeboble
+personaliaSamtaleTilBoble personaliaSeksjon =
+    case personaliaSeksjon of
+        BekreftOriginal personalia ->
+            Robot
+                ("Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
+                    ++ "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
+                    ++ "Fornavn: "
+                    ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
+                    ++ " Etternavn: "
+                    ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
+                )
+
+        EndreOriginal personaliaSkjema ->
+            Robot "Endre personalia"
 
 
 viewAktivSamtale : SamtaleSeksjon -> Html Msg
@@ -329,9 +346,25 @@ viewBrukerInput : SamtaleSeksjon -> Html Msg
 viewBrukerInput aktivSamtale =
     case aktivSamtale of
         Introduksjon ->
-            button [ onClick (SuccessMsg (BrukerSierHeiIIntroduksjonen "Hallo på deg, lille robot!")) ] [ text "Hei" ]
+            button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Hei!" ]
+
+        PersonaliaSeksjon personaliaSeksjon ->
+            viewBrukerInputPersonalia personaliaSeksjon
 
         _ ->
+            text ""
+
+
+viewBrukerInputPersonalia : PersonaliaSeksjon -> Html Msg
+viewBrukerInputPersonalia personaliaSeksjon =
+    case personaliaSeksjon of
+        BekreftOriginal personalia ->
+            div []
+                [ button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Endre" ]
+                , button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Bekreft" ]
+                ]
+
+        EndreOriginal personaliaSkjema ->
             text ""
 
 
