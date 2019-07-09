@@ -29,3 +29,6 @@ spec:
         enabled: true
     ingresses:
         - {{{ ingress }}}
+    env:
+        - name: API_GATEWAY_HOST
+          value: {{{ apiGatewayHost }}}

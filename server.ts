@@ -6,8 +6,12 @@ import * as path from 'path';
 if (!process.env.PAM_CV_API_PROXY_KEY) {
     throw new Error("Miljøvariabel PAM_CV_API_PROXY_KEY er ikke satt");
 }
+if (!process.env.API_GATEWAY_HOST) {
+    throw new Error("Miljøvariabel API_GATEWAY_HOST er ikke satt");
+}
 
 const MILJOVARIABLER = {
+    API_GATEWAY_HOST: process.env.API_GATEWAY_HOST,
     PROXY_API_KEY: process.env.PAM_CV_API_PROXY_KEY
 };
 
@@ -24,7 +28,7 @@ server.get('/cv-samtale/internal/isReady', (req, res) => res.sendStatus(200));
 
 server.use(
     '/cv-samtale/api',
-    proxy('api-gateway', {
+    proxy(MILJOVARIABLER.API_GATEWAY_HOST, {
         https: true,
         proxyReqOptDecorator: (proxyReqOpts: any, srcReq: any) => ({
             ...proxyReqOpts,
