@@ -1,7 +1,11 @@
-module Seksjon.Utdanning exposing (Model, ModelInfo, Msg, Samtale(..), SamtaleStatus(..), historikk, init, update)
+module Seksjon.Utdanning exposing (Model, ModelInfo, Msg, Samtale(..), SamtaleStatus(..), historikk, init, update, viewUtdanning)
 
 import Cv.Utdanning as Cv exposing (Utdanning)
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
 import Personalia exposing (Personalia)
+import Skjema.Utdanning exposing (UtdanningSkjema)
 import Snakkeboble exposing (Snakkeboble(..))
 
 
@@ -14,15 +18,46 @@ type Model
 
 
 type alias ModelInfo =
-    { historikk : List Snakkeboble, aktivSamtale : Samtale, utdanning : List Utdanning }
+    { historikk : List Snakkeboble, aktivSamtale : Samtale, utdanningListe : List Utdanning, nivå : String }
 
 
 type Samtale
-    = BekreftOriginal
+    = Intro
+    | FullførtRegistrering
+    | RegistrerUtdanning
+    | RegistrerNivå String
+    | RegistrerRetning NivåInfo
+    | RegistrerSkole NivåRetningInfo
+    | RegistrerBeskrivelse NivåRetningSkoleInfo
+    | RegistrerPeriode NivåRetningSkoleBeskrivelseInfo
+    | Oppsummering NivåRetningSkoleBeskrivelsePeriodeInfo
+
+
+type alias NivåInfo =
+    { nivå : String }
+
+
+type alias NivåRetningInfo =
+    { nivå : String, retning : String }
+
+
+type alias NivåRetningSkoleInfo =
+    { nivå : String, retning : String, skole : String }
+
+
+type alias NivåRetningSkoleBeskrivelseInfo =
+    { nivå : String, retning : String, skole : String, beskrivelse : String }
+
+
+type alias NivåRetningSkoleBeskrivelsePeriodeInfo =
+    { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String }
 
 
 type Msg
-    = UtdanningBekreftet
+    = BrukerVilRegistrereNyUtdanning
+    | GåTilArbeidserfaring
+    | BekreftAlleredeRegistrert
+    | BrukerVilRegistrerNivå String
 
 
 type SamtaleStatus
@@ -37,9 +72,36 @@ type SamtaleStatus
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        UtdanningBekreftet ->
-            -- FIXME: her blir ikke historien oppdatert før den blir sendt videre
-            Ferdig model.utdanning model.historikk
+        BrukerVilRegistrereNyUtdannning ->
+            case model.aktivSamtale of
+                FullførtRegistrering ->
+                    IkkeFerdig ( model, Cmd.none )
+
+                _ ->
+                    IkkeFerdig ( model, Cmd.none )
+
+        {--
+            ( model.aktivSamtale
+                |> RegistrerNivå tekst
+                |> nesteSamtaleSteg model "Endre"
+            , Cmd.none
+            )
+                |> IkkeFerdig
+--}
+        GåTilArbeidserfaring ->
+            Ferdig model.utdanningListe model.historikk
+
+        BekreftAlleredeRegistrert ->
+            ( model.nivå
+                |> RegistrerNivå
+                |> nesteSamtaleSteg model "Endre"
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+
+
+{--Ferdig model.utdanning model.historikk--}
 
 
 historikk : Model -> List Snakkeboble
@@ -68,9 +130,67 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 samtaleTilBoble : Samtale -> Snakkeboble
 samtaleTilBoble utdanningSeksjon =
     case utdanningSeksjon of
-        BekreftOriginal ->
-            Robot
-                "Nå skal vi fylle ut utdanningen din."
+        Intro ->
+            Robot "Nå skal jeg spise barna dine!"
+
+        FullførtRegistrering ->
+            Robot "Gå videre"
+
+        RegistrerUtdanning ->
+            Robot "Gå videre"
+
+        RegistrerNivå nivå ->
+            Robot ("Du har valgt nivå " ++ nivå)
+
+        RegistrerRetning ->
+            Robot "Gå videre"
+
+        RegistrerSkole ->
+            Robot "Gå videre"
+
+        RegistrerBeskrivelse ->
+            Robot "Gå videre"
+
+        RegistrerPeriode ->
+            Robot "Gå videre"
+
+        Oppsummering ->
+            Robot "Gå videre"
+
+
+viewUtdanning : Model -> Html Msg
+viewUtdanning (Model { aktivSamtale }) =
+    case aktivSamtale of
+        Intro ->
+            div []
+                [ text "Hei, nå skal vi legge til utdanningen din"
+                , button [ onClick VilRegistrereNyUtdanning ] [ text "Jeg vil registrere utdanning" ]
+                , button [ onClick GåTilArbeidserfaring ] [ text "Jeg har ingen utdanning" ]
+                ]
+
+        FullførtRegistrering ->
+            div [] []
+
+        RegistrerUtdanning ->
+            div [] []
+
+        RegistrerNivå nivå ->
+            div [] []
+
+        RegistrerRetning ->
+            div [] []
+
+        RegistrerSkole ->
+            div [] []
+
+        RegistrerBeskrivelse ->
+            div [] []
+
+        RegistrerPeriode ->
+            div [] []
+
+        Oppsummering ->
+            div [] []
 
 
 
@@ -78,5 +198,5 @@ samtaleTilBoble utdanningSeksjon =
 
 
 init : List Utdanning -> Model
-init utdanning =
-    Model { historikk = [], aktivSamtale = BekreftOriginal, utdanning = utdanning }
+init utdanningListe =
+    Model { historikk = [], aktivSamtale = Intro, utdanningListe = utdanningListe, nivå = "" }

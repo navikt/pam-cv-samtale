@@ -1,4 +1,4 @@
-module Cv.Cv exposing (Cv, decode, utdanninger)
+module Cv.Cv exposing (Cv, decode, utdanningListe)
 
 import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
@@ -24,7 +24,7 @@ type alias CvInfo =
     , sistEndretDato : String
     , sistEndretAvNav : Bool
     , arbeidserfaring : List Arbeidserfaring
-    , utdanninger : List Utdanning
+    , utdanningListe : List Utdanning
     , sertifikater : List Sertifikat
     , forerkort : List Forerkort
     , annenErfaring : List AnnenErfaring
@@ -40,56 +40,69 @@ type alias CvInfo =
 ------- GETTERS
 
 
+disponererBil : Cv -> Bool
 disponererBil (Cv info) =
-    info.cvid
-
-
-sistEndretDato (Cv info) =
     info.disponererBil
 
 
-sistEndretAvNav (Cv info) =
+sistEndretDato : Cv -> String
+sistEndretDato (Cv info) =
     info.sistEndretDato
 
 
-arbeidserfaring (Cv info) =
+sistEndretAvNav : Cv -> Bool
+sistEndretAvNav (Cv info) =
     info.sistEndretAvNav
 
 
-utdanninger (Cv info) =
-    info.utdanninger
+arbeidserfaring : Cv -> List Arbeidserfaring
+arbeidserfaring (Cv info) =
+    info.arbeidserfaring
 
 
+utdanningListe : Cv -> List Utdanning
+utdanningListe (Cv info) =
+    info.utdanningListe
+
+
+sertifikater : Cv -> List Sertifikat
 sertifikater (Cv info) =
-    info.utdanninger
-
-
-forerkort (Cv info) =
     info.sertifikater
 
 
-annenErfaring (Cv info) =
+forerkort : Cv -> List Forerkort
+forerkort (Cv info) =
     info.forerkort
 
 
-kurs (Cv info) =
+annenErfaring : Cv -> List AnnenErfaring
+annenErfaring (Cv info) =
     info.annenErfaring
 
 
-spraakferdighet (Cv info) =
+kurs : Cv -> List Kurs
+kurs (Cv info) =
     info.kurs
 
 
-fagdokumentasjoner (Cv info) =
+spraakferdighet : Cv -> List Spraakferdighet
+spraakferdighet (Cv info) =
     info.spraakferdighet
 
 
-kompetanseKladdListe (Cv info) =
+fagdokumentasjoner : Cv -> List Fagdokumentasjon
+fagdokumentasjoner (Cv info) =
     info.fagdokumentasjoner
 
 
-sammendrag (Cv info) =
+kompetanseKladdListe : Cv -> List KompetanseKladd
+kompetanseKladdListe (Cv info) =
     info.kompetanseKladdListe
+
+
+sammendrag : Cv -> Maybe Sammendrag
+sammendrag (Cv info) =
+    info.sammendrag
 
 
 

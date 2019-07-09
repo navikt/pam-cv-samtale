@@ -288,7 +288,7 @@ personaliaFerdig model personalia historikk =
     ( Success
         { model
             | historikk = model.historikk ++ historikk
-            , aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (Cv.utdanninger model.cv))
+            , aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (Cv.utdanningListe model.cv))
         }
     , Cmd.none
     )
@@ -409,8 +409,11 @@ viewBrukerInput aktivSamtale =
                 |> Seksjon.Personalia.viewBrukerInput
                 |> Html.map (PersonaliaMsg >> SuccessMsg)
 
+        UtdanningSeksjon utdanningSeksjon ->
+            utdanningSeksjon |> Seksjon.Utdanning.viewUtdanning |> Html.map (UtdanningsMsg >> SuccessMsg)
+
         _ ->
-            text ""
+            text "Ikke implementert"
 
 
 
