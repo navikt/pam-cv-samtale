@@ -24,7 +24,8 @@ server.get('/cv-samtale/internal/isReady', (req, res) => res.sendStatus(200));
 
 server.use(
     '/cv-samtale/api',
-    proxy('http://api-gateway', {
+    proxy('api-gateway', {
+        https: true,
         proxyReqOptDecorator: (proxyReqOpts: any, srcReq: any) => ({
             ...proxyReqOpts,
             cookie: srcReq.headers.cookie,
