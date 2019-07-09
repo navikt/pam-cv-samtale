@@ -294,7 +294,7 @@ view model =
             viewSuccess successModel
 
         Failure error ->
-            Debug.toString error |> text
+            text "error"
 
 
 viewSuccess : SuccessModel -> Html Msg
