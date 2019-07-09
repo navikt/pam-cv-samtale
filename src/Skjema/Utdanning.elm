@@ -1,0 +1,1 @@
+module Skjema.Utdanning exposing (..)

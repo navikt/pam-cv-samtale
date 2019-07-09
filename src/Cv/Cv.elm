@@ -1,4 +1,4 @@
-module Cv.Cv exposing (Cv, decode)
+module Cv.Cv exposing (Cv, decode, utdanninger)
 
 import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
@@ -34,6 +34,62 @@ type alias CvInfo =
     , kompetanseKladdListe : List KompetanseKladd
     , sammendrag : Maybe Sammendrag
     }
+
+
+
+------- GETTERS
+
+
+disponererBil (Cv info) =
+    info.cvid
+
+
+sistEndretDato (Cv info) =
+    info.disponererBil
+
+
+sistEndretAvNav (Cv info) =
+    info.sistEndretDato
+
+
+arbeidserfaring (Cv info) =
+    info.sistEndretAvNav
+
+
+utdanninger (Cv info) =
+    info.utdanninger
+
+
+sertifikater (Cv info) =
+    info.utdanninger
+
+
+forerkort (Cv info) =
+    info.sertifikater
+
+
+annenErfaring (Cv info) =
+    info.forerkort
+
+
+kurs (Cv info) =
+    info.annenErfaring
+
+
+spraakferdighet (Cv info) =
+    info.kurs
+
+
+fagdokumentasjoner (Cv info) =
+    info.spraakferdighet
+
+
+kompetanseKladdListe (Cv info) =
+    info.fagdokumentasjoner
+
+
+sammendrag (Cv info) =
+    info.kompetanseKladdListe
 
 
 

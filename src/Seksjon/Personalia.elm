@@ -55,6 +55,7 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         OriginalPersonaliaBekreftet ->
+            -- FIXME: her blir ikke historien oppdatert før den blir sendt videre
             Ferdig model.personalia model.historikk
 
         BrukerVilEndreOriginalPersonalia ->
@@ -120,7 +121,7 @@ nesteSamtaleSteg model tekst samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
-            , historikk = model.historikk ++ [ Bruker tekst ]
+            , historikk = model.historikk ++ [ samtaleTilBoble model.aktivSamtale, samtaleTilBoble samtaleSeksjon, Bruker tekst ]
         }
 
 
@@ -129,6 +130,7 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
+            , historikk = model.historikk ++ [ samtaleTilBoble samtaleSeksjon ]
         }
 
 
@@ -146,7 +148,7 @@ samtaleTilBoble personaliaSeksjon =
                 )
 
         EndreOriginal personaliaSkjema ->
-            Robot "Endre personalia"
+            Robot "Du har valgt å endre personaliaskjema"
 
         LagrerEndring personaliaSkjema ->
             Robot "Spinner"

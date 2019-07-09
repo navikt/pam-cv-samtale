@@ -2,13 +2,15 @@ module Main exposing (main)
 
 import Api
 import Browser
-import Cv.Cv as Cv exposing (Cv)
+import Cv.Cv as Cv exposing (..)
+import Cv.Utdanning exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
 import Personalia exposing (Personalia)
 import Seksjon.Personalia
+import Seksjon.Utdanning
 import Snakkeboble exposing (Snakkeboble(..))
 
 
@@ -64,8 +66,8 @@ type alias SuccessModel =
 type SamtaleSeksjon
     = Introduksjon
     | PersonaliaSeksjon Seksjon.Personalia.Model
-    | Utdanning
-    | ArbeidsErfaring
+    | UtdanningSeksjon Seksjon.Utdanning.Model
+    | ArbeidsErfaringSeksjon
 
 
 
@@ -90,6 +92,7 @@ type LoadingMsg
 type SuccessMsg
     = BrukerSierHeiIIntroduksjonen
     | PersonaliaMsg Seksjon.Personalia.Msg
+    | UtdanningsMsg Seksjon.Utdanning.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -253,12 +256,30 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        UtdanningsMsg msg ->
+            case model.aktivSamtale of
+                UtdanningSeksjon utdanningModel ->
+                    case Seksjon.Utdanning.update msg utdanningModel of
+                        Seksjon.Utdanning.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> UtdanningSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (UtdanningsMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Utdanning.Ferdig utdanning historikk ->
+                            utdanningFerdig model utdanning historikk
+
+                _ ->
+                    ( Success model, Cmd.none )
+
 
 nesteSamtaleSteg : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel
 nesteSamtaleSteg model tekst samtaleSeksjon =
     { model
         | aktivSamtale = samtaleSeksjon
-        , historikk = model.historikk ++ [ samtaleTilBoble model.aktivSamtale, Bruker tekst ]
+        , historikk = model.historikk ++ [ samtaleTilBoble model model.aktivSamtale, Bruker tekst ]
     }
 
 
@@ -267,7 +288,18 @@ personaliaFerdig model personalia historikk =
     ( Success
         { model
             | historikk = model.historikk ++ historikk
-            , aktivSamtale = Utdanning
+            , aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (Cv.utdanninger model.cv))
+        }
+    , Cmd.none
+    )
+
+
+utdanningFerdig : SuccessModel -> List Utdanning -> List Snakkeboble -> ( Model, Cmd Msg )
+utdanningFerdig model utdanning hisorikk =
+    ( Success
+        { model
+            | historikk = model.historikk ++ hisorikk
+            , aktivSamtale = ArbeidsErfaringSeksjon
         }
     , Cmd.none
     )
@@ -301,7 +333,7 @@ viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div []
         [ viewHistorikk (successModel.historikk ++ seksjonshistorikk successModel)
-        , viewAktivSamtale successModel.aktivSamtale
+        , viewAktivSamtale successModel successModel.aktivSamtale
         ]
 
 
@@ -314,10 +346,10 @@ seksjonshistorikk successModel =
         PersonaliaSeksjon model ->
             Seksjon.Personalia.historikk model
 
-        Utdanning ->
-            []
+        UtdanningSeksjon model ->
+            Seksjon.Utdanning.historikk model
 
-        ArbeidsErfaring ->
+        ArbeidsErfaringSeksjon ->
             []
 
 
@@ -340,24 +372,27 @@ viewSnakkeboble snakkeboble =
                 ]
 
 
-samtaleTilBoble : SamtaleSeksjon -> Snakkeboble
-samtaleTilBoble samtalesteg =
+samtaleTilBoble : SuccessModel -> SamtaleSeksjon -> Snakkeboble
+samtaleTilBoble model samtalesteg =
     case samtalesteg of
         Introduksjon ->
             Robot "Hei!"
 
         PersonaliaSeksjon personaliaSeksjon ->
-            Robot "Ikke implementert"
+            Robot ("Jeg har funnet ut at du heter " ++ Maybe.withDefault "Kunne ikke hente" (Personalia.fornavn model.personalia))
 
-        _ ->
-            Robot "Ikke implementert"
+        UtdanningSeksjon utdanningSeksjon ->
+            Robot "La oss fortsette med utdanningen din. (Ikke implementert)"
+
+        ArbeidsErfaringSeksjon ->
+            Robot "Her kommer din arbeidserfaring. (Ikke implementert)"
 
 
-viewAktivSamtale : SamtaleSeksjon -> Html Msg
-viewAktivSamtale aktivSamtale =
+viewAktivSamtale : SuccessModel -> SamtaleSeksjon -> Html Msg
+viewAktivSamtale model aktivSamtale =
     div []
         [ aktivSamtale
-            |> samtaleTilBoble
+            |> samtaleTilBoble model
             |> viewSnakkeboble
         , viewBrukerInput aktivSamtale
         ]
