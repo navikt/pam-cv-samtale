@@ -1,12 +1,13 @@
-module Seksjon.Utdanning exposing (Model, ModelInfo, Msg, Samtale(..), SamtaleStatus(..), historikk, init, update, viewUtdanning)
+module Seksjon.Utdanning exposing (Model, ModelInfo, Msg, Samtale(..), SamtaleStatus(..), init, update, viewUtdanning)
 
 import Cv.Utdanning as Cv exposing (Utdanning)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Melding exposing (Melding(..))
+import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
 import Skjema.Utdanning exposing (UtdanningSkjema)
-import Snakkeboble exposing (Snakkeboble(..))
 
 
 
@@ -18,7 +19,7 @@ type Model
 
 
 type alias ModelInfo =
-    { historikk : List Snakkeboble, aktivSamtale : Samtale, utdanningListe : List Utdanning, nivå : String }
+    { seksjonsMeldingsLogg : MeldingsLogg, aktivSamtale : Samtale, utdanningListe : List Utdanning, nivå : String }
 
 
 type Samtale
@@ -66,7 +67,7 @@ type Msg
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Utdanning) (List Snakkeboble)
+    | Ferdig (List Utdanning) MeldingsLogg
 
 
 
@@ -93,19 +94,14 @@ update msg (Model model) =
                 |> IkkeFerdig
 --}
         GåTilArbeidserfaring ->
-            Ferdig model.utdanningListe model.historikk
+            Ferdig model.utdanningListe model.seksjonsMeldingsLogg
 
         _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
 
 
-{--Ferdig model.utdanning model.historikk--}
-
-
-historikk : Model -> List Snakkeboble
-historikk (Model model) =
-    model.historikk ++ [ samtaleTilBoble model.aktivSamtale ]
+{--Ferdig model.utdanning model.meldingsLogg--}
 
 
 nesteSamtaleSteg : ModelInfo -> String -> Samtale -> Model
@@ -113,7 +109,6 @@ nesteSamtaleSteg model tekst samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
-            , historikk = model.historikk ++ [ samtaleTilBoble model.aktivSamtale, samtaleTilBoble samtaleSeksjon, Bruker tekst ]
         }
 
 
@@ -122,39 +117,35 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
-            , historikk = model.historikk ++ [ samtaleTilBoble samtaleSeksjon ]
         }
 
 
-samtaleTilBoble : Samtale -> Snakkeboble
-samtaleTilBoble utdanningSeksjon =
+samtaleTilMeldingsLogg : Samtale -> ModelInfo -> MeldingsLogg
+samtaleTilMeldingsLogg utdanningSeksjon model =
     case utdanningSeksjon of
         Intro ->
-            Robot "Nå skal jeg spise barna dine!"
+            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
+                [ Melding.spørsmål
+                    [ "Intro" ]
+                ]
 
         FullførtRegistrering ->
-            Robot "Gå videre"
+            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
+                [ Melding.spørsmål
+                    [ "Du har valgt å endre personaliaskjema" ]
+                ]
 
         RegistrerUtdanning ->
-            Robot "Gå videre"
+            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
+                [ Melding.spørsmål
+                    [ "Du har valgt å endre personaliaskjema" ]
+                ]
 
-        RegistrerNivå info ->
-            Robot ("Du har valgt nivå " ++ info.nivå)
-
-        RegistrerRetning info ->
-            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning)
-
-        RegistrerSkole info ->
-            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning ++ "skole: " ++ info.skole)
-
-        RegistrerBeskrivelse info ->
-            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning ++ "skole: " ++ info.skole ++ "beskrivelse: " ++ info.beskrivelse)
-
-        RegistrerPeriode info ->
-            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning ++ "skole: " ++ info.skole ++ "beskrivelse: " ++ info.beskrivelse ++ "periode: " ++ info.periode)
-
-        Oppsummering info ->
-            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning ++ "skole: " ++ info.skole ++ "beskrivelse: " ++ info.beskrivelse ++ "periode: " ++ info.periode ++ "oppsummering: " ++ info.oppsummering)
+        _ ->
+            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
+                [ Melding.spørsmål
+                    [ "Diverse valg" ]
+                ]
 
 
 viewUtdanning : Model -> Html Msg
@@ -196,6 +187,6 @@ viewUtdanning (Model { aktivSamtale }) =
 --- INIT ---
 
 
-init : List Utdanning -> Model
-init utdanningListe =
-    Model { historikk = [], aktivSamtale = Intro, utdanningListe = utdanningListe, nivå = "" }
+init : MeldingsLogg -> List Utdanning -> Model
+init gammelMeldingsLogg utdanningListe =
+    Model { seksjonsMeldingsLogg = gammelMeldingsLogg, aktivSamtale = Intro, utdanningListe = utdanningListe, nivå = "" }
