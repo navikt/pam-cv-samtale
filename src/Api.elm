@@ -2,6 +2,7 @@ module Api exposing
     ( hentCv
     , hentPerson
     , hentPersonalia
+    , logError
     , oppdaterPersonalia
     , opprettCv
     , opprettPerson
@@ -9,6 +10,7 @@ module Api exposing
     )
 
 import Cv.Cv as Cv exposing (Cv)
+import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
 import Personalia exposing (Personalia)
 import Skjema.Personalia
@@ -71,6 +73,15 @@ opprettCv msgConstructor =
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         , body = emptyBody
+        }
+
+
+logError : (Result Error () -> msg) -> Feilmelding -> Cmd msg
+logError msgConstructor feilmelding =
+    Http.post
+        { url = "/cv-samtale/log"
+        , expect = expectWhatever msgConstructor
+        , body = Feilmelding.encode feilmelding |> jsonBody
         }
 
 

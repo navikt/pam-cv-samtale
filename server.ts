@@ -16,6 +16,7 @@ const MILJOVARIABLER = {
 };
 
 const server = express();
+server.use(express.json())
 
 // security
 server.disable('x-powered-by');
@@ -25,6 +26,13 @@ server.use(helmet());
 server.get('/cv-samtale/internal/isAlive', (req, res) => res.sendStatus(200));
 server.get('/cv-samtale/internal/isReady', (req, res) => res.sendStatus(200));
 
+server.post('/cv-samtale/log', (req, res) => {
+    console.log({
+        ...req.body,
+        level: "Error"
+    });
+    res.sendStatus(200);
+});
 
 server.use(
     '/cv-samtale/api',
