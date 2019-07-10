@@ -25,12 +25,12 @@ type Samtale
     = Intro
     | FullførtRegistrering
     | RegistrerUtdanning
-    | RegistrerNivå String
-    | RegistrerRetning NivåInfo
-    | RegistrerSkole NivåRetningInfo
-    | RegistrerBeskrivelse NivåRetningSkoleInfo
-    | RegistrerPeriode NivåRetningSkoleBeskrivelseInfo
-    | Oppsummering NivåRetningSkoleBeskrivelsePeriodeInfo
+    | RegistrerNivå NivåInfo
+    | RegistrerRetning NivåRetningInfo
+    | RegistrerSkole NivåRetningSkoleInfo
+    | RegistrerBeskrivelse NivåRetningSkoleBeskrivelseInfo
+    | RegistrerPeriode NivåRetningSkoleBeskrivelsePeriodeInfo
+    | Oppsummering NivåRetningSkoleBeskrivelsePeriodeOppsummeringInfo
 
 
 type alias NivåInfo =
@@ -51,6 +51,10 @@ type alias NivåRetningSkoleBeskrivelseInfo =
 
 type alias NivåRetningSkoleBeskrivelsePeriodeInfo =
     { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String }
+
+
+type alias NivåRetningSkoleBeskrivelsePeriodeOppsummeringInfo =
+    { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String, oppsummering : String }
 
 
 type Msg
@@ -91,13 +95,8 @@ update msg (Model model) =
         GåTilArbeidserfaring ->
             Ferdig model.utdanningListe model.historikk
 
-        BekreftAlleredeRegistrert ->
-            ( model.nivå
-                |> RegistrerNivå
-                |> nesteSamtaleSteg model "Endre"
-            , Cmd.none
-            )
-                |> IkkeFerdig
+        _ ->
+            IkkeFerdig ( Model model, Cmd.none )
 
 
 
@@ -139,23 +138,23 @@ samtaleTilBoble utdanningSeksjon =
         RegistrerUtdanning ->
             Robot "Gå videre"
 
-        RegistrerNivå tekst ->
-            Robot ("Du har valgt nivå " ++ tekst)
+        RegistrerNivå info ->
+            Robot ("Du har valgt nivå " ++ info.nivå)
 
-        RegistrerRetning tekst ->
-            Robot ("Du har valgt nivå " ++ tekst)
+        RegistrerRetning info ->
+            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning)
 
-        RegistrerSkole ->
-            Robot "Gå videre"
+        RegistrerSkole info ->
+            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning ++ "skole: " ++ info.skole)
 
-        RegistrerBeskrivelse ->
-            Robot "Gå videre"
+        RegistrerBeskrivelse info ->
+            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning ++ "skole: " ++ info.skole ++ "beskrivelse: " ++ info.beskrivelse)
 
-        RegistrerPeriode ->
-            Robot "Gå videre"
+        RegistrerPeriode info ->
+            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning ++ "skole: " ++ info.skole ++ "beskrivelse: " ++ info.beskrivelse ++ "periode: " ++ info.periode)
 
-        Oppsummering ->
-            Robot "Gå videre"
+        Oppsummering info ->
+            Robot ("Du har valgt nivå " ++ info.nivå ++ "retning: " ++ info.retning ++ "skole: " ++ info.skole ++ "beskrivelse: " ++ info.beskrivelse ++ "periode: " ++ info.periode ++ "oppsummering: " ++ info.oppsummering)
 
 
 viewUtdanning : Model -> Html Msg
@@ -164,7 +163,7 @@ viewUtdanning (Model { aktivSamtale }) =
         Intro ->
             div []
                 [ text "Hei, nå skal vi legge til utdanningen din"
-                , button [ onClick VilRegistrereNyUtdanning ] [ text "Jeg vil registrere utdanning" ]
+                , button [ onClick BrukerVilRegistrereNyUtdanning ] [ text "Jeg vil registrere utdanning" ]
                 , button [ onClick GåTilArbeidserfaring ] [ text "Jeg har ingen utdanning" ]
                 ]
 
@@ -177,19 +176,19 @@ viewUtdanning (Model { aktivSamtale }) =
         RegistrerNivå nivå ->
             div [] []
 
-        RegistrerRetning ->
+        RegistrerRetning nivåInfo ->
             div [] []
 
-        RegistrerSkole ->
+        RegistrerSkole nivåRetningInfo ->
             div [] []
 
-        RegistrerBeskrivelse ->
+        RegistrerBeskrivelse nivåRetningSkoleInfo ->
             div [] []
 
-        RegistrerPeriode ->
+        RegistrerPeriode nivåRetningSkoleBeskrivelseInfo ->
             div [] []
 
-        Oppsummering ->
+        Oppsummering nivåRetningSkoleBeskrivelsePeriodeInfo ->
             div [] []
 
 
