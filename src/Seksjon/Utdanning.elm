@@ -72,13 +72,13 @@ type SamtaleStatus
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        BrukerVilRegistrereNyUtdannning ->
+        BrukerVilRegistrereNyUtdanning ->
             case model.aktivSamtale of
                 FullførtRegistrering ->
-                    IkkeFerdig ( model, Cmd.none )
+                    IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
-                    IkkeFerdig ( model, Cmd.none )
+                    IkkeFerdig ( Model model, Cmd.none )
 
         {--
             ( model.aktivSamtale
@@ -139,11 +139,11 @@ samtaleTilBoble utdanningSeksjon =
         RegistrerUtdanning ->
             Robot "Gå videre"
 
-        RegistrerNivå nivå ->
-            Robot ("Du har valgt nivå " ++ nivå)
+        RegistrerNivå tekst ->
+            Robot ("Du har valgt nivå " ++ tekst)
 
-        RegistrerRetning ->
-            Robot "Gå videre"
+        RegistrerRetning tekst ->
+            Robot ("Du har valgt nivå " ++ tekst)
 
         RegistrerSkole ->
             Robot "Gå videre"
