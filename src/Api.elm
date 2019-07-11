@@ -9,9 +9,11 @@ module Api exposing
     , opprettPersonalia
     )
 
+import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
+import Json.Decode
 import Personalia exposing (Personalia)
 import Skjema.Personalia
 
@@ -73,6 +75,14 @@ opprettCv msgConstructor =
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         , body = emptyBody
+        }
+
+
+hentAAreg : (Result Error (List Arbeidserfaring) -> msg) -> Cmd msg
+hentAAreg msgConstructor =
+    Http.get
+        { url = "/cv-samtale/api/rest/aareg"
+        , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
         }
 
 
