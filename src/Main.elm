@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (SuccessMsg, main)
 
 import Api
 import Browser
@@ -9,6 +9,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
 import Personalia exposing (Personalia)
+import Seksjon.Arbeidserfaring
 import Seksjon.Personalia
 import Snakkeboble exposing (Snakkeboble(..))
 
@@ -92,6 +93,7 @@ type LoadingMsg
 type SuccessMsg
     = BrukerSierHeiIIntroduksjonen
     | PersonaliaMsg Seksjon.Personalia.Msg
+    | ArbeidserfaringMsg Seksjon.Arbeidserfaring.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -283,6 +285,9 @@ updateSuccess successMsg model =
 
                 _ ->
                     ( Success model, Cmd.none )
+
+        ArbeidserfaringMsg msg ->
+            ( Success model, Cmd.none )
 
 
 nesteSamtaleSteg : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel

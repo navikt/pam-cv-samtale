@@ -1,5 +1,6 @@
 module Api exposing
-    ( hentCv
+    ( hentAAreg
+    , hentCv
     , hentPerson
     , hentPersonalia
     , logError

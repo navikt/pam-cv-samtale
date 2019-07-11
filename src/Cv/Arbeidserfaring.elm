@@ -23,7 +23,7 @@ type Arbeidserfaring
     = Arbeidserfaring ArbeidserfaringInfo
 
 
-type AAregArbeidserfating
+type AAregArbeidserfaring
     = AAregArbeidserfaring (List ArbeidserfaringInfo)
 
 
