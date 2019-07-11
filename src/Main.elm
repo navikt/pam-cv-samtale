@@ -4,6 +4,7 @@ import Api
 import Browser
 import Cv.Cv as Cv exposing (..)
 import Cv.Utdanning exposing (..)
+import Feilmelding
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -77,6 +78,7 @@ type SamtaleSeksjon
 type Msg
     = LoadingMsg LoadingMsg
     | SuccessMsg SuccessMsg
+    | ErrorLogget (Result Http.Error ())
 
 
 type LoadingMsg
@@ -109,6 +111,9 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        ErrorLogget _ ->
+            ( model, Cmd.none )
+
 
 
 --- Loading ---
@@ -128,7 +133,9 @@ updateLoading msg model =
                             ( model, Api.opprettPerson (PersonOpprettet >> LoadingMsg) )
 
                         _ ->
-                            ( Failure error, Cmd.none )
+                            ( Failure error
+                            , logFeilmelding error "Hent Person"
+                            )
 
         PersonOpprettet result ->
             case result of
@@ -136,7 +143,9 @@ updateLoading msg model =
                     ( Loading VenterPåPersonalia, Api.hentPersonalia (PersonaliaHentet >> LoadingMsg) )
 
                 Err error ->
-                    ( Failure error, Cmd.none )
+                    ( Failure error
+                    , logFeilmelding error "Opprett Person"
+                    )
 
         PersonaliaHentet result ->
             case result of
@@ -149,7 +158,9 @@ updateLoading msg model =
                             ( model, Api.opprettPersonalia (PersonaliaOpprettet >> LoadingMsg) )
 
                         _ ->
-                            ( Failure error, Cmd.none )
+                            ( Failure error
+                            , logFeilmelding error "Hent Personalia"
+                            )
 
         PersonaliaOpprettet result ->
             case result of
@@ -157,7 +168,9 @@ updateLoading msg model =
                     initVenterPåResten personalia
 
                 Err error ->
-                    ( Failure error, Cmd.none )
+                    ( Failure error
+                    , logFeilmelding error "Opprett Personalia"
+                    )
 
         CvHentet result ->
             case model of
@@ -172,7 +185,9 @@ updateLoading msg model =
                                     ( model, Api.opprettCv (CvOpprettet >> LoadingMsg) )
 
                                 _ ->
-                                    ( Failure error, Cmd.none )
+                                    ( Failure error
+                                    , logFeilmelding error "Hent CV"
+                                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -185,13 +200,29 @@ updateLoading msg model =
                             ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
 
                         Err error ->
-                            ( Failure error, Cmd.none )
+                            ( Failure error
+                            , logFeilmelding error "Opprett CV"
+                            )
 
                 _ ->
                     ( model, Cmd.none )
 
         RegistreringsProgresjonHentet result ->
-            ( model, Cmd.none )
+            case result of
+                Ok value ->
+                    ( model, Cmd.none )
+
+                Err error ->
+                    ( Failure error
+                    , logFeilmelding error "Hent registreringsprogresjon"
+                    )
+
+
+logFeilmelding : Http.Error -> String -> Cmd Msg
+logFeilmelding error operasjon =
+    Feilmelding.feilmelding operasjon error
+        |> Maybe.map (Api.logError ErrorLogget)
+        |> Maybe.withDefault Cmd.none
 
 
 modelFraLoadingState : LoadingState -> Model
@@ -325,7 +356,7 @@ view model =
             viewSuccess successModel
 
         Failure error ->
-            Debug.toString error |> text
+            text "error"
 
 
 seksjonsMeldingsLogg : SuccessModel -> MeldingsLogg

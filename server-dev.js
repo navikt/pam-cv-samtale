@@ -4,9 +4,18 @@ const Bundler  = require('parcel-bundler');
 const path  = require('path');
 
 const server = express();
+server.use(express.json())
 
 const entryFile = path.join(__dirname, './src/index.html');
 const bundler = new Bundler(entryFile, {});
+
+server.post('/cv-samtale/log', (req, res) => {
+    console.log({
+        ...req.body,
+        level: "Error"
+    });
+    res.sendStatus(200);
+});
 
 server.use(
     '/cv-samtale/api',

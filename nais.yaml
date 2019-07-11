@@ -26,9 +26,9 @@ spec:
             cpu: 200m
             memory: 256Mi
     vault:
-        enabled: false
-    prometheus:
-        enabled: false
-        path: /metrics
+        enabled: true
     ingresses:
         - {{{ ingress }}}
+    env:
+        - name: API_GATEWAY_HOST
+          value: {{{ apiGatewayHost }}}
