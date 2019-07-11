@@ -1,4 +1,4 @@
-module MeldingsLogg exposing (MeldigsLoggInfo, MeldingsLogg(..), hentMeldinger, init, leggTilSpørsmål, leggTilSvar)
+module MeldingsLogg exposing (MeldigsLoggInfo, MeldingsLogg(..), init, leggTilSpørsmål, leggTilSvar, meldinger)
 
 import Melding exposing (Melding)
 
@@ -16,16 +16,16 @@ init =
     MeldingsLogg []
 
 
-hentMeldinger : MeldingsLogg -> List Melding
-hentMeldinger (MeldingsLogg meldingsLogg) =
+meldinger : MeldingsLogg -> List Melding
+meldinger (MeldingsLogg meldingsLogg) =
     meldingsLogg
 
 
-leggTilSpørsmål : MeldingsLogg -> List Melding -> MeldingsLogg
-leggTilSpørsmål meldingsLogg nyeMeldinger =
-    MeldingsLogg (hentMeldinger meldingsLogg ++ nyeMeldinger)
+leggTilSpørsmål : List Melding -> MeldingsLogg -> MeldingsLogg
+leggTilSpørsmål nyeMeldinger (MeldingsLogg meldingsliste) =
+    MeldingsLogg (meldingsliste ++ nyeMeldinger)
 
 
-leggTilSvar : MeldingsLogg -> Melding -> MeldingsLogg
-leggTilSvar meldingsLogg nyMelding =
-    MeldingsLogg (hentMeldinger meldingsLogg ++ [ nyMelding ])
+leggTilSvar : Melding -> MeldingsLogg -> MeldingsLogg
+leggTilSvar nyMelding (MeldingsLogg meldingsliste) =
+    MeldingsLogg (meldingsliste ++ [ nyMelding ])

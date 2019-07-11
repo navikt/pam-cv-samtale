@@ -60,7 +60,6 @@ type alias SuccessModel =
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
     , aktivSamtale : SamtaleSeksjon
-    , meldingsLogg : MeldingsLogg
     }
 
 
@@ -204,7 +203,6 @@ modelFraLoadingState state =
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
                 , aktivSamtale = Introduksjon
-                , meldingsLogg = MeldingsLogg.init
                 }
 
         _ ->
@@ -237,7 +235,7 @@ updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
 updateSuccess successMsg model =
     case successMsg of
         BrukerSierHeiIIntroduksjonen ->
-            ( startNesteSeksjon model "Hei!" (PersonaliaSeksjon (Seksjon.Personalia.init model.meldingsLogg model.personalia))
+            ( startNesteSeksjon model (PersonaliaSeksjon (Seksjon.Personalia.init (MeldingsLogg.leggTilSvar (Melding.svar [ "Hei!" ]) MeldingsLogg.init) model.personalia))
                 |> Success
             , Cmd.none
             )
@@ -279,11 +277,10 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
 
-startNesteSeksjon : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel
-startNesteSeksjon model tekst samtaleSeksjon =
+startNesteSeksjon : SuccessModel -> SamtaleSeksjon -> SuccessModel
+startNesteSeksjon model samtaleSeksjon =
     { model
         | aktivSamtale = samtaleSeksjon
-        , meldingsLogg = MeldingsLogg.leggTilSvar model.meldingsLogg (Melding.svar [ tekst ])
     }
 
 
@@ -291,7 +288,6 @@ oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
     { model
         | aktivSamtale = samtaleSeksjon
-        , meldingsLogg = samtaleTilMeldingsLogg model samtaleSeksjon
     }
 
 
@@ -299,8 +295,7 @@ personaliaFerdig : SuccessModel -> Personalia -> MeldingsLogg -> ( Model, Cmd Ms
 personaliaFerdig model personalia personaliaMeldingsLogg =
     ( Success
         { model
-            | meldingsLogg = personaliaMeldingsLogg
-            , aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init model.meldingsLogg (Cv.utdanningListe model.cv))
+            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init personaliaMeldingsLogg (Cv.utdanningListe model.cv))
         }
     , Cmd.none
     )
@@ -310,8 +305,7 @@ utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd
 utdanningFerdig model utdanning utdanningMeldingsLogg =
     ( Success
         { model
-            | meldingsLogg = utdanningMeldingsLogg
-            , aktivSamtale = ArbeidsErfaringSeksjon
+            | aktivSamtale = ArbeidsErfaringSeksjon
         }
     , Cmd.none
     )
@@ -338,24 +332,22 @@ seksjonsMeldingsLogg : SuccessModel -> MeldingsLogg
 seksjonsMeldingsLogg successModel =
     case successModel.aktivSamtale of
         Introduksjon ->
-            successModel.meldingsLogg
+            MeldingsLogg.init
 
         PersonaliaSeksjon model ->
-            --Seksjon.Personalia.meldingsLogg model
-            successModel.meldingsLogg
+            Seksjon.Personalia.meldingsLogg model
 
         UtdanningSeksjon model ->
-            --Seksjon.Utdanning.meldingsLogg model
-            successModel.meldingsLogg
+            Seksjon.Utdanning.meldingsLogg model
 
         ArbeidsErfaringSeksjon ->
-            successModel.meldingsLogg
+            MeldingsLogg.init
 
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div []
-        [ viewMeldingsLogg successModel.meldingsLogg
+        [ viewMeldingsLogg (seksjonsMeldingsLogg successModel)
         , viewBrukerInput successModel.aktivSamtale
         ]
 
@@ -363,48 +355,26 @@ viewSuccess successModel =
 viewMeldingsLogg : MeldingsLogg -> Html Msg
 viewMeldingsLogg meldingsLogg =
     div [] <|
-        List.map viewMelding (MeldingsLogg.hentMeldinger meldingsLogg)
+        List.map viewMelding (MeldingsLogg.meldinger meldingsLogg)
 
 
 viewMelding : Melding -> Html Msg
-viewMelding (Melding meldingsType) =
-    case meldingsType of
-        Melding.Spørsmål list ->
-            list
-                |> List.map (\elem -> text ("Spørsmål: " ++ elem))
-                |> div []
-
-        Melding.Svar list ->
-            list
-                |> List.map (\elem -> text ("Svar: " ++ elem))
-                |> div []
-
-
-samtaleTilMeldingsLogg : SuccessModel -> SamtaleSeksjon -> MeldingsLogg
-samtaleTilMeldingsLogg model samtalesteg =
-    case samtalesteg of
-        Introduksjon ->
-            MeldingsLogg.leggTilSpørsmål model.meldingsLogg [ Melding.spørsmål [ "Hei!" ] ]
-
-        PersonaliaSeksjon personaliaSeksjon ->
-            MeldingsLogg.leggTilSpørsmål model.meldingsLogg
-                [ Melding.spørsmål
-                    [ "Jeg har funnet ut at du heter " ++ Maybe.withDefault "Kunne ikke hente" (Personalia.fornavn model.personalia)
-                    ]
+viewMelding melding =
+    case Melding.meldingsType melding of
+        Melding.Spørsmål ->
+            div []
+                [ p [] [ text "Spørsmål: " ]
+                , Melding.innhold melding
+                    |> List.map (\elem -> p [] [ text elem ])
+                    |> div []
                 ]
 
-        UtdanningSeksjon utdanningSeksjon ->
-            MeldingsLogg.leggTilSpørsmål model.meldingsLogg
-                [ Melding.spørsmål
-                    [ "La oss fortsette med utdanningen din. (Ikke implementert)"
-                    ]
-                ]
-
-        ArbeidsErfaringSeksjon ->
-            MeldingsLogg.leggTilSpørsmål model.meldingsLogg
-                [ Melding.spørsmål
-                    [ "Her kommer din arbeidserfaring (Ikke implementert)"
-                    ]
+        Melding.Svar ->
+            div []
+                [ p [] [ text "Svar: " ]
+                , Melding.innhold melding
+                    |> List.map (\elem -> p [] [ text elem ])
+                    |> div []
                 ]
 
 

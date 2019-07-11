@@ -1,4 +1,4 @@
-module Seksjon.Personalia exposing (Model, Msg, SamtaleStatus(..), init, update, viewBrukerInput)
+module Seksjon.Personalia exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
 import Api
 import Html exposing (..)
@@ -35,6 +35,11 @@ type SamtaleStatus
     | Ferdig Personalia MeldingsLogg
 
 
+meldingsLogg : Model -> MeldingsLogg
+meldingsLogg (Model model) =
+    model.seksjonsMeldingsLogg
+
+
 
 --- UPDATE ---
 
@@ -51,7 +56,6 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         OriginalPersonaliaBekreftet ->
-            -- FIXME: her blir ikke historien oppdatert før den blir sendt videre
             Ferdig model.personalia model.seksjonsMeldingsLogg
 
         BrukerVilEndreOriginalPersonalia ->
@@ -102,7 +106,7 @@ update msg (Model model) =
 
                         Err error ->
                             ( LagringFeilet error skjema
-                                |> nesteSamtaleSteg model "Olø noe gikk galt ass brusjan"
+                                |> nesteSamtaleSteg model "Ne gikk galt"
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -117,9 +121,10 @@ nesteSamtaleSteg model tekst samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
-            , seksjonsMeldingsLogg = samtaleTilMeldingsLogg model samtaleSeksjon
-
-            --, seksjonsMeldingsLogg = [ samtaleTilBoble model.aktivSamtale, samtaleTilBoble samtaleSeksjon, Bruker tekst ]
+            , seksjonsMeldingsLogg =
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                    |> MeldingsLogg.leggTilSvar (Melding.svar [ tekst ])
         }
 
 
@@ -128,44 +133,32 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
-            , seksjonsMeldingsLogg = samtaleTilMeldingsLogg model samtaleSeksjon
-
-            --, seksjonsMeldingsLogg = MeldingsLogg.hentMeldinger model.seksjonsMeldingsLogg ++ [ samtaleTilMeldingsLogg samtaleSeksjon model ]
         }
 
 
-samtaleTilMeldingsLogg : ModelInfo -> Samtale -> MeldingsLogg
-samtaleTilMeldingsLogg model personaliaSeksjon =
+samtaleTilMeldingsLogg : Samtale -> List Melding
+samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
-            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
-                [ Melding.spørsmål
-                    [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
-                    , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
-                    , "Fornavn: "
-                    , Personalia.fornavn personalia |> Maybe.withDefault "-"
-                    , " Etternavn: "
-                    , Personalia.etternavn personalia |> Maybe.withDefault "-"
-                    ]
+            [ Melding.spørsmål
+                [ "Da har du bekreftet personaliaen din"
                 ]
+            ]
 
         EndreOriginal personaliaSkjema ->
-            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
-                [ Melding.spørsmål
-                    [ "Du har valgt å endre personaliaskjema", "->Linje nummer to" ]
-                ]
+            [ Melding.spørsmål
+                [ "Du har valgt å endre personaliaskjema" ]
+            ]
 
         LagrerEndring personaliaSkjema ->
-            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
-                [ Melding.spørsmål
-                    [ "Spinner" ]
-                ]
+            [ Melding.spørsmål
+                [ "Melding lagret: " ++ Skjema.Personalia.fornavn personaliaSkjema ]
+            ]
 
         LagringFeilet error personaliaSkjema ->
-            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
-                [ Melding.spørsmål
-                    [ "Oops.. Noe gikk galt!" ]
-                ]
+            [ Melding.spørsmål
+                [ "Oops.. Noe gikk galt!" ]
+            ]
 
 
 
@@ -247,4 +240,19 @@ viewBrukerInput (Model { aktivSamtale }) =
 
 init : MeldingsLogg -> Personalia -> Model
 init gammelMeldingsLogg personalia =
-    Model { seksjonsMeldingsLogg = gammelMeldingsLogg, aktivSamtale = BekreftOriginal personalia, personalia = personalia }
+    Model
+        { seksjonsMeldingsLogg =
+            MeldingsLogg.leggTilSpørsmål
+                [ Melding.spørsmål
+                    [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
+                    , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
+                    , "Fornavn: "
+                    , Personalia.fornavn personalia |> Maybe.withDefault "-"
+                    , " Etternavn: "
+                    , Personalia.etternavn personalia |> Maybe.withDefault "-"
+                    ]
+                ]
+                gammelMeldingsLogg
+        , aktivSamtale = BekreftOriginal personalia
+        , personalia = personalia
+        }

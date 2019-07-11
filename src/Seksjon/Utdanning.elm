@@ -1,4 +1,4 @@
-module Seksjon.Utdanning exposing (Model, ModelInfo, Msg, Samtale(..), SamtaleStatus(..), init, update, viewUtdanning)
+module Seksjon.Utdanning exposing (Model, ModelInfo, Msg, Samtale(..), SamtaleStatus(..), init, meldingsLogg, update, viewUtdanning)
 
 import Cv.Utdanning as Cv exposing (Utdanning)
 import Html exposing (..)
@@ -70,6 +70,11 @@ type SamtaleStatus
     | Ferdig (List Utdanning) MeldingsLogg
 
 
+meldingsLogg : Model -> MeldingsLogg
+meldingsLogg (Model model) =
+    model.seksjonsMeldingsLogg
+
+
 
 --- UPDATE ---
 
@@ -120,32 +125,28 @@ oppdaterSamtaleSteg model samtaleSeksjon =
         }
 
 
-samtaleTilMeldingsLogg : Samtale -> ModelInfo -> MeldingsLogg
-samtaleTilMeldingsLogg utdanningSeksjon model =
+samtaleTilMeldingsLogg : Samtale -> List Melding
+samtaleTilMeldingsLogg utdanningSeksjon =
     case utdanningSeksjon of
         Intro ->
-            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
-                [ Melding.spørsmål
-                    [ "Intro" ]
-                ]
+            [ Melding.spørsmål
+                [ "Intro" ]
+            ]
 
         FullførtRegistrering ->
-            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
-                [ Melding.spørsmål
-                    [ "Du har valgt å endre personaliaskjema" ]
-                ]
+            [ Melding.spørsmål
+                [ "Du har valgt å endre personaliaskjema" ]
+            ]
 
         RegistrerUtdanning ->
-            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
-                [ Melding.spørsmål
-                    [ "Du har valgt å endre personaliaskjema" ]
-                ]
+            [ Melding.spørsmål
+                [ "Du har valgt å endre personaliaskjema" ]
+            ]
 
         _ ->
-            MeldingsLogg.leggTilSpørsmål model.seksjonsMeldingsLogg
-                [ Melding.spørsmål
-                    [ "Diverse valg" ]
-                ]
+            [ Melding.spørsmål
+                [ "Diverse valg" ]
+            ]
 
 
 viewUtdanning : Model -> Html Msg

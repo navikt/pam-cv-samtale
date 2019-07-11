@@ -1,35 +1,30 @@
-module Melding exposing (Melding(..), MeldingsType(..), innhold, spørsmål, svar)
+module Melding exposing (Melding, MeldingsType(..), innhold, meldingsType, spørsmål, svar)
 
 
 type Melding
-    = Melding MeldingsType
+    = Melding { avsnitt : List String, meldingsType : MeldingsType }
 
 
 type MeldingsType
-    = Spørsmål (List String)
-    | Svar (List String)
+    = Spørsmål
+    | Svar
 
 
 spørsmål : List String -> Melding
 spørsmål list =
-    Melding (Spørsmål list)
+    Melding { avsnitt = list, meldingsType = Spørsmål }
 
 
 svar : List String -> Melding
 svar list =
-    Melding (Svar list)
+    Melding { avsnitt = list, meldingsType = Svar }
 
 
 innhold : Melding -> List String
 innhold (Melding melding) =
-    case melding of
-        Spørsmål list ->
-            list
-
-        Svar list ->
-            list
+    melding.avsnitt
 
 
-
--- meldingsType: Melding -> MeldingsType
--- TODO: this ^
+meldingsType : Melding -> MeldingsType
+meldingsType (Melding melding) =
+    melding.meldingsType
