@@ -15,6 +15,8 @@ const MILJOVARIABLER = {
     PROXY_API_KEY: process.env.PAM_CV_API_PROXY_KEY
 };
 
+console.log(`PAM_CV_API_PROXY_KEY: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
+
 const server = express();
 server.use(express.json())
 
@@ -25,14 +27,14 @@ server.use(helmet());
 // health checks
 server.get('/cv-samtale/internal/isAlive', (req, res) => res.sendStatus(200));
 server.get('/cv-samtale/internal/isReady', (req, res) => res.sendStatus(200));
-
-server.post('/cv-samtale/log', (req, res) => {
-    console.log(JSON.stringify({
-        ...req.body,
-        level: "Error"
-    }));
-    res.sendStatus(200);
-});
+//
+// server.post('/cv-samtale/log', (req, res) => {
+//     console.log(JSON.stringify({
+//         ...req.body,
+//         level: "Error"
+//     }));
+//     res.sendStatus(200);
+// });
 
 server.use(
     '/cv-samtale/api',
@@ -46,9 +48,11 @@ server.use(
                 'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY
             }
         }),
-        proxyReqPathResolver: (req: any) => (
-            req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/pam-cv-api/pam-cv-api')
-        )
+        proxyReqPathResolver: (req: any) => {
+            const path = req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/pam-cv-api/pam-cv-api');
+            console.log(JSON.stringify({ path}));
+            return path;
+        }
     })
 );
 
