@@ -77,6 +77,8 @@ type Msg
     = LoadingMsg LoadingMsg
     | SuccessMsg SuccessMsg
     | ErrorLogget (Result Http.Error ())
+    | HentAAreg
+    | HentetAAreg (Result Http.Error ())
 
 
 type LoadingMsg
@@ -109,6 +111,12 @@ update msg model =
                     ( model, Cmd.none )
 
         ErrorLogget _ ->
+            ( model, Cmd.none )
+
+        HentAAreg ->
+            ( model, Api.hentAAregAebeidserfaring HentetAAreg )
+
+        _ ->
             ( model, Cmd.none )
 
 
@@ -216,8 +224,8 @@ updateLoading msg model =
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
-logFeilmelding error message =
-    Feilmelding.feilmelding "message" error
+logFeilmelding error operasjon =
+    Feilmelding.feilmelding operasjon error
         |> Maybe.map (Api.logError ErrorLogget)
         |> Maybe.withDefault Cmd.none
 
@@ -333,6 +341,7 @@ viewSuccess successModel =
     div []
         [ viewHistorikk (successModel.historikk ++ seksjonshistorikk successModel)
         , viewAktivSamtale successModel.aktivSamtale
+        , button [ onClick HentAAreg ] []
         ]
 
 
