@@ -92,7 +92,10 @@ logError msgConstructor feilmelding =
     Http.post
         { url = "/cv-samtale/log"
         , expect = expectWhatever msgConstructor
-        , body = Feilmelding.encode feilmelding |> jsonBody
+        , body =
+            feilmelding
+                |> Feilmelding.encode
+                |> jsonBody
         }
 
 

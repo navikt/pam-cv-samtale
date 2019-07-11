@@ -1,13 +1,14 @@
-module Seksjon.Personalia exposing (Model, Msg, SamtaleStatus(..), historikk, init, update, viewBrukerInput)
+module Seksjon.Personalia exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
 import Api
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
+import Melding exposing (Melding(..))
+import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
 import Skjema.Personalia exposing (PersonaliaSkjema)
-import Snakkeboble exposing (Snakkeboble(..))
 
 
 
@@ -19,7 +20,7 @@ type Model
 
 
 type alias ModelInfo =
-    { historikk : List Snakkeboble, aktivSamtale : Samtale, personalia : Personalia }
+    { seksjonsMeldingsLogg : MeldingsLogg, aktivSamtale : Samtale, personalia : Personalia }
 
 
 type Samtale
@@ -31,12 +32,12 @@ type Samtale
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig Personalia (List Snakkeboble)
+    | Ferdig Personalia MeldingsLogg
 
 
-historikk : Model -> List Snakkeboble
-historikk (Model model) =
-    model.historikk ++ [ samtaleTilBoble model.aktivSamtale ]
+meldingsLogg : Model -> MeldingsLogg
+meldingsLogg (Model model) =
+    model.seksjonsMeldingsLogg
 
 
 
@@ -55,13 +56,16 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         OriginalPersonaliaBekreftet ->
-            Ferdig model.personalia model.historikk
+            model.seksjonsMeldingsLogg
+                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Bekreft" ])
+                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Så bra! Da ruller vi videre!" ] ]
+                |> Ferdig model.personalia
 
         BrukerVilEndreOriginalPersonalia ->
             ( model.personalia
                 |> Skjema.Personalia.init
                 |> EndreOriginal
-                |> nesteSamtaleSteg model "Endre"
+                |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
             , Cmd.none
             )
                 |> IkkeFerdig
@@ -85,7 +89,13 @@ update msg (Model model) =
                 EndreOriginal skjema ->
                     ( skjema
                         |> LagrerEndring
-                        |> nesteSamtaleSteg model "Det jeg fylte ut"
+                        |> nesteSamtaleSteg model
+                            (Melding.svar
+                                [ "--- Skjema ---"
+                                , Skjema.Personalia.fornavn skjema ++ " osv."
+                                , "---------------"
+                                ]
+                            )
                     , model.personalia
                         |> Personalia.id
                         |> Api.oppdaterPersonalia PersonaliaOppdatert skjema
@@ -101,11 +111,11 @@ update msg (Model model) =
                 LagrerEndring skjema ->
                     case result of
                         Ok personalia ->
-                            Ferdig personalia model.historikk
+                            Ferdig personalia model.seksjonsMeldingsLogg
 
                         Err error ->
                             ( LagringFeilet error skjema
-                                |> nesteSamtaleSteg model "Olø noe gikk galt ass brusjan"
+                                |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ])
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -115,12 +125,15 @@ update msg (Model model) =
                         |> IkkeFerdig
 
 
-nesteSamtaleSteg : ModelInfo -> String -> Samtale -> Model
-nesteSamtaleSteg model tekst samtaleSeksjon =
+nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
+nesteSamtaleSteg model melding samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
-            , historikk = model.historikk ++ [ Bruker tekst ]
+            , seksjonsMeldingsLogg =
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSvar melding
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
         }
 
 
@@ -132,27 +145,32 @@ oppdaterSamtaleSteg model samtaleSeksjon =
         }
 
 
-samtaleTilBoble : Samtale -> Snakkeboble
-samtaleTilBoble personaliaSeksjon =
+samtaleTilMeldingsLogg : Samtale -> List Melding
+samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
-            Robot
-                ("Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
-                    ++ "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
-                    ++ "Fornavn: "
-                    ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
-                    ++ " Etternavn: "
-                    ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
-                )
+            [ Melding.spørsmål
+                [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
+                , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
+                , "Fornavn: " ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
+                , " Etternavn: " ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
+                ]
+            ]
 
         EndreOriginal personaliaSkjema ->
-            Robot "Endre personalia"
+            [ Melding.spørsmål
+                [ "Du har valgt å endre personaliaskjema" ]
+            ]
 
         LagrerEndring personaliaSkjema ->
-            Robot "Spinner"
+            [ Melding.spørsmål
+                [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ]
+            ]
 
         LagringFeilet error personaliaSkjema ->
-            Robot "Lagring feilet"
+            [ Melding.spørsmål
+                [ "Oops.. Noe gikk galt!" ]
+            ]
 
 
 
@@ -232,6 +250,17 @@ viewBrukerInput (Model { aktivSamtale }) =
 --- INIT ---
 
 
-init : Personalia -> Model
-init personalia =
-    Model { historikk = [], aktivSamtale = BekreftOriginal personalia, personalia = personalia }
+init : Personalia -> MeldingsLogg -> Model
+init personalia gammelMeldingsLogg =
+    let
+        aktivSamtale =
+            BekreftOriginal personalia
+    in
+    Model
+        { seksjonsMeldingsLogg =
+            MeldingsLogg.leggTilSpørsmål
+                (samtaleTilMeldingsLogg aktivSamtale)
+                gammelMeldingsLogg
+        , aktivSamtale = aktivSamtale
+        , personalia = personalia
+        }

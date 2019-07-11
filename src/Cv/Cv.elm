@@ -1,4 +1,4 @@
-module Cv.Cv exposing (Cv, decode)
+module Cv.Cv exposing (Cv, decode, utdanning)
 
 import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
@@ -24,7 +24,7 @@ type alias CvInfo =
     , sistEndretDato : String
     , sistEndretAvNav : Bool
     , arbeidserfaring : List Arbeidserfaring
-    , utdanninger : List Utdanning
+    , utdanningListe : List Utdanning
     , sertifikater : List Sertifikat
     , forerkort : List Forerkort
     , annenErfaring : List AnnenErfaring
@@ -34,6 +34,75 @@ type alias CvInfo =
     , kompetanseKladdListe : List KompetanseKladd
     , sammendrag : Maybe Sammendrag
     }
+
+
+
+------- GETTERS
+
+
+disponererBil : Cv -> Bool
+disponererBil (Cv info) =
+    info.disponererBil
+
+
+sistEndretDato : Cv -> String
+sistEndretDato (Cv info) =
+    info.sistEndretDato
+
+
+sistEndretAvNav : Cv -> Bool
+sistEndretAvNav (Cv info) =
+    info.sistEndretAvNav
+
+
+arbeidserfaring : Cv -> List Arbeidserfaring
+arbeidserfaring (Cv info) =
+    info.arbeidserfaring
+
+
+utdanning : Cv -> List Utdanning
+utdanning (Cv info) =
+    info.utdanningListe
+
+
+sertifikater : Cv -> List Sertifikat
+sertifikater (Cv info) =
+    info.sertifikater
+
+
+forerkort : Cv -> List Forerkort
+forerkort (Cv info) =
+    info.forerkort
+
+
+annenErfaring : Cv -> List AnnenErfaring
+annenErfaring (Cv info) =
+    info.annenErfaring
+
+
+kurs : Cv -> List Kurs
+kurs (Cv info) =
+    info.kurs
+
+
+spraakferdighet : Cv -> List Spraakferdighet
+spraakferdighet (Cv info) =
+    info.spraakferdighet
+
+
+fagdokumentasjoner : Cv -> List Fagdokumentasjon
+fagdokumentasjoner (Cv info) =
+    info.fagdokumentasjoner
+
+
+kompetanseKladdListe : Cv -> List KompetanseKladd
+kompetanseKladdListe (Cv info) =
+    info.kompetanseKladdListe
+
+
+sammendrag : Cv -> Maybe Sammendrag
+sammendrag (Cv info) =
+    info.sammendrag
 
 
 

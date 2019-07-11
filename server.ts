@@ -15,8 +15,10 @@ const MILJOVARIABLER = {
     PROXY_API_KEY: process.env.PAM_CV_API_PROXY_KEY
 };
 
+console.log(`API_GATEWAY_HOST: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
+
 const server = express();
-server.use(express.json())
+server.use(express.json());
 
 // security
 server.disable('x-powered-by');
@@ -27,10 +29,10 @@ server.get('/cv-samtale/internal/isAlive', (req, res) => res.sendStatus(200));
 server.get('/cv-samtale/internal/isReady', (req, res) => res.sendStatus(200));
 
 server.post('/cv-samtale/log', (req, res) => {
-    console.log({
+    console.log(JSON.stringify({
         ...req.body,
         level: "Error"
-    });
+    }));
     res.sendStatus(200);
 });
 

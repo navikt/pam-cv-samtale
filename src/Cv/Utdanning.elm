@@ -1,5 +1,6 @@
 module Cv.Utdanning exposing
     ( Utdanning
+    , Yrkesskole(..)
     , beskrivelse
     , decode
     , fradato
