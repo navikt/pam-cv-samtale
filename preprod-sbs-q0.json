@@ -2,5 +2,5 @@
   "image": "{{{ image }}}",
   "namespace": "q0",
   "ingress": "https://arbeidsplassen-q.nav.no/cv-samtale",
-  "apiGatewayHost": "api-gw-q0.oera.no"
+  "apiGatewayHost": "https://api-gw-q0.oera.no"
 }
