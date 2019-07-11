@@ -1,4 +1,4 @@
-module Seksjon.Utdanning exposing (Model, Msg, Samtale, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
+module Seksjon.Utdanning exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
 import Cv.Utdanning as Cv exposing (Utdanning)
 import Html exposing (..)
@@ -118,12 +118,12 @@ samtaleTilMeldingsLogg utdanningSeksjon =
     case utdanningSeksjon of
         Intro ->
             [ Melding.spørsmål
-                [ "Nå skal vi legg til din utdanning" ]
+                [ "Nå skal vi legge til din utdanning" ]
             ]
 
         RegistrerUtdanning ->
             [ Melding.spørsmål
-                [ "Du har valgt å endre personaliaskjema" ]
+                [ "Du har valgt å registrere utdanning" ]
             ]
 
         _ ->

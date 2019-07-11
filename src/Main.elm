@@ -2,8 +2,8 @@ module Main exposing (main)
 
 import Api
 import Browser
-import Cv.Cv as Cv
-import Cv.Utdanning as Utdanning
+import Cv.Cv as Cv exposing (Cv)
+import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -50,14 +50,14 @@ type LoadingModel
 
 
 type alias LoadingState =
-    { cv : Maybe Cv.Cv
+    { cv : Maybe Cv
     , personalia : Personalia
     , registreringsProgresjon : Maybe RegistreringsProgresjon
     }
 
 
 type alias SuccessModel =
-    { cv : Cv.Cv
+    { cv : Cv
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
     , aktivSamtale : SamtaleSeksjon
@@ -86,8 +86,8 @@ type LoadingMsg
     | PersonOpprettet (Result Http.Error ())
     | PersonaliaHentet (Result Http.Error Personalia)
     | PersonaliaOpprettet (Result Http.Error Personalia)
-    | CvHentet (Result Http.Error Cv.Cv)
-    | CvOpprettet (Result Http.Error Cv.Cv)
+    | CvHentet (Result Http.Error Cv)
+    | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
 
 
@@ -329,7 +329,7 @@ personaliaFerdig model personalia personaliaMeldingsLogg =
     )
 
 
-utdanningFerdig : SuccessModel -> List Utdanning.Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
+utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
     ( Success
         { model

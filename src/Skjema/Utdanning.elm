@@ -1,4 +1,4 @@
-module Skjema.Utdanning exposing (Felt(..), UtdanningSkjema(..), beskrivelse, encode, fradato, init, navarende, oppdaterFelt, studiested, tildato, utdanningsretning)
+module Skjema.Utdanning exposing (Felt(..), UtdanningSkjema, beskrivelse, encode, fradato, init, navarende, oppdaterFelt, studiested, tildato, utdanningsretning)
 
 import Cv.Utdanning exposing (Utdanning, Yrkesskole(..))
 import Json.Encode
