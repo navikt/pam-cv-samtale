@@ -1,9 +1,12 @@
-module Seksjon.Arbeidserfaring exposing (Model, Msg)
+module Seksjon.Arbeidserfaring exposing (Model, Msg, init)
 
 import Api
+import Browser.Events exposing (onClick)
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
+import Html exposing (Html, button, div, text)
 import Http
-import Skjema.ArbeidserfaringSkjema
+import MeldingsLogg exposing (MeldingsLogg)
+import Skjema.ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema)
 
 
 
@@ -15,8 +18,8 @@ type Model
 
 
 type alias ModelInfo =
-    { arbeidserfaringListe : List Arbeidserfaring
-    , arbeidserfaringSomEndres : Arbeidserfaring
+    { seksjonsMeldingsLogg : MeldingsLogg
+    , arbeidserfaringListe : List Arbeidserfaring
     , aktivSamtale : Samtale
     }
 
@@ -29,11 +32,6 @@ arbeidserfaringListe (Model info) =
 aktivSamtale : Model -> Samtale
 aktivSamtale (Model info) =
     info.aktivSamtale
-
-
-arbeidserfaringSomEndres : Model -> Arbeidserfaring
-arbeidserfaringSomEndres (Model info) =
-    info.arbeidserfaringSomEndres
 
 
 hentAAregArbeidserfaring : Model -> Cmd Msg
@@ -52,16 +50,19 @@ type SamtaleStatus
 type Msg
     = HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
     | RegistrerArbeidsErfaring Samtale
+    | SkjemaEndret Skjema.ArbeidserfaringSkjema.Felt
 
 
 type Samtale
-    = RegistrerYrke
-    | RegistrerNyTittle
-    | RegistrerBedriftNavn
-    | RegistrerSted
-    | Registrerarbeidsoppgaver
-    | RegistrerPeriode Bool -- Nåværende?
-    | LagreArbeidserfaring
+    = Intro
+    | LeggeTilArbeidsErfaring
+    | RegistrerYrke ArbeidserfaringSkjema
+    | RegistrerNyTittle ArbeidserfaringSkjema
+    | RegistrerBedriftNavn ArbeidserfaringSkjema
+    | RegistrerSted ArbeidserfaringSkjema
+    | Registrerarbeidsoppgaver ArbeidserfaringSkjema
+    | RegistrerPeriode ArbeidserfaringSkjema
+    | LagreArbeidserfaring ArbeidserfaringSkjema
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -84,32 +85,86 @@ update msg (Model info) =
                         |> IkkeFerdig
 
         RegistrerArbeidsErfaring registreringsMsg ->
-            IkkeFerdig
-                ( Model info
-                , Cmd.none
-                )
+            ( Model info, Cmd.none )
+                |> IkkeFerdig
+
+        SkjemaEndret felt ->
+            ( Model info, Cmd.none )
+                |> IkkeFerdig
 
 
 updateRegistrering : Samtale -> Model -> SamtaleStatus
 updateRegistrering registreringsMsg (Model info) =
     case registreringsMsg of
-        RegistrerYrke ->
+        Intro ->
             IkkeFerdig ( Model info, Cmd.none )
 
-        RegistrerNyTittle ->
+        LeggeTilArbeidsErfaring ->
             IkkeFerdig ( Model info, Cmd.none )
 
-        RegistrerBedriftNavn ->
+        RegistrerYrke skjema ->
             IkkeFerdig ( Model info, Cmd.none )
 
-        RegistrerSted ->
+        RegistrerNyTittle skjema ->
             IkkeFerdig ( Model info, Cmd.none )
 
-        Registrerarbeidsoppgaver ->
+        RegistrerBedriftNavn skjema ->
             IkkeFerdig ( Model info, Cmd.none )
 
-        RegistrerPeriode bool ->
+        RegistrerSted skjema ->
             IkkeFerdig ( Model info, Cmd.none )
 
-        LagreArbeidserfaring ->
+        Registrerarbeidsoppgaver skjema ->
             IkkeFerdig ( Model info, Cmd.none )
+
+        RegistrerPeriode skjema ->
+            IkkeFerdig ( Model info, Cmd.none )
+
+        LagreArbeidserfaring skjema ->
+            IkkeFerdig ( Model info, Cmd.none )
+
+
+
+--- VIEW ---
+
+
+viewBrukerInput : Model -> Html Msg
+viewBrukerInput (Model info) =
+    case info.aktivSamtale of
+        Intro ->
+            div []
+                [ button [ onClick LeggeTilArbeidsErfaring ] [ text "Legg til arbeidserfaring" ]
+                ]
+
+        LeggeTilArbeidsErfaring ->
+            div [] []
+
+        RegistrerYrke arbeidserfaringSkjema ->
+            div [] []
+
+        RegistrerNyTittle arbeidserfaringSkjema ->
+            div [] []
+
+        RegistrerBedriftNavn arbeidserfaringSkjema ->
+            div [] []
+
+        RegistrerSted arbeidserfaringSkjema ->
+            div [] []
+
+        Registrerarbeidsoppgaver arbeidserfaringSkjema ->
+            div [] []
+
+        RegistrerPeriode arbeidserfaringSkjema ->
+            div [] []
+
+        LagreArbeidserfaring arbeidserfaringSkjema ->
+            div [] []
+
+
+init : MeldingsLogg -> Model
+init gammelMeldingsLogg =
+    Model
+        { seksjonsMeldingsLogg = gammelMeldingsLogg
+        , arbeidserfaringListe = []
+        , aktivSamtale = Intro
+        }

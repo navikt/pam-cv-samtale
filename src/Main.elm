@@ -69,7 +69,7 @@ type SamtaleSeksjon
     = Introduksjon
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
-    | ArbeidsErfaringSeksjon
+    | ArbeidsErfaringSeksjon Seksjon.Arbeidserfaring.Model
 
 
 
@@ -338,7 +338,7 @@ utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd
 utdanningFerdig model utdanning utdanningMeldingsLogg =
     ( Success
         { model
-            | aktivSamtale = ArbeidsErfaringSeksjon
+            | aktivSamtale = ArbeidsErfaringSeksjon (Seksjon.Arbeidserfaring.init utdanningMeldingsLogg)
         }
     , Cmd.none
     )
@@ -373,7 +373,7 @@ meldingsLoggFraSeksjon successModel =
         UtdanningSeksjon model ->
             Seksjon.Utdanning.meldingsLogg model
 
-        ArbeidsErfaringSeksjon ->
+        ArbeidsErfaringSeksjon model ->
             MeldingsLogg.init
 
 
