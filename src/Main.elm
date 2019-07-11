@@ -3,14 +3,17 @@ module Main exposing (main)
 import Api
 import Browser
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
+import Melding exposing (Melding)
+import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
 import Seksjon.Personalia
-import Snakkeboble exposing (Snakkeboble(..))
+import Seksjon.Utdanning
 
 
 
@@ -58,15 +61,14 @@ type alias SuccessModel =
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
     , aktivSamtale : SamtaleSeksjon
-    , historikk : List Snakkeboble
     }
 
 
 type SamtaleSeksjon
     = Introduksjon
     | PersonaliaSeksjon Seksjon.Personalia.Model
-    | Utdanning
-    | ArbeidsErfaring
+    | UtdanningSeksjon Seksjon.Utdanning.Model
+    | ArbeidsErfaringSeksjon
 
 
 
@@ -92,6 +94,7 @@ type LoadingMsg
 type SuccessMsg
     = BrukerSierHeiIIntroduksjonen
     | PersonaliaMsg Seksjon.Personalia.Msg
+    | UtdanningsMsg Seksjon.Utdanning.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -231,7 +234,6 @@ modelFraLoadingState state =
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
                 , aktivSamtale = Introduksjon
-                , historikk = []
                 }
 
         _ ->
@@ -264,7 +266,14 @@ updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
 updateSuccess successMsg model =
     case successMsg of
         BrukerSierHeiIIntroduksjonen ->
-            ( nesteSamtaleSteg model "Hei!" (PersonaliaSeksjon (Seksjon.Personalia.init model.personalia)) |> Success, Cmd.none )
+            ( MeldingsLogg.init
+                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Hei!" ])
+                |> Seksjon.Personalia.init model.personalia
+                |> PersonaliaSeksjon
+                |> oppdaterSamtaleSteg model
+                |> Success
+            , Cmd.none
+            )
 
         PersonaliaMsg msg ->
             case model.aktivSamtale of
@@ -278,30 +287,29 @@ updateSuccess successMsg model =
                             , Cmd.map (PersonaliaMsg >> SuccessMsg) cmd
                             )
 
-                        Seksjon.Personalia.Ferdig personalia historikk ->
-                            personaliaFerdig model personalia historikk
+                        Seksjon.Personalia.Ferdig personalia personaliaMeldingsLogg ->
+                            personaliaFerdig model personalia personaliaMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
 
+        UtdanningsMsg msg ->
+            case model.aktivSamtale of
+                UtdanningSeksjon utdanningModel ->
+                    case Seksjon.Utdanning.update msg utdanningModel of
+                        Seksjon.Utdanning.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> UtdanningSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (UtdanningsMsg >> SuccessMsg) cmd
+                            )
 
-nesteSamtaleSteg : SuccessModel -> String -> SamtaleSeksjon -> SuccessModel
-nesteSamtaleSteg model tekst samtaleSeksjon =
-    { model
-        | aktivSamtale = samtaleSeksjon
-        , historikk = model.historikk ++ [ samtaleTilBoble model.aktivSamtale, Bruker tekst ]
-    }
+                        Seksjon.Utdanning.Ferdig utdanning meldingsLogg ->
+                            utdanningFerdig model utdanning meldingsLogg
 
-
-personaliaFerdig : SuccessModel -> Personalia -> List Snakkeboble -> ( Model, Cmd Msg )
-personaliaFerdig model personalia historikk =
-    ( Success
-        { model
-            | historikk = model.historikk ++ historikk
-            , aktivSamtale = Utdanning
-        }
-    , Cmd.none
-    )
+                _ ->
+                    ( Success model, Cmd.none )
 
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
@@ -309,6 +317,26 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     { model
         | aktivSamtale = samtaleSeksjon
     }
+
+
+personaliaFerdig : SuccessModel -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
+personaliaFerdig model personalia personaliaMeldingsLogg =
+    ( Success
+        { model
+            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init personaliaMeldingsLogg (Cv.utdanning model.cv))
+        }
+    , Cmd.none
+    )
+
+
+utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
+utdanningFerdig model utdanning utdanningMeldingsLogg =
+    ( Success
+        { model
+            | aktivSamtale = ArbeidsErfaringSeksjon
+        }
+    , Cmd.none
+    )
 
 
 
@@ -319,7 +347,7 @@ view : Model -> Html Msg
 view model =
     case model of
         Loading loadingState ->
-            text "spinner"
+            text "loading spinner"
 
         Success successModel ->
             viewSuccess successModel
@@ -328,69 +356,54 @@ view model =
             text "error"
 
 
+meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
+meldingsLoggFraSeksjon successModel =
+    case successModel.aktivSamtale of
+        Introduksjon ->
+            MeldingsLogg.init
+
+        PersonaliaSeksjon model ->
+            Seksjon.Personalia.meldingsLogg model
+
+        UtdanningSeksjon model ->
+            Seksjon.Utdanning.meldingsLogg model
+
+        ArbeidsErfaringSeksjon ->
+            MeldingsLogg.init
+
+
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div []
-        [ viewHistorikk (successModel.historikk ++ seksjonshistorikk successModel)
-        , viewAktivSamtale successModel.aktivSamtale
+        [ successModel
+            |> meldingsLoggFraSeksjon
+            |> viewMeldingsLogg
+        , viewBrukerInput successModel.aktivSamtale
         ]
 
 
-seksjonshistorikk : SuccessModel -> List Snakkeboble
-seksjonshistorikk successModel =
-    case successModel.aktivSamtale of
-        Introduksjon ->
-            []
-
-        PersonaliaSeksjon model ->
-            Seksjon.Personalia.historikk model
-
-        Utdanning ->
-            []
-
-        ArbeidsErfaring ->
-            []
+viewMeldingsLogg : MeldingsLogg -> Html Msg
+viewMeldingsLogg meldingsLogg =
+    meldingsLogg
+        |> MeldingsLogg.meldinger
+        |> List.map viewMelding
+        |> div []
 
 
-viewHistorikk : List Snakkeboble -> Html Msg
-viewHistorikk historikk =
-    div [] <| List.map viewSnakkeboble historikk
-
-
-viewSnakkeboble : Snakkeboble -> Html Msg
-viewSnakkeboble snakkeboble =
-    case snakkeboble of
-        Robot string ->
-            div []
-                [ text ("Robot: " ++ string)
-                ]
-
-        Bruker string ->
-            div []
-                [ text ("Bruker: " ++ string)
-                ]
-
-
-samtaleTilBoble : SamtaleSeksjon -> Snakkeboble
-samtaleTilBoble samtalesteg =
-    case samtalesteg of
-        Introduksjon ->
-            Robot "Hei!"
-
-        PersonaliaSeksjon personaliaSeksjon ->
-            Robot "Ikke implementert"
-
-        _ ->
-            Robot "Ikke implementert"
-
-
-viewAktivSamtale : SamtaleSeksjon -> Html Msg
-viewAktivSamtale aktivSamtale =
+viewMelding : Melding -> Html Msg
+viewMelding melding =
     div []
-        [ aktivSamtale
-            |> samtaleTilBoble
-            |> viewSnakkeboble
-        , viewBrukerInput aktivSamtale
+        [ h3 []
+            [ case Melding.meldingsType melding of
+                Melding.Spørsmål ->
+                    text "Spørsmål: "
+
+                Melding.Svar ->
+                    text "Svar:"
+            ]
+        , Melding.innhold melding
+            |> List.map (\elem -> p [] [ text elem ])
+            |> div []
         ]
 
 
@@ -405,8 +418,13 @@ viewBrukerInput aktivSamtale =
                 |> Seksjon.Personalia.viewBrukerInput
                 |> Html.map (PersonaliaMsg >> SuccessMsg)
 
+        UtdanningSeksjon utdanningSeksjon ->
+            utdanningSeksjon
+                |> Seksjon.Utdanning.viewBrukerInput
+                |> Html.map (UtdanningsMsg >> SuccessMsg)
+
         _ ->
-            text ""
+            text "Ikke implementert"
 
 
 
