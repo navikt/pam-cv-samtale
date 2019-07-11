@@ -15,6 +15,9 @@ const MILJOVARIABLER = {
     PROXY_API_KEY: process.env.PAM_CV_API_PROXY_KEY
 };
 
+console.log(`API_GATEWAY_HOST: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
+console.log(JSON.stringify({"PROXY_API_KEY.length": MILJOVARIABLER.PROXY_API_KEY.length }));
+
 const server = express();
 server.use(express.json())
 
