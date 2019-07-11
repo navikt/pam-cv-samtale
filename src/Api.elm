@@ -1,6 +1,5 @@
 module Api exposing
-    ( hentAAregAebeidserfaring
-    , hentCv
+    ( hentCv
     , hentPerson
     , hentPersonalia
     , logError
@@ -77,22 +76,15 @@ opprettCv msgConstructor =
         }
 
 
-hentAAregAebeidserfaring : (Result Error () -> msg) -> Cmd msg
-hentAAregAebeidserfaring msgConstructor =
-    Http.get
-        { url = "/cv-samtale/api/rest/cv/aareg"
-        , expect = expectWhatever msgConstructor
-        }
-
-
 logError : (Result Error () -> msg) -> Feilmelding -> Cmd msg
 logError msgConstructor feilmelding =
     Http.post
         { url = "/cv-samtale/log"
         , expect = expectWhatever msgConstructor
-        , body = feilmelding
-            |> Feilmelding.encode
-            |> jsonBody
+        , body =
+            feilmelding
+                |> Feilmelding.encode
+                |> jsonBody
         }
 
 
