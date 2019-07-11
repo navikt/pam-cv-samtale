@@ -77,8 +77,6 @@ type Msg
     = LoadingMsg LoadingMsg
     | SuccessMsg SuccessMsg
     | ErrorLogget (Result Http.Error ())
-    | HentAAreg
-    | HentetAAreg (Result Http.Error ())
 
 
 type LoadingMsg
@@ -111,12 +109,6 @@ update msg model =
                     ( model, Cmd.none )
 
         ErrorLogget _ ->
-            ( model, Cmd.none )
-
-        HentAAreg ->
-            ( model, Api.hentAAregAebeidserfaring HentetAAreg )
-
-        _ ->
             ( model, Cmd.none )
 
 
@@ -341,7 +333,6 @@ viewSuccess successModel =
     div []
         [ viewHistorikk (successModel.historikk ++ seksjonshistorikk successModel)
         , viewAktivSamtale successModel.aktivSamtale
-        , button [ onClick HentAAreg ] []
         ]
 
 
