@@ -7,6 +7,7 @@ import Html.Events exposing (..)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
+import Skjema.Personalia
 import Skjema.Utdanning exposing (UtdanningSkjema)
 
 
@@ -87,21 +88,34 @@ update msg (Model model) =
     case msg of
         BrukerVilRegistrereNyUtdanning ->
             case model.aktivSamtale of
+                Intro ->
+                    IkkeFerdig
+                        ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere utdannning" ]) RegistrerUtdanning
+                        , Cmd.none
+                        )
+
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         GåTilArbeidserfaring ->
-            Ferdig model.utdanningListe model.seksjonsMeldingsLogg
+            model.seksjonsMeldingsLogg
+                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Jeg har ingen utdanning" ])
+                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da fortsetter vi med arbeidserfaringen din" ] ]
+                |> Ferdig model.utdanningListe
 
         _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
 
-nesteSamtaleSteg : ModelInfo -> String -> Samtale -> Model
-nesteSamtaleSteg model tekst samtaleSeksjon =
+nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
+nesteSamtaleSteg model melding samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
+            , seksjonsMeldingsLogg =
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSvar melding
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
         }
 
 
@@ -142,7 +156,12 @@ viewBrukerInput (Model { aktivSamtale }) =
                 ]
 
         RegistrerUtdanning ->
-            div [] []
+            div []
+                [ label [] [ text "Nivå" ]
+                , button [ onClick (BrukerVilRegistrerNivå "Videregående") ] [ text "Videregående" ]
+                , button [ onClick (BrukerVilRegistrerNivå "Bachelor") ] [ text "Bachelor" ]
+                , button [ onClick (BrukerVilRegistrerNivå "Master") ] [ text "Master" ]
+                ]
 
         RegistrerNivå nivå ->
             div [] []
