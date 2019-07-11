@@ -44,6 +44,7 @@ node {
         withEnv(['HTTPS_PROXY=http://webproxy-internett.nav.no:8088', 'HTTP_PROXY=http://webproxy-internett.nav.no:8088', 'NO_PROXY=localhost,127.0.0.1,maven.adeo.no', 'NODE_TLS_REJECT_UNAUTHORIZED=0', 'PORT=8081']) {
             sh "npm config set strict-ssl false"
             sh "NODE_TLS_REJECT_UNAUTHORIZED=0 npm ci"
+            sh "rm -rf elm-stuff"
             sh "NODE_TLS_REJECT_UNAUTHORIZED=0 npm run build"
             sh "npm run build:server"
             sh "docker build " +
