@@ -26,7 +26,7 @@ feilmelding operasjon error =
         Http.Timeout ->
             Feilmelding
                 { operasjon = operasjon
-                , errorType = "BadUrl"
+                , errorType = "Timeout"
                 , message = Nothing
                 }
                 |> Just
@@ -37,7 +37,7 @@ feilmelding operasjon error =
         Http.BadStatus statusCode ->
             Feilmelding
                 { operasjon = operasjon
-                , errorType = "BadUrl"
+                , errorType = "BadStatus"
                 , message =
                     statusCode
                         |> String.fromInt
@@ -48,7 +48,7 @@ feilmelding operasjon error =
         Http.BadBody message ->
             Feilmelding
                 { operasjon = operasjon
-                , errorType = "BadUrl"
+                , errorType = "BadBody"
                 , message = Just message
                 }
                 |> Just
