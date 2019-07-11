@@ -2,14 +2,14 @@ module Main exposing (main)
 
 import Api
 import Browser
-import Cv.Cv as Cv exposing (..)
-import Cv.Utdanning exposing (..)
+import Cv.Cv as Cv
+import Cv.Utdanning as Utdanning
 import Feilmelding
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Melding exposing (Melding(..))
+import Melding exposing (Melding)
 import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
 import Seksjon.Personalia
@@ -50,14 +50,14 @@ type LoadingModel
 
 
 type alias LoadingState =
-    { cv : Maybe Cv
+    { cv : Maybe Cv.Cv
     , personalia : Personalia
     , registreringsProgresjon : Maybe RegistreringsProgresjon
     }
 
 
 type alias SuccessModel =
-    { cv : Cv
+    { cv : Cv.Cv
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
     , aktivSamtale : SamtaleSeksjon
@@ -86,8 +86,8 @@ type LoadingMsg
     | PersonOpprettet (Result Http.Error ())
     | PersonaliaHentet (Result Http.Error Personalia)
     | PersonaliaOpprettet (Result Http.Error Personalia)
-    | CvHentet (Result Http.Error Cv)
-    | CvOpprettet (Result Http.Error Cv)
+    | CvHentet (Result Http.Error Cv.Cv)
+    | CvOpprettet (Result Http.Error Cv.Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
 
 
@@ -266,7 +266,11 @@ updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
 updateSuccess successMsg model =
     case successMsg of
         BrukerSierHeiIIntroduksjonen ->
-            ( startNesteSeksjon model (PersonaliaSeksjon (Seksjon.Personalia.init (MeldingsLogg.leggTilSvar (Melding.svar [ "Hei!" ]) MeldingsLogg.init) model.personalia))
+            ( MeldingsLogg.init
+                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Hei!" ])
+                |> Seksjon.Personalia.init model.personalia
+                |> PersonaliaSeksjon
+                |> oppdaterSamtaleSteg model
                 |> Success
             , Cmd.none
             )
@@ -308,13 +312,6 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
 
-startNesteSeksjon : SuccessModel -> SamtaleSeksjon -> SuccessModel
-startNesteSeksjon model samtaleSeksjon =
-    { model
-        | aktivSamtale = samtaleSeksjon
-    }
-
-
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
     { model
@@ -326,13 +323,13 @@ personaliaFerdig : SuccessModel -> Personalia -> MeldingsLogg -> ( Model, Cmd Ms
 personaliaFerdig model personalia personaliaMeldingsLogg =
     ( Success
         { model
-            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init personaliaMeldingsLogg (Cv.utdanningListe model.cv))
+            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init personaliaMeldingsLogg (Cv.utdanning model.cv))
         }
     , Cmd.none
     )
 
 
-utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
+utdanningFerdig : SuccessModel -> List Utdanning.Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
     ( Success
         { model
@@ -359,8 +356,8 @@ view model =
             text "error"
 
 
-seksjonsMeldingsLogg : SuccessModel -> MeldingsLogg
-seksjonsMeldingsLogg successModel =
+meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
+meldingsLoggFraSeksjon successModel =
     case successModel.aktivSamtale of
         Introduksjon ->
             MeldingsLogg.init
@@ -378,35 +375,36 @@ seksjonsMeldingsLogg successModel =
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div []
-        [ viewMeldingsLogg (seksjonsMeldingsLogg successModel)
+        [ successModel
+            |> meldingsLoggFraSeksjon
+            |> viewMeldingsLogg
         , viewBrukerInput successModel.aktivSamtale
         ]
 
 
 viewMeldingsLogg : MeldingsLogg -> Html Msg
 viewMeldingsLogg meldingsLogg =
-    div [] <|
-        List.map viewMelding (MeldingsLogg.meldinger meldingsLogg)
+    meldingsLogg
+        |> MeldingsLogg.meldinger
+        |> List.map viewMelding
+        |> div []
 
 
 viewMelding : Melding -> Html Msg
 viewMelding melding =
-    case Melding.meldingsType melding of
-        Melding.Spørsmål ->
-            div []
-                [ p [] [ text "Spørsmål: " ]
-                , Melding.innhold melding
-                    |> List.map (\elem -> p [] [ text elem ])
-                    |> div []
-                ]
+    div []
+        [ h3 []
+            [ case Melding.meldingsType melding of
+                Melding.Spørsmål ->
+                    text "Spørsmål: "
 
-        Melding.Svar ->
-            div []
-                [ p [] [ text "Svar: " ]
-                , Melding.innhold melding
-                    |> List.map (\elem -> p [] [ text elem ])
-                    |> div []
-                ]
+                Melding.Svar ->
+                    text "Svar:"
+            ]
+        , Melding.innhold melding
+            |> List.map (\elem -> p [] [ text elem ])
+            |> div []
+        ]
 
 
 viewBrukerInput : SamtaleSeksjon -> Html Msg
@@ -421,7 +419,9 @@ viewBrukerInput aktivSamtale =
                 |> Html.map (PersonaliaMsg >> SuccessMsg)
 
         UtdanningSeksjon utdanningSeksjon ->
-            utdanningSeksjon |> Seksjon.Utdanning.viewUtdanning |> Html.map (UtdanningsMsg >> SuccessMsg)
+            utdanningSeksjon
+                |> Seksjon.Utdanning.viewBrukerInput
+                |> Html.map (UtdanningsMsg >> SuccessMsg)
 
         _ ->
             text "Ikke implementert"

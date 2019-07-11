@@ -1,4 +1,4 @@
-module Cv.Cv exposing (Cv, decode, utdanningListe)
+module Cv.Cv exposing (Cv, decode, utdanning)
 
 import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
@@ -60,8 +60,8 @@ arbeidserfaring (Cv info) =
     info.arbeidserfaring
 
 
-utdanningListe : Cv -> List Utdanning
-utdanningListe (Cv info) =
+utdanning : Cv -> List Utdanning
+utdanning (Cv info) =
     info.utdanningListe
 
 

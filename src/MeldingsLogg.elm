@@ -1,4 +1,4 @@
-module MeldingsLogg exposing (MeldigsLoggInfo, MeldingsLogg(..), init, leggTilSpørsmål, leggTilSvar, meldinger)
+module MeldingsLogg exposing (MeldingsLogg, init, leggTilSpørsmål, leggTilSvar, meldinger)
 
 import Melding exposing (Melding)
 

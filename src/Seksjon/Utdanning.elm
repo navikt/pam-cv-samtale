@@ -1,4 +1,4 @@
-module Seksjon.Utdanning exposing (Model, ModelInfo, Msg, Samtale(..), SamtaleStatus(..), init, meldingsLogg, update, viewUtdanning)
+module Seksjon.Utdanning exposing (Model, Msg, Samtale, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
 import Cv.Utdanning as Cv exposing (Utdanning)
 import Html exposing (..)
@@ -19,43 +19,46 @@ type Model
 
 
 type alias ModelInfo =
-    { seksjonsMeldingsLogg : MeldingsLogg, aktivSamtale : Samtale, utdanningListe : List Utdanning, nivå : String }
+    { seksjonsMeldingsLogg : MeldingsLogg
+    , aktivSamtale : Samtale
+    , utdanningListe : List Utdanning
+    }
+
+
+type alias NivåInfo =
+    -- TODO: legg til custom type
+    { nivå : String }
+
+
+type alias RetningInfo =
+    { nivå : String, retning : String }
+
+
+type alias SkoleInfo =
+    { nivå : String, retning : String, skole : String }
+
+
+type alias BeskrivelseInfo =
+    { nivå : String, retning : String, skole : String, beskrivelse : String }
+
+
+type alias PeriodeInfo =
+    { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String }
+
+
+type alias OppsummeringInfo =
+    { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String, oppsummering : String }
 
 
 type Samtale
     = Intro
-    | FullførtRegistrering
     | RegistrerUtdanning
     | RegistrerNivå NivåInfo
-    | RegistrerRetning NivåRetningInfo
-    | RegistrerSkole NivåRetningSkoleInfo
-    | RegistrerBeskrivelse NivåRetningSkoleBeskrivelseInfo
-    | RegistrerPeriode NivåRetningSkoleBeskrivelsePeriodeInfo
-    | Oppsummering NivåRetningSkoleBeskrivelsePeriodeOppsummeringInfo
-
-
-type alias NivåInfo =
-    { nivå : String }
-
-
-type alias NivåRetningInfo =
-    { nivå : String, retning : String }
-
-
-type alias NivåRetningSkoleInfo =
-    { nivå : String, retning : String, skole : String }
-
-
-type alias NivåRetningSkoleBeskrivelseInfo =
-    { nivå : String, retning : String, skole : String, beskrivelse : String }
-
-
-type alias NivåRetningSkoleBeskrivelsePeriodeInfo =
-    { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String }
-
-
-type alias NivåRetningSkoleBeskrivelsePeriodeOppsummeringInfo =
-    { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String, oppsummering : String }
+    | RegistrerRetning RetningInfo
+    | RegistrerSkole SkoleInfo
+    | RegistrerBeskrivelse BeskrivelseInfo
+    | RegistrerPeriode PeriodeInfo
+    | Oppsummering OppsummeringInfo
 
 
 type Msg
@@ -84,29 +87,14 @@ update msg (Model model) =
     case msg of
         BrukerVilRegistrereNyUtdanning ->
             case model.aktivSamtale of
-                FullførtRegistrering ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        {--
-            ( model.aktivSamtale
-                |> RegistrerNivå tekst
-                |> nesteSamtaleSteg model "Endre"
-            , Cmd.none
-            )
-                |> IkkeFerdig
---}
         GåTilArbeidserfaring ->
             Ferdig model.utdanningListe model.seksjonsMeldingsLogg
 
         _ ->
             IkkeFerdig ( Model model, Cmd.none )
-
-
-
-{--Ferdig model.utdanning model.meldingsLogg--}
 
 
 nesteSamtaleSteg : ModelInfo -> String -> Samtale -> Model
@@ -130,12 +118,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
     case utdanningSeksjon of
         Intro ->
             [ Melding.spørsmål
-                [ "Intro" ]
-            ]
-
-        FullførtRegistrering ->
-            [ Melding.spørsmål
-                [ "Du har valgt å endre personaliaskjema" ]
+                [ "Nå skal vi legg til din utdanning" ]
             ]
 
         RegistrerUtdanning ->
@@ -149,18 +132,14 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             ]
 
 
-viewUtdanning : Model -> Html Msg
-viewUtdanning (Model { aktivSamtale }) =
+viewBrukerInput : Model -> Html Msg
+viewBrukerInput (Model { aktivSamtale }) =
     case aktivSamtale of
         Intro ->
             div []
-                [ text "Hei, nå skal vi legge til utdanningen din"
-                , button [ onClick BrukerVilRegistrereNyUtdanning ] [ text "Jeg vil registrere utdanning" ]
+                [ button [ onClick BrukerVilRegistrereNyUtdanning ] [ text "Jeg vil registrere utdanning" ]
                 , button [ onClick GåTilArbeidserfaring ] [ text "Jeg har ingen utdanning" ]
                 ]
-
-        FullførtRegistrering ->
-            div [] []
 
         RegistrerUtdanning ->
             div [] []
@@ -190,4 +169,15 @@ viewUtdanning (Model { aktivSamtale }) =
 
 init : MeldingsLogg -> List Utdanning -> Model
 init gammelMeldingsLogg utdanningListe =
-    Model { seksjonsMeldingsLogg = gammelMeldingsLogg, aktivSamtale = Intro, utdanningListe = utdanningListe, nivå = "" }
+    let
+        aktivSamtale =
+            Intro
+    in
+    Model
+        { seksjonsMeldingsLogg =
+            MeldingsLogg.leggTilSpørsmål
+                (samtaleTilMeldingsLogg aktivSamtale)
+                gammelMeldingsLogg
+        , aktivSamtale = aktivSamtale
+        , utdanningListe = utdanningListe
+        }

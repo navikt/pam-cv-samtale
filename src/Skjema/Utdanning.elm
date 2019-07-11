@@ -1,4 +1,4 @@
-module Skjema.Utdanning exposing (Felt(..), UtdanningSkjema(..), beskrivelse, encode, fradato, init, navarende, nuskode, oppdaterFelt, studiested, tildato, utdanningsretning)
+module Skjema.Utdanning exposing (Felt(..), UtdanningSkjema(..), beskrivelse, encode, fradato, init, navarende, oppdaterFelt, studiested, tildato, utdanningsretning)
 
 import Cv.Utdanning exposing (Utdanning, Yrkesskole(..))
 import Json.Encode
@@ -59,11 +59,6 @@ navarende (UtdanningSkjema info) =
     info.navarende
 
 
-nuskode : UtdanningSkjema -> String
-nuskode (UtdanningSkjema info) =
-    info.nuskode
-
-
 init : Utdanning -> UtdanningSkjema
 init utdanning =
     UtdanningSkjema
@@ -102,8 +97,9 @@ oppdaterFelt felt (UtdanningSkjema info) ( str, bol ) =
             UtdanningSkjema { info | nuskode = str }
 
 
-encode : UtdanningSkjema -> String -> Json.Encode.Value
-encode (UtdanningSkjema info) id =
+encode : UtdanningSkjema -> String -> String -> Json.Encode.Value
+encode (UtdanningSkjema info) id nivå =
+    -- FIXME: ta inn nivå som en custom type
     Json.Encode.object
         [ ( "id", Json.Encode.string id )
         , ( "studiested", Json.Encode.string info.studiested )
@@ -112,5 +108,16 @@ encode (UtdanningSkjema info) id =
         , ( "fradato", Json.Encode.string info.fradato )
         , ( "tildato", Json.Encode.string info.tildato )
         , ( "navarende", Json.Encode.bool info.navarende )
-        , ( "nuskode", Json.Encode.string info.nuskode )
+        , ( "nuskode", encodeNuskode nivå )
         ]
+
+
+encodeNuskode : String -> Json.Encode.Value
+encodeNuskode nivå =
+    -- FIXME: nivå til nuskode enocder
+    case nivå of
+        "Bachelor" ->
+            Json.Encode.int 0
+
+        _ ->
+            Json.Encode.int 0

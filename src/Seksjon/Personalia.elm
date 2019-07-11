@@ -56,13 +56,16 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         OriginalPersonaliaBekreftet ->
-            Ferdig model.personalia model.seksjonsMeldingsLogg
+            model.seksjonsMeldingsLogg
+                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Bekreft" ])
+                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Så bra! Da ruller vi videre!" ] ]
+                |> Ferdig model.personalia
 
         BrukerVilEndreOriginalPersonalia ->
             ( model.personalia
                 |> Skjema.Personalia.init
                 |> EndreOriginal
-                |> nesteSamtaleSteg model "Endre"
+                |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
             , Cmd.none
             )
                 |> IkkeFerdig
@@ -86,7 +89,13 @@ update msg (Model model) =
                 EndreOriginal skjema ->
                     ( skjema
                         |> LagrerEndring
-                        |> nesteSamtaleSteg model "Det jeg fylte ut"
+                        |> nesteSamtaleSteg model
+                            (Melding.svar
+                                [ "--- Skjema ---"
+                                , Skjema.Personalia.fornavn skjema ++ " osv."
+                                , "---------------"
+                                ]
+                            )
                     , model.personalia
                         |> Personalia.id
                         |> Api.oppdaterPersonalia PersonaliaOppdatert skjema
@@ -106,7 +115,7 @@ update msg (Model model) =
 
                         Err error ->
                             ( LagringFeilet error skjema
-                                |> nesteSamtaleSteg model "Ne gikk galt"
+                                |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ])
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -116,15 +125,15 @@ update msg (Model model) =
                         |> IkkeFerdig
 
 
-nesteSamtaleSteg : ModelInfo -> String -> Samtale -> Model
-nesteSamtaleSteg model tekst samtaleSeksjon =
+nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
+nesteSamtaleSteg model melding samtaleSeksjon =
     Model
         { model
             | aktivSamtale = samtaleSeksjon
             , seksjonsMeldingsLogg =
                 model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSvar melding
                     |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-                    |> MeldingsLogg.leggTilSvar (Melding.svar [ tekst ])
         }
 
 
@@ -141,7 +150,10 @@ samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
             [ Melding.spørsmål
-                [ "Da har du bekreftet personaliaen din"
+                [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
+                , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
+                , "Fornavn: " ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
+                , " Etternavn: " ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
                 ]
             ]
 
@@ -152,7 +164,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
 
         LagrerEndring personaliaSkjema ->
             [ Melding.spørsmål
-                [ "Melding lagret: " ++ Skjema.Personalia.fornavn personaliaSkjema ]
+                [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ]
             ]
 
         LagringFeilet error personaliaSkjema ->
@@ -238,21 +250,17 @@ viewBrukerInput (Model { aktivSamtale }) =
 --- INIT ---
 
 
-init : MeldingsLogg -> Personalia -> Model
-init gammelMeldingsLogg personalia =
+init : Personalia -> MeldingsLogg -> Model
+init personalia gammelMeldingsLogg =
+    let
+        aktivSamtale =
+            BekreftOriginal personalia
+    in
     Model
         { seksjonsMeldingsLogg =
             MeldingsLogg.leggTilSpørsmål
-                [ Melding.spørsmål
-                    [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
-                    , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
-                    , "Fornavn: "
-                    , Personalia.fornavn personalia |> Maybe.withDefault "-"
-                    , " Etternavn: "
-                    , Personalia.etternavn personalia |> Maybe.withDefault "-"
-                    ]
-                ]
+                (samtaleTilMeldingsLogg aktivSamtale)
                 gammelMeldingsLogg
-        , aktivSamtale = BekreftOriginal personalia
+        , aktivSamtale = aktivSamtale
         , personalia = personalia
         }
