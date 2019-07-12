@@ -70,7 +70,7 @@ decodeBackendData =
         |> required "id" string
         |> required "sertifikatNavnFritekst" (nullable string)
         |> required "sertifikatnavn" (nullable string)
-        |> required "konseptid" (nullable string)
+        |> required "konseptId" (nullable string)
         |> required "utsteder" (nullable string)
         |> required "fradato" (nullable string)
         |> required "tildato" (nullable string)
