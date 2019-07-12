@@ -36,6 +36,12 @@ server.post('/cv-samtale/log', (req, res) => {
     res.sendStatus(200);
 });
 
+const getCookie = (name: string, cookie: string) => {
+    const re = new RegExp(`${name}=([^;]+)`);
+    const match = re.exec(cookie);
+    return match !== null ? match[1] : '';
+};
+
 server.use(
     '/cv-samtale/api',
     proxy(MILJOVARIABLER.API_GATEWAY_HOST, {
@@ -45,6 +51,7 @@ server.use(
             cookie: srcReq.headers.cookie,
             headers: {
                 ...proxyReqOpts.headers,
+                'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', srcReq.headers.cookie),
                 'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY
             }
         }),
