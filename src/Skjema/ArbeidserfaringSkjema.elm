@@ -1,4 +1,4 @@
-module Skjema.ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema(..), Felt(..), SkjemaInfo, init, sted, yrke)
+module Skjema.ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema(..), Felt(..), SkjemaInfo, init, oppdaterStringFelt, sted, toggleBool, tomtSkjema, yrke, yrkeFritekst)
 
 import Cv.Arbeidserfaring exposing (..)
 
@@ -78,6 +78,82 @@ navarende (ArbeidserfaringSkjema info) =
     info.navarende
 
 
+
+--- OPPDATER FELT ETTER EGENSKAP ----
+
+
+oppdaterStringFelt : ArbeidserfaringSkjema -> Felt -> String -> ArbeidserfaringSkjema
+oppdaterStringFelt (ArbeidserfaringSkjema skjema) felt string =
+    case felt of
+        Id ->
+            ArbeidserfaringSkjema { skjema | id = string }
+
+        Arbeidsgiver ->
+            ArbeidserfaringSkjema { skjema | arbeidsgiver = string }
+
+        Yrke ->
+            ArbeidserfaringSkjema { skjema | yrke = string }
+
+        Sted ->
+            ArbeidserfaringSkjema { skjema | sted = string }
+
+        Fradato ->
+            ArbeidserfaringSkjema { skjema | fradato = string }
+
+        Tildato ->
+            ArbeidserfaringSkjema { skjema | tildato = string }
+
+        Styrkkode ->
+            ArbeidserfaringSkjema { skjema | styrkkode = string }
+
+        YrkeFritekst ->
+            ArbeidserfaringSkjema { skjema | yrkeFritekst = string }
+
+        Konseptid ->
+            ArbeidserfaringSkjema { skjema | konseptid = string }
+
+        Beskrivelse ->
+            ArbeidserfaringSkjema { skjema | beskrivelse = string }
+
+        _ ->
+            ArbeidserfaringSkjema skjema
+
+
+toggleBool : ArbeidserfaringSkjema -> Felt -> ArbeidserfaringSkjema
+toggleBool skjema felt =
+    case felt of
+        Navarende ->
+            oppdaterNavarendeFelt skjema
+
+        IkkeAktueltForFremtiden ->
+            oppdaterNavarendeFelt skjema
+
+        _ ->
+            skjema
+
+
+
+--- OPPDATER FELT ETTER NAVN ---
+
+
+oppdaterNavarendeFelt : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+oppdaterNavarendeFelt (ArbeidserfaringSkjema skjema) =
+    if skjema.navarende == True then
+        ArbeidserfaringSkjema { skjema | navarende = False }
+
+    else
+        ArbeidserfaringSkjema { skjema | navarende = True }
+
+
+oppdaterIkkeAktueltForFremtidenFelt : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+oppdaterIkkeAktueltForFremtidenFelt (ArbeidserfaringSkjema skjema) =
+    if skjema.navarende == True then
+        ArbeidserfaringSkjema { skjema | navarende = False }
+
+    else
+        ArbeidserfaringSkjema { skjema | navarende = True }
+
+
 oppdaterIdFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
 oppdaterIdFelt (ArbeidserfaringSkjema skjema) string =
     ArbeidserfaringSkjema { skjema | id = string }
@@ -108,19 +184,9 @@ oppdaterTildatoFelt (ArbeidserfaringSkjema skjema) string =
     ArbeidserfaringSkjema { skjema | tildato = string }
 
 
-oppdaterNavarendeFelt : ArbeidserfaringSkjema -> Bool -> ArbeidserfaringSkjema
-oppdaterNavarendeFelt (ArbeidserfaringSkjema skjema) bool =
-    ArbeidserfaringSkjema { skjema | navarende = bool }
-
-
 oppdaterStyrkkodeFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
 oppdaterStyrkkodeFelt (ArbeidserfaringSkjema skjema) string =
     ArbeidserfaringSkjema { skjema | styrkkode = string }
-
-
-oppdaterIkkeAktueltForFremtidenFelt : ArbeidserfaringSkjema -> Bool -> ArbeidserfaringSkjema
-oppdaterIkkeAktueltForFremtidenFelt (ArbeidserfaringSkjema skjema) bool =
-    ArbeidserfaringSkjema { skjema | ikkeAktueltForFremtiden = bool }
 
 
 oppdaterYrkeFritekstFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
@@ -184,4 +250,22 @@ init arbeidserfaring =
             arbeidserfaring
                 |> Cv.Arbeidserfaring.beskrivelse
                 |> Maybe.withDefault ""
+        }
+
+
+tomtSkjema : ArbeidserfaringSkjema
+tomtSkjema =
+    ArbeidserfaringSkjema
+        { id = ""
+        , arbeidsgiver = ""
+        , yrke = ""
+        , sted = ""
+        , fradato = ""
+        , tildato = ""
+        , navarende = False
+        , styrkkode = ""
+        , ikkeAktueltForFremtiden = False
+        , yrkeFritekst = ""
+        , konseptid = ""
+        , beskrivelse = ""
         }

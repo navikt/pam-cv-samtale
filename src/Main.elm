@@ -95,8 +95,8 @@ type LoadingMsg
 type SuccessMsg
     = BrukerSierHeiIIntroduksjonen
     | PersonaliaMsg Seksjon.Personalia.Msg
-    | ArbeidserfaringMsg Seksjon.Arbeidserfaring.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
+    | ArbeidserfaringsMsg Seksjon.Arbeidserfaring.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -290,13 +290,10 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Personalia.Ferdig personalia personaliaMeldingsLogg ->
-                            personaliaFerdig model personalia personaliaMeldingsLogg
+                            personaliaTilArbeidserfaring model personalia personaliaMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
-
-        ArbeidserfaringMsg msg ->
-            ( Success model, Cmd.none )
 
         UtdanningsMsg msg ->
             case model.aktivSamtale of
@@ -316,6 +313,21 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        ArbeidserfaringsMsg msg ->
+            case model.aktivSamtale of
+                ArbeidsErfaringSeksjon arbeidserfaringsModel ->
+                    case Seksjon.Arbeidserfaring.update msg arbeidserfaringsModel of
+                        Seksjon.Arbeidserfaring.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> ArbeidsErfaringSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) cmd
+                            )
+
+                _ ->
+                    ( Success model, Cmd.none )
+
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
@@ -329,6 +341,19 @@ personaliaFerdig model personalia personaliaMeldingsLogg =
     ( Success
         { model
             | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init personaliaMeldingsLogg (Cv.utdanning model.cv))
+        }
+    , Cmd.none
+    )
+
+
+personaliaTilArbeidserfaring : SuccessModel -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
+personaliaTilArbeidserfaring model personalia personaliaMeldingsLogg =
+    ( Success
+        { model
+            | aktivSamtale =
+                personaliaMeldingsLogg
+                    |> Seksjon.Arbeidserfaring.init
+                    |> ArbeidsErfaringSeksjon
         }
     , Cmd.none
     )
@@ -428,8 +453,10 @@ viewBrukerInput aktivSamtale =
                 |> Seksjon.Utdanning.viewBrukerInput
                 |> Html.map (UtdanningsMsg >> SuccessMsg)
 
-        _ ->
-            text "Ikke implementert"
+        ArbeidsErfaringSeksjon arbeidserfaringSeksjon ->
+            arbeidserfaringSeksjon
+                |> Seksjon.Arbeidserfaring.viewBrukerInput
+                |> Html.map (ArbeidserfaringsMsg >> SuccessMsg)
 
 
 
