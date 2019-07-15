@@ -108,16 +108,5 @@ encode (UtdanningSkjema info) id nivå =
         , ( "fradato", Json.Encode.string info.fradato )
         , ( "tildato", Json.Encode.string info.tildato )
         , ( "navarende", Json.Encode.bool info.navarende )
-        , ( "nuskode", encodeNuskode nivå )
+        , ( "nuskode", Json.Encode.string info.nuskode )
         ]
-
-
-encodeNuskode : String -> Json.Encode.Value
-encodeNuskode nivå =
-    -- FIXME: nivå til nuskode enocder
-    case nivå of
-        "Bachelor" ->
-            Json.Encode.int 0
-
-        _ ->
-            Json.Encode.int 0

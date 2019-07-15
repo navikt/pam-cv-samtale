@@ -19,6 +19,31 @@ type Model
     = Model ModelInfo
 
 
+type Nivå
+    = Nivå { utdanningsnivå : Utdanningsnivå }
+
+
+type Utdanningsnivå
+    = Grunnskole
+    | VideregåendeYrkesskole
+    | Fagskole
+    | Folkehøyskole
+    | HøyereUtdanning1til4
+    | HøyereUtdanning4pluss
+    | Phd
+
+
+
+{--onst gyldigeUtdanningsNivaa = [
+       { value: 2, label: 'Grunnskole' },
+       { value: 4, label: 'Videregående/Yrkesskole' },
+       { value: 5, label: 'Fagskole' },
+       { value: 3, label: 'Folkehøyskole' },
+       { value: 6, label: 'Høyere utdanning, 1-4 år' },
+       { value: 7, label: 'Høyere utdanning, 4+ år' },
+       { value: 8, label: 'PhD' }--}
+
+
 type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
@@ -28,27 +53,27 @@ type alias ModelInfo =
 
 type alias NivåInfo =
     -- TODO: legg til custom type
-    { nivå : String }
+    { nivå : Nivå }
 
 
 type alias RetningInfo =
-    { nivå : String, retning : String }
+    { nivå : Nivå, retning : String }
 
 
 type alias SkoleInfo =
-    { nivå : String, retning : String, skole : String }
+    { nivå : Nivå, retning : String, skole : String }
 
 
 type alias BeskrivelseInfo =
-    { nivå : String, retning : String, skole : String, beskrivelse : String }
+    { nivå : Nivå, retning : String, skole : String, beskrivelse : String }
 
 
 type alias PeriodeInfo =
-    { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String }
+    { nivå : Nivå, retning : String, skole : String, beskrivelse : String, periode : String }
 
 
 type alias OppsummeringInfo =
-    { nivå : String, retning : String, skole : String, beskrivelse : String, periode : String, oppsummering : String }
+    { nivå : Nivå, retning : String, skole : String, beskrivelse : String, periode : String, oppsummering : String }
 
 
 type Samtale
