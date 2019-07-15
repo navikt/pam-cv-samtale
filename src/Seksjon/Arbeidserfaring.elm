@@ -7,7 +7,6 @@ import Html.Attributes exposing (value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import MeldingsLogg exposing (MeldingsLogg)
-import Skjema.ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema)
 
 
 
@@ -51,34 +50,95 @@ type SamtaleStatus
 type Msg
     = HentAAregArbeidserfaring
     | HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
-    | RegistrerArbeidsErfaring Samtale
-    | SkjemaEndret Skjema.ArbeidserfaringSkjema.Felt String
-    | BrukerVilLeggeTilArbeidserfaring
-    | BrukerVilLegeTilJobbTittel ArbeidserfaringSkjema
-    | BrukerVilLeggeTilBedriftsnavn ArbeidserfaringSkjema
-    | BrukerVilLeggeTilSted ArbeidserfaringSkjema
-    | BrukerVilLeggeTilBeskrivelse ArbeidserfaringSkjema
+    | BrukerOppdatererYrke YrkeInfo String
+    | BrukerOppretterNyArbeidserfaring
+    | BrukerVilRegistrerJobbTittel JobbtittelInfo
+    | BrukerOppdatererJobbtittelFelt JobbtittelInfo String
+    | BrukerVilRegistrereBedriftnavn BeriftnavnsInfo
+    | BrukerOppdatererBedriftnavn BeriftnavnsInfo String
 
 
 type Samtale
     = Intro
-    | LeggeTilArbeidserfaring InputType ArbeidserfaringSkjema
-    | RegistrerNyTittel ArbeidserfaringSkjema
-    | RegistrerBedriftNavn ArbeidserfaringSkjema
-    | RegistrerSted ArbeidserfaringSkjema
-    | Registrerarbeidsoppgaver ArbeidserfaringSkjema
-    | RegistrerPeriode ArbeidserfaringSkjema
-    | LagreArbeidserfaring ArbeidserfaringSkjema
+    | RegistrerYrke YrkeInfo
+    | RegistrerNyTittel JobbtittelInfo
+    | RegistrereBedriftNavn BeriftnavnsInfo
 
 
-type InputType
-    = TypeString
-    | TypeBool
+type alias YrkeInfo =
+    { yrke : String }
+
+
+type alias JobbtittelInfo =
+    { yrke : YrkeInfo
+    , jobbtittel : String
+    }
+
+
+type alias BeriftnavnsInfo =
+    { yrke : YrkeInfo
+    , jobbtittel : JobbtittelInfo
+    , bedriftNavn : String
+    }
+
+
+type alias Lokasjon =
+    { yrke : String
+    , jobbtittel : String
+    , bedriftNavn : String
+    , lokasjon : String
+    }
+
+
+type alias Arbeidsoppgaver =
+    { yrke : String
+    , jobbtittel : String
+    , bedriftNavn : String
+    , lokasjon : String
+    , arbeidsOppgaver : String
+    }
+
+
+type alias Periode =
+    { yrke : String
+    , jobbtittel : String
+    , bedriftNavn : String
+    , lokasjon : String
+    , arbeidsOppgaver : String
+    , fradato : String
+    , tildato : String
+    , navarende : Bool
+    }
+
+
+type Felt
+    = YrkeFelt
+    | JobbTittelFelt
+    | BedriftNavnFelt
+    | LokasjonFelt
+    | ArbeidsOppgaverFelt
+    | FradatoFelt
+    | TildatoFelt
+    | NavarendeFelt
+
+
+yrkeInfoTilJobbtittelInfo : YrkeInfo -> JobbtittelInfo
+yrkeInfoTilJobbtittelInfo yrke =
+    { yrke = yrke, jobbtittel = "" }
+
+
+jobbtittelInfoTilBedriftnavnsInfo : JobbtittelInfo -> BeriftnavnsInfo
+jobbtittelInfoTilBedriftnavnsInfo jobbtittelInfo =
+    { yrke = jobbtittelInfo.yrke, jobbtittel = jobbtittelInfo, bedriftNavn = "" }
 
 
 update : Msg -> Model -> SamtaleStatus
 update msg (Model info) =
     case msg of
+        HentAAregArbeidserfaring ->
+            ( Model info, Cmd.none )
+                |> IkkeFerdig
+
         HentetAAregArbeidserfaring result ->
             case result of
                 Ok arbeidserfaringFraAAreg ->
@@ -95,83 +155,55 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
-        RegistrerArbeidsErfaring registreringsMsg ->
-            ( Model info, Cmd.none )
-                |> IkkeFerdig
-
-        SkjemaEndret felt string ->
-            case info.aktivSamtale of
-                LeggeTilArbeidserfaring inputType skjema ->
-                    case inputType of
-                        TypeString ->
-                            ( Model
-                                { info
-                                    | aktivSamtale =
-                                        Skjema.ArbeidserfaringSkjema.oppdaterStringFelt skjema felt string
-                                            |> LeggeTilArbeidserfaring inputType
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        TypeBool ->
-                            ( Model
-                                { info
-                                    | aktivSamtale =
-                                        Skjema.ArbeidserfaringSkjema.toggleBool skjema felt
-                                            |> LeggeTilArbeidserfaring inputType
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                _ ->
-                    ( Model info, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerVilLeggeTilArbeidserfaring ->
+        BrukerOppretterNyArbeidserfaring ->
             ( Model
                 { info
                     | aktivSamtale =
-                        Skjema.ArbeidserfaringSkjema.tomtSkjema
-                            |> LeggeTilArbeidserfaring TypeString
+                        RegistrerYrke { yrke = "" }
                 }
             , Cmd.none
             )
                 |> IkkeFerdig
 
-        HentAAregArbeidserfaring ->
-            ( Model info, Cmd.none )
-                |> IkkeFerdig
-
-        BrukerVilLegeTilJobbTittel skjema ->
+        BrukerOppdatererYrke yrke string ->
             ( Model
                 { info
-                    | aktivSamtale =
-                        skjema
-                            |> RegistrerNyTittel
+                    | aktivSamtale = RegistrerYrke { yrke | yrke = string }
                 }
             , Cmd.none
             )
                 |> IkkeFerdig
 
-        BrukerVilLeggeTilBedriftsnavn skjema ->
+        BrukerVilRegistrerJobbTittel jobbtittelInfo ->
+            ( Model
+                { info | aktivSamtale = RegistrerNyTittel jobbtittelInfo }
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerOppdatererJobbtittelFelt jobbtittelInfo string ->
             ( Model
                 { info
-                    | aktivSamtale =
-                        skjema
-                            |> RegistrerBedriftNavn
+                    | aktivSamtale = RegistrerNyTittel { jobbtittelInfo | jobbtittel = string }
                 }
             , Cmd.none
             )
                 |> IkkeFerdig
 
-        BrukerVilLeggeTilSted skjema ->
-            ( Model info, Cmd.none )
+        BrukerVilRegistrereBedriftnavn bedriftnavnInfo ->
+            ( Model
+                { info | aktivSamtale = RegistrereBedriftNavn bedriftnavnInfo }
+            , Cmd.none
+            )
                 |> IkkeFerdig
 
-        BrukerVilLeggeTilBeskrivelse skjema ->
-            ( Model info, Cmd.none )
+        BrukerOppdatererBedriftnavn beriftnavnsInfo string ->
+            ( Model
+                { info
+                    | aktivSamtale = RegistrereBedriftNavn { beriftnavnsInfo | bedriftNavn = string }
+                }
+            , Cmd.none
+            )
                 |> IkkeFerdig
 
 
@@ -184,45 +216,53 @@ viewBrukerInput (Model info) =
     case info.aktivSamtale of
         Intro ->
             div []
-                [ button [ onClick BrukerVilLeggeTilArbeidserfaring ] [ text "Legg til arbeidserfaring" ]
+                [ button [ onClick BrukerOppretterNyArbeidserfaring ] [ text "Legg til arbeidserfaring" ]
                 ]
 
-        LeggeTilArbeidserfaring steg arbeidserfaringSkjema ->
+        RegistrerYrke yrke ->
             div []
                 [ label [] [ text "Yrke" ]
                 , input
-                    [ Skjema.ArbeidserfaringSkjema.yrke arbeidserfaringSkjema |> value
-                    , onInput (SkjemaEndret Skjema.ArbeidserfaringSkjema.Yrke)
+                    [ yrke.yrke |> value
+                    , onInput (BrukerOppdatererYrke yrke)
                     ]
                     []
-                , button [ onClick (BrukerVilLegeTilJobbTittel arbeidserfaringSkjema) ] [ text "Neste" ]
+                , button
+                    [ yrkeInfoTilJobbtittelInfo yrke
+                        |> BrukerVilRegistrerJobbTittel
+                        |> onClick
+                    ]
+                    [ text "Lagre" ]
                 ]
 
-        RegistrerNyTittel arbeidserfaringSkjema ->
+        RegistrerNyTittel jobbtittelInfo ->
             div []
-                [ label [] [ text "Jobbnavn du ønsker skal stå på CV'en" ]
+                [ label [] [ text "Skriv inn tittlen på jobben" ]
                 , input
-                    [ Skjema.ArbeidserfaringSkjema.yrkeFritekst arbeidserfaringSkjema |> value
-                    , onInput (SkjemaEndret Skjema.ArbeidserfaringSkjema.YrkeFritekst)
+                    [ jobbtittelInfo.jobbtittel |> value
+                    , onInput (BrukerOppdatererJobbtittelFelt jobbtittelInfo)
                     ]
                     []
-                , button [ onClick (BrukerVilLegeTilJobbTittel arbeidserfaringSkjema) ] [ text "Neste" ]
+                , button
+                    [ jobbtittelInfoTilBedriftnavnsInfo jobbtittelInfo
+                        |> BrukerVilRegistrereBedriftnavn
+                        |> onClick
+                    ]
+                    [ text "Lagre" ]
                 ]
 
-        RegistrerBedriftNavn arbeidserfaringSkjema ->
-            div [] []
-
-        RegistrerSted arbeidserfaringSkjema ->
-            div [] []
-
-        Registrerarbeidsoppgaver arbeidserfaringSkjema ->
-            div [] []
-
-        RegistrerPeriode arbeidserfaringSkjema ->
-            div [] []
-
-        LagreArbeidserfaring arbeidserfaringSkjema ->
-            div [] []
+        RegistrereBedriftNavn beriftnavnsInfo ->
+            div []
+                [ label [] [ text "Skriv inn navnet på bedriften du jobbet i" ]
+                , input
+                    [ beriftnavnsInfo.bedriftNavn |> value
+                    , onInput (BrukerOppdatererBedriftnavn beriftnavnsInfo)
+                    ]
+                    []
+                , button
+                    []
+                    [ text "Lagre" ]
+                ]
 
 
 init : MeldingsLogg -> Model
