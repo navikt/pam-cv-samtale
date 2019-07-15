@@ -20,7 +20,6 @@ const MILJOVARIABLER = {
 console.log(`API_GATEWAY_HOST: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
 
 const server = express();
-// server.use(express.json());
 
 // security
 server.disable('x-powered-by');
@@ -36,36 +35,32 @@ const getCookie = (name: string, cookie: string) => {
     return match !== null ? match[1] : '';
 };
 
+server.post('/cv-samtale/log', (req, res) => {
+    console.log(JSON.stringify({
+        ...req.body,
+        level: "Error"
+    }));
+    res.sendStatus(200);
+});
+
 server.use(
     '/cv-samtale/api',
-    proxy('http://pam-cv', {
-        // https: true,
-        // proxyReqOptDecorator: (proxyReqOpts: RequestOptions, srcReq: Request)  => {
-        //     // proxyReqOpts.headers['Cookie'] = srcReq.header('Cookie');
-        //     proxyReqOpts.headers['X-XSRF-TOKEN'] = getCookie('XSRF-TOKEN', srcReq.header('Cookie'));
-        //     proxyReqOpts.headers['x-nav-apiKey'] = MILJOVARIABLER.PROXY_API_KEY;
-        //     return proxyReqOpts;
-        // },
-        // proxyReqPathResolver: (req: any) => {
-        //     const p = req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/pam-cv-api/pam-cv-api');
-        //     console.log(JSON.stringify({message: `New path: ${MILJOVARIABLER.API_GATEWAY_HOST}${p}`}))
-        //     return p;
-        // }
+    proxy(MILJOVARIABLER.API_GATEWAY_HOST, {
+        https: true,
+        proxyReqOptDecorator: (proxyReqOpts: RequestOptions, srcReq: Request)  => ({
+            ...proxyReqOpts,
+            headers: {
+                ...proxyReqOpts.headers,
+                'Cookie': srcReq.header('Cookie'),
+                'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', srcReq.header('Cookie')),
+                'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY
+            }
+        }),
         proxyReqPathResolver: (req: any) => (
-            req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/cv/api')
-        ),
-        parseReqBody: true,
-        proxyReqBodyDecorator: (bodyContent) => bodyContent
+            req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/pam-cv-api/pam-cv-api')
+        )
     })
 );
-
-// server.post('/cv-samtale/log', (req, res) => {
-//     console.log(JSON.stringify({
-//         ...req.body,
-//         level: "Error"
-//     }));
-//     res.sendStatus(200);
-// });
 
 server.use('/cv-samtale/static', express.static(path.resolve(__dirname, 'dist')));
 server.use(
