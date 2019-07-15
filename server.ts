@@ -1,7 +1,9 @@
 import * as express from 'express';
+import { Request} from 'express';
 import * as proxy from 'express-http-proxy';
 import * as helmet from 'helmet';
 import * as path from 'path';
+import { RequestOptions } from 'http';
 
 if (!process.env.PAM_CV_API_PROXY_KEY) {
     throw new Error("Miljøvariabel PAM_CV_API_PROXY_KEY er ikke satt");
@@ -46,15 +48,12 @@ server.use(
     '/cv-samtale/api',
     proxy(MILJOVARIABLER.API_GATEWAY_HOST, {
         https: true,
-        proxyReqOptDecorator: (proxyReqOpts: any, srcReq: any) => ({
-            ...proxyReqOpts,
-            cookie: srcReq.headers.cookie,
-            headers: {
-                ...proxyReqOpts.headers,
-                'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', srcReq.headers.cookie),
-                'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY
-            }
-        }),
+        // proxyReqOptDecorator: (proxyReqOpts: RequestOptions, srcReq: Request)  => {
+        //     // proxyReqOpts.headers['Cookie'] = srcReq.header('Cookie');
+        //     proxyReqOpts.headers['X-XSRF-TOKEN'] = getCookie('XSRF-TOKEN', srcReq.header('Cookie'));
+        //     proxyReqOpts.headers['x-nav-apiKey'] = MILJOVARIABLER.PROXY_API_KEY;
+        //     return proxyReqOpts;
+        // },
         proxyReqPathResolver: (req: any) => (
             req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/pam-cv-api/pam-cv-api')
         )
