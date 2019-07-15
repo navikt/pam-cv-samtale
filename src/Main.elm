@@ -404,11 +404,13 @@ meldingsLoggFraSeksjon successModel =
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
-    div []
-        [ successModel
-            |> meldingsLoggFraSeksjon
-            |> viewMeldingsLogg
-        , viewBrukerInput successModel.aktivSamtale
+    div [ class "samtale-wrapper" ]
+        [ div [ class "samtale" ]
+            [ successModel
+                |> meldingsLoggFraSeksjon
+                |> viewMeldingsLogg
+            , viewBrukerInput successModel.aktivSamtale
+            ]
         ]
 
 
@@ -422,19 +424,23 @@ viewMeldingsLogg meldingsLogg =
 
 viewMelding : Melding -> Html Msg
 viewMelding melding =
-    div []
-        [ h3 []
-            [ case Melding.meldingsType melding of
-                Melding.Spørsmål ->
-                    text "Spørsmål: "
-
-                Melding.Svar ->
-                    text "Svar:"
+    div [ class ("meldingsrad " ++ meldingsClass melding) ]
+        [ div [ class "melding" ]
+            [ Melding.innhold melding
+                |> List.map (\elem -> p [] [ text elem ])
+                |> div []
             ]
-        , Melding.innhold melding
-            |> List.map (\elem -> p [] [ text elem ])
-            |> div []
         ]
+
+
+meldingsClass : Melding -> String
+meldingsClass melding =
+    case Melding.meldingsType melding of
+        Melding.Spørsmål ->
+            "sporsmal"
+
+        Melding.Svar ->
+            "svar"
 
 
 viewBrukerInput : SamtaleSeksjon -> Html Msg

@@ -19,10 +19,14 @@ import Personalia exposing (Personalia)
 import Skjema.Personalia
 
 
+
+--- Adressen til apiet må endres tilbake til /cv-samtale/api etter at proxy er fikset i preprod/prod
+
+
 hentPerson : (Result Error () -> msg) -> Cmd msg
 hentPerson msgConstructor =
     Http.get
-        { url = "/cv-samtale/api/rest/person"
+        { url = "/cv/api/rest/person"
         , expect = expectWhatever msgConstructor
         }
 
@@ -30,7 +34,7 @@ hentPerson msgConstructor =
 opprettPerson : (Result Error () -> msg) -> Cmd msg
 opprettPerson msgConstructor =
     Http.post
-        { url = "/cv-samtale/api/rest/person"
+        { url = "/cv/api/rest/person"
         , expect = expectWhatever msgConstructor
         , body = emptyBody
         }
@@ -39,7 +43,7 @@ opprettPerson msgConstructor =
 hentPersonalia : (Result Error Personalia -> msg) -> Cmd msg
 hentPersonalia msgConstructor =
     Http.get
-        { url = "/cv-samtale/api/rest/person/personalia"
+        { url = "/cv/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
         }
 
@@ -47,7 +51,7 @@ hentPersonalia msgConstructor =
 opprettPersonalia : (Result Error Personalia -> msg) -> Cmd msg
 opprettPersonalia msgConstructor =
     Http.post
-        { url = "/cv-samtale/api/rest/person/personalia"
+        { url = "/cv/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
         , body = emptyBody
         }
@@ -56,7 +60,7 @@ opprettPersonalia msgConstructor =
 oppdaterPersonalia : (Result Error Personalia -> msg) -> Skjema.Personalia.PersonaliaSkjema -> String -> Cmd msg
 oppdaterPersonalia msgConstructor skjema id =
     put
-        { url = "/cv-samtale/api/rest/person/personalia"
+        { url = "/cv/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
         , body = Skjema.Personalia.encode skjema id |> jsonBody
         }
@@ -65,7 +69,7 @@ oppdaterPersonalia msgConstructor skjema id =
 hentCv : (Result Error Cv -> msg) -> Cmd msg
 hentCv msgConstructor =
     Http.get
-        { url = "/cv-samtale/api/rest/cv"
+        { url = "/cv/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         }
 
@@ -73,7 +77,7 @@ hentCv msgConstructor =
 opprettCv : (Result Error Cv -> msg) -> Cmd msg
 opprettCv msgConstructor =
     Http.post
-        { url = "/cv-samtale/api/rest/cv"
+        { url = "/cv/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         , body = emptyBody
         }

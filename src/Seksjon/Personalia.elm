@@ -187,55 +187,57 @@ viewBrukerInput (Model { aktivSamtale }) =
                 ]
 
         EndreOriginal personaliaSkjema ->
-            div []
-                [ label [] [ text "Fornavn" ]
-                , input
-                    [ Skjema.Personalia.fornavn personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Fornavn)
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ label [] [ text "Fornavn" ]
+                    , input
+                        [ Skjema.Personalia.fornavn personaliaSkjema |> value
+                        , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Fornavn)
+                        ]
+                        []
+                    , label [] [ text "Etternavn" ]
+                    , input
+                        [ Skjema.Personalia.etternavn personaliaSkjema |> value
+                        , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Etternavn)
+                        ]
+                        []
+                    , label [] [ text "Fødselsdato" ]
+                    , input
+                        [ Skjema.Personalia.fodselsdato personaliaSkjema |> value
+                        , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Fodelsdato)
+                        ]
+                        []
+                    , label [] [ text "Epost" ]
+                    , input
+                        [ Skjema.Personalia.epost personaliaSkjema |> value
+                        , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Epost)
+                        ]
+                        []
+                    , label [] [ text "Telefon" ]
+                    , input
+                        [ Skjema.Personalia.telefon personaliaSkjema |> value
+                        , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Telefon)
+                        ]
+                        []
+                    , label [] [ text "Gateadresse" ]
+                    , input
+                        [ Skjema.Personalia.gateadresse personaliaSkjema |> value
+                        , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Gateadresse)
+                        ]
+                        []
+                    , label [] [ text "Postnummer" ]
+                    , input
+                        [ Skjema.Personalia.postnummer personaliaSkjema |> value
+                        , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Postnummer)
+                        ]
+                        []
+                    , label [] [ text "Poststed" ]
+                    , input
+                        [ Skjema.Personalia.poststed personaliaSkjema |> value
+                        , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Poststed)
+                        ]
+                        []
                     ]
-                    []
-                , label [] [ text "Etternavn" ]
-                , input
-                    [ Skjema.Personalia.etternavn personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Etternavn)
-                    ]
-                    []
-                , label [] [ text "Fødselsdato" ]
-                , input
-                    [ Skjema.Personalia.fodselsdato personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Fodelsdato)
-                    ]
-                    []
-                , label [] [ text "Epost" ]
-                , input
-                    [ Skjema.Personalia.epost personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Epost)
-                    ]
-                    []
-                , label [] [ text "Telefon" ]
-                , input
-                    [ Skjema.Personalia.telefon personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Telefon)
-                    ]
-                    []
-                , label [] [ text "Gateadresse" ]
-                , input
-                    [ Skjema.Personalia.gateadresse personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Gateadresse)
-                    ]
-                    []
-                , label [] [ text "Postnummer" ]
-                , input
-                    [ Skjema.Personalia.postnummer personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Postnummer)
-                    ]
-                    []
-                , label [] [ text "Poststed" ]
-                , input
-                    [ Skjema.Personalia.poststed personaliaSkjema |> value
-                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Poststed)
-                    ]
-                    []
                 , button [ onClick PersonaliaskjemaLagreknappTrykket ] [ text "Lagre" ]
                 ]
 

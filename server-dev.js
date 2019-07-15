@@ -18,10 +18,10 @@ server.post('/cv-samtale/log', (req, res) => {
 });
 
 server.use(
-    '/cv-samtale/api',
+    ['/cv-samtale/api', '/cv/api'],
     proxy('http://localhost:1337', {
         proxyReqPathResolver: req => (
-            req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/pam-cv-api')
+            req.originalUrl.replace(new RegExp('/cv(-samtale)?/api'), '/pam-cv-api')
         )
     })
 );
