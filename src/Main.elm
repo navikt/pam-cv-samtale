@@ -65,7 +65,7 @@ type alias SuccessModel =
 
 
 type SamtaleSeksjon
-    = Introduksjon
+    = Introduksjon MeldingsLogg
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
     | ArbeidsErfaringSeksjon
@@ -89,10 +89,11 @@ type LoadingMsg
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
+    | IkkeGjørNoe
 
 
 type SuccessMsg
-    = BrukerSierHeiIIntroduksjonen
+    = BrukerSierHeiIIntroduksjonen MeldingsLogg
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
 
@@ -217,6 +218,9 @@ updateLoading msg model =
                     , logFeilmelding error "Hent registreringsprogresjon"
                     )
 
+        IkkeGjørNoe ->
+            ( model, Cmd.none )
+
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
 logFeilmelding error operasjon =
@@ -233,11 +237,26 @@ modelFraLoadingState state =
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
-                , aktivSamtale = Introduksjon
+                , aktivSamtale = initialiserSamtale
                 }
 
         _ ->
             Loading (VenterPåResten state)
+
+
+initialiserSamtale : SamtaleSeksjon
+initialiserSamtale =
+    MeldingsLogg.init
+        |> MeldingsLogg.leggTilSpørsmål
+            [ Melding.spørsmål [ "Hei" ]
+            , Melding.spørsmål
+                [ "Velkommen til CV-registrering!"
+                , "Det vi skal gjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
+                , "Etter det kan du velge å legge til bla kurs, sertifisering, fagbrev, sertifikat og førerkort."
+                , "Er du klar til å begynne?"
+                ]
+            ]
+        |> Introduksjon
 
 
 initVenterPåResten : Personalia -> ( Model, Cmd Msg )
@@ -265,9 +284,9 @@ initVenterPåResten personalia =
 updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
 updateSuccess successMsg model =
     case successMsg of
-        BrukerSierHeiIIntroduksjonen ->
-            ( MeldingsLogg.init
-                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Hei!" ])
+        BrukerSierHeiIIntroduksjonen logg ->
+            ( logg
+                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
                 |> Seksjon.Personalia.init model.personalia
                 |> PersonaliaSeksjon
                 |> oppdaterSamtaleSteg model
@@ -359,8 +378,8 @@ view model =
 meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
 meldingsLoggFraSeksjon successModel =
     case successModel.aktivSamtale of
-        Introduksjon ->
-            MeldingsLogg.init
+        Introduksjon logg ->
+            logg
 
         PersonaliaSeksjon model ->
             Seksjon.Personalia.meldingsLogg model
@@ -416,8 +435,15 @@ meldingsClass melding =
 viewBrukerInput : SamtaleSeksjon -> Html Msg
 viewBrukerInput aktivSamtale =
     case aktivSamtale of
-        Introduksjon ->
-            button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Hei!" ]
+        Introduksjon logg ->
+            button
+                [ onClick
+                    (logg
+                        |> BrukerSierHeiIIntroduksjonen
+                        |> SuccessMsg
+                    )
+                ]
+                [ text "Ja!" ]
 
         PersonaliaSeksjon personaliaSeksjon ->
             personaliaSeksjon
