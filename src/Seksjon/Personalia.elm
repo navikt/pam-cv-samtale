@@ -91,9 +91,17 @@ update msg (Model model) =
                         |> LagrerEndring
                         |> nesteSamtaleSteg model
                             (Melding.svar
-                                [ "--- Skjema ---"
-                                , Skjema.Personalia.fornavn skjema ++ " osv."
-                                , "---------------"
+                                [ "Fornavn: " ++ Skjema.Personalia.fornavn skjema
+                                , "Etternavn: " ++ Skjema.Personalia.etternavn skjema
+                                , "Fødselsdato " ++ Skjema.Personalia.fodselsdato skjema
+                                , "Epost: " ++ Skjema.Personalia.epost skjema
+                                , "Telefonnummer: " ++ Skjema.Personalia.telefon skjema
+                                , "Adresse: "
+                                    ++ Skjema.Personalia.gateadresse skjema
+                                    ++ " "
+                                    ++ Skjema.Personalia.postnummer skjema
+                                    ++ " "
+                                    ++ Skjema.Personalia.poststed skjema
                                 ]
                             )
                     , model.personalia
@@ -149,17 +157,29 @@ samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
-            [ Melding.spørsmål
+            [ Melding.spørsmål [ "Da settter vi i gang :)" ]
+            , Melding.spørsmål
                 [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
                 , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
-                , "Fornavn: " ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
-                , " Etternavn: " ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
+                ]
+            , Melding.spørsmål
+                [ "Fornavn: " ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
+                , "Etternavn: " ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
+                , "Fødselsdato: " ++ (Personalia.fodselsdato personalia |> Maybe.withDefault "-")
+                , "Epost: " ++ (Personalia.epost personalia |> Maybe.withDefault "-")
+                , "Telefonnummer: " ++ (Personalia.telefon personalia |> Maybe.withDefault "-")
+                , "Adresse: "
+                    ++ (Personalia.gateadresse personalia |> Maybe.withDefault "-")
+                    ++ " "
+                    ++ (Personalia.poststed personalia |> Maybe.withDefault "-")
+                    ++ " "
+                    ++ (Personalia.postnummer personalia |> Maybe.withDefault "-")
                 ]
             ]
 
         EndreOriginal personaliaSkjema ->
             [ Melding.spørsmål
-                [ "Du har valgt å endre personaliaskjema" ]
+                [ "Ok! Vennligst skriv inn riktig informasjon i feltene under:" ]
             ]
 
         LagrerEndring personaliaSkjema ->
