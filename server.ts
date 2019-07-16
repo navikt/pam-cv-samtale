@@ -35,7 +35,7 @@ const getCookie = (name: string, cookie: string) => {
     return match !== null ? match[1] : '';
 };
 
-server.post('/cv-samtale/log', (req, res) => {
+server.post('/cv-samtale/log', express.json(), (req, res) => {
     console.log(JSON.stringify({
         ...req.body,
         level: "Error"
