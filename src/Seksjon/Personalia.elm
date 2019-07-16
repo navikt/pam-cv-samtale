@@ -1,6 +1,7 @@
 module Seksjon.Personalia exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
 import Api
+import Browser.Dom as Dom
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -8,6 +9,7 @@ import Http
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
+import SamtaleAnimasjon
 import Skjema.Personalia exposing (PersonaliaSkjema)
 
 
@@ -50,6 +52,7 @@ type Msg
     | PersonaliaSkjemaEndret Skjema.Personalia.Felt String
     | PersonaliaskjemaLagreknappTrykket
     | PersonaliaOppdatert (Result Http.Error Personalia)
+    | ViewportSatt (Result Dom.Error ())
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -66,7 +69,7 @@ update msg (Model model) =
                 |> Skjema.Personalia.init
                 |> EndreOriginal
                 |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
-            , Cmd.none
+            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
             )
                 |> IkkeFerdig
 
@@ -91,9 +94,17 @@ update msg (Model model) =
                         |> LagrerEndring
                         |> nesteSamtaleSteg model
                             (Melding.svar
-                                [ "--- Skjema ---"
-                                , Skjema.Personalia.fornavn skjema ++ " osv."
-                                , "---------------"
+                                [ "Fornavn: " ++ Skjema.Personalia.fornavn skjema
+                                , "Etternavn: " ++ Skjema.Personalia.etternavn skjema
+                                , "Fødselsdato " ++ Skjema.Personalia.fodselsdato skjema
+                                , "Epost: " ++ Skjema.Personalia.epost skjema
+                                , "Telefonnummer: " ++ Skjema.Personalia.telefon skjema
+                                , "Adresse: "
+                                    ++ Skjema.Personalia.gateadresse skjema
+                                    ++ " "
+                                    ++ Skjema.Personalia.postnummer skjema
+                                    ++ " "
+                                    ++ Skjema.Personalia.poststed skjema
                                 ]
                             )
                     , model.personalia
@@ -124,6 +135,10 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
+        ViewportSatt result ->
+            ( Model model, Cmd.none )
+                |> IkkeFerdig
+
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
 nesteSamtaleSteg model melding samtaleSeksjon =
@@ -149,17 +164,29 @@ samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
-            [ Melding.spørsmål
+            [ Melding.spørsmål [ "Da settter vi i gang :)" ]
+            , Melding.spørsmål
                 [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
                 , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
-                , "Fornavn: " ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
-                , " Etternavn: " ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
+                ]
+            , Melding.spørsmål
+                [ "Fornavn: " ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
+                , "Etternavn: " ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
+                , "Fødselsdato: " ++ (Personalia.fodselsdato personalia |> Maybe.withDefault "-")
+                , "Epost: " ++ (Personalia.epost personalia |> Maybe.withDefault "-")
+                , "Telefonnummer: " ++ (Personalia.telefon personalia |> Maybe.withDefault "-")
+                , "Adresse: "
+                    ++ (Personalia.gateadresse personalia |> Maybe.withDefault "-")
+                    ++ " "
+                    ++ (Personalia.poststed personalia |> Maybe.withDefault "-")
+                    ++ " "
+                    ++ (Personalia.postnummer personalia |> Maybe.withDefault "-")
                 ]
             ]
 
         EndreOriginal personaliaSkjema ->
             [ Melding.spørsmål
-                [ "Du har valgt å endre personaliaskjema" ]
+                [ "Ok! Vennligst skriv inn riktig informasjon i feltene under:" ]
             ]
 
         LagrerEndring personaliaSkjema ->

@@ -1,7 +1,9 @@
 import * as express from 'express';
+import { Request} from 'express';
 import * as proxy from 'express-http-proxy';
 import * as helmet from 'helmet';
 import * as path from 'path';
+import { RequestOptions } from 'http';
 
 if (!process.env.PAM_CV_API_PROXY_KEY) {
     throw new Error("Miljøvariabel PAM_CV_API_PROXY_KEY er ikke satt");
@@ -18,7 +20,6 @@ const MILJOVARIABLER = {
 console.log(`API_GATEWAY_HOST: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
 
 const server = express();
-server.use(express.json());
 
 // security
 server.disable('x-powered-by');
@@ -28,7 +29,13 @@ server.use(helmet());
 server.get('/cv-samtale/internal/isAlive', (req, res) => res.sendStatus(200));
 server.get('/cv-samtale/internal/isReady', (req, res) => res.sendStatus(200));
 
-server.post('/cv-samtale/log', (req, res) => {
+const getCookie = (name: string, cookie: string) => {
+    const re = new RegExp(`${name}=([^;]+)`);
+    const match = re.exec(cookie);
+    return match !== null ? match[1] : '';
+};
+
+server.post('/cv-samtale/log', express.json(), (req, res) => {
     console.log(JSON.stringify({
         ...req.body,
         level: "Error"
@@ -36,22 +43,16 @@ server.post('/cv-samtale/log', (req, res) => {
     res.sendStatus(200);
 });
 
-const getCookie = (name: string, cookie: string) => {
-    const re = new RegExp(`${name}=([^;]+)`);
-    const match = re.exec(cookie);
-    return match !== null ? match[1] : '';
-};
-
 server.use(
     '/cv-samtale/api',
     proxy(MILJOVARIABLER.API_GATEWAY_HOST, {
         https: true,
-        proxyReqOptDecorator: (proxyReqOpts: any, srcReq: any) => ({
+        proxyReqOptDecorator: (proxyReqOpts: RequestOptions, srcReq: Request)  => ({
             ...proxyReqOpts,
-            cookie: srcReq.headers.cookie,
             headers: {
                 ...proxyReqOpts.headers,
-                'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', srcReq.headers.cookie),
+                'Cookie': srcReq.header('Cookie'),
+                'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', srcReq.header('Cookie')),
                 'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY
             }
         }),
