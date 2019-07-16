@@ -399,7 +399,7 @@ meldingsLoggFraSeksjon successModel =
             Seksjon.Utdanning.meldingsLogg model
 
         ArbeidsErfaringSeksjon model ->
-            MeldingsLogg.init
+            Seksjon.Arbeidserfaring.meldingsLogg model
 
 
 viewSuccess : SuccessModel -> Html Msg
