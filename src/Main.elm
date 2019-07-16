@@ -89,7 +89,6 @@ type LoadingMsg
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
-    | IkkeGjørNoe
 
 
 type SuccessMsg
@@ -217,9 +216,6 @@ updateLoading msg model =
                     ( Failure error
                     , logFeilmelding error "Hent registreringsprogresjon"
                     )
-
-        IkkeGjørNoe ->
-            ( model, Cmd.none )
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
@@ -442,10 +438,9 @@ viewBrukerInput aktivSamtale =
     case aktivSamtale of
         Introduksjon logg ->
             button
-                [ onClick
-                    (BrukerSierHeiIIntroduksjonen
-                        |> SuccessMsg
-                    )
+                [ BrukerSierHeiIIntroduksjonen
+                    |> SuccessMsg
+                    |> onClick
                 ]
                 [ text "Ja!" ]
 
