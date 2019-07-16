@@ -93,7 +93,7 @@ type LoadingMsg
 
 
 type SuccessMsg
-    = BrukerSierHeiIIntroduksjonen MeldingsLogg
+    = BrukerSierHeiIIntroduksjonen
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
 
@@ -252,7 +252,7 @@ initialiserSamtale =
             , Melding.spørsmål
                 [ "Velkommen til CV-registrering!"
                 , "Det vi skal gjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
-                , "Etter det kan du velge å legge til bla kurs, sertifisering, fagbrev, sertifikat og førerkort."
+                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifikat og førerkort."
                 , "Er du klar til å begynne?"
                 ]
             ]
@@ -284,15 +284,20 @@ initVenterPåResten personalia =
 updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
 updateSuccess successMsg model =
     case successMsg of
-        BrukerSierHeiIIntroduksjonen logg ->
-            ( logg
-                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
-                |> Seksjon.Personalia.init model.personalia
-                |> PersonaliaSeksjon
-                |> oppdaterSamtaleSteg model
-                |> Success
-            , Cmd.none
-            )
+        BrukerSierHeiIIntroduksjonen ->
+            case model.aktivSamtale of
+                Introduksjon meldingsLogg ->
+                    ( meldingsLogg
+                        |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
+                        |> Seksjon.Personalia.init model.personalia
+                        |> PersonaliaSeksjon
+                        |> oppdaterSamtaleSteg model
+                        |> Success
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( Success model, Cmd.none )
 
         PersonaliaMsg msg ->
             case model.aktivSamtale of
@@ -438,8 +443,7 @@ viewBrukerInput aktivSamtale =
         Introduksjon logg ->
             button
                 [ onClick
-                    (logg
-                        |> BrukerSierHeiIIntroduksjonen
+                    (BrukerSierHeiIIntroduksjonen
                         |> SuccessMsg
                     )
                 ]
