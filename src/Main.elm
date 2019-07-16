@@ -394,12 +394,15 @@ meldingsLoggFraSeksjon successModel =
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
-    div [ class "samtale-wrapper" ]
-        [ div [ class "samtale" ]
-            [ successModel
-                |> meldingsLoggFraSeksjon
-                |> viewMeldingsLogg
-            , viewBrukerInput successModel.aktivSamtale
+    div [ class "app" ]
+        [ div [] []
+        , div [ class "samtale-wrapper", id "samtale" ]
+            [ div [ class "samtale" ]
+                [ successModel
+                    |> meldingsLoggFraSeksjon
+                    |> viewMeldingsLogg
+                , viewBrukerInput successModel.aktivSamtale
+                ]
             ]
         ]
 

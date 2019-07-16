@@ -1,6 +1,7 @@
 module Seksjon.Personalia exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
 import Api
+import Browser.Dom as Dom
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -8,6 +9,7 @@ import Http
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
+import SamtaleAnimasjon
 import Skjema.Personalia exposing (PersonaliaSkjema)
 
 
@@ -50,6 +52,7 @@ type Msg
     | PersonaliaSkjemaEndret Skjema.Personalia.Felt String
     | PersonaliaskjemaLagreknappTrykket
     | PersonaliaOppdatert (Result Http.Error Personalia)
+    | ViewportSatt (Result Dom.Error ())
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -66,7 +69,7 @@ update msg (Model model) =
                 |> Skjema.Personalia.init
                 |> EndreOriginal
                 |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
-            , Cmd.none
+            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
             )
                 |> IkkeFerdig
 
@@ -131,6 +134,10 @@ update msg (Model model) =
                 _ ->
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
+
+        ViewportSatt result ->
+            ( Model model, Cmd.none )
+                |> IkkeFerdig
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
