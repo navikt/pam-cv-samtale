@@ -374,7 +374,7 @@ meldingsLoggFraSeksjon successModel =
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
-    div [ class "samtale-wrapper" ]
+    div [ class "samtale-wrapper-test" ]
         [ div [ class "samtale" ]
             [ successModel
                 |> meldingsLoggFraSeksjon
