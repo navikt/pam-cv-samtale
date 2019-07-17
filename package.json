@@ -19,7 +19,12 @@
     "elm": "^0.19.0-bugfix6",
     "elm-hot": "^1.1.0",
     "less": "^3.9.0",
+    "nav-frontend-core": "^4.0.9",
+    "nav-frontend-typografi-style": "^1.0.13",
     "node-elm-compiler": "^5.0.3",
+    "pam-frontend-core": "^1.3.4",
+    "pam-frontend-knapper": "^1.0.2",
+    "pam-frontend-typografi": "^2.0.2",
     "parcel-bundler": "^1.12.3",
     "typescript": "^3.5.2"
   },

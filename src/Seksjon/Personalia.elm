@@ -2,6 +2,7 @@ module Seksjon.Personalia exposing (Model, Msg, SamtaleStatus(..), init, melding
 
 import Api
 import Browser.Dom as Dom
+import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -208,9 +209,11 @@ viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model { aktivSamtale }) =
     case aktivSamtale of
         BekreftOriginal personalia ->
-            div []
-                [ button [ onClick BrukerVilEndreOriginalPersonalia ] [ text "Endre" ]
-                , button [ onClick OriginalPersonaliaBekreftet ] [ text "Bekreft" ]
+            div [ class "inputrad" ]
+                [ Knapp.knapp BrukerVilEndreOriginalPersonalia "Endre"
+                    |> Knapp.toHtml
+                , Knapp.knapp OriginalPersonaliaBekreftet "Bekreft"
+                    |> Knapp.toHtml
                 ]
 
         EndreOriginal personaliaSkjema ->
@@ -265,7 +268,8 @@ viewBrukerInput (Model { aktivSamtale }) =
                         ]
                         []
                     ]
-                , button [ onClick PersonaliaskjemaLagreknappTrykket ] [ text "Lagre" ]
+                , Knapp.knapp PersonaliaskjemaLagreknappTrykket "Lagre"
+                    |> Knapp.toHtml
                 ]
 
         LagrerEndring personaliaSkjema ->
