@@ -82,7 +82,7 @@ opprettCv msgConstructor =
 hentAAreg : (Result Error (List Arbeidserfaring) -> msg) -> Cmd msg
 hentAAreg msgConstructor =
     Http.get
-        { url = "/cv-samtale/api/rest/aareg"
+        { url = "/cv-samtale/api/rest/cv/aareg"
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
         }
 

@@ -2,6 +2,8 @@ module Seksjon.Arbeidserfaring exposing (Model, Msg, SamtaleStatus(..), init, me
 
 import Api
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
+import Dato
+import Feilmelding
 import Html exposing (Html, button, div, input, label, text)
 import Html.Attributes exposing (type_, value)
 import Html.Events exposing (onClick, onInput)
@@ -58,29 +60,39 @@ type Msg
     | HentAAregArbeidserfaring
     | HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
     | BrukerOppdatererYrke String
-    | BrukerVilRegistrerJobbTittel JobbtittelInfo
+    | BrukerLagrerYrke JobbtittelInfo
+    | BrukerVilEndreJobbtittel JobbtittelInfo
     | BrukerOppdatererJobbtittelFelt JobbtittelInfo String
-    | BrukerVilRegistrereBedriftnavn BeriftnavnsInfo
+    | BrukerVilRegistrereBedriftnavn String BeriftnavnsInfo
     | BrukerOppdatererBedriftnavn BeriftnavnsInfo String
     | BrukerVilRegistrereLokasjon LokasjonInfo
     | BrukerOppdatererLokasjon LokasjonInfo String
     | BrukerVilRegistrereArbeidsoppgaver ArbeidsoppgaverInfo
     | BrukerOppdatererArbeidsoppgaver ArbeidsoppgaverInfo String
-    | BrukerVilRegistrerePeriode PeriodeInfo
+    | BrukerVilRegistrereFraMåned PeriodeInfo
     | BrukerOppdatererFradato PeriodeInfo String
     | BrukerOppdatererTildato PeriodeInfo String
     | BrukerOppdatererNaavarende PeriodeInfo
+    | ErrorLogget (Result Http.Error ())
 
 
 type Samtale
     = Intro
+    | HentetFraAAreg
+    | IkkeHentetFraAAreg
+    | IngenArbeidserfaringFraAareg (List Arbeidserfaring)
+    | VisArbeidserfaringFraAareg (List Arbeidserfaring)
     | RegistrerYrke YrkeInfo
-    | RegistrerNyTittel JobbtittelInfo
+    | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
+    | EndreJobbtittel JobbtittelInfo
     | RegistrereBedriftNavn BeriftnavnsInfo
     | RegistrereLokasjon LokasjonInfo
     | RegistrereArbeidsoppgaver ArbeidsoppgaverInfo
-    | RegistrerePeriodeGammelJobb PeriodeInfo
-    | RegistrerePeriodeNaavarendeJobb PeriodeInfo
+    | RegistrereFraMåned PeriodeInfo
+    | RegistrereFraÅr PeriodeInfo
+    | RegistrereNaavarende PeriodeInfo
+    | RegistrereTilMåned PeriodeInfo
+    | RegistrereTilÅr PeriodeInfo
 
 
 type alias YrkeInfo =
@@ -116,6 +128,13 @@ type alias PeriodeInfo =
     , fradato : String
     , tildato : String
     , naavarende : Bool
+    }
+
+
+type alias FraDatoInfo =
+    { tidligereInfo : ArbeidsoppgaverInfo
+    , fraMåned : Dato.Måned
+    , fraÅr : String
     }
 
 
@@ -169,23 +188,23 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model info) =
     case msg of
         HentAAregArbeidserfaring ->
-            ( Model info, Cmd.none )
+            ( Model info, Api.hentAAreg HentetAAregArbeidserfaring )
                 |> IkkeFerdig
 
         HentetAAregArbeidserfaring result ->
             case result of
                 Ok arbeidserfaringFraAAreg ->
-                    ( Model
-                        { info
-                            | arbeidserfaringListe =
-                                arbeidserfaringFraAAreg ++ info.arbeidserfaringListe
-                        }
+                    ( info
+                        |> visAaregResultat arbeidserfaringFraAAreg
                     , Cmd.none
                     )
                         |> IkkeFerdig
 
                 Err error ->
-                    ( Model info, Cmd.none )
+                    ( IkkeHentetFraAAreg
+                        |> nesteSamtaleSteg info (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
+                    , logFeilmelding error "Hente fra Aareg"
+                    )
                         |> IkkeFerdig
 
         BrukerOppretterNyArbeidserfaring ->
@@ -204,9 +223,16 @@ update msg (Model info) =
             )
                 |> IkkeFerdig
 
-        BrukerVilRegistrerJobbTittel jobbtittelInfo ->
-            ( RegistrerNyTittel jobbtittelInfo
+        BrukerLagrerYrke jobbtittelInfo ->
+            ( SpørOmBrukerVilEndreJobbtittel jobbtittelInfo
                 |> nesteSamtaleSteg info (Melding.svar [ jobbtittelInfo.tidligereInfo.yrke ])
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerVilEndreJobbtittel jobbtittelInfo ->
+            ( EndreJobbtittel jobbtittelInfo
+                |> nesteSamtaleSteg info (Melding.svar [ "Nei, legg til et nytt navn" ])
             , Cmd.none
             )
                 |> IkkeFerdig
@@ -214,15 +240,15 @@ update msg (Model info) =
         BrukerOppdatererJobbtittelFelt jobbtittelInfo string ->
             ( Model
                 { info
-                    | aktivSamtale = RegistrerNyTittel { jobbtittelInfo | jobbtittel = string }
+                    | aktivSamtale = EndreJobbtittel { jobbtittelInfo | jobbtittel = string }
                 }
             , Cmd.none
             )
                 |> IkkeFerdig
 
-        BrukerVilRegistrereBedriftnavn bedriftnavnInfo ->
+        BrukerVilRegistrereBedriftnavn knappeTekst bedriftnavnInfo ->
             ( RegistrereBedriftNavn bedriftnavnInfo
-                |> nesteSamtaleSteg info (Melding.svar [ bedriftnavnInfo.tidligereInfo.jobbtittel ])
+                |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
             , Cmd.none
             )
                 |> IkkeFerdig
@@ -238,7 +264,7 @@ update msg (Model info) =
 
         BrukerVilRegistrereLokasjon lokasjonInfo ->
             ( RegistrereLokasjon lokasjonInfo
-                |> nesteSamtaleSteg info (Melding.svar [ lokasjonInfo.lokasjon ])
+                |> nesteSamtaleSteg info (Melding.svar [ lokasjonInfo.tidligereInfo.bedriftNavn ])
             , Cmd.none
             )
                 |> IkkeFerdig
@@ -254,7 +280,7 @@ update msg (Model info) =
 
         BrukerVilRegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
             ( RegistrereArbeidsoppgaver arbeidsoppgaverInfo
-                |> nesteSamtaleSteg info (Melding.svar [ arbeidsoppgaverInfo.arbeidsoppgaver ])
+                |> nesteSamtaleSteg info (Melding.svar [ arbeidsoppgaverInfo.tidligereInfo.lokasjon ])
             , Cmd.none
             )
                 |> IkkeFerdig
@@ -269,8 +295,8 @@ update msg (Model info) =
             )
                 |> IkkeFerdig
 
-        BrukerVilRegistrerePeriode periodeInfo ->
-            ( RegistrerePeriodeGammelJobb periodeInfo
+        BrukerVilRegistrereFraMåned periodeInfo ->
+            ( RegistrereFraMåned periodeInfo
                 |> nesteSamtaleSteg info (Melding.svar [ periodeInfo.tidligereInfo.arbeidsoppgaver ])
             , Cmd.none
             )
@@ -284,17 +310,35 @@ update msg (Model info) =
             ( Model info, Cmd.none )
                 |> IkkeFerdig
 
-        BrukerOppdatererNaavarende periodeInfo ->
-            ( Model
-                { info
-                    | aktivSamtale =
-                        periodeInfo
-                            |> toggleNaavarende
-                            |> setRiktigSamtalesteg
-                }
-            , Cmd.none
-            )
+        ErrorLogget result ->
+            ( Model info, Cmd.none )
                 |> IkkeFerdig
+
+        BrukerOppdatererNaavarende periodeInfo ->
+            ( Model info, Cmd.none )
+                |> IkkeFerdig
+
+
+visAaregResultat : List Arbeidserfaring -> ModelInfo -> Model
+visAaregResultat list info =
+    if List.isEmpty list then
+        RegistrerYrke { yrke = "" }
+            |> oppdaterSamtalesteg info
+
+    else
+        list
+            ++ info.arbeidserfaringListe
+            |> VisArbeidserfaringFraAareg
+            |> oppdaterSamtalesteg info
+
+
+leggTilIArbeidserfaring : List Arbeidserfaring -> ModelInfo -> Samtale -> Model
+leggTilIArbeidserfaring arbeidserfaringFraAareg modelInfo samtaleSeksjon =
+    Model
+        { modelInfo
+            | aktivSamtale = samtaleSeksjon
+            , arbeidserfaringListe = modelInfo.arbeidserfaringListe ++ arbeidserfaringFraAareg
+        }
 
 
 toggleNaavarende : PeriodeInfo -> PeriodeInfo
@@ -306,13 +350,40 @@ toggleNaavarende periodeInfo =
         { periodeInfo | naavarende = True }
 
 
-setRiktigSamtalesteg : PeriodeInfo -> Samtale
-setRiktigSamtalesteg periodeInfo =
-    if periodeInfo.naavarende then
-        RegistrerePeriodeNaavarendeJobb periodeInfo
+oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
+oppdaterSamtalesteg modelInfo samtaleSeksjon =
+    case samtaleSeksjon of
+        IngenArbeidserfaringFraAareg list ->
+            Model
+                { modelInfo
+                    | aktivSamtale = samtaleSeksjon
+                    , arbeidserfaringListe = list
+                    , seksjonsMeldingsLogg =
+                        modelInfo.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                }
 
-    else
-        RegistrerePeriodeGammelJobb periodeInfo
+        VisArbeidserfaringFraAareg list ->
+            Model
+                { modelInfo
+                    | aktivSamtale = samtaleSeksjon
+                    , arbeidserfaringListe = list
+                    , seksjonsMeldingsLogg =
+                        modelInfo.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                }
+
+        RegistrerYrke _ ->
+            Model
+                { modelInfo
+                    | aktivSamtale = samtaleSeksjon
+                    , seksjonsMeldingsLogg =
+                        modelInfo.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                }
+
+        _ ->
+            Model modelInfo
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -333,35 +404,95 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         Intro ->
             [ Melding.spørsmål [ "Nå skal vi registrere arbeidserfaringen din" ] ]
 
-        RegistrerYrke yrkeInfo ->
+        HentetFraAAreg ->
             [ Melding.spørsmål
+                [ "Da har vi hentet arbeidserfaringen fra Aa-registeret."
+                , "Informasjonen er registrert av arbeidsgiverene dine. "
+                ]
+            , Melding.spørsmål
+                [ "Dessverre finnes det bare informasjon om arbeidsforhold etter 2015."
+                , "Jeg håper det kan hjelpe deg litt "
+                ]
+            ]
+
+        IkkeHentetFraAAreg ->
+            [ Melding.spørsmål
+                [ "Normalt ville jeg hentet informasjon om arbeidserfaringen dine fra Aa-reg."
+                , "Dessverre fikk jeg ikke kontakt med dem nå, så vi må fylle ut arbeidserfaringen selv."
+                ]
+            , Melding.spørsmål [ "Da må vi registrere arbeidserfaringen selv, men det går heldigvis ganske kjapt!" ]
+            , Melding.spørsmål
                 [ "Vi begynner med å registrere yrke,"
                 , "det er viktig at du velger et yrke fra listen."
                 , "Hvis ikke navnet passer helt, så kan du endre det senere."
                 ]
             ]
 
-        RegistrerNyTittel jobbtittelInfo ->
-            [ Melding.spørsmål [ "Hva var tittelen på jobben? Her kan du skrive det du vil at skal stå på CVen" ] ]
-
-        RegistrereBedriftNavn beriftnavnsInfo ->
-            [ Melding.spørsmål [ "Hva var bedriften/arbeidsplassens navn?" ] ]
-
-        RegistrereLokasjon lokasjonInfo ->
-            [ Melding.spørsmål [ "Hvor befant bedriften seg?" ] ]
-
-        RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
+        IngenArbeidserfaringFraAareg liste ->
             [ Melding.spørsmål
-                [ "Flott! Nå kan du skrive litt utfyllende om jobben."
-                , "For eksempel hvilke arbeidsoppgaver du hadde, det viktigste du lærte osv"
+                [ "Normalt ville jeg hentet informasjon om arbeidserfaringen dine fra Aa-reg."
+                , "Dessverre ser det ut til at du ikke har noen registrerte jobber der."
+                ]
+            , Melding.spørsmål [ "Da må vi registrere arbeidserfaringen selv, men det går heldigvis ganske kjapt!" ]
+            , Melding.spørsmål
+                [ "Vi begynner med å registrere yrke,"
+                , "det er viktig at du velger et yrke fra listen."
+                , "Hvis ikke navnet passer helt, så kan du endre det senere."
                 ]
             ]
 
-        RegistrerePeriodeGammelJobb periodeInfo ->
-            [ Melding.spørsmål [ "Hvilken periode jobbet du der?" ] ]
+        VisArbeidserfaringFraAareg liste ->
+            [ Melding.spørsmål [ "" ] ]
 
-        RegistrerePeriodeNaavarendeJobb periodeInfo ->
-            [ Melding.spørsmål [ "Når startet du i denne jobben?" ] ]
+        RegistrerYrke yrkeInfo ->
+            [ Melding.spørsmål
+                [ "Nå skal du legge inn en og en av arbeidserfaringene dine. Da setter vi igjang :)"
+                ]
+            , Melding.spørsmål
+                [ "Først må du velge et yrke. Begynn og skriv og velg fra forslagene som kommer opp"
+                , "Grunnen til at du må velge et av forslagene er fordi arbeidsgiverene skal kunne finne deg i søket sitt."
+                ]
+            , Melding.spørsmål
+                [ "Hvis du ikke finner yrket ditt, velg det nærmeste. Hvis yrket du velger ikke stemmer helt, kan du endre navnet etterpå"
+                ]
+            ]
+
+        SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
+            [ Melding.spørsmål
+                [ "Stemte yrket du la inn, eller ønsker du å gi det et nytt navn?"
+                , "Navnet du skriver vil vises på CV-en din"
+                ]
+            ]
+
+        EndreJobbtittel jobbtittelInfo ->
+            []
+
+        RegistrereBedriftNavn beriftnavnsInfo ->
+            [ Melding.spørsmål [ "Hva er navnet på bedriften du jobbet i?" ] ]
+
+        RegistrereLokasjon lokasjonInfo ->
+            [ Melding.spørsmål [ "Hvor holder bedriften til?" ] ]
+
+        RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
+            [ Melding.spørsmål
+                [ "Fortell arbeidsgivere hvilke arbeidsoppgaver du har hatt, hva du har lært og hva som var rollen din."
+                ]
+            ]
+
+        RegistrereFraMåned periodeInfo ->
+            [ Melding.spørsmål [ "Hvilken måned begynte du i jobbe?" ] ]
+
+        RegistrereFraÅr periodeInfo ->
+            [ Melding.spørsmål [ "" ] ]
+
+        RegistrereNaavarende periodeInfo ->
+            [ Melding.spørsmål [ "" ] ]
+
+        RegistrereTilMåned periodeInfo ->
+            [ Melding.spørsmål [ "" ] ]
+
+        RegistrereTilÅr periodeInfo ->
+            [ Melding.spørsmål [ "" ] ]
 
 
 
@@ -373,8 +504,33 @@ viewBrukerInput (Model info) =
     case info.aktivSamtale of
         Intro ->
             div []
-                [ button [ onClick BrukerOppretterNyArbeidserfaring ] [ text "Legg til arbeidserfaring" ]
+                [ button [ onClick HentAAregArbeidserfaring ] [ text "Ja, jeg har arbeidserfaring" ]
                 ]
+
+        HentetFraAAreg ->
+            div [] []
+
+        IkkeHentetFraAAreg ->
+            div []
+                [ label [] [ text "Yrke" ]
+                , input
+                    [ "" |> value
+                    , onInput BrukerOppdatererYrke
+                    ]
+                    []
+                , button
+                    [ yrkeInfoTilJobbtittelInfo { yrke = "" }
+                        |> BrukerLagrerYrke
+                        |> onClick
+                    ]
+                    [ text "Lagre" ]
+                ]
+
+        IngenArbeidserfaringFraAareg liste ->
+            div [] []
+
+        VisArbeidserfaringFraAareg liste ->
+            div [] []
 
         RegistrerYrke yrke ->
             div []
@@ -386,15 +542,31 @@ viewBrukerInput (Model info) =
                     []
                 , button
                     [ yrkeInfoTilJobbtittelInfo yrke
-                        |> BrukerVilRegistrerJobbTittel
+                        |> BrukerLagrerYrke
                         |> onClick
                     ]
                     [ text "Lagre" ]
                 ]
 
-        RegistrerNyTittel jobbtittelInfo ->
+        SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
             div []
-                [ label [] [ text "Skriv inn tittlen på jobben" ]
+                [ button
+                    [ jobbtittelInfo
+                        |> BrukerVilEndreJobbtittel
+                        |> onClick
+                    ]
+                    [ text "Nei, legg til et nytt navn" ]
+                , button
+                    [ jobbtittelInfoTilBedriftnavnsInfo jobbtittelInfo
+                        |> BrukerVilRegistrereBedriftnavn "Ja, det stemte"
+                        |> onClick
+                    ]
+                    [ text "Ja, det stemte" ]
+                ]
+
+        EndreJobbtittel jobbtittelInfo ->
+            div []
+                [ label [] [ text "Skriv inn navnet på bedriften du jobbet i" ]
                 , input
                     [ jobbtittelInfo.jobbtittel |> value
                     , onInput (BrukerOppdatererJobbtittelFelt jobbtittelInfo)
@@ -402,10 +574,10 @@ viewBrukerInput (Model info) =
                     []
                 , button
                     [ jobbtittelInfoTilBedriftnavnsInfo jobbtittelInfo
-                        |> BrukerVilRegistrereBedriftnavn
+                        |> BrukerVilRegistrereBedriftnavn "Gå videre"
                         |> onClick
                     ]
-                    [ text "Lagre" ]
+                    [ text "Gå videre" ]
                 ]
 
         RegistrereBedriftNavn beriftnavnsInfo ->
@@ -421,12 +593,12 @@ viewBrukerInput (Model info) =
                         |> BrukerVilRegistrereLokasjon
                         |> onClick
                     ]
-                    [ text "Lagre" ]
+                    [ text "Gå videre" ]
                 ]
 
         RegistrereLokasjon lokasjonInfo ->
             div []
-                [ label [] [ text "Skriv inn navnet på bedriften du jobbet i" ]
+                [ label [] [ text "Sted/land" ]
                 , input
                     [ lokasjonInfo.lokasjon |> value
                     , lokasjonInfo
@@ -454,61 +626,102 @@ viewBrukerInput (Model info) =
                     []
                 , button
                     [ arbeidsoppgaverInfoTilPeriodeInfo arbeidsoppgaverInfo
-                        |> BrukerVilRegistrerePeriode
+                        |> BrukerVilRegistrereFraMåned
                         |> onClick
                     ]
                     [ text "Lagre" ]
                 ]
 
-        RegistrerePeriodeGammelJobb periodeInfo ->
+        RegistrereFraMåned periodeInfo ->
             div []
-                [ label [] [ text "Fradato" ]
-                , input
-                    [ periodeInfo.fradato |> value
-                    , periodeInfo
-                        |> BrukerOppdatererFradato
-                        |> onInput
+                [ lagMånedKnapp Dato.Januar periodeInfo
+                , lagMånedKnapp Dato.Februar periodeInfo
+                , lagMånedKnapp Dato.Mars periodeInfo
+                , div []
+                    [ lagMånedKnapp Dato.April periodeInfo
+                    , lagMånedKnapp Dato.Mai periodeInfo
+                    , lagMånedKnapp Dato.Juni periodeInfo
+                    , div []
+                        [ lagMånedKnapp Dato.Juli periodeInfo
+                        , lagMånedKnapp Dato.August periodeInfo
+                        , lagMånedKnapp Dato.September periodeInfo
+                        , div []
+                            [ lagMånedKnapp Dato.Oktober periodeInfo
+                            , lagMånedKnapp Dato.November periodeInfo
+                            , lagMånedKnapp Dato.Desember periodeInfo
+                            ]
+                        ]
                     ]
-                    []
-                , label [] [ text "Tildato" ]
-                , input
-                    [ periodeInfo.tildato |> value
-                    , periodeInfo
-                        |> BrukerOppdatererTildato
-                        |> onInput
-                    ]
-                    []
-                , input
-                    [ type_ "checkbox"
-                    , BrukerOppdatererNaavarende periodeInfo
-                        |> onClick
-                    ]
-                    []
                 ]
 
-        RegistrerePeriodeNaavarendeJobb periodeInfo ->
-            div []
-                [ label [] [ text "Fradato" ]
-                , input
-                    [ periodeInfo.fradato |> value
-                    , periodeInfo
-                        |> BrukerOppdatererFradato
-                        |> onInput
-                    ]
-                    []
-                , input
-                    [ type_ "checkbox"
-                    , BrukerOppdatererNaavarende periodeInfo
-                        |> onClick
-                    ]
-                    []
-                ]
+        RegistrereFraÅr periodeInfo ->
+            div [] []
+
+        RegistrereNaavarende periodeInfo ->
+            div [] []
+
+        RegistrereTilMåned periodeInfo ->
+            div [] []
+
+        RegistrereTilÅr periodeInfo ->
+            div [] []
+
+
+lagMånedKnapp : Dato.Måned -> PeriodeInfo -> Html Msg
+lagMånedKnapp måned periodeInfo =
+    case måned of
+        Dato.Januar ->
+            button
+                []
+                [ text "Januar" ]
+
+        Dato.Februar ->
+            button [] [ text "Februar" ]
+
+        Dato.Mars ->
+            button [] [ text "Mars" ]
+
+        Dato.April ->
+            button [] [ text "April" ]
+
+        Dato.Mai ->
+            button [] [ text "Mai" ]
+
+        Dato.Juni ->
+            button [] [ text "Juni" ]
+
+        Dato.Juli ->
+            button [] [ text "Juli" ]
+
+        Dato.August ->
+            button [] [ text "August" ]
+
+        Dato.September ->
+            button [] [ text "September" ]
+
+        Dato.Oktober ->
+            button [] [ text "Oktober" ]
+
+        Dato.November ->
+            button [] [ text "November" ]
+
+        Dato.Desember ->
+            button [] [ text "Desember" ]
+
+
+logFeilmelding : Http.Error -> String -> Cmd Msg
+logFeilmelding error operasjon =
+    Feilmelding.feilmelding operasjon error
+        |> Maybe.map (Api.logError ErrorLogget)
+        |> Maybe.withDefault Cmd.none
 
 
 init : MeldingsLogg -> Model
 init gammelMeldingsLogg =
     Model
-        { seksjonsMeldingsLogg = gammelMeldingsLogg
+        { seksjonsMeldingsLogg =
+            gammelMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Har du arbeidserfaring du vil legge inn?" ] ]
         , arbeidserfaringListe = []
         , aktivSamtale = Intro
         }
