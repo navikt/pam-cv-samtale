@@ -20,18 +20,6 @@ input {
   border: solid gray 1px;
 }
 
-// TODO: bruk nav.design button
-button {
-  float: right;
-  margin: 0.5rem;
-  border-radius: 5rem;
-  background: white;
-  color: purple;
-  border: solid 2px purple;
-  font-family: 'Source Sans Pro', sans-serif;
-  font-size: 1rem;
-  padding: 1rem 2rem 1rem 2rem;
-}
 
 // SAMTALE
 .app {
@@ -87,15 +75,18 @@ button {
 .skjema-wrapper {
   display: flex;
   flex-direction: column;
-
-  button {
-    max-width: 8rem;
-    align-self: flex-end;
-  }
 }
 
 .skjema {
   display: flex;
   align-self: flex-end;
   flex-direction: column;
+}
+
+.inputrad {
+  display: flex;
+  justify-content: flex-end;
+  .Knapp {
+    margin-left: 1rem;
+  }
 }

@@ -5,6 +5,7 @@ import Browser
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
+import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -440,12 +441,10 @@ viewBrukerInput : SamtaleSeksjon -> Html Msg
 viewBrukerInput aktivSamtale =
     case aktivSamtale of
         Introduksjon logg ->
-            button
-                [ BrukerSierHeiIIntroduksjonen
-                    |> SuccessMsg
-                    |> onClick
+            div [ class "inputrad" ]
+                [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
+                    |> Knapp.toHtml
                 ]
-                [ text "Ja!" ]
 
         PersonaliaSeksjon personaliaSeksjon ->
             personaliaSeksjon
