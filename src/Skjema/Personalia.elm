@@ -125,5 +125,6 @@ encode (PersonaliaSkjema info) id =
         , ( "gateadresse", Json.Encode.string info.gateadresse )
         , ( "postnummer", Json.Encode.string info.postnummer )
         , ( "poststed", Json.Encode.string info.poststed )
+        , ( "land", Json.Encode.string "Norge" )
         , ( "lenker", Json.Encode.string "" )
         ]
