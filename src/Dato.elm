@@ -1,4 +1,4 @@
-module Dato exposing (Måned(..))
+module Dato exposing (Måned(..), månedTilString)
 
 
 type Dato
@@ -7,8 +7,8 @@ type Dato
 
 type alias DatoInfo =
     { måned : Måned
-    , år : String
-    , dag : String
+    , år : Int
+    , dag : Int
     }
 
 
@@ -27,6 +27,46 @@ type Måned
     | Desember
 
 
+månedTilString : Måned -> String
+månedTilString måned =
+    case måned of
+        Januar ->
+            "Januar"
+
+        Februar ->
+            "Februar"
+
+        Mars ->
+            "Mars"
+
+        April ->
+            "April"
+
+        Mai ->
+            "Mai"
+
+        Juni ->
+            "Juni"
+
+        Juli ->
+            "Juli"
+
+        August ->
+            "August"
+
+        September ->
+            "September"
+
+        Oktober ->
+            "Oktober"
+
+        November ->
+            "November"
+
+        Desember ->
+            "Desember"
+
+
 tilDato : String -> Dato
 tilDato string =
     let
@@ -38,6 +78,50 @@ tilDato string =
         , år =
             list
                 |> List.head
-                |> Maybe.withDefault "ERROR"
-        , dag = "1"
+                |> Maybe.withDefault "0"
+                |> String.toInt
+                |> Maybe.withDefault 0
+        , dag =
+            String.toInt "1"
+                |> Maybe.withDefault 0
         }
+
+
+validerAarMaanedDag : String -> Bool
+validerAarMaanedDag string =
+    case String.split "-" string of
+        aar :: maaned :: dag :: [] ->
+            case ( String.toInt aar, String.toInt maaned, String.toInt dag ) of
+                ( Just aarInt, Just maanedInt, Just dagInt ) ->
+                    aarInt
+                        > 1900
+                        && maanedInt
+                        > 0
+                        && maanedInt
+                        < 13
+
+                _ ->
+                    False
+
+        _ ->
+            False
+
+
+validerAarMaaned : String -> Bool
+validerAarMaaned string =
+    case String.split "-" string of
+        aar :: maaned :: dag :: [] ->
+            case ( String.toInt aar, String.toInt maaned, String.toInt dag ) of
+                ( Just aarInt, Just maanedInt, Just dagInt ) ->
+                    aarInt
+                        > 1900
+                        && maanedInt
+                        > 0
+                        && maanedInt
+                        < 13
+
+                _ ->
+                    False
+
+        _ ->
+            False

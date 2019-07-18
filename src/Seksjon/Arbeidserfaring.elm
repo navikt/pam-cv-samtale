@@ -4,8 +4,10 @@ import Api
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
 import Dato
 import Feilmelding
-import Html exposing (Html, button, div, input, label, text)
-import Html.Attributes exposing (type_, value)
+import FrontendModuler.Input as Input
+import FrontendModuler.Knapp as Knapp
+import Html exposing (Attribute, Html, button, div, input, label, text)
+import Html.Attributes exposing (class, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Melding exposing (Melding)
@@ -69,15 +71,21 @@ type Msg
     | BrukerOppdatererLokasjon LokasjonInfo String
     | BrukerVilRegistrereArbeidsoppgaver ArbeidsoppgaverInfo
     | BrukerOppdatererArbeidsoppgaver ArbeidsoppgaverInfo String
-    | BrukerVilRegistrereFraMåned PeriodeInfo
-    | BrukerOppdatererFradato PeriodeInfo String
-    | BrukerOppdatererTildato PeriodeInfo String
-    | BrukerOppdatererNaavarende PeriodeInfo
+    | BrukerVilRegistrereFraMåned FraDatoInfo
+    | BrukerVilRegistrereFraÅr FraDatoInfo
+    | BrukerOppdatererFraÅr FraDatoInfo String
+    | BrukerVilRegistrereNaavarende FraDatoInfo
+    | BrukerSvarerJaTilNaavarende TilDatoInfo
+    | BrukerSvarerNeiTilNaavarende TilDatoInfo
+    | BrukerVilRegistrereTilÅr TilDatoInfo
+    | BrukerOppdatererTilÅr TilDatoInfo String
+    | BrukerHarRegistrertAlt TilDatoInfo
     | ErrorLogget (Result Http.Error ())
 
 
 type Samtale
     = Intro
+    | HenterFraAareg
     | HentetFraAAreg
     | IkkeHentetFraAAreg
     | IngenArbeidserfaringFraAareg (List Arbeidserfaring)
@@ -88,11 +96,12 @@ type Samtale
     | RegistrereBedriftNavn BeriftnavnsInfo
     | RegistrereLokasjon LokasjonInfo
     | RegistrereArbeidsoppgaver ArbeidsoppgaverInfo
-    | RegistrereFraMåned PeriodeInfo
-    | RegistrereFraÅr PeriodeInfo
-    | RegistrereNaavarende PeriodeInfo
-    | RegistrereTilMåned PeriodeInfo
-    | RegistrereTilÅr PeriodeInfo
+    | RegistrereFraMåned FraDatoInfo
+    | RegistrereFraÅr FraDatoInfo
+    | RegistrereNaavarende FraDatoInfo
+    | RegistrereTilMåned TilDatoInfo
+    | RegistrereTilÅr TilDatoInfo
+    | VisOppsummering Oppsummering
 
 
 type alias YrkeInfo =
@@ -123,30 +132,30 @@ type alias ArbeidsoppgaverInfo =
     }
 
 
-type alias PeriodeInfo =
-    { tidligereInfo : ArbeidsoppgaverInfo
-    , fradato : String
-    , tildato : String
-    , naavarende : Bool
-    }
-
-
 type alias FraDatoInfo =
     { tidligereInfo : ArbeidsoppgaverInfo
     , fraMåned : Dato.Måned
     , fraÅr : String
+    , naavarende : Bool
     }
 
 
-type Felt
-    = YrkeFelt
-    | JobbTittelFelt
-    | BedriftNavnFelt
-    | LokasjonFelt
-    | ArbeidsOppgaverFelt
-    | FradatoFelt
-    | TildatoFelt
-    | NavarendeFelt
+type alias TilDatoInfo =
+    { tidligereInfo : FraDatoInfo
+    , tilMåned : Dato.Måned
+    , tilÅr : String
+    }
+
+
+type alias Oppsummering =
+    { yrke : String
+    , jobbTittel : String
+    , bedriftNavn : String
+    , lokasjon : String
+    , arbeidsoppgaver : String
+    , fraDato : FraDatoInfo
+    , tilDato : Maybe TilDatoInfo
+    }
 
 
 yrkeInfoTilJobbtittelInfo : YrkeInfo -> JobbtittelInfo
@@ -175,12 +184,37 @@ lokasjonInfoTilArbeidsoppgaverInfo lokasjonInfo =
     }
 
 
-arbeidsoppgaverInfoTilPeriodeInfo : ArbeidsoppgaverInfo -> PeriodeInfo
-arbeidsoppgaverInfoTilPeriodeInfo arbeidsoppgaverInfo =
+arbeidsoppgaverInfoTilfraDatoInfo : ArbeidsoppgaverInfo -> FraDatoInfo
+arbeidsoppgaverInfoTilfraDatoInfo arbeidsoppgaverInfo =
     { tidligereInfo = arbeidsoppgaverInfo
-    , fradato = ""
-    , tildato = ""
+    , fraMåned = Dato.Januar
+    , fraÅr = "1990"
     , naavarende = False
+    }
+
+
+fraDatoInfoTilTilDatoInfo : FraDatoInfo -> TilDatoInfo
+fraDatoInfoTilTilDatoInfo fraDatoInfo =
+    { tidligereInfo = fraDatoInfo
+    , tilMåned = Dato.Januar
+    , tilÅr = ""
+    }
+
+
+tilDatoTilOppsummering : TilDatoInfo -> Oppsummering
+tilDatoTilOppsummering tilDatoInfo =
+    { yrke = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.yrke
+    , jobbTittel = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel
+    , bedriftNavn = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn
+    , lokasjon = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.lokasjon
+    , arbeidsoppgaver = tilDatoInfo.tidligereInfo.tidligereInfo.arbeidsoppgaver
+    , fraDato = tilDatoInfo.tidligereInfo
+    , tilDato =
+        if tilDatoInfo.tidligereInfo.naavarende then
+            Nothing
+
+        else
+            Just tilDatoInfo
     }
 
 
@@ -188,7 +222,14 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model info) =
     case msg of
         HentAAregArbeidserfaring ->
-            ( Model info, Api.hentAAreg HentetAAregArbeidserfaring )
+            ( Model
+                { info
+                    | seksjonsMeldingsLogg =
+                        info.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
+                }
+            , Api.hentAAreg HentetAAregArbeidserfaring
+            )
                 |> IkkeFerdig
 
         HentetAAregArbeidserfaring result ->
@@ -295,26 +336,90 @@ update msg (Model info) =
             )
                 |> IkkeFerdig
 
-        BrukerVilRegistrereFraMåned periodeInfo ->
-            ( RegistrereFraMåned periodeInfo
-                |> nesteSamtaleSteg info (Melding.svar [ periodeInfo.tidligereInfo.arbeidsoppgaver ])
+        BrukerVilRegistrereFraMåned fraDatoInfo ->
+            ( RegistrereFraMåned fraDatoInfo
+                |> nesteSamtaleSteg info (Melding.svar [ fraDatoInfo.tidligereInfo.arbeidsoppgaver ])
             , Cmd.none
             )
                 |> IkkeFerdig
 
-        BrukerOppdatererFradato periodeInfo string ->
-            ( Model info, Cmd.none )
+        BrukerVilRegistrereFraÅr fraDatoInfo ->
+            ( RegistrereFraÅr fraDatoInfo
+                |> nesteSamtaleSteg info
+                    (Melding.svar
+                        [ fraDatoInfo.fraMåned
+                            |> Dato.månedTilString
+                        ]
+                    )
+            , Cmd.none
+            )
                 |> IkkeFerdig
 
-        BrukerOppdatererTildato periodeInfo string ->
-            ( Model info, Cmd.none )
+        BrukerOppdatererFraÅr fraDatoInfo string ->
+            ( Model
+                { info
+                    | aktivSamtale =
+                        RegistrereFraÅr { fraDatoInfo | fraÅr = string }
+                }
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerVilRegistrereNaavarende fraDatoInfo ->
+            ( RegistrereNaavarende fraDatoInfo
+                |> nesteSamtaleSteg info (Melding.svar [ fraDatoInfo.fraÅr ])
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerSvarerJaTilNaavarende tilDatoInfo ->
+            ( tilDatoInfo
+                |> tilDatoTilOppsummering
+                |> VisOppsummering
+                |> nesteSamtaleSteg info (Melding.svar [ "Nei" ])
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerSvarerNeiTilNaavarende tilDatoInfo ->
+            ( RegistrereTilMåned tilDatoInfo
+                |> nesteSamtaleSteg info (Melding.svar [ "Nei" ])
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerVilRegistrereTilÅr tilDatoInfo ->
+            ( RegistrereTilÅr tilDatoInfo
+                |> nesteSamtaleSteg info
+                    (Melding.svar
+                        [ tilDatoInfo.tilMåned
+                            |> Dato.månedTilString
+                        ]
+                    )
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerOppdatererTilÅr tilDatoInfo string ->
+            ( Model
+                { info
+                    | aktivSamtale =
+                        RegistrereTilÅr { tilDatoInfo | tilÅr = string }
+                }
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerHarRegistrertAlt tilDatoInfo ->
+            ( tilDatoInfo
+                |> tilDatoTilOppsummering
+                |> VisOppsummering
+                |> nesteSamtaleSteg info (Melding.svar [ tilDatoInfo.tilÅr ])
+            , Cmd.none
+            )
                 |> IkkeFerdig
 
         ErrorLogget result ->
-            ( Model info, Cmd.none )
-                |> IkkeFerdig
-
-        BrukerOppdatererNaavarende periodeInfo ->
             ( Model info, Cmd.none )
                 |> IkkeFerdig
 
@@ -339,15 +444,6 @@ leggTilIArbeidserfaring arbeidserfaringFraAareg modelInfo samtaleSeksjon =
             | aktivSamtale = samtaleSeksjon
             , arbeidserfaringListe = modelInfo.arbeidserfaringListe ++ arbeidserfaringFraAareg
         }
-
-
-toggleNaavarende : PeriodeInfo -> PeriodeInfo
-toggleNaavarende periodeInfo =
-    if periodeInfo.naavarende then
-        { periodeInfo | naavarende = False }
-
-    else
-        { periodeInfo | naavarende = True }
 
 
 oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
@@ -403,6 +499,9 @@ samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         Intro ->
             [ Melding.spørsmål [ "Nå skal vi registrere arbeidserfaringen din" ] ]
+
+        HenterFraAareg ->
+            [ Melding.spørsmål [ "bla bla bla" ] ]
 
         HentetFraAAreg ->
             [ Melding.spørsmål
@@ -483,16 +582,52 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Hvilken måned begynte du i jobbe?" ] ]
 
         RegistrereFraÅr periodeInfo ->
-            [ Melding.spørsmål [ "" ] ]
+            [ Melding.spørsmål [ "Hvilket år begynte du i jobben?" ] ]
 
         RegistrereNaavarende periodeInfo ->
-            [ Melding.spørsmål [ "" ] ]
+            [ Melding.spørsmål [ "Jobber du fremdeles her?" ] ]
 
         RegistrereTilMåned periodeInfo ->
-            [ Melding.spørsmål [ "" ] ]
+            [ Melding.spørsmål [ "Hvilken måned sluttet du i jobben?" ] ]
 
         RegistrereTilÅr periodeInfo ->
-            [ Melding.spørsmål [ "" ] ]
+            [ Melding.spørsmål [ "Hvilket år sluttet du i jobben?" ] ]
+
+        VisOppsummering oppsummering ->
+            [ Melding.spørsmål
+                [ "Er informasjonen du la inn riktig?"
+                , "Stilling/Yrke: " ++ hentStilling oppsummering
+                , oppsummering.bedriftNavn
+                , oppsummering.lokasjon
+                , oppsummering.arbeidsoppgaver
+                , "Fra: " ++ hentFraDato oppsummering
+                ]
+            ]
+
+
+hentStilling : Oppsummering -> String
+hentStilling oppsummering =
+    if oppsummering.jobbTittel == "" then
+        oppsummering.yrke
+
+    else
+        oppsummering.jobbTittel
+
+
+hentFraDato : Oppsummering -> String
+hentFraDato oppsummering =
+    let
+        år =
+            oppsummering.fraDato.fraÅr
+
+        maaned =
+            oppsummering.fraDato.fraMåned
+    in
+    år
+        ++ "-"
+        ++ (maaned
+                |> Dato.månedTilString
+           )
 
 
 
@@ -503,9 +638,13 @@ viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model info) =
     case info.aktivSamtale of
         Intro ->
-            div []
-                [ button [ onClick HentAAregArbeidserfaring ] [ text "Ja, jeg har arbeidserfaring" ]
+            div [ class "inputrad" ]
+                [ Knapp.knapp HentAAregArbeidserfaring "Ja, jeg har arbeidserfaring"
+                    |> Knapp.toHtml
                 ]
+
+        HenterFraAareg ->
+            div [] []
 
         HentetFraAAreg ->
             div [] []
@@ -533,180 +672,276 @@ viewBrukerInput (Model info) =
             div [] []
 
         RegistrerYrke yrke ->
-            div []
-                [ label [] [ text "Yrke" ]
-                , input
-                    [ yrke.yrke |> value
-                    , onInput BrukerOppdatererYrke
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ yrke.yrke
+                        |> Input.input { label = "Yrke", msg = BrukerOppdatererYrke }
+                        |> Input.toHtml
+                    , div [ class "inputrad" ]
+                        [ yrke
+                            |> yrkeInfoTilJobbtittelInfo
+                            |> BrukerLagrerYrke
+                            |> lagTekstInputKnapp "Gå videre" yrke.yrke
+                        ]
                     ]
-                    []
-                , button
-                    [ yrkeInfoTilJobbtittelInfo yrke
-                        |> BrukerLagrerYrke
-                        |> onClick
-                    ]
-                    [ text "Lagre" ]
                 ]
 
         SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
-            div []
-                [ button
-                    [ jobbtittelInfo
+            div [ class "skjmawrapper" ]
+                [ div [ class "inputrad" ]
+                    [ (jobbtittelInfo
                         |> BrukerVilEndreJobbtittel
-                        |> onClick
+                        |> Knapp.knapp
+                      )
+                        "Nei, jeg vil endre tittel"
+                        |> Knapp.toHtml
+                    , (jobbtittelInfo
+                        |> jobbtittelInfoTilBedriftnavnsInfo
+                        |> BrukerVilRegistrereBedriftnavn "Ja, det stemmer"
+                        |> Knapp.knapp
+                      )
+                        "Ja, det stemmer"
+                        |> Knapp.toHtml
                     ]
-                    [ text "Nei, legg til et nytt navn" ]
-                , button
-                    [ jobbtittelInfoTilBedriftnavnsInfo jobbtittelInfo
-                        |> BrukerVilRegistrereBedriftnavn "Ja, det stemte"
-                        |> onClick
-                    ]
-                    [ text "Ja, det stemte" ]
                 ]
 
         EndreJobbtittel jobbtittelInfo ->
-            div []
-                [ label [] [ text "Skriv inn navnet på bedriften du jobbet i" ]
-                , input
-                    [ jobbtittelInfo.jobbtittel |> value
-                    , onInput (BrukerOppdatererJobbtittelFelt jobbtittelInfo)
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ jobbtittelInfo.jobbtittel
+                        |> Input.input
+                            { label = "Stilling/yrke som vil vises i CV", msg = BrukerOppdatererJobbtittelFelt jobbtittelInfo }
+                        |> Input.toHtml
                     ]
-                    []
-                , button
-                    [ jobbtittelInfoTilBedriftnavnsInfo jobbtittelInfo
+                , div [ class "inputrad" ]
+                    [ jobbtittelInfo
+                        |> jobbtittelInfoTilBedriftnavnsInfo
                         |> BrukerVilRegistrereBedriftnavn "Gå videre"
-                        |> onClick
+                        |> lagTekstInputKnapp "Gå videre" jobbtittelInfo.jobbtittel
                     ]
-                    [ text "Gå videre" ]
                 ]
 
-        RegistrereBedriftNavn beriftnavnsInfo ->
-            div []
-                [ label [] [ text "Skriv inn navnet på bedriften du jobbet i" ]
-                , input
-                    [ beriftnavnsInfo.bedriftNavn |> value
-                    , onInput (BrukerOppdatererBedriftnavn beriftnavnsInfo)
+        RegistrereBedriftNavn bedriftnanvsInfo ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ bedriftnanvsInfo.bedriftNavn
+                        |> Input.input { label = "Hva er navnet på bedriften du jobbet i?", msg = BrukerOppdatererBedriftnavn bedriftnanvsInfo }
+                        |> Input.toHtml
                     ]
-                    []
-                , button
-                    [ bedriftnavnsInfoTilLokasjonInfo beriftnavnsInfo
+                , div [ class "inputrad" ]
+                    [ bedriftnanvsInfo
+                        |> bedriftnavnsInfoTilLokasjonInfo
                         |> BrukerVilRegistrereLokasjon
-                        |> onClick
+                        |> lagTekstInputKnapp "Gå videre" bedriftnanvsInfo.bedriftNavn
                     ]
-                    [ text "Gå videre" ]
                 ]
 
         RegistrereLokasjon lokasjonInfo ->
-            div []
-                [ label [] [ text "Sted/land" ]
-                , input
-                    [ lokasjonInfo.lokasjon |> value
-                    , lokasjonInfo
-                        |> BrukerOppdatererLokasjon
-                        |> onInput
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ lokasjonInfo.lokasjon
+                        |> Input.input { label = "Sted/land", msg = BrukerOppdatererLokasjon lokasjonInfo }
+                        |> Input.toHtml
                     ]
-                    []
-                , button
-                    [ lokasjonInfoTilArbeidsoppgaverInfo lokasjonInfo
+                , div [ class "inputrad" ]
+                    [ lokasjonInfo
+                        |> lokasjonInfoTilArbeidsoppgaverInfo
                         |> BrukerVilRegistrereArbeidsoppgaver
-                        |> onClick
+                        |> lagTekstInputKnapp "Gå videre" lokasjonInfo.lokasjon
                     ]
-                    [ text "Lagre" ]
                 ]
 
         RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ arbeidsoppgaverInfo.arbeidsoppgaver
+                        |> Input.input { label = "Hvilke arbeidsoppgaver gjorde du?", msg = BrukerOppdatererArbeidsoppgaver arbeidsoppgaverInfo }
+                        |> Input.toHtml
+                    ]
+                , div [ class "inputrad" ]
+                    [ arbeidsoppgaverInfoTilfraDatoInfo arbeidsoppgaverInfo
+                        |> BrukerVilRegistrereFraMåned
+                        |> lagTekstInputKnapp "Gå videre" arbeidsoppgaverInfo.arbeidsoppgaver
+                    ]
+                ]
+
+        RegistrereFraMåned fraDatoInfo ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "inputrad" ]
+                    [ Dato.Januar
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Februar
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Mars
+                        |> lagFraMånedKnapp fraDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.April
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Mai
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Juni
+                        |> lagFraMånedKnapp fraDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.Juli
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.August
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.September
+                        |> lagFraMånedKnapp fraDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.Oktober
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.November
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Desember
+                        |> lagFraMånedKnapp fraDatoInfo
+                    ]
+                ]
+
+        RegistrereFraÅr fraDatoInfo ->
             div []
-                [ label [] [ text "Utfyllende text" ]
+                [ label [] [ text "Skriv inn år" ]
                 , input
-                    [ arbeidsoppgaverInfo.arbeidsoppgaver |> value
-                    , arbeidsoppgaverInfo
-                        |> BrukerOppdatererArbeidsoppgaver
+                    [ fraDatoInfo.fraÅr |> value
+                    , fraDatoInfo
+                        |> BrukerOppdatererFraÅr
                         |> onInput
                     ]
                     []
                 , button
-                    [ arbeidsoppgaverInfoTilPeriodeInfo arbeidsoppgaverInfo
-                        |> BrukerVilRegistrereFraMåned
+                    [ fraDatoInfo
+                        |> BrukerVilRegistrereNaavarende
                         |> onClick
                     ]
-                    [ text "Lagre" ]
+                    [ text "Gå videre" ]
                 ]
 
-        RegistrereFraMåned periodeInfo ->
+        RegistrereNaavarende fraDatoInfo ->
             div []
-                [ lagMånedKnapp Dato.Januar periodeInfo
-                , lagMånedKnapp Dato.Februar periodeInfo
-                , lagMånedKnapp Dato.Mars periodeInfo
+                [ button
+                    [ fraDatoInfo
+                        |> fraDatoInfoTilTilDatoInfo
+                        |> BrukerSvarerJaTilNaavarende
+                        |> onClick
+                    ]
+                    [ text "Ja" ]
+                , button
+                    [ fraDatoInfo
+                        |> fraDatoInfoTilTilDatoInfo
+                        |> BrukerSvarerNeiTilNaavarende
+                        |> onClick
+                    ]
+                    [ text "Nei" ]
+                ]
+
+        RegistrereTilMåned tilDatoInfo ->
+            div []
+                [ Dato.Januar
+                    |> lagTilMånedKnapp tilDatoInfo
+                , Dato.Februar
+                    |> lagTilMånedKnapp tilDatoInfo
+                , Dato.Mars
+                    |> lagTilMånedKnapp tilDatoInfo
                 , div []
-                    [ lagMånedKnapp Dato.April periodeInfo
-                    , lagMånedKnapp Dato.Mai periodeInfo
-                    , lagMånedKnapp Dato.Juni periodeInfo
+                    [ Dato.April
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.Mai
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.Juni
+                        |> lagTilMånedKnapp tilDatoInfo
                     , div []
-                        [ lagMånedKnapp Dato.Juli periodeInfo
-                        , lagMånedKnapp Dato.August periodeInfo
-                        , lagMånedKnapp Dato.September periodeInfo
+                        [ Dato.Juli
+                            |> lagTilMånedKnapp tilDatoInfo
+                        , Dato.August
+                            |> lagTilMånedKnapp tilDatoInfo
+                        , Dato.September
+                            |> lagTilMånedKnapp tilDatoInfo
                         , div []
-                            [ lagMånedKnapp Dato.Oktober periodeInfo
-                            , lagMånedKnapp Dato.November periodeInfo
-                            , lagMånedKnapp Dato.Desember periodeInfo
+                            [ Dato.Oktober
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.November
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Desember
+                                |> lagTilMånedKnapp tilDatoInfo
                             ]
                         ]
                     ]
                 ]
 
-        RegistrereFraÅr periodeInfo ->
-            div [] []
+        RegistrereTilÅr tilDatoInfo ->
+            div []
+                [ label [] [ text "Skriv inn år" ]
+                , input
+                    [ tilDatoInfo.tilÅr |> value
+                    , tilDatoInfo
+                        |> BrukerOppdatererTilÅr
+                        |> onInput
+                    ]
+                    []
+                , button
+                    [ tilDatoInfo
+                        |> BrukerHarRegistrertAlt
+                        |> onClick
+                    ]
+                    [ text "Gå videre" ]
+                ]
 
-        RegistrereNaavarende periodeInfo ->
-            div [] []
-
-        RegistrereTilMåned periodeInfo ->
-            div [] []
-
-        RegistrereTilÅr periodeInfo ->
-            div [] []
+        VisOppsummering oppsummering ->
+            div []
+                [ button [] [ text "Ja, informasjonen er riktig" ]
+                , button [] [ text "Nei, jeg vil endre" ]
+                ]
 
 
-lagMånedKnapp : Dato.Måned -> PeriodeInfo -> Html Msg
-lagMånedKnapp måned periodeInfo =
-    case måned of
-        Dato.Januar ->
-            button
-                []
-                [ text "Januar" ]
+lagTekstInputKnapp : String -> String -> Msg -> Html Msg
+lagTekstInputKnapp knappeTekst inputTekst msg =
+    Knapp.knapp msg knappeTekst
+        |> (if inputTekst /= "" then
+                Knapp.withEnabled Knapp.Enabled
 
-        Dato.Februar ->
-            button [] [ text "Februar" ]
+            else
+                Knapp.withEnabled Knapp.Disabled
+           )
+        |> Knapp.toHtml
 
-        Dato.Mars ->
-            button [] [ text "Mars" ]
 
-        Dato.April ->
-            button [] [ text "April" ]
+lagMessageKnapp : String -> Msg -> Html Msg
+lagMessageKnapp tekst msg =
+    button
+        [ msg
+            |> onClick
+        ]
+        [ text tekst ]
 
-        Dato.Mai ->
-            button [] [ text "Mai" ]
 
-        Dato.Juni ->
-            button [] [ text "Juni" ]
+lagFraMånedKnapp : FraDatoInfo -> Dato.Måned -> Html Msg
+lagFraMånedKnapp fraDatoInfo måned =
+    let
+        msg =
+            { fraDatoInfo | fraMåned = måned }
+                |> BrukerVilRegistrereFraÅr
+    in
+    måned
+        |> Dato.månedTilString
+        |> Knapp.knapp msg
+        |> Knapp.withClass Knapp.MånedKnapp
+        |> Knapp.toHtml
 
-        Dato.Juli ->
-            button [] [ text "Juli" ]
 
-        Dato.August ->
-            button [] [ text "August" ]
-
-        Dato.September ->
-            button [] [ text "September" ]
-
-        Dato.Oktober ->
-            button [] [ text "Oktober" ]
-
-        Dato.November ->
-            button [] [ text "November" ]
-
-        Dato.Desember ->
-            button [] [ text "Desember" ]
+lagTilMånedKnapp : TilDatoInfo -> Dato.Måned -> Html Msg
+lagTilMånedKnapp tilDatoInfo måned =
+    button
+        [ { tilDatoInfo | tilMåned = måned }
+            |> BrukerVilRegistrereTilÅr
+            |> onClick
+        ]
+        [ måned
+            |> Dato.månedTilString
+            |> text
+        ]
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg

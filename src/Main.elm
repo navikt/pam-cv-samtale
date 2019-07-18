@@ -438,7 +438,7 @@ viewSuccess successModel =
         ]
 
 
-viewMeldingsLogg : MeldingsLogg -> Html Msg
+viewMeldingsLogg : MeldingsLogg -> Html msg
 viewMeldingsLogg meldingsLogg =
     meldingsLogg
         |> MeldingsLogg.meldinger
@@ -446,7 +446,7 @@ viewMeldingsLogg meldingsLogg =
         |> div []
 
 
-viewMelding : Melding -> Html Msg
+viewMelding : Melding -> Html msg
 viewMelding melding =
     div [ class ("meldingsrad " ++ meldingsClass melding) ]
         [ div [ class "melding" ]
