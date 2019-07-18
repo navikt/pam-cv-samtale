@@ -22,6 +22,7 @@
     "nav-frontend-core": "^4.0.9",
     "nav-frontend-paneler-style": "^0.3.15",
     "nav-frontend-skjema-style": "^1.0.40",
+    "nav-frontend-spinner-style": "^0.2.5",
     "nav-frontend-typografi-style": "^1.0.13",
     "node-elm-compiler": "^5.0.3",
     "pam-frontend-core": "^1.3.4",
