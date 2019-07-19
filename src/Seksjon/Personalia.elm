@@ -211,10 +211,12 @@ viewBrukerInput (Model { aktivSamtale }) =
     case aktivSamtale of
         BekreftOriginal personalia ->
             div [ class "inputrad" ]
-                [ Knapp.knapp BrukerVilEndreOriginalPersonalia "Endre"
-                    |> Knapp.toHtml
-                , Knapp.knapp OriginalPersonaliaBekreftet "Bekreft"
-                    |> Knapp.toHtml
+                [ div [ class "inputrad-innhold" ]
+                    [ Knapp.knapp BrukerVilEndreOriginalPersonalia "Endre"
+                        |> Knapp.toHtml
+                    , Knapp.knapp OriginalPersonaliaBekreftet "Bekreft"
+                        |> Knapp.toHtml
+                    ]
                 ]
 
         EndreOriginal personaliaSkjema ->
