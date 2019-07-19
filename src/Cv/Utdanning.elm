@@ -1,5 +1,6 @@
 module Cv.Utdanning exposing
-    ( Utdanning
+    ( Nivå(..)
+    , Utdanning
     , Yrkesskole(..)
     , beskrivelse
     , decode
@@ -30,10 +31,21 @@ type alias UtdanningInfo =
     , tildato : Maybe String
     , beskrivelse : Maybe String
     , navarende : Maybe Bool ----Maybe bool? ref Dtoen
-    , nuskode : Maybe String
+    , nuskode : Nivå
     , yrkesskole : Yrkesskole
     , harAutorisasjon : Bool -- Egentlig maybe?
     }
+
+
+type Nivå
+    = Grunnskole
+    | VideregåendeYrkesskole
+    | Fagskole
+    | Folkehøyskole
+    | HøyereUtdanning1til4
+    | HøyereUtdanning4pluss
+    | Phd
+    | Ukjent
 
 
 type Yrkesskole
@@ -77,7 +89,7 @@ navarende (Utdanning info) =
     info.navarende
 
 
-nuskode : Utdanning -> Maybe String
+nuskode : Utdanning -> Nivå
 nuskode (Utdanning info) =
     info.nuskode
 
@@ -118,14 +130,20 @@ decodeBackendData =
         |> required "harAutorisasjon" bool
 
 
+
+---decodeYrkesskole backendData.yrkesskole
+---decodeNivå backendData.nuskode
+
+
 tilUtdanningsInfo : BackendData -> Decoder UtdanningInfo
 tilUtdanningsInfo backendData =
-    decodeYrkesskole backendData.yrkesskole
-        |> map (lagUtdanningsinfo backendData)
+    map2 (lagUtdanningsinfo backendData)
+        (decodeNivå backendData.nuskode)
+        (decodeYrkesskole backendData.yrkesskole)
 
 
-lagUtdanningsinfo : BackendData -> Yrkesskole -> UtdanningInfo
-lagUtdanningsinfo backendData ys =
+lagUtdanningsinfo : BackendData -> Nivå -> Yrkesskole -> UtdanningInfo
+lagUtdanningsinfo backendData nivå ys =
     { id = backendData.id
     , studiested = backendData.studiested
     , utdanningsretning = backendData.utdanningsretning
@@ -133,10 +151,42 @@ lagUtdanningsinfo backendData ys =
     , tildato = backendData.tildato
     , beskrivelse = backendData.beskrivelse
     , navarende = backendData.navarende
-    , nuskode = backendData.nuskode
+    , nuskode = nivå
     , yrkesskole = ys
     , harAutorisasjon = backendData.harAutorisasjon
     }
+
+
+decodeNivå : Maybe String -> Decoder Nivå
+decodeNivå maybeNivå =
+    case maybeNivå of
+        Just nivå ->
+            if nivå == "2" then
+                succeed Grunnskole
+
+            else if nivå == "3" then
+                succeed VideregåendeYrkesskole
+
+            else if nivå == "4" then
+                succeed Fagskole
+
+            else if nivå == "5" then
+                succeed Folkehøyskole
+
+            else if nivå == "6" then
+                succeed HøyereUtdanning1til4
+
+            else if nivå == "7" then
+                succeed HøyereUtdanning4pluss
+
+            else if nivå == "8" then
+                succeed Phd
+
+            else
+                succeed Ukjent
+
+        Nothing ->
+            fail "Decoding av enum Nivå feilet. Klarer ikke decode verdi: "
 
 
 decodeYrkesskole : String -> Decoder Yrkesskole

@@ -1,6 +1,6 @@
 module Skjema.Utdanning exposing (Felt(..), UtdanningSkjema, beskrivelse, encode, fradato, init, navarende, oppdaterFelt, studiested, tildato, utdanningsretning)
 
-import Cv.Utdanning exposing (Utdanning, Yrkesskole(..))
+import Cv.Utdanning exposing (Nivå(..), Utdanning, Yrkesskole(..))
 import Json.Encode
 
 
@@ -15,7 +15,7 @@ type alias UtdanningSkjemaInfo =
     , tildato : String
     , beskrivelse : String
     , navarende : Bool --- bool? ref Dtoen
-    , nuskode : String
+    , nuskode : Nivå
     }
 
 
@@ -68,10 +68,12 @@ init utdanning =
         , fradato = Cv.Utdanning.fradato utdanning |> Maybe.withDefault ""
         , tildato = Cv.Utdanning.tildato utdanning |> Maybe.withDefault ""
         , navarende = Cv.Utdanning.navarende utdanning |> Maybe.withDefault False
-        , nuskode = Cv.Utdanning.nuskode utdanning |> Maybe.withDefault ""
+        , nuskode = Grunnskole
         }
 
 
+
+{--
 oppdaterFelt : Felt -> UtdanningSkjema -> ( String, Bool ) -> UtdanningSkjema
 oppdaterFelt felt (UtdanningSkjema info) ( str, bol ) =
     case felt of
@@ -95,11 +97,16 @@ oppdaterFelt felt (UtdanningSkjema info) ( str, bol ) =
 
         Nuskode ->
             UtdanningSkjema { info | nuskode = str }
+--}
 
 
-encode : UtdanningSkjema -> String -> String -> Json.Encode.Value
+oppdaterFelt : Felt -> UtdanningSkjema -> ( String, Bool ) -> UtdanningSkjema
+oppdaterFelt felt skjema ( str, bol ) =
+    skjema
+
+
+encode : UtdanningSkjema -> String -> Nivå -> Json.Encode.Value
 encode (UtdanningSkjema info) id nivå =
-    -- FIXME: ta inn nivå som en custom type
     Json.Encode.object
         [ ( "id", Json.Encode.string id )
         , ( "studiested", Json.Encode.string info.studiested )
@@ -108,5 +115,33 @@ encode (UtdanningSkjema info) id nivå =
         , ( "fradato", Json.Encode.string info.fradato )
         , ( "tildato", Json.Encode.string info.tildato )
         , ( "navarende", Json.Encode.bool info.navarende )
-        , ( "nuskode", Json.Encode.string info.nuskode )
+        , ( "nuskode", encodeNuskode nivå )
         ]
+
+
+encodeNuskode : Nivå -> Json.Encode.Value
+encodeNuskode nivå =
+    case nivå of
+        Grunnskole ->
+            Json.Encode.string "2"
+
+        VideregåendeYrkesskole ->
+            Json.Encode.string "3"
+
+        Fagskole ->
+            Json.Encode.string "4"
+
+        Folkehøyskole ->
+            Json.Encode.string "5"
+
+        HøyereUtdanning1til4 ->
+            Json.Encode.string "6"
+
+        HøyereUtdanning4pluss ->
+            Json.Encode.string "7"
+
+        Phd ->
+            Json.Encode.string "8"
+
+        Ukjent ->
+            Json.Encode.string ""
