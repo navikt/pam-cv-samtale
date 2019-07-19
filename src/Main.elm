@@ -413,6 +413,7 @@ viewSuccess successModel =
                     |> meldingsLoggFraSeksjon
                     |> viewMeldingsLogg
                 , viewBrukerInput successModel.aktivSamtale
+                , div [ class "samtale-padding" ] []
                 ]
             ]
         ]

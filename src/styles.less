@@ -10,15 +10,8 @@ html {
   margin: 0;
 }
 
-input {
-  padding-left: 4px;
-  min-width: 30rem;
-  margin-bottom: 8px;
-  font-family: 'Source Sans Pro', sans-serif;
-  font-size: 15px;
-  border-radius: 4px;
-  border: solid gray 1px;
-}
+@meldingBredde: 30rem;
+@meldingBreddeMobil: 80%;
 
 .spinner-wrapper {
   display: flex;
@@ -43,7 +36,17 @@ input {
 }
 
 .samtale {
-  width: 40rem;
+  @media (min-width: 768px) {
+    width: 36rem;
+  }
+  @media (max-width: 767px) {
+    width: 100%;
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+  .samtale-padding {
+    min-height: 2.5rem;
+  }
 }
 
 .meldingsrad {
@@ -67,10 +70,15 @@ input {
 }
 
 .melding {
-  max-width: 26rem;
+  @media (min-width: 768px) {
+    max-width: @meldingBredde;
+  }
+  @media (max-width: 767px) {
+    max-width: @meldingBreddeMobil;
+  }
   padding: 1rem;
   border-radius: 12px;
-  margin-bottom: 1.25rem;
+  margin-top: 1.25rem;
   p {
     margin: 0;
   }
@@ -86,12 +94,38 @@ input {
   display: flex;
   align-self: flex-end;
   flex-direction: column;
+
+  @media (min-width: 768px) {
+    width: @meldingBredde;
+  }
+
+  @media (max-width: 767px) {
+    width: @meldingBreddeMobil;
+  }
 }
 
 .inputrad {
   display: flex;
   justify-content: flex-end;
-  .Knapp {
-    margin-left: 1rem;
+  margin-top: 0.5rem;
+  .inputrad-innhold {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    @media (min-width: 768px) {
+      width: @meldingBredde;
+    }
+
+    @media (max-width: 767px) {
+      width: @meldingBreddeMobil;
+    }
+
+    .Knapp {
+      margin-top: 0.5rem;
+    }
+
+    .Knapp:not(:first-child) {
+      margin-left: 1rem;
+    }
   }
 }
