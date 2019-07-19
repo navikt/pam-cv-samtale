@@ -14,16 +14,26 @@
   "license": "ISC",
   "devDependencies": {
     "@types/express": "^4.17.0",
+    "@types/express-http-proxy": "^1.5.11",
     "@types/node": "^12.0.10",
     "elm": "^0.19.0-bugfix6",
     "elm-hot": "^1.1.0",
+    "less": "^3.9.0",
+    "nav-frontend-core": "^4.0.9",
+    "nav-frontend-paneler-style": "^0.3.15",
+    "nav-frontend-skjema-style": "^1.0.40",
+    "nav-frontend-spinner-style": "^0.2.5",
+    "nav-frontend-typografi-style": "^1.0.13",
     "node-elm-compiler": "^5.0.3",
+    "pam-frontend-core": "^1.3.4",
+    "pam-frontend-knapper": "^1.0.2",
+    "pam-frontend-typografi": "^2.0.2",
     "parcel-bundler": "^1.12.3",
     "typescript": "^3.5.2"
   },
   "dependencies": {
     "compression": "^1.7.4",
-    "express": "^4.16.4",
+    "express": "^4.16.0",
     "express-http-proxy": "^1.5.1",
     "fs": "0.0.1-security",
     "helmet": "^3.18.0"

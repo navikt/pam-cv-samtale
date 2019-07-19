@@ -5,6 +5,8 @@ import Browser
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
+import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Spinner as Spinner
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -65,7 +67,7 @@ type alias SuccessModel =
 
 
 type SamtaleSeksjon
-    = Introduksjon
+    = Introduksjon MeldingsLogg
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
     | ArbeidsErfaringSeksjon
@@ -233,11 +235,26 @@ modelFraLoadingState state =
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
-                , aktivSamtale = Introduksjon
+                , aktivSamtale = initialiserSamtale
                 }
 
         _ ->
             Loading (VenterPåResten state)
+
+
+initialiserSamtale : SamtaleSeksjon
+initialiserSamtale =
+    MeldingsLogg.init
+        |> MeldingsLogg.leggTilSpørsmål
+            [ Melding.spørsmål [ "Hei" ]
+            , Melding.spørsmål
+                [ "Velkommen til CV-registrering!"
+                , "Det vi skal gjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
+                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifikat og førerkort."
+                , "Er du klar til å begynne?"
+                ]
+            ]
+        |> Introduksjon
 
 
 initVenterPåResten : Personalia -> ( Model, Cmd Msg )
@@ -266,14 +283,19 @@ updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
 updateSuccess successMsg model =
     case successMsg of
         BrukerSierHeiIIntroduksjonen ->
-            ( MeldingsLogg.init
-                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Hei!" ])
-                |> Seksjon.Personalia.init model.personalia
-                |> PersonaliaSeksjon
-                |> oppdaterSamtaleSteg model
-                |> Success
-            , Cmd.none
-            )
+            case model.aktivSamtale of
+                Introduksjon meldingsLogg ->
+                    ( meldingsLogg
+                        |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
+                        |> Seksjon.Personalia.init model.personalia
+                        |> PersonaliaSeksjon
+                        |> oppdaterSamtaleSteg model
+                        |> Success
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( Success model, Cmd.none )
 
         PersonaliaMsg msg ->
             case model.aktivSamtale of
@@ -346,8 +368,8 @@ utdanningFerdig model utdanning utdanningMeldingsLogg =
 view : Model -> Html Msg
 view model =
     case model of
-        Loading loadingState ->
-            text "loading spinner"
+        Loading _ ->
+            viewLoading
 
         Success successModel ->
             viewSuccess successModel
@@ -356,11 +378,20 @@ view model =
             text "error"
 
 
+viewLoading : Html msg
+viewLoading =
+    div [ class "spinner-wrapper" ]
+        [ Spinner.spinner
+            |> Spinner.withStørrelse Spinner.L
+            |> Spinner.toHtml
+        ]
+
+
 meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
 meldingsLoggFraSeksjon successModel =
     case successModel.aktivSamtale of
-        Introduksjon ->
-            MeldingsLogg.init
+        Introduksjon logg ->
+            logg
 
         PersonaliaSeksjon model ->
             Seksjon.Personalia.meldingsLogg model
@@ -374,11 +405,16 @@ meldingsLoggFraSeksjon successModel =
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
-    div []
-        [ successModel
-            |> meldingsLoggFraSeksjon
-            |> viewMeldingsLogg
-        , viewBrukerInput successModel.aktivSamtale
+    div [ class "app" ]
+        [ div [] []
+        , div [ class "samtale-wrapper", id "samtale" ]
+            [ div [ class "samtale" ]
+                [ successModel
+                    |> meldingsLoggFraSeksjon
+                    |> viewMeldingsLogg
+                , viewBrukerInput successModel.aktivSamtale
+                ]
+            ]
         ]
 
 
@@ -392,26 +428,33 @@ viewMeldingsLogg meldingsLogg =
 
 viewMelding : Melding -> Html Msg
 viewMelding melding =
-    div []
-        [ h3 []
-            [ case Melding.meldingsType melding of
-                Melding.Spørsmål ->
-                    text "Spørsmål: "
-
-                Melding.Svar ->
-                    text "Svar:"
+    div [ class ("meldingsrad " ++ meldingsClass melding) ]
+        [ div [ class "melding" ]
+            [ Melding.innhold melding
+                |> List.map (\elem -> p [] [ text elem ])
+                |> div []
             ]
-        , Melding.innhold melding
-            |> List.map (\elem -> p [] [ text elem ])
-            |> div []
         ]
+
+
+meldingsClass : Melding -> String
+meldingsClass melding =
+    case Melding.meldingsType melding of
+        Melding.Spørsmål ->
+            "sporsmal"
+
+        Melding.Svar ->
+            "svar"
 
 
 viewBrukerInput : SamtaleSeksjon -> Html Msg
 viewBrukerInput aktivSamtale =
     case aktivSamtale of
-        Introduksjon ->
-            button [ onClick (SuccessMsg BrukerSierHeiIIntroduksjonen) ] [ text "Hei!" ]
+        Introduksjon logg ->
+            div [ class "inputrad" ]
+                [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
+                    |> Knapp.toHtml
+                ]
 
         PersonaliaSeksjon personaliaSeksjon ->
             personaliaSeksjon

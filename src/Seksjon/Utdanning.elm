@@ -1,6 +1,7 @@
 module Seksjon.Utdanning exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
 import Cv.Utdanning as Cv exposing (Utdanning)
+import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -314,9 +315,11 @@ viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model { aktivSamtale }) =
     case aktivSamtale of
         Intro ->
-            div []
-                [ button [ onClick BrukerVilRegistrereUtdanning ] [ text "Jeg vil registrere utdanning" ]
-                , button [ onClick GåTilArbeidserfaring ] [ text "Jeg har ingen utdanning" ]
+            div [ class "inputrad" ]
+                [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
+                    |> Knapp.toHtml
+                , Knapp.knapp GåTilArbeidserfaring "Jeg har ingen utdanning"
+                    |> Knapp.toHtml
                 ]
 
         RegistrerNivå ->

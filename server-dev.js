@@ -4,12 +4,11 @@ const Bundler  = require('parcel-bundler');
 const path  = require('path');
 
 const server = express();
-server.use(express.json())
 
 const entryFile = path.join(__dirname, './src/index.html');
 const bundler = new Bundler(entryFile, {});
 
-server.post('/cv-samtale/log', (req, res) => {
+server.post('/cv-samtale/log', express.json(), (req, res) => {
     console.log({
         ...req.body,
         level: "Error"
@@ -18,10 +17,10 @@ server.post('/cv-samtale/log', (req, res) => {
 });
 
 server.use(
-    '/cv-samtale/api',
+    ['/cv-samtale/api', '/cv/api'],
     proxy('http://localhost:1337', {
         proxyReqPathResolver: req => (
-            req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/pam-cv-api')
+            req.originalUrl.replace(new RegExp('/cv(-samtale)?/api'), '/pam-cv-api')
         )
     })
 );

@@ -1,0 +1,97 @@
+// HTML ELEMENTER
+body {
+  margin: 0;
+  height: 100%;
+  font-family: 'Source Sans Pro', sans-serif;
+}
+
+html {
+  height: 100%;
+  margin: 0;
+}
+
+input {
+  padding-left: 4px;
+  min-width: 30rem;
+  margin-bottom: 8px;
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 15px;
+  border-radius: 4px;
+  border: solid gray 1px;
+}
+
+.spinner-wrapper {
+  display: flex;
+  justify-content: center;
+  padding-top: 2rem;
+}
+
+// SAMTALE
+.app {
+  height: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.samtale-wrapper {
+  height: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
+  overflow-y: scroll;
+  display: flex;
+  justify-content: center;
+}
+
+.samtale {
+  width: 40rem;
+}
+
+.meldingsrad {
+  display: flex;
+}
+
+.sporsmal {
+  justify-content: flex-start;
+  .melding {
+    background-color: #f1f1f1;
+    color: #062140;
+  }
+}
+
+.svar {
+  justify-content: flex-end;
+  .melding {
+    background-color: #062140;
+    color: white;
+  }
+}
+
+.melding {
+  max-width: 26rem;
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  p {
+    margin: 0;
+  }
+}
+
+// SKJEMA
+.skjema-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.skjema {
+  display: flex;
+  align-self: flex-end;
+  flex-direction: column;
+}
+
+.inputrad {
+  display: flex;
+  justify-content: flex-end;
+  .Knapp {
+    margin-left: 1rem;
+  }
+}
