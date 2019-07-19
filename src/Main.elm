@@ -2,6 +2,7 @@ module Main exposing (main)
 
 import Api
 import Browser
+import Browser.Dom as Dom
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
@@ -14,6 +15,7 @@ import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
+import SamtaleAnimasjon
 import Seksjon.Personalia
 import Seksjon.Utdanning
 
@@ -95,6 +97,7 @@ type LoadingMsg
 
 type SuccessMsg
     = BrukerSierHeiIIntroduksjonen
+    | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
 
@@ -291,7 +294,7 @@ updateSuccess successMsg model =
                         |> PersonaliaSeksjon
                         |> oppdaterSamtaleSteg model
                         |> Success
-                    , Cmd.none
+                    , SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
                     )
 
                 _ ->
@@ -332,6 +335,9 @@ updateSuccess successMsg model =
 
                 _ ->
                     ( Success model, Cmd.none )
+
+        ViewportSatt _ ->
+            ( Success model, Cmd.none )
 
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel

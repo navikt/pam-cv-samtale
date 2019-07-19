@@ -129,7 +129,7 @@ update msg (Model model) =
                         Err error ->
                             ( LagringFeilet error skjema
                                 |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ])
-                            , Cmd.none
+                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                             )
                                 |> IkkeFerdig
 
