@@ -6,6 +6,7 @@ import Cv.Cv as Cv exposing (Cv)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Spinner as Spinner
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -367,14 +368,23 @@ utdanningFerdig model utdanning utdanningMeldingsLogg =
 view : Model -> Html Msg
 view model =
     case model of
-        Loading loadingState ->
-            text "loading spinner"
+        Loading _ ->
+            viewLoading
 
         Success successModel ->
             viewSuccess successModel
 
         Failure error ->
             text "error"
+
+
+viewLoading : Html msg
+viewLoading =
+    div [ class "spinner-wrapper" ]
+        [ Spinner.spinner
+            |> Spinner.withStørrelse Spinner.L
+            |> Spinner.toHtml
+        ]
 
 
 meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
