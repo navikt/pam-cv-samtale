@@ -1,4 +1,10 @@
-module FrontendModuler.Spinner exposing (Spinner, Størrelse(..), spinner, toHtml, withStørrelse)
+module FrontendModuler.Spinner exposing
+    ( Spinner
+    , Størrelse(..)
+    , spinner
+    , toHtml
+    , withStørrelse
+    )
 
 import Html exposing (Html)
 import Svg
