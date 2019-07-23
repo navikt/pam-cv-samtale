@@ -423,10 +423,12 @@ viewBrukerInput (Model { aktivSamtale }) =
     case aktivSamtale of
         Intro ->
             div [ class "inputrad" ]
-                [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
-                    |> Knapp.toHtml
-                , Knapp.knapp GåTilArbeidserfaring "Jeg har ingen utdanning"
-                    |> Knapp.toHtml
+                [ div [ class "inputrad-innhold" ]
+                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
+                        |> Knapp.toHtml
+                    , Knapp.knapp GåTilArbeidserfaring "Jeg har ingen utdanning"
+                        |> Knapp.toHtml
+                    ]
                 ]
 
         RegistrerNivå ->

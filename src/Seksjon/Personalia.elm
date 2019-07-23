@@ -132,7 +132,7 @@ update msg (Model model) =
                         Err error ->
                             ( LagringFeilet error skjema
                                 |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ])
-                            , Cmd.none
+                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                             )
                                 |> IkkeFerdig
 
@@ -214,10 +214,12 @@ viewBrukerInput (Model { aktivSamtale }) =
     case aktivSamtale of
         BekreftOriginal personalia ->
             div [ class "inputrad" ]
-                [ Knapp.knapp BrukerVilEndreOriginalPersonalia "Endre"
-                    |> Knapp.toHtml
-                , Knapp.knapp OriginalPersonaliaBekreftet "Bekreft"
-                    |> Knapp.toHtml
+                [ div [ class "inputrad-innhold" ]
+                    [ Knapp.knapp BrukerVilEndreOriginalPersonalia "Endre"
+                        |> Knapp.toHtml
+                    , Knapp.knapp OriginalPersonaliaBekreftet "Bekreft"
+                        |> Knapp.toHtml
+                    ]
                 ]
 
         EndreOriginal personaliaSkjema ->
