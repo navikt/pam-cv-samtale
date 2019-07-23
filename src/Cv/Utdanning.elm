@@ -45,7 +45,6 @@ type Nivå
     | HøyereUtdanning1til4
     | HøyereUtdanning4pluss
     | Phd
-    | Ukjent
 
 
 type Yrkesskole
@@ -183,10 +182,10 @@ decodeNivå maybeNivå =
                 succeed Phd
 
             else
-                succeed Ukjent
+                fail ("Decoding av enum Nivå feilet. Klarer ikke decode verdi: " ++ nivå)
 
         Nothing ->
-            fail "Decoding av enum Nivå feilet. Klarer ikke decode verdi: "
+            fail "Nuskode er et påkrevd felt, men var null"
 
 
 decodeYrkesskole : String -> Decoder Yrkesskole

@@ -1,12 +1,26 @@
 module Seksjon.Utdanning exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
-import Cv.Utdanning as Cv exposing (Utdanning)
+import Browser.Dom as Dom
+import Cv.Utdanning as Cv exposing (Nivå(..), Utdanning)
+import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (MeldingsLogg)
+import SamtaleAnimasjon
+import Skjema.Utdanning as Skjema
+    exposing
+        ( Felt(..)
+        , oppdaterBeskrivelse
+        , oppdaterFradato
+        , oppdaterNavarende
+        , oppdaterNuskode
+        , oppdaterStudiested
+        , oppdaterTildato
+        , oppdaterUtdanningsretning
+        )
 
 
 
@@ -27,33 +41,35 @@ type alias ModelInfo =
 type Samtale
     = Intro
     | RegistrerNivå
-    | RegistrerRetning RetningInfo
     | RegistrerSkole SkoleInfo
+    | RegistrerRetning RetningInfo
     | RegistrerBeskrivelse BeskrivelseInfo
     | RegistrerPeriode PeriodeInfo
-    | Oppsummering OppsummeringInfo
+    | Oppsummering Skjema.UtdanningSkjema
+    | EndrerOppsummering Skjema.UtdanningSkjema
+    | LagrerOppsummering OppsummeringInfo
 
 
-type Nivå
-    = Grunnskole
-    | VideregåendeYrkesskole
-    | Fagskole
-    | Folkehøyskole
-    | HøyereUtdanning1til4
-    | HøyereUtdanning4pluss
-    | Phd
+type SamtaleStatus
+    = IkkeFerdig ( Model, Cmd Msg )
+    | Ferdig (List Utdanning) MeldingsLogg
 
 
-type alias RetningInfo =
-    { forrige : Nivå, retning : String }
+meldingsLogg : Model -> MeldingsLogg
+meldingsLogg (Model model) =
+    model.seksjonsMeldingsLogg
 
 
 type alias SkoleInfo =
-    { forrige : RetningInfo, skole : String }
+    { forrige : Nivå, skole : String }
+
+
+type alias RetningInfo =
+    { forrige : SkoleInfo, retning : String }
 
 
 type alias BeskrivelseInfo =
-    { forrige : SkoleInfo, beskrivelse : String }
+    { forrige : RetningInfo, beskrivelse : String }
 
 
 type alias PeriodeInfo =
@@ -61,12 +77,17 @@ type alias PeriodeInfo =
 
 
 type alias OppsummeringInfo =
-    { forrige : PeriodeInfo, oppsummering : String }
+    { nivå : Nivå
+    , skole : String
+    , retning : String
+    , beskrivelse : String
+    , periode : String
+    }
 
 
 nivåToString : Nivå -> String
-nivåToString nivåInfo =
-    case nivåInfo of
+nivåToString nivå =
+    case nivå of
         Grunnskole ->
             "Grunnskole"
 
@@ -89,29 +110,37 @@ nivåToString nivåInfo =
             "PhD"
 
 
-forrigeTilRetningInfo : Nivå -> RetningInfo
-forrigeTilRetningInfo nivå =
-    { forrige = nivå, retning = "" }
+forrigeTilRetningInfo : SkoleInfo -> RetningInfo
+forrigeTilRetningInfo skole =
+    { forrige = skole, retning = "" }
 
 
-forrigeTilSkoleInfo : RetningInfo -> SkoleInfo
-forrigeTilSkoleInfo retningInfo =
-    { forrige = retningInfo, skole = "" }
+forrigeTilSkoleInfo : Nivå -> SkoleInfo
+forrigeTilSkoleInfo nivå =
+    { forrige = nivå, skole = "" }
 
 
-forrigeTilBeskrivelseInfo : SkoleInfo -> BeskrivelseInfo
-forrigeTilBeskrivelseInfo skoleInfo =
-    { forrige = skoleInfo, beskrivelse = "" }
+forrigeTilBeskrivelseInfo : RetningInfo -> BeskrivelseInfo
+forrigeTilBeskrivelseInfo retning =
+    { forrige = retning, beskrivelse = "" }
 
 
 forrigeTilPeriodeInfo : BeskrivelseInfo -> PeriodeInfo
-forrigeTilPeriodeInfo beskrivelseInfo =
-    { forrige = beskrivelseInfo, periode = "" }
+forrigeTilPeriodeInfo beskrivelse =
+    { forrige = beskrivelse, periode = "" }
 
 
-forrigeTilOppsummeringInfo : PeriodeInfo -> OppsummeringInfo
+forrigeTilOppsummeringInfo : PeriodeInfo -> Skjema.UtdanningSkjema
 forrigeTilOppsummeringInfo periodeInfo =
-    { forrige = periodeInfo, oppsummering = "" }
+    Skjema.initManueltSkjema
+        { nuskode = periodeInfo.forrige.forrige.forrige.forrige
+        , studiested = periodeInfo.forrige.forrige.forrige.skole
+        , utdanningsretning = periodeInfo.forrige.forrige.retning
+        , beskrivelse = periodeInfo.forrige.beskrivelse
+        , fradato = periodeInfo.periode
+        , tildato = periodeInfo.periode
+        , navarende = True
+        }
 
 
 type Msg
@@ -119,26 +148,30 @@ type Msg
     | GåTilArbeidserfaring
     | BekreftAlleredeRegistrert
     | BrukerVilRegistrereNivå Nivå
-    | BrukerVilRegistrereRetning
-    | OppdaterRetning String
     | BrukerVilRegistrereSkole
     | OppdaterSkole String
+    | BrukerVilRegistrereRetning
+    | OppdaterRetning String
     | BrukerVilRegistrereBeskrivelse
     | OppdaterBeskrivelse String
     | BrukerVilRegistrerePeriode
     | OppdaterPeriode String
-    | BrukerVilRegistrereOppsummering
-    | OppdaterOppsummering String
+    | BrukerVilEndreOppsummering
+    | OriginalOppsummeringBekreftet
+    | OppsummeringEndret Skjema.Felt String
+    | OppsummeringSkjemaLagreknappTrykket
+    | SkjemaOppdatert SkjemaEndring
+    | ViewportSatt (Result Dom.Error ())
 
 
-type SamtaleStatus
-    = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Utdanning) MeldingsLogg
-
-
-meldingsLogg : Model -> MeldingsLogg
-meldingsLogg (Model model) =
-    model.seksjonsMeldingsLogg
+type SkjemaEndring
+    = NivåEndret Nivå
+    | BeskrivelseEndret String
+    | SkoleEndret String
+    | FratidEndret String
+    | TiltidEndret String
+    | NavarendeEndret Bool
+    | RetningEndret String
 
 
 
@@ -153,7 +186,7 @@ update msg (Model model) =
                 Intro ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere utdannning" ]) RegistrerNivå
-                        , Cmd.none
+                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                         )
 
                 _ ->
@@ -169,16 +202,9 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerNivå ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Jeg valgte nivået: " ++ nivåToString nivå ]) (RegistrerRetning (forrigeTilRetningInfo nivå)), Cmd.none )
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        BrukerVilRegistrereRetning ->
-            case model.aktivSamtale of
-                RegistrerRetning retninginfo ->
-                    IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Studieretningen min var: " ++ retninginfo.retning ]) (RegistrerSkole (forrigeTilSkoleInfo retninginfo)), Cmd.none )
+                        ( nesteSamtaleSteg model (Melding.svar [ nivåToString nivå ]) (RegistrerSkole (forrigeTilSkoleInfo nivå))
+                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -187,7 +213,20 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerSkole skoleinfo ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Skolen jeg gikk på het: " ++ skoleinfo.skole ]) (RegistrerBeskrivelse (forrigeTilBeskrivelseInfo skoleinfo)), Cmd.none )
+                        ( nesteSamtaleSteg model (Melding.svar [ skoleinfo.skole ]) (RegistrerRetning (forrigeTilRetningInfo skoleinfo))
+                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilRegistrereRetning ->
+            case model.aktivSamtale of
+                RegistrerRetning retninginfo ->
+                    IkkeFerdig
+                        ( nesteSamtaleSteg model (Melding.svar [ retninginfo.retning ]) (RegistrerBeskrivelse (forrigeTilBeskrivelseInfo retninginfo))
+                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -196,7 +235,9 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerBeskrivelse beskrivelseinfo ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Dette føler jeg beskriver utdannelsen: " ++ beskrivelseinfo.beskrivelse ]) (RegistrerPeriode (forrigeTilPeriodeInfo beskrivelseinfo)), Cmd.none )
+                        ( nesteSamtaleSteg model (Melding.svar [ beskrivelseinfo.beskrivelse ]) (RegistrerPeriode (forrigeTilPeriodeInfo beskrivelseinfo))
+                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -205,10 +246,23 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerPeriode periodeinfo ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Utdannelsen gjaldt for perioden: " ++ periodeinfo.periode ]) (Oppsummering (forrigeTilOppsummeringInfo periodeinfo)), Cmd.none )
+                        ( nesteSamtaleSteg model (Melding.svar [ periodeinfo.periode ]) (Oppsummering (forrigeTilOppsummeringInfo periodeinfo))
+                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilEndreOppsummering ->
+            case model.aktivSamtale of
+                Oppsummering utdanningskjema ->
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil endre" ]) (EndrerOppsummering utdanningskjema), SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        OppsummeringEndret felt string ->
+            IkkeFerdig ( Model model, Cmd.none )
 
         BekreftAlleredeRegistrert ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -245,11 +299,47 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        BrukerVilRegistrereOppsummering ->
+        SkjemaOppdatert skjemaendring ->
+            case model.aktivSamtale of
+                EndrerOppsummering skjemaendringinfo ->
+                    IkkeFerdig ( oppdaterSamtaleSteg model (EndrerOppsummering (oppdaterSkjema skjemaendring skjemaendringinfo)), Cmd.none )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        OriginalOppsummeringBekreftet ->
+            IkkeFerdig ( Model model, SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+
+        OppsummeringSkjemaLagreknappTrykket ->
+            IkkeFerdig ( Model model, SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+
+        ViewportSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        OppdaterOppsummering string ->
-            IkkeFerdig ( Model model, Cmd.none )
+
+oppdaterSkjema : SkjemaEndring -> Skjema.UtdanningSkjema -> Skjema.UtdanningSkjema
+oppdaterSkjema endring skjema =
+    case endring of
+        NivåEndret nivå ->
+            Skjema.oppdaterNuskode nivå skjema
+
+        BeskrivelseEndret string ->
+            Skjema.oppdaterBeskrivelse string skjema
+
+        SkoleEndret string ->
+            Skjema.oppdaterStudiested string skjema
+
+        FratidEndret string ->
+            Skjema.oppdaterFradato string skjema
+
+        TiltidEndret string ->
+            Skjema.oppdaterTildato string skjema
+
+        NavarendeEndret bool ->
+            Skjema.oppdaterNavarende bool skjema
+
+        RetningEndret string ->
+            Skjema.oppdaterUtdanningsretning string skjema
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -285,14 +375,14 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 [ "Hvilket nivå var utdanningen på?" ]
             ]
 
-        RegistrerRetning _ ->
-            [ Melding.spørsmål
-                [ "Hvilken studieretning gikk du?" ]
-            ]
-
         RegistrerSkole _ ->
             [ Melding.spørsmål
                 [ " Hvilken skole gikk du på? " ]
+            ]
+
+        RegistrerRetning _ ->
+            [ Melding.spørsmål
+                [ "Hvilken studieretning gikk du?" ]
             ]
 
         RegistrerBeskrivelse _ ->
@@ -305,9 +395,26 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 [ " Hvilken periode var det i? " ]
             ]
 
-        Oppsummering _ ->
+        --TODO: Implementer fra og til/nåværende
+        Oppsummering utdanningsskjema ->
             [ Melding.spørsmål
-                [ "Her har du en oppsummering av utdannelsen. Stemmer den? " ]
+                [ "Her har du en oppsummering av utdannelsen du la inn:"
+                , "Nivå: " ++ nivåToString (Skjema.nuskode utdanningsskjema)
+                , "Skole: " ++ Skjema.studiested utdanningsskjema
+                , "Retning: " ++ Skjema.utdanningsretning utdanningsskjema
+                , "Beskrivelse: " ++ Skjema.beskrivelse utdanningsskjema
+                , "Periode: " ++ Skjema.fradato utdanningsskjema
+                ]
+            ]
+
+        EndrerOppsummering _ ->
+            [ Melding.spørsmål
+                [ "Ok! Vennligst skriv inn riktig informasjon i feltene under: " ]
+            ]
+
+        LagrerOppsummering _ ->
+            [ Melding.spørsmål
+                [ "Godt jobbet! Da tar jeg vare på den nye infoen! " ]
             ]
 
 
@@ -323,88 +430,86 @@ viewBrukerInput (Model { aktivSamtale }) =
                 ]
 
         RegistrerNivå ->
-            div []
-                [ label [] [ text "Nivå: " ]
-                , button [ onClick (BrukerVilRegistrereNivå Grunnskole) ] [ text (nivåToString Grunnskole) ]
-                , button [ onClick (BrukerVilRegistrereNivå VideregåendeYrkesskole) ] [ text (nivåToString VideregåendeYrkesskole) ]
-                , button [ onClick (BrukerVilRegistrereNivå Fagskole) ] [ text (nivåToString Fagskole) ]
-                , button [ onClick (BrukerVilRegistrereNivå Folkehøyskole) ] [ text (nivåToString Folkehøyskole) ]
-                , button [ onClick (BrukerVilRegistrereNivå HøyereUtdanning1til4) ] [ text (nivåToString HøyereUtdanning1til4) ]
-                , button [ onClick (BrukerVilRegistrereNivå HøyereUtdanning4pluss) ] [ text (nivåToString HøyereUtdanning4pluss) ]
-                , button [ onClick (BrukerVilRegistrereNivå Phd) ] [ text (nivåToString Phd) ]
-                ]
-
-        RegistrerRetning retningsinfo ->
-            div []
-                [ label [] [ text "Retning: " ]
-                , input
-                    [ onInput OppdaterRetning
-                    , value retningsinfo.retning
-                    ]
-                    []
-                , button
-                    [ onClick BrukerVilRegistrereRetning ]
-                    [ text "Lagre"
+            div [ class "inputrad" ]
+                [ div [ class "Utdanningsnivå" ]
+                    [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole) |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole) |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole) |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole) |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4) |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss) |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd) |> Knapp.toHtml
                     ]
                 ]
 
         RegistrerSkole skoleinfo ->
-            div []
-                [ label [] [ text "Skole: " ]
-                , input
-                    [ onInput OppdaterSkole
-                    , value skoleinfo.skole
-                    ]
-                    []
-                , button
-                    [ onClick BrukerVilRegistrereSkole ]
-                    [ text "Lagre"
-                    ]
+            div [ class "Skjema" ]
+                [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "Skole" } |> Input.toHtml
+                , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
+                    |> Knapp.toHtml
+                ]
+
+        RegistrerRetning retningsinfo ->
+            div [ class "Skjema" ]
+                [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "Retning" } |> Input.toHtml
+                , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
+                    |> Knapp.toHtml
                 ]
 
         RegistrerBeskrivelse beskrivelseinfo ->
-            div []
-                [ label [] [ text "Beskrivelse: " ] -- Maks char?
-                , input
-                    [ onInput OppdaterBeskrivelse, value beskrivelseinfo.beskrivelse ]
-                    []
-                , button
-                    [ onClick BrukerVilRegistrereBeskrivelse ]
-                    [ text "Lagre"
-                    ]
+            div [ class "Skjema" ]
+                [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterBeskrivelse, label = "Beskrivelse" } |> Input.toHtml
+                , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
+                    |> Knapp.toHtml
                 ]
 
         RegistrerPeriode periodeinfo ->
-            div []
-                [ label [] [ text "Periode: " ] -- Bruke datetime?
-                , input
-                    [ onInput OppdaterPeriode
-                    , value periodeinfo.periode
-                    ]
-                    []
-                , button
-                    [ onClick BrukerVilRegistrerePeriode ]
-                    [ text "Lagre"
+            div [ class "Skjema" ]
+                [ periodeinfo.periode |> Input.input { msg = OppdaterPeriode, label = "Periode" } |> Input.toHtml
+                , Knapp.knapp BrukerVilRegistrerePeriode "Lagre"
+                    |> Knapp.toHtml
+                ]
+
+        Oppsummering _ ->
+            div [ class "inputrad" ]
+                [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
+                    |> Knapp.toHtml
+                , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
+                    |> Knapp.toHtml
+                ]
+
+        EndrerOppsummering utdanningsskjema ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ utdanningsskjema
+                        |> Skjema.studiested
+                        |> Input.input { label = "Studiested", msg = SkoleEndret >> SkjemaOppdatert }
+                        |> Input.toHtml
+                    , utdanningsskjema
+                        |> Skjema.utdanningsretning
+                        |> Input.input { label = "Retning", msg = RetningEndret >> SkjemaOppdatert }
+                        |> Input.toHtml
+                    , utdanningsskjema
+                        |> Skjema.beskrivelse
+                        |> Input.input { label = "Beskrivelse", msg = BeskrivelseEndret >> SkjemaOppdatert }
+                        |> Input.toHtml
+                    , utdanningsskjema
+                        |> Skjema.fradato
+                        |> Input.input { label = "Fra ", msg = FratidEndret >> SkjemaOppdatert }
+                        |> Input.toHtml
+                    , utdanningsskjema
+                        |> Skjema.tildato
+                        |> Input.input { label = "Til ", msg = TiltidEndret >> SkjemaOppdatert }
+                        |> Input.toHtml
+                    , div [ class "inputrad" ]
+                        [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
+                            |> Knapp.toHtml
+                        ]
                     ]
                 ]
 
-        Oppsummering oppsummeringinfo ->
-            div []
-                [ label [] [ text "Oppsummering: " ] --Skulle dette være et skjema man godkjenner?
-                , input
-                    [ onInput OppdaterOppsummering
-                    , value oppsummeringinfo.oppsummering
-                    ]
-                    []
-                , button
-                    [ onClick BrukerVilRegistrereOppsummering ]
-                    [ text "Godkjenn"
-                    ]
-                ]
-
-
-
---- INIT ---
+        LagrerOppsummering _ ->
+            text ""
 
 
 init : MeldingsLogg -> List Utdanning -> Model

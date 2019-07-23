@@ -1,4 +1,25 @@
-module Skjema.Utdanning exposing (Felt(..), UtdanningSkjema, beskrivelse, encode, fradato, init, navarende, oppdaterFelt, studiested, tildato, utdanningsretning)
+module Skjema.Utdanning exposing
+    ( Felt(..)
+    , UtdanningSkjema(..)
+    , UtdanningsSkjemaVerdier
+    , beskrivelse
+    , encode
+    , fradato
+    , init
+    , initManueltSkjema
+    , navarende
+    , nuskode
+    , oppdaterBeskrivelse
+    , oppdaterFradato
+    , oppdaterNavarende
+    , oppdaterNuskode
+    , oppdaterStudiested
+    , oppdaterTildato
+    , oppdaterUtdanningsretning
+    , studiested
+    , tildato
+    , utdanningsretning
+    )
 
 import Cv.Utdanning exposing (Nivå(..), Utdanning, Yrkesskole(..))
 import Json.Encode
@@ -14,7 +35,7 @@ type alias UtdanningSkjemaInfo =
     , fradato : String
     , tildato : String
     , beskrivelse : String
-    , navarende : Bool --- bool? ref Dtoen
+    , navarende : Bool
     , nuskode : Nivå
     }
 
@@ -59,6 +80,11 @@ navarende (UtdanningSkjema info) =
     info.navarende
 
 
+nuskode : UtdanningSkjema -> Nivå
+nuskode (UtdanningSkjema info) =
+    info.nuskode
+
+
 init : Utdanning -> UtdanningSkjema
 init utdanning =
     UtdanningSkjema
@@ -68,14 +94,65 @@ init utdanning =
         , fradato = Cv.Utdanning.fradato utdanning |> Maybe.withDefault ""
         , tildato = Cv.Utdanning.tildato utdanning |> Maybe.withDefault ""
         , navarende = Cv.Utdanning.navarende utdanning |> Maybe.withDefault False
-        , nuskode = Grunnskole
+        , nuskode = Cv.Utdanning.nuskode utdanning
         }
+
+
+initManueltSkjema : UtdanningsSkjemaVerdier -> UtdanningSkjema
+initManueltSkjema info =
+    UtdanningSkjema info
+
+
+type alias UtdanningsSkjemaVerdier =
+    { studiested : String
+    , utdanningsretning : String
+    , fradato : String
+    , tildato : String
+    , beskrivelse : String
+    , navarende : Bool
+    , nuskode : Nivå
+    }
+
+
+oppdaterNuskode : Nivå -> UtdanningSkjema -> UtdanningSkjema
+oppdaterNuskode nivå (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | nuskode = nivå }
+
+
+oppdaterStudiested : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterStudiested skole (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | studiested = skole }
+
+
+oppdaterUtdanningsretning : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterUtdanningsretning retning (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | utdanningsretning = retning }
+
+
+oppdaterFradato : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterFradato fra (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | fradato = fra }
+
+
+oppdaterTildato : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterTildato til (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | tildato = til }
+
+
+oppdaterBeskrivelse : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterBeskrivelse beskr (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | beskrivelse = beskr }
+
+
+oppdaterNavarende : Bool -> UtdanningSkjema -> UtdanningSkjema
+oppdaterNavarende bool (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | navarende = bool }
 
 
 
 {--
-oppdaterFelt : Felt -> UtdanningSkjema -> ( String, Bool ) -> UtdanningSkjema
-oppdaterFelt felt (UtdanningSkjema info) ( str, bol ) =
+oppdaterFelt : Felt -> UtdanningSkjema -> ( String, Bool, Nivå ) -> UtdanningSkjema
+oppdaterFelt felt (UtdanningSkjema info) ( str, bol, nivå ) =
     case felt of
         Studiested ->
             UtdanningSkjema { info | studiested = str }
@@ -96,13 +173,8 @@ oppdaterFelt felt (UtdanningSkjema info) ( str, bol ) =
             UtdanningSkjema { info | navarende = bol }
 
         Nuskode ->
-            UtdanningSkjema { info | nuskode = str }
+            UtdanningSkjema { info | nuskode = nivå }
 --}
-
-
-oppdaterFelt : Felt -> UtdanningSkjema -> ( String, Bool ) -> UtdanningSkjema
-oppdaterFelt felt skjema ( str, bol ) =
-    skjema
 
 
 encode : UtdanningSkjema -> String -> Nivå -> Json.Encode.Value
@@ -142,6 +214,3 @@ encodeNuskode nivå =
 
         Phd ->
             Json.Encode.string "8"
-
-        Ukjent ->
-            Json.Encode.string ""
