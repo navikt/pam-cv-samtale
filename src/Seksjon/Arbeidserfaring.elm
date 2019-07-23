@@ -1,8 +1,8 @@
-module Seksjon.Arbeidserfaring exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
+module Seksjon.Arbeidserfaring exposing (FraDatoInfo, Model, Msg, Oppsummering, SamtaleStatus(..), TilDatoInfo, init, meldingsLogg, update, viewBrukerInput)
 
 import Api
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
-import Dato
+import Dato exposing (Dato)
 import Feilmelding
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
@@ -12,6 +12,7 @@ import Html.Events exposing (onClick, onInput)
 import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (MeldingsLogg)
+import Skjema.ArbeidserfaringSkjema as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema)
 
 
 
@@ -79,7 +80,9 @@ type Msg
     | BrukerSvarerNeiTilNaavarende TilDatoInfo
     | BrukerVilRegistrereTilÅr TilDatoInfo
     | BrukerOppdatererTilÅr TilDatoInfo String
-    | BrukerHarRegistrertAlt TilDatoInfo
+    | BrukerVilGåTilOppsummering TilDatoInfo
+    | BrukerVilRedigereOppsummering
+    | ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Felt String
     | ErrorLogget (Result Http.Error ())
 
 
@@ -102,6 +105,7 @@ type Samtale
     | RegistrereTilMåned TilDatoInfo
     | RegistrereTilÅr TilDatoInfo
     | VisOppsummering Oppsummering
+    | RedigerOppsummering ArbeidserfaringSkjema.ArbeidserfaringSkjema
 
 
 type alias YrkeInfo =
@@ -153,8 +157,9 @@ type alias Oppsummering =
     , bedriftNavn : String
     , lokasjon : String
     , arbeidsoppgaver : String
-    , fraDato : FraDatoInfo
-    , tilDato : Maybe TilDatoInfo
+    , fraDato : Dato
+    , naavarende : Bool
+    , tilDato : Maybe Dato
     }
 
 
@@ -208,14 +213,29 @@ tilDatoTilOppsummering tilDatoInfo =
     , bedriftNavn = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn
     , lokasjon = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.lokasjon
     , arbeidsoppgaver = tilDatoInfo.tidligereInfo.tidligereInfo.arbeidsoppgaver
-    , fraDato = tilDatoInfo.tidligereInfo
+    , fraDato = Dato.tilDato (tilDatoInfo.tidligereInfo.fraÅr ++ "-" ++ (tilDatoInfo.tidligereInfo.fraMåned |> Dato.månedTilString))
+    , naavarende = tilDatoInfo.tidligereInfo.naavarende
     , tilDato =
         if tilDatoInfo.tidligereInfo.naavarende then
-            Nothing
+            Just (Dato.tilDato "1999-09-09")
 
         else
-            Just tilDatoInfo
+            Just (Dato.tilDato (tilDatoInfo.tilÅr ++ "-" ++ (tilDatoInfo.tilMåned |> Dato.månedTilString)))
     }
+
+
+oppsummeringTilSkjema : Oppsummering -> ArbeidserfaringSkjema.ArbeidserfaringSkjema
+oppsummeringTilSkjema oppsummering =
+    ArbeidserfaringSkjema.ArbeidserfaringSkjema
+        { yrke = oppsummering.yrke
+        , jobbTittel = oppsummering.jobbTittel
+        , bedriftNavn = oppsummering.bedriftNavn
+        , lokasjon = oppsummering.lokasjon
+        , arbeidsoppgaver = oppsummering.arbeidsoppgaver
+        , fraDato = oppsummering.fraDato
+        , naavarende = oppsummering.naavarende
+        , tilDato = oppsummering.tilDato
+        }
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -376,7 +396,8 @@ update msg (Model info) =
             ( tilDatoInfo
                 |> tilDatoTilOppsummering
                 |> VisOppsummering
-                |> nesteSamtaleSteg info (Melding.svar [ "Nei" ])
+                |> nesteSamtaleSteg info (Melding.svar [ "Ja" ])
+                |> setNaavarendeTilTrue
             , Cmd.none
             )
                 |> IkkeFerdig
@@ -410,13 +431,33 @@ update msg (Model info) =
             )
                 |> IkkeFerdig
 
-        BrukerHarRegistrertAlt tilDatoInfo ->
+        BrukerVilGåTilOppsummering tilDatoInfo ->
             ( tilDatoInfo
                 |> tilDatoTilOppsummering
                 |> VisOppsummering
                 |> nesteSamtaleSteg info (Melding.svar [ tilDatoInfo.tilÅr ])
             , Cmd.none
             )
+                |> IkkeFerdig
+
+        BrukerVilRedigereOppsummering ->
+            case info.aktivSamtale of
+                VisOppsummering oppsummering ->
+                    ( oppsummering
+                        |> oppsummeringTilSkjema
+                        |> RedigerOppsummering
+                        |> nesteSamtaleSteg info
+                            (Melding.svar [ "Nei, jeg vil endre" ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        ArbeidserfaringStringSkjemaEndret felt string ->
+            ( Model info, Cmd.none )
                 |> IkkeFerdig
 
         ErrorLogget result ->
@@ -492,6 +533,16 @@ nesteSamtaleSteg modelInfo melding samtaleSeksjon =
                     |> MeldingsLogg.leggTilSvar melding
                     |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
         }
+
+
+setNaavarendeTilTrue : Model -> Model
+setNaavarendeTilTrue (Model info) =
+    case info.aktivSamtale of
+        RegistrereNaavarende fraDatoInfo ->
+            Model { info | aktivSamtale = RegistrereNaavarende { fraDatoInfo | naavarende = True } }
+
+        _ ->
+            Model info
 
 
 samtaleTilMeldingsLogg : Samtale -> List Melding
@@ -597,12 +648,20 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål
                 [ "Er informasjonen du la inn riktig?"
                 , "Stilling/Yrke: " ++ hentStilling oppsummering
-                , oppsummering.bedriftNavn
-                , oppsummering.lokasjon
-                , oppsummering.arbeidsoppgaver
+                , "Bedriftnanv: " ++ oppsummering.bedriftNavn
+                , "Sted: " ++ oppsummering.lokasjon
+                , "Arbeidsoppgaver: " ++ oppsummering.arbeidsoppgaver
                 , "Fra: " ++ hentFraDato oppsummering
+                , if oppsummering.naavarende then
+                    ""
+
+                  else
+                    hentTilDato oppsummering
                 ]
             ]
+
+        RedigerOppsummering skjema ->
+            []
 
 
 hentStilling : Oppsummering -> String
@@ -618,16 +677,24 @@ hentFraDato : Oppsummering -> String
 hentFraDato oppsummering =
     let
         år =
-            oppsummering.fraDato.fraÅr
+            oppsummering.fraDato |> Dato.år |> String.fromInt
 
         maaned =
-            oppsummering.fraDato.fraMåned
+            oppsummering.fraDato |> Dato.måned |> Dato.månedTilString
     in
-    år
-        ++ "-"
-        ++ (maaned
-                |> Dato.månedTilString
-           )
+    maaned
+        ++ " "
+        ++ år
+
+
+hentTilDato : Oppsummering -> String
+hentTilDato oppsummering =
+    let
+        dato =
+            oppsummering.tilDato
+                |> Maybe.withDefault oppsummering.fraDato
+    in
+    "Til: " ++ (dato |> Dato.måned |> Dato.månedTilString) ++ " " ++ (dato |> Dato.år |> String.fromInt)
 
 
 
@@ -802,43 +869,35 @@ viewBrukerInput (Model info) =
                 ]
 
         RegistrereFraÅr fraDatoInfo ->
-            div []
-                [ label [] [ text "Skriv inn år" ]
-                , input
-                    [ fraDatoInfo.fraÅr |> value
-                    , fraDatoInfo
-                        |> BrukerOppdatererFraÅr
-                        |> onInput
+            div [ class "skjemawrapper" ]
+                [ div [ class "skjema" ]
+                    [ fraDatoInfo.fraÅr
+                        |> Input.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr fraDatoInfo }
+                        |> Input.toHtml
                     ]
-                    []
-                , button
+                , div [ class "inputrad" ]
                     [ fraDatoInfo
                         |> BrukerVilRegistrereNaavarende
-                        |> onClick
+                        |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
                     ]
-                    [ text "Gå videre" ]
                 ]
 
         RegistrereNaavarende fraDatoInfo ->
             div []
-                [ button
+                [ div [ class "inputrad" ]
                     [ fraDatoInfo
                         |> fraDatoInfoTilTilDatoInfo
                         |> BrukerSvarerJaTilNaavarende
-                        |> onClick
-                    ]
-                    [ text "Ja" ]
-                , button
-                    [ fraDatoInfo
+                        |> lagMessageKnapp "Ja"
+                    , fraDatoInfo
                         |> fraDatoInfoTilTilDatoInfo
                         |> BrukerSvarerNeiTilNaavarende
-                        |> onClick
+                        |> lagMessageKnapp "Nei"
                     ]
-                    [ text "Nei" ]
                 ]
 
         RegistrereTilMåned tilDatoInfo ->
-            div []
+            div [ class "inputrad" ]
                 [ Dato.Januar
                     |> lagTilMånedKnapp tilDatoInfo
                 , Dato.Februar
@@ -883,7 +942,7 @@ viewBrukerInput (Model info) =
                     []
                 , button
                     [ tilDatoInfo
-                        |> BrukerHarRegistrertAlt
+                        |> BrukerVilGåTilOppsummering
                         |> onClick
                     ]
                     [ text "Gå videre" ]
@@ -892,7 +951,41 @@ viewBrukerInput (Model info) =
         VisOppsummering oppsummering ->
             div []
                 [ button [] [ text "Ja, informasjonen er riktig" ]
-                , button [] [ text "Nei, jeg vil endre" ]
+                , BrukerVilRedigereOppsummering
+                    |> lagMessageKnapp "Nei, jeg vil endre"
+                ]
+
+        RedigerOppsummering skjema ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ skjema
+                        |> ArbeidserfaringSkjema.yrke
+                        |> Input.input { label = "Yrke", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Yrke }
+                        |> Input.toHtml
+                    , if
+                        ArbeidserfaringSkjema.jobbTittel skjema
+                            == ""
+                      then
+                        div [] []
+
+                      else
+                        skjema
+                            |> ArbeidserfaringSkjema.jobbTittel
+                            |> Input.input { label = "Jobbtittel", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.JobbTittel }
+                            |> Input.toHtml
+                    , skjema
+                        |> ArbeidserfaringSkjema.bedriftNavn
+                        |> Input.input { label = "Bedriftnavn", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.BedriftNavn }
+                        |> Input.toHtml
+                    , skjema
+                        |> ArbeidserfaringSkjema.lokasjon
+                        |> Input.input { label = "Sted", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Lokasjon }
+                        |> Input.toHtml
+                    , skjema
+                        |> ArbeidserfaringSkjema.arbeidsoppgaver
+                        |> Input.input { label = "Arbeidsoppgaver", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Arbeidsoppgaver }
+                        |> Input.toHtml
+                    ]
                 ]
 
 
@@ -908,13 +1001,22 @@ lagTekstInputKnapp knappeTekst inputTekst msg =
         |> Knapp.toHtml
 
 
+lagÅrInputKnapp : String -> String -> Msg -> Html Msg
+lagÅrInputKnapp knappeTekst inputTekst msg =
+    Knapp.knapp msg knappeTekst
+        |> (if inputTekst /= "" && Dato.validerÅr inputTekst then
+                Knapp.withEnabled Knapp.Enabled
+
+            else
+                Knapp.withEnabled Knapp.Disabled
+           )
+        |> Knapp.toHtml
+
+
 lagMessageKnapp : String -> Msg -> Html Msg
-lagMessageKnapp tekst msg =
-    button
-        [ msg
-            |> onClick
-        ]
-        [ text tekst ]
+lagMessageKnapp knappeTekst msg =
+    Knapp.knapp msg knappeTekst
+        |> Knapp.toHtml
 
 
 lagFraMånedKnapp : FraDatoInfo -> Dato.Måned -> Html Msg
