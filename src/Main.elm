@@ -2,10 +2,12 @@ module Main exposing (SuccessMsg, main)
 
 import Api
 import Browser
+import Browser.Dom as Dom
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Spinner as Spinner
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -13,6 +15,7 @@ import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
+import SamtaleAnimasjon
 import Seksjon.Arbeidserfaring
 import Seksjon.Personalia
 import Seksjon.Utdanning
@@ -95,6 +98,7 @@ type LoadingMsg
 
 type SuccessMsg
     = BrukerSierHeiIIntroduksjonen
+    | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
     | ArbeidserfaringsMsg Seksjon.Arbeidserfaring.Msg
@@ -292,7 +296,7 @@ updateSuccess successMsg model =
                         |> PersonaliaSeksjon
                         |> oppdaterSamtaleSteg model
                         |> Success
-                    , Cmd.none
+                    , SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
                     )
 
                 _ ->
@@ -349,6 +353,9 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        ViewportSatt _ ->
+            ( Success model, Cmd.none )
+
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
@@ -397,14 +404,23 @@ utdanningFerdig model utdanning utdanningMeldingsLogg =
 view : Model -> Html Msg
 view model =
     case model of
-        Loading loadingState ->
-            text "loading spinner"
+        Loading _ ->
+            viewLoading
 
         Success successModel ->
             viewSuccess successModel
 
         Failure error ->
             text "error"
+
+
+viewLoading : Html msg
+viewLoading =
+    div [ class "spinner-wrapper" ]
+        [ Spinner.spinner
+            |> Spinner.withStørrelse Spinner.L
+            |> Spinner.toHtml
+        ]
 
 
 meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
@@ -433,6 +449,7 @@ viewSuccess successModel =
                     |> meldingsLoggFraSeksjon
                     |> viewMeldingsLogg
                 , viewBrukerInput successModel.aktivSamtale
+                , div [ class "samtale-padding" ] []
                 ]
             ]
         ]

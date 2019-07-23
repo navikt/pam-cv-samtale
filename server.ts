@@ -1,6 +1,7 @@
 import * as express from 'express';
 import { Request} from 'express';
 import * as proxy from 'express-http-proxy';
+import * as compression from 'compression';
 import * as helmet from 'helmet';
 import * as path from 'path';
 import { RequestOptions } from 'http';
@@ -20,6 +21,8 @@ const MILJOVARIABLER = {
 console.log(`API_GATEWAY_HOST: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
 
 const server = express();
+
+server.use(compression());
 
 // security
 server.disable('x-powered-by');
