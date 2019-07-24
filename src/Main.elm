@@ -13,11 +13,13 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
 import Melding exposing (Melding)
-import MeldingsLogg exposing (MeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Personalia exposing (Personalia)
+import Process
 import SamtaleAnimasjon
 import Seksjon.Personalia
 import Seksjon.Utdanning
+import Task
 
 
 
@@ -100,6 +102,8 @@ type SuccessMsg
     | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
+    | StartÅSkrive
+    | FullførMelding
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -182,7 +186,7 @@ updateLoading msg model =
                 Loading (VenterPåResten state) ->
                     case result of
                         Ok cv ->
-                            ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
+                            modelFraLoadingState { state | cv = Just cv }
 
                         Err error ->
                             case error of
@@ -202,7 +206,7 @@ updateLoading msg model =
                 Loading (VenterPåResten state) ->
                     case result of
                         Ok cv ->
-                            ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
+                            modelFraLoadingState { state | cv = Just cv }
 
                         Err error ->
                             ( Failure error
@@ -230,19 +234,22 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-modelFraLoadingState : LoadingState -> Model
+modelFraLoadingState : LoadingState -> ( Model, Cmd Msg )
 modelFraLoadingState state =
     case ( state.cv, state.registreringsProgresjon ) of
         ( Just cv, Just registreringsProgresjon ) ->
-            Success
+            ( Success
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
                 , aktivSamtale = initialiserSamtale
                 }
+            , Process.sleep 200
+                |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
+            )
 
         _ ->
-            Loading (VenterPåResten state)
+            ( Loading (VenterPåResten state), Cmd.none )
 
 
 initialiserSamtale : SamtaleSeksjon
@@ -288,13 +295,17 @@ updateSuccess successMsg model =
         BrukerSierHeiIIntroduksjonen ->
             case model.aktivSamtale of
                 Introduksjon meldingsLogg ->
-                    ( meldingsLogg
-                        |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
-                        |> Seksjon.Personalia.init model.personalia
+                    let
+                        ( personaliaModel, personaliaCmd ) =
+                            meldingsLogg
+                                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
+                                |> Seksjon.Personalia.init model.personalia
+                    in
+                    ( personaliaModel
                         |> PersonaliaSeksjon
                         |> oppdaterSamtaleSteg model
                         |> Success
-                    , SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
+                    , Cmd.map (PersonaliaMsg >> SuccessMsg) personaliaCmd
                     )
 
                 _ ->
@@ -339,6 +350,50 @@ updateSuccess successMsg model =
         ViewportSatt _ ->
             ( Success model, Cmd.none )
 
+        StartÅSkrive ->
+            case model.aktivSamtale of
+                Introduksjon meldingsLogg ->
+                    ( meldingsLogg
+                        |> MeldingsLogg.startÅSkrive
+                        |> Introduksjon
+                        |> oppdaterSamtaleSteg model
+                        |> Success
+                    , Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
+                        , Process.sleep 1000
+                            |> Task.perform (\_ -> SuccessMsg FullførMelding)
+                        ]
+                    )
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+        FullførMelding ->
+            case model.aktivSamtale of
+                Introduksjon meldingsLogg ->
+                    let
+                        nyMeldingslogg =
+                            MeldingsLogg.fullførMelding meldingsLogg
+                    in
+                    ( nyMeldingslogg
+                        |> Introduksjon
+                        |> oppdaterSamtaleSteg model
+                        |> Success
+                    , Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
+                        , case MeldingsLogg.ferdigAnimert nyMeldingslogg of
+                            FerdigAnimert _ ->
+                                Cmd.none
+
+                            MeldingerGjenstår ->
+                                Process.sleep 200
+                                    |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
+                        ]
+                    )
+
+                _ ->
+                    ( Success model, Cmd.none )
+
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
@@ -347,11 +402,11 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     }
 
 
-personaliaFerdig : SuccessModel -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
-personaliaFerdig model personalia personaliaMeldingsLogg =
+personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
     ( Success
         { model
-            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init personaliaMeldingsLogg (Cv.utdanning model.cv))
+            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (MeldingsLogg.tilMeldingsLogg ferdigAnimertMeldingsLogg) (Cv.utdanning model.cv))
         }
     , Cmd.none
     )
@@ -418,6 +473,9 @@ viewSuccess successModel =
                 [ successModel
                     |> meldingsLoggFraSeksjon
                     |> viewMeldingsLogg
+                , successModel
+                    |> meldingsLoggFraSeksjon
+                    |> viewSkriveStatus
                 , viewBrukerInput successModel.aktivSamtale
                 , div [ class "samtale-padding" ] []
                 ]
@@ -454,14 +512,37 @@ meldingsClass melding =
             "svar"
 
 
+viewSkriveStatus : MeldingsLogg -> Html msg
+viewSkriveStatus meldingsLogg =
+    case MeldingsLogg.skriveStatus meldingsLogg of
+        MeldingsLogg.Skriver ->
+            div [ class "meldingsrad sporsmal" ]
+                [ div [ class "melding" ]
+                    [ div [ class "skriver-melding" ]
+                        [ div [ class "bounce bounce1" ] []
+                        , div [ class "bounce bounce2" ] []
+                        , div [ class "bounce bounce3" ] []
+                        ]
+                    ]
+                ]
+
+        MeldingsLogg.SkriverIkke ->
+            text ""
+
+
 viewBrukerInput : SamtaleSeksjon -> Html Msg
 viewBrukerInput aktivSamtale =
     case aktivSamtale of
         Introduksjon logg ->
-            div [ class "inputrad" ]
-                [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
-                    |> Knapp.toHtml
-                ]
+            case MeldingsLogg.ferdigAnimert logg of
+                FerdigAnimert _ ->
+                    div [ class "inputrad" ]
+                        [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
+                            |> Knapp.toHtml
+                        ]
+
+                MeldingerGjenstår ->
+                    text ""
 
         PersonaliaSeksjon personaliaSeksjon ->
             personaliaSeksjon
