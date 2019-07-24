@@ -3,13 +3,16 @@ module Main exposing (main)
 import Api
 import Browser
 import Browser.Dom as Dom
+import Browser.Events
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
+import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Spinner as Spinner
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Attributes.Aria exposing (ariaLabel)
 import Html.Events exposing (..)
 import Http
 import Melding exposing (Melding)
@@ -19,6 +22,8 @@ import Process
 import SamtaleAnimasjon
 import Seksjon.Personalia
 import Seksjon.Utdanning
+import Svg exposing (path, svg)
+import Svg.Attributes exposing (d, fill, viewBox)
 import Task
 
 
@@ -59,6 +64,7 @@ type alias LoadingState =
     { cv : Maybe Cv
     , personalia : Personalia
     , registreringsProgresjon : Maybe RegistreringsProgresjon
+    , windowWidth : Maybe Int
     }
 
 
@@ -67,6 +73,7 @@ type alias SuccessModel =
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
     , aktivSamtale : SamtaleSeksjon
+    , windowWidth : Int
     }
 
 
@@ -85,6 +92,7 @@ type Msg
     = LoadingMsg LoadingMsg
     | SuccessMsg SuccessMsg
     | ErrorLogget (Result Http.Error ())
+    | WindowResized Int Int
 
 
 type LoadingMsg
@@ -95,6 +103,7 @@ type LoadingMsg
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
+    | ViewportHentet Dom.Viewport
 
 
 type SuccessMsg
@@ -121,6 +130,26 @@ update msg model =
                     ( model, Cmd.none )
 
         ErrorLogget _ ->
+            ( model, Cmd.none )
+
+        WindowResized windowWidth _ ->
+            updateWindowResized model windowWidth
+
+
+updateWindowResized : Model -> Int -> ( Model, Cmd msg )
+updateWindowResized model windowWidth =
+    case model of
+        Success successModel ->
+            ( Success { successModel | windowWidth = windowWidth }
+            , Cmd.none
+            )
+
+        Loading (VenterPåResten loadingState) ->
+            ( Loading (VenterPåResten { loadingState | windowWidth = Just windowWidth })
+            , Cmd.none
+            )
+
+        _ ->
             ( model, Cmd.none )
 
 
@@ -226,6 +255,20 @@ updateLoading msg model =
                     , logFeilmelding error "Hent registreringsprogresjon"
                     )
 
+        ViewportHentet viewport ->
+            case model of
+                Loading (VenterPåResten state) ->
+                    modelFraLoadingState
+                        { state
+                            | windowWidth =
+                                viewport.scene.width
+                                    |> round
+                                    |> Just
+                        }
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
 logFeilmelding error operasjon =
@@ -236,13 +279,14 @@ logFeilmelding error operasjon =
 
 modelFraLoadingState : LoadingState -> ( Model, Cmd Msg )
 modelFraLoadingState state =
-    case ( state.cv, state.registreringsProgresjon ) of
-        ( Just cv, Just registreringsProgresjon ) ->
+    case ( state.cv, state.registreringsProgresjon, state.windowWidth ) of
+        ( Just cv, Just registreringsProgresjon, Just windowWidth ) ->
             ( Success
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
                 , aktivSamtale = initialiserSamtale
+                , windowWidth = windowWidth
                 }
             , Process.sleep 200
                 |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
@@ -273,6 +317,7 @@ initVenterPåResten personalia =
         (VenterPåResten
             { cv = Nothing
             , personalia = personalia
+            , windowWidth = Nothing
             , registreringsProgresjon =
                 Just
                     { erDetteFørsteGangManErInneILøsningen = True
@@ -281,7 +326,11 @@ initVenterPåResten personalia =
                     }
             }
         )
-    , Api.hentCv (CvHentet >> LoadingMsg)
+    , Cmd.batch
+        [ Api.hentCv (CvHentet >> LoadingMsg)
+        , Dom.getViewport
+            |> Task.perform (ViewportHentet >> LoadingMsg)
+        ]
     )
 
 
@@ -467,7 +516,8 @@ meldingsLoggFraSeksjon successModel =
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div [ class "app" ]
-        [ div [] []
+        [ Header.header successModel.windowWidth
+            |> Header.toHtml
         , div [ class "samtale-wrapper", id "samtale" ]
             [ div [ class "samtale" ]
                 [ successModel
@@ -567,7 +617,7 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = always Sub.none
+        , subscriptions = always (Browser.Events.onResize WindowResized)
         }
 
 
