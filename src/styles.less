@@ -27,7 +27,11 @@ html {
 }
 
 .samtale-wrapper {
-  height: 100%;
+  position: absolute;
+  top: 4.5rem;
+  left: 0;
+  right: 0;
+  bottom: 0;
   margin-top: 0;
   margin-bottom: 0;
   overflow-y: scroll;
@@ -149,6 +153,35 @@ html {
     40% {
       -webkit-transform: scale(1.0);
       transform: scale(1.0);
+    }
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 4.5rem;
+  border-bottom: 2px solid #40c1ac;
+  justify-content: space-between;
+
+  @media (min-width: 768px) {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+  @media (max-width: 767px) {
+    padding-right: 1.25rem;
+  }
+  .header-hoyre {
+    display: flex;
+    a {
+      color: #8C368E;
+    }
+    a:visited {
+      color: #8C368E;
+    }
+    a:hover {
+      color: #8C368E;
+      text-decoration: none;
     }
   }
 }
