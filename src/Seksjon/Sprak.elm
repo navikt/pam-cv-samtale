@@ -71,8 +71,8 @@ type Ferdighet
 --}
 
 
-ferdighetTilJson : Ferdighet -> String
-ferdighetTilJson ferdighet =
+ferdighetTilString : Ferdighet -> String
+ferdighetTilString ferdighet =
     case ferdighet of
         Nybegynner ->
             "NYBEGYNNER"
@@ -164,7 +164,7 @@ update msg (Model model) =
                                 "Noe gikk galt"
                         ]
                     )
-            , SpråkSkjema.init enkeltSpråk.språkNavn (ferdighetTilJson enkeltSpråk.ferdighetMuntlig) (ferdighetTilJson enkeltSpråk.ferdighetSkriftlig)
+            , SpråkSkjema.init enkeltSpråk.språkNavn (ferdighetTilString enkeltSpråk.ferdighetMuntlig) (ferdighetTilString enkeltSpråk.ferdighetSkriftlig)
                 |> leggTilSpråkAPI
             )
                 |> IkkeFerdig
@@ -215,7 +215,9 @@ update msg (Model model) =
             ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ]) VelgNyttSpråk
             , case model.språkKoder of
                 Success list ->
-                    SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        ]
 
                 _ ->
                     Cmd.batch
@@ -369,8 +371,8 @@ nesteSamtaleSteg model melding samtaleSeksjon =
 
 
 viewBrukerInput : Model -> Html Msg
-viewBrukerInput (Model { aktivSamtale }) =
-    case aktivSamtale of
+viewBrukerInput (Model model) =
+    case model.aktivSamtale of
         LeggTilNorsk språkListe ->
             if List.isEmpty språkListe then
                 div [ class "inputrad" ]
@@ -441,12 +443,24 @@ viewBrukerInput (Model { aktivSamtale }) =
                 ]
 
         VelgNyttSpråk ->
-            --Success list ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    --(List.map (\el -> text (Sprakkoder.kode el)) list)
-                    [ text "liste med språk" ]
-                ]
+            case model.språkKoder of
+                Success list ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            (List.map (\el -> text (Sprakkoder.kode el)) list)
+                        ]
+
+                Loading ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ text "Loading..." ]
+                        ]
+
+                Failure error ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ text "Noe gikk galt..." ]
+                        ]
 
         LagringFeilet error språkSkjema ->
             text ""
