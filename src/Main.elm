@@ -17,6 +17,7 @@ import MeldingsLogg exposing (MeldingsLogg)
 import Personalia exposing (Personalia)
 import SamtaleAnimasjon
 import Seksjon.Personalia
+import Seksjon.Sprak
 import Seksjon.Utdanning
 
 
@@ -72,6 +73,7 @@ type SamtaleSeksjon
     = Introduksjon MeldingsLogg
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
+    | SpråkSeksjon Seksjon.Sprak.Model
     | ArbeidsErfaringSeksjon
 
 
@@ -100,6 +102,7 @@ type SuccessMsg
     | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
+    | SpråkMsg Seksjon.Sprak.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -339,6 +342,24 @@ updateSuccess successMsg model =
         ViewportSatt _ ->
             ( Success model, Cmd.none )
 
+        SpråkMsg msg ->
+            case model.aktivSamtale of
+                SpråkSeksjon språkModel ->
+                    case Seksjon.Sprak.update msg språkModel of
+                        Seksjon.Sprak.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> SpråkSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (SpråkMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Sprak.Ferdig meldingsLogg ->
+                            språkFerdig model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
@@ -359,6 +380,16 @@ personaliaFerdig model personalia personaliaMeldingsLogg =
 
 utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
+    ( Success
+        { model
+            | aktivSamtale = ArbeidsErfaringSeksjon
+        }
+    , Cmd.none
+    )
+
+
+språkFerdig : SuccessModel -> MeldingsLogg -> ( Model, Cmd Msg )
+språkFerdig model meldingsLogg =
     ( Success
         { model
             | aktivSamtale = ArbeidsErfaringSeksjon
@@ -407,6 +438,9 @@ meldingsLoggFraSeksjon successModel =
 
         ArbeidsErfaringSeksjon ->
             MeldingsLogg.init
+
+        SpråkSeksjon model ->
+            Seksjon.Sprak.meldingsLogg model
 
 
 viewSuccess : SuccessModel -> Html Msg
@@ -472,6 +506,11 @@ viewBrukerInput aktivSamtale =
             utdanningSeksjon
                 |> Seksjon.Utdanning.viewBrukerInput
                 |> Html.map (UtdanningsMsg >> SuccessMsg)
+
+        SpråkSeksjon språkSeksjon ->
+            språkSeksjon
+                |> Seksjon.Sprak.viewBrukerInput
+                |> Html.map (SpråkMsg >> SuccessMsg)
 
         _ ->
             text "Ikke implementert"
