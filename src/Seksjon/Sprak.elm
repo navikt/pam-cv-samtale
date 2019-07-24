@@ -33,6 +33,21 @@ type alias ModelInfo =
     }
 
 
+type Samtale
+    = LeggTilNorsk SpråkListe
+    | LeggTilEngelsk
+    | LeggTilFlereSpråk EnkeltSpråk Model
+    | VelgNyttSpråk (Maybe Sprakkoder)
+    | LeggTilFerdighetMuntlig String
+    | LeggTilFerdighetSkriftlig SpråkMedMuntlig
+    | LagringFeilet Http.Error SpråkSkjema
+
+
+type SamtaleStatus
+    = IkkeFerdig ( Model, Cmd Msg )
+    | Ferdig MeldingsLogg
+
+
 type RemoteDataSpråkKoder
     = Loading
     | Success (List Sprakkoder)
@@ -87,21 +102,6 @@ ferdighetTilString ferdighet =
 
         Morsmål ->
             "FOERSTESPRAAK"
-
-
-type Samtale
-    = LeggTilNorsk SpråkListe
-    | LeggTilEngelsk
-    | LeggTilFlereSpråk EnkeltSpråk Model
-    | VelgNyttSpråk (Maybe Sprakkoder)
-    | LeggTilFerdighetMuntlig String
-    | LeggTilFerdighetSkriftlig SpråkMedMuntlig
-    | LagringFeilet Http.Error SpråkSkjema
-
-
-type SamtaleStatus
-    = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig MeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -369,7 +369,7 @@ samtaleTilMeldingsLogg språkSeksjon =
         LeggTilFlereSpråk enkeltSpråk model ->
             [ Melding.spørsmål
                 [ "Supert! Da har du lagt inn "
-                    ++ String.concat (List.map (\el -> String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "") ++ ", ") (innlagteSpråk model))
+                    ++ String.concat (List.map (\el -> String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "") ++ ", ") (innlagteSpråk model) ++ [ "og ", enkeltSpråk.språkNavn ])
                 , "Kan du flere språk?"
                 ]
             ]
@@ -384,7 +384,7 @@ samtaleTilMeldingsLogg språkSeksjon =
             []
 
         LagringFeilet error språkSkjema ->
-            [ Melding.spørsmål [ "Ooops... Noe gikk galt!" ] ]
+            [ Melding.spørsmål [ "Oops... Noe gikk galt!" ] ]
 
 
 innlagteSpråk : Model -> SpråkListe
