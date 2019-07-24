@@ -1,6 +1,8 @@
-module Skjema.ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema(..), Felt(..), SkjemaInfo, arbeidsoppgaver, bedriftNavn, jobbTittel, lokasjon, naavarende, oppdaterStringFelt, setBool, yrke)
+module Skjema.ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema(..), Felt(..), SkjemaInfo, arbeidsoppgaver, bedriftNavn, encode, fraDato, jobbTittel, lokasjon, naavarende, oppdaterStringFelt, skjemaInfo, tilDato, toggleBool, yrke)
 
+import Cv.Arbeidserfaring as Cv
 import Dato exposing (Dato)
+import Json.Encode
 
 
 type ArbeidserfaringSkjema
@@ -25,9 +27,18 @@ type Felt
     | BedriftNavn
     | Lokasjon
     | Arbeidsoppgaver
-    | FraDato
+    | FraMåned
+    | FraÅr
     | Naavarende
-    | TilDato
+    | TilMåned
+    | TilÅr
+
+
+skjemaInfo : ArbeidserfaringSkjema -> SkjemaInfo
+skjemaInfo arbeidserfaringSkjema =
+    case arbeidserfaringSkjema of
+        ArbeidserfaringSkjema skjema ->
+            skjema
 
 
 yrke : ArbeidserfaringSkjema -> String
@@ -60,50 +71,80 @@ naavarende (ArbeidserfaringSkjema info) =
     info.naavarende
 
 
+fraDato : ArbeidserfaringSkjema -> Dato
+fraDato (ArbeidserfaringSkjema info) =
+    info.fraDato
+
+
+tilDato : ArbeidserfaringSkjema -> Maybe Dato
+tilDato (ArbeidserfaringSkjema info) =
+    info.tilDato
+
+
 
 --- OPPDATER FELT ETTER EGENSKAP ----
 
 
-oppdaterStringFelt : ArbeidserfaringSkjema -> Felt -> Maybe String -> Maybe Bool -> ArbeidserfaringSkjema
-oppdaterStringFelt skjema felt maybeString maybeBool =
-    case ( maybeBool, maybeString ) of
-        ( Just boolean, Nothing ) ->
-            setBool skjema felt boolean
+oppdaterStringFelt : ArbeidserfaringSkjema -> Felt -> String -> ArbeidserfaringSkjema
+oppdaterStringFelt skjema felt string =
+    case felt of
+        Yrke ->
+            string
+                |> oppdaterYrkeFelt skjema
 
-        ( Nothing, Just string ) ->
-            case felt of
-                Yrke ->
-                    string
-                        |> oppdaterYrkeFelt skjema
+        JobbTittel ->
+            string
+                |> oppdaterJobbTittelFelt skjema
 
-                JobbTittel ->
-                    string
-                        |> oppdaterJobbTittelFelt skjema
+        BedriftNavn ->
+            string
+                |> oppdaterBedriftNavnFelt skjema
 
-                BedriftNavn ->
-                    string
-                        |> oppdaterBedriftNavnFelt skjema
+        Lokasjon ->
+            string
+                |> oppdaterLokasjonFelt skjema
 
-                Lokasjon ->
-                    string
-                        |> oppdaterLokasjonFelt skjema
+        Arbeidsoppgaver ->
+            string
+                |> oppdaterArbeidsoppgaverFelt skjema
 
-                Arbeidsoppgaver ->
-                    string
-                        |> oppdaterArbeidsoppgaverFelt skjema
+        FraMåned ->
+            string
+                |> oppdaterFraMåned skjema
 
-                _ ->
-                    skjema
+        FraÅr ->
+            if string == "" then
+                oppdaterFraÅr skjema string
+
+            else
+                case String.toInt string of
+                    Just a ->
+                        oppdaterFraÅr skjema string
+
+                    Nothing ->
+                        skjema
+
+        TilMåned ->
+            string
+                |> oppdaterTilMåned skjema
+
+        TilÅr ->
+            string
+                |> oppdaterTilÅr skjema
 
         _ ->
             skjema
 
 
-setBool : ArbeidserfaringSkjema -> Felt -> Bool -> ArbeidserfaringSkjema
-setBool (ArbeidserfaringSkjema skjema) felt bool =
+toggleBool : ArbeidserfaringSkjema -> Felt -> ArbeidserfaringSkjema
+toggleBool (ArbeidserfaringSkjema skjema) felt =
     case felt of
         Naavarende ->
-            ArbeidserfaringSkjema { skjema | naavarende = bool }
+            let
+                nyVerdi =
+                    skjema.naavarende
+            in
+            ArbeidserfaringSkjema { skjema | naavarende = not nyVerdi }
 
         _ ->
             ArbeidserfaringSkjema skjema
@@ -145,3 +186,75 @@ oppdaterLokasjonFelt (ArbeidserfaringSkjema skjema) string =
 oppdaterArbeidsoppgaverFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
 oppdaterArbeidsoppgaverFelt (ArbeidserfaringSkjema skjema) string =
     ArbeidserfaringSkjema { skjema | arbeidsoppgaver = string }
+
+
+oppdaterFraMåned : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
+oppdaterFraMåned (ArbeidserfaringSkjema skjema) string =
+    ArbeidserfaringSkjema
+        { skjema
+            | fraDato =
+                string
+                    |> Dato.stringTilMåned
+                    |> Dato.setMåned skjema.fraDato
+        }
+
+
+oppdaterFraÅr : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
+oppdaterFraÅr (ArbeidserfaringSkjema skjema) string =
+    ArbeidserfaringSkjema
+        { skjema
+            | fraDato =
+                string
+                    |> String.toInt
+                    |> Maybe.withDefault 0
+                    |> Dato.setÅr skjema.fraDato
+        }
+
+
+oppdaterTilMåned : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
+oppdaterTilMåned (ArbeidserfaringSkjema skjema) string =
+    case skjema.tilDato of
+        Just dato ->
+            ArbeidserfaringSkjema
+                { skjema
+                    | tilDato =
+                        string
+                            |> Dato.stringTilMåned
+                            |> Dato.setMåned dato
+                            |> Just
+                }
+
+        Nothing ->
+            ArbeidserfaringSkjema skjema
+
+
+oppdaterTilÅr : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
+oppdaterTilÅr (ArbeidserfaringSkjema skjema) string =
+    case skjema.tilDato of
+        Just dato ->
+            ArbeidserfaringSkjema
+                { skjema
+                    | tilDato =
+                        string
+                            |> String.toInt
+                            |> Maybe.withDefault 0
+                            |> Dato.setÅr dato
+                            |> Just
+                }
+
+        Nothing ->
+            ArbeidserfaringSkjema skjema
+
+
+encode : ArbeidserfaringSkjema -> Json.Encode.Value
+encode (ArbeidserfaringSkjema skjema) =
+    Json.Encode.object
+        [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
+        , ( "yrke", Json.Encode.string skjema.yrke )
+        , ( "sted", Json.Encode.string skjema.lokasjon )
+        , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
+        , ( "tildato", Json.Encode.string (skjema.tilDato |> Maybe.withDefault skjema.fraDato |> Dato.tilStringForBackend) )
+        , ( "navarende", Json.Encode.bool skjema.naavarende )
+        , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
+        , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
+        ]

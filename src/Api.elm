@@ -3,6 +3,7 @@ module Api exposing
     , hentCv
     , hentPerson
     , hentPersonalia
+    , lagreArbeidserfaring
     , logError
     , oppdaterPersonalia
     , opprettCv
@@ -16,6 +17,7 @@ import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
 import Json.Decode
 import Personalia exposing (Personalia)
+import Skjema.ArbeidserfaringSkjema
 import Skjema.Personalia
 
 
@@ -84,6 +86,15 @@ hentAAreg msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/cv/aareg"
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
+        }
+
+
+lagreArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ArbeidserfaringSkjema.ArbeidserfaringSkjema -> Cmd msg
+lagreArbeidserfaring msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring"
+        , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
+        , body = Skjema.ArbeidserfaringSkjema.encode skjema |> jsonBody
         }
 
 

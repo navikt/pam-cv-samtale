@@ -1,4 +1,4 @@
-module Dato exposing (Dato, Måned(..), måned, månedTilString, tilDato, validerÅr, år)
+module Dato exposing (Dato, Måned(..), måned, månedTilString, setMåned, setÅr, stringTilMåned, tilDato, tilString, tilStringForBackend, validerÅr, år)
 
 
 type Dato
@@ -35,6 +35,16 @@ måned (Dato info) =
 år : Dato -> Int
 år (Dato info) =
     info.år
+
+
+setMåned : Dato -> Måned -> Dato
+setMåned (Dato info) maaned =
+    Dato { info | måned = maaned }
+
+
+setÅr : Dato -> Int -> Dato
+setÅr (Dato info) aar =
+    Dato { info | år = aar }
 
 
 månedTilString : Måned -> String
@@ -77,29 +87,116 @@ månedTilString mnd =
             "Desember"
 
 
+stringTilMåned : String -> Måned
+stringTilMåned string =
+    case string of
+        "Januar" ->
+            Januar
+
+        "Februar" ->
+            Februar
+
+        "Mars" ->
+            Mars
+
+        "April" ->
+            April
+
+        "Mai" ->
+            Mai
+
+        "Juni" ->
+            Juni
+
+        "Juli" ->
+            Juli
+
+        "August" ->
+            August
+
+        "September" ->
+            September
+
+        "Oktober" ->
+            Oktober
+
+        "November" ->
+            November
+
+        "Desember" ->
+            Desember
+
+        _ ->
+            Januar
+
+
 tilDato : String -> Dato
 tilDato string =
-    let
-        list =
-            String.split "-" string
-    in
-    Dato
-        { måned = Januar
-        , år =
-            list
-                |> List.head
-                |> Maybe.withDefault "0"
-                |> String.toInt
-                |> Maybe.withDefault 0
-        , dag =
-            String.toInt "1"
-                |> Maybe.withDefault 0
-        }
+    case String.split "-" string of
+        aar :: maaned :: [] ->
+            case String.toInt aar of
+                Just aarInt ->
+                    Dato
+                        { måned = stringTilMåned maaned
+                        , år = aarInt
+                        , dag = 1
+                        }
+
+                _ ->
+                    Dato { måned = Januar, år = 9999, dag = 1 }
+
+        _ ->
+            Dato { måned = Januar, år = 9999, dag = 1 }
 
 
-toString : Dato -> String
-toString (Dato info) =
+tilString : Dato -> String
+tilString (Dato info) =
     String.fromInt info.år ++ "-" ++ månedTilString info.måned
+
+
+tilStringForBackend : Dato -> String
+tilStringForBackend (Dato info) =
+    String.fromInt info.år ++ "-" ++ månedTilNummerMåned info.måned
+
+
+månedTilNummerMåned : Måned -> String
+månedTilNummerMåned maaned =
+    case maaned of
+        Januar ->
+            "01"
+
+        Februar ->
+            "02"
+
+        Mars ->
+            "03"
+
+        April ->
+            "04"
+
+        Mai ->
+            "05"
+
+        Juni ->
+            "06"
+
+        Juli ->
+            "07"
+
+        August ->
+            "05"
+
+        September ->
+            "09"
+
+        Oktober ->
+            "10"
+
+        November ->
+            "11"
+
+        Desember ->
+            "12"
 
 
 validerÅr : String -> Bool
