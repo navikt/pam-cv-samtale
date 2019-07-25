@@ -7,6 +7,7 @@ import Feilmelding
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Select as Select
+import FrontendModuler.Typeahead as Typeahead
 import Html exposing (Attribute, Html, button, div, input, label, option, select, text)
 import Html.Attributes exposing (checked, class, type_, value)
 import Html.Events exposing (onClick, onInput)
@@ -14,6 +15,8 @@ import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (MeldingsLogg)
 import Skjema.ArbeidserfaringSkjema as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema)
+import TypeaheadState exposing (TypeaheadState)
+import YrkeTypeahead exposing (YrkeTypeahead(..))
 
 
 
@@ -64,7 +67,10 @@ type Msg
     | HentAAregArbeidserfaring
     | HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
     | BrukerOppdatererYrke String
-    | BrukerLagrerYrke
+    | HentetYrkeTypeahead (Result Http.Error (List YrkeTypeahead))
+    | BrukerOppdtarerYrkeTypeahead YrkeTypeahead
+    | BrukerHovrerOverTypeaheadSuggestion YrkeTypeahead
+    | BrukerVelgerYrke YrkeTypeahead
     | BrukerVilEndreJobbtittel JobbtittelInfo
     | BrukerOppdatererJobbtittelFelt String
     | BrukerVilRegistrereBedriftnavn String
@@ -83,6 +89,7 @@ type Msg
     | BrukerOppdatererTilÅr String
     | BrukerVilGåTilOppsummering
     | BrukerVilRedigereOppsummering
+    | YrkeRedigeringsfeltEndret String
     | ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Felt String
     | ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Felt
     | BrukerTrykkerPåLagreArbeidserfaringKnapp String
@@ -99,7 +106,7 @@ type Samtale
     | IkkeHentetFraAAreg
     | IngenArbeidserfaringFraAareg (List Arbeidserfaring)
     | VisArbeidserfaringFraAareg (List Arbeidserfaring)
-    | RegistrerYrke YrkeInfo
+    | RegistrerYrke (TypeaheadState YrkeTypeahead)
     | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
     | EndreJobbtittel JobbtittelInfo
     | RegistrereBedriftNavn BedriftnavnInfo
@@ -115,7 +122,7 @@ type Samtale
     | LagreArbeidserfaring ArbeidserfaringSkjema
     | LagringFeilet Http.Error ArbeidserfaringSkjema
     | SpørOmBrukerVilLeggeInnMer
-    | StartNyArbeidserfaring YrkeInfo
+    | StartNyArbeidserfaring (TypeaheadState YrkeTypeahead)
 
 
 type alias YrkeInfo =
@@ -123,7 +130,7 @@ type alias YrkeInfo =
 
 
 type alias JobbtittelInfo =
-    { tidligereInfo : YrkeInfo
+    { tidligereInfo : YrkeTypeahead
     , jobbtittel : String
     }
 
@@ -170,12 +177,14 @@ type alias Oppsummering =
     , fraDato : Dato
     , naavarende : Bool
     , tilDato : Maybe Dato
+    , styrkkode : String
+    , konseptId : Int
     }
 
 
-yrkeInfoTilJobbtittelInfo : YrkeInfo -> JobbtittelInfo
-yrkeInfoTilJobbtittelInfo yrke =
-    { tidligereInfo = yrke, jobbtittel = "" }
+yrkeInfoTilJobbtittelInfo : YrkeTypeahead -> JobbtittelInfo
+yrkeInfoTilJobbtittelInfo yrkeTypeahead =
+    { tidligereInfo = yrkeTypeahead, jobbtittel = "" }
 
 
 jobbtittelInfoTilBedriftnavnsInfo : JobbtittelInfo -> BedriftnavnInfo
@@ -219,7 +228,8 @@ fraDatoInfoTilTilDatoInfo fraDatoInfo =
 tilDatoTilSkjema : TilDatoInfo -> ArbeidserfaringSkjema.ArbeidserfaringSkjema
 tilDatoTilSkjema tilDatoInfo =
     ArbeidserfaringSkjema.ArbeidserfaringSkjema
-        { yrke = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.yrke
+        { yrke =
+            tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
         , jobbTittel = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel
         , bedriftNavn = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn
         , lokasjon = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.lokasjon
@@ -228,10 +238,16 @@ tilDatoTilSkjema tilDatoInfo =
         , naavarende = tilDatoInfo.tidligereInfo.naavarende
         , tilDato =
             if tilDatoInfo.tidligereInfo.naavarende then
-                Just (Dato.tilDato "1999-09-09")
+                Nothing
 
             else
                 Just (Dato.tilDato (tilDatoInfo.tilÅr ++ "-" ++ (tilDatoInfo.tilMåned |> Dato.månedTilString)))
+        , styrkkode =
+            tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
+                |> YrkeTypeahead.styrkkode
+        , konseptId =
+            tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
+                |> YrkeTypeahead.konseptId
         }
 
 
@@ -267,28 +283,82 @@ update msg (Model info) =
                         |> IkkeFerdig
 
         BrukerOppretterNyArbeidserfaring ->
-            ( RegistrerYrke { yrke = "" }
-                |> nesteSamtaleSteg info (Melding.svar [ "Legg til arbeidserfaring" ])
+            ( ""
+                |> TypeaheadState.init
+                |> RegistrerYrke
+                |> nesteSamtaleSteg info (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
             , Cmd.none
             )
                 |> IkkeFerdig
 
         BrukerOppdatererYrke string ->
-            ( Model
-                { info
-                    | aktivSamtale = RegistrerYrke { yrke = string }
-                }
-            , Cmd.none
-            )
+            case info.aktivSamtale of
+                RegistrerYrke typeaheadState ->
+                    ( Model
+                        { info
+                            | aktivSamtale =
+                                typeaheadState
+                                    |> TypeaheadState.updateValue string
+                                    |> RegistrerYrke
+                        }
+                    , Api.hentYrkeTypeahead HentetYrkeTypeahead string
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        HentetYrkeTypeahead result ->
+            case info.aktivSamtale of
+                RegistrerYrke typeaheadState ->
+                    case result of
+                        Ok suggestions ->
+                            ( typeaheadState
+                                |> TypeaheadState.updateSuggestions "" suggestions
+                                |> RegistrerYrke
+                                |> oppdaterSamtalesteg info
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            ( Model info, logFeilmelding error "Hente fra Aareg" )
+                                |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerOppdtarerYrkeTypeahead yrkeTypahead ->
+            ( Model info, Cmd.none )
                 |> IkkeFerdig
 
-        BrukerLagrerYrke ->
+        BrukerHovrerOverTypeaheadSuggestion yrkeTypeahead ->
             case info.aktivSamtale of
-                RegistrerYrke yrkeInfo ->
-                    ( yrkeInfo
+                RegistrerYrke typeaheadState ->
+                    ( Model
+                        { info
+                            | aktivSamtale =
+                                typeaheadState
+                                    |> TypeaheadState.updateActive yrkeTypeahead
+                                    |> RegistrerYrke
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerVelgerYrke yrkesTypeahead ->
+            case info.aktivSamtale of
+                RegistrerYrke typeaheadState ->
+                    ( yrkesTypeahead
                         |> yrkeInfoTilJobbtittelInfo
                         |> SpørOmBrukerVilEndreJobbtittel
-                        |> nesteSamtaleSteg info (Melding.svar [ yrkeInfo.yrke ])
+                        |> nesteSamtaleSteg info (Melding.svar [ YrkeTypeahead.label yrkesTypeahead ])
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -579,6 +649,16 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
+        YrkeRedigeringsfeltEndret string ->
+            case info.aktivSamtale of
+                RedigerOppsummering arbeidserfaringSkjema ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
         ArbeidserfaringStringSkjemaEndret felt string ->
             case info.aktivSamtale of
                 RedigerOppsummering arbeidserfaringSkjema ->
@@ -662,7 +742,9 @@ update msg (Model info) =
                         |> IkkeFerdig
 
         NyArbeidserfaring ->
-            ( StartNyArbeidserfaring { yrke = "" }
+            ( ""
+                |> TypeaheadState.init
+                |> StartNyArbeidserfaring
                 |> nesteSamtaleSteg info (Melding.svar [ "Ja, legg til en arbeidserfaring" ])
             , Cmd.none
             )
@@ -680,7 +762,7 @@ update msg (Model info) =
 visAaregResultat : List Arbeidserfaring -> ModelInfo -> Model
 visAaregResultat list info =
     if List.isEmpty list then
-        RegistrerYrke { yrke = "" }
+        RegistrerYrke (TypeaheadState.init "")
             |> oppdaterSamtalesteg info
 
     else
@@ -697,6 +779,14 @@ leggTilIArbeidserfaring arbeidserfaringFraAareg modelInfo samtaleSeksjon =
             | aktivSamtale = samtaleSeksjon
             , arbeidserfaringListe = modelInfo.arbeidserfaringListe ++ arbeidserfaringFraAareg
         }
+
+
+lagTypeaheadKnapper : YrkeTypeahead -> Html Msg
+lagTypeaheadKnapper yrkeTypahead =
+    yrkeTypahead
+        |> YrkeTypeahead.label
+        |> Knapp.knapp (BrukerOppdtarerYrkeTypeahead yrkeTypahead)
+        |> Knapp.toHtml
 
 
 oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
@@ -717,15 +807,6 @@ oppdaterSamtalesteg modelInfo samtaleSeksjon =
                 { modelInfo
                     | aktivSamtale = samtaleSeksjon
                     , arbeidserfaringListe = list
-                    , seksjonsMeldingsLogg =
-                        modelInfo.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-                }
-
-        RegistrerYrke _ ->
-            Model
-                { modelInfo
-                    | aktivSamtale = samtaleSeksjon
                     , seksjonsMeldingsLogg =
                         modelInfo.seksjonsMeldingsLogg
                             |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
@@ -901,7 +982,9 @@ samtaleTilMeldingsLogg personaliaSeksjon =
 hentStilling : ArbeidserfaringSkjema -> String
 hentStilling skjema =
     if ArbeidserfaringSkjema.jobbTittel skjema == "" then
-        ArbeidserfaringSkjema.yrke skjema
+        skjema
+            |> ArbeidserfaringSkjema.yrke
+            |> YrkeTypeahead.label
 
     else
         ArbeidserfaringSkjema.jobbTittel skjema
@@ -945,7 +1028,7 @@ viewBrukerInput (Model info) =
     case info.aktivSamtale of
         Intro ->
             div [ class "inputrad" ]
-                [ Knapp.knapp HentAAregArbeidserfaring "Ja, jeg har arbeidserfaring"
+                [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
                     |> Knapp.toHtml
                 ]
 
@@ -957,18 +1040,7 @@ viewBrukerInput (Model info) =
 
         IkkeHentetFraAAreg ->
             div []
-                [ label [] [ text "Yrke" ]
-                , input
-                    [ "" |> value
-                    , onInput BrukerOppdatererYrke
-                    ]
-                    []
-                , button
-                    [ BrukerLagrerYrke
-                        |> onClick
-                    ]
-                    [ text "Lagre" ]
-                ]
+                []
 
         IngenArbeidserfaringFraAareg liste ->
             div [] []
@@ -976,17 +1048,9 @@ viewBrukerInput (Model info) =
         VisArbeidserfaringFraAareg liste ->
             div [] []
 
-        RegistrerYrke yrke ->
+        RegistrerYrke typeaheadState ->
             div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ yrke.yrke
-                        |> Input.input { label = "Yrke", msg = BrukerOppdatererYrke }
-                        |> Input.toHtml
-                    , div [ class "inputrad" ]
-                        [ BrukerLagrerYrke
-                            |> lagTekstInputKnapp "Gå videre" yrke.yrke
-                        ]
-                    ]
+                [ viewTypeahead typeaheadState
                 ]
 
         SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
@@ -1180,6 +1244,7 @@ viewBrukerInput (Model info) =
                 [ div [ class "skjema" ]
                     [ skjema
                         |> ArbeidserfaringSkjema.yrke
+                        |> YrkeTypeahead.label
                         |> Input.input { label = "Yrke", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Yrke }
                         |> Input.toHtml
                     , if
@@ -1206,7 +1271,7 @@ viewBrukerInput (Model info) =
                         |> Input.input { label = "Arbeidsoppgaver", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Arbeidsoppgaver }
                         |> Input.toHtml
                     , skjema
-                        |> lagDatoInputBoks
+                        |> lagRedigerDatoInput
                     , div [ class "inputrad" ]
                         [ "Utfør endringene"
                             |> Knapp.knapp (BrukerTrykkerPåLagreArbeidserfaringKnapp "Utfør endringene")
@@ -1233,18 +1298,38 @@ viewBrukerInput (Model info) =
                     ]
                 ]
 
-        StartNyArbeidserfaring yrke ->
+        StartNyArbeidserfaring typeaheadState ->
             div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ yrke.yrke
-                        |> Input.input { label = "Yrke", msg = BrukerOppdatererYrke }
-                        |> Input.toHtml
-                    , div [ class "inputrad" ]
-                        [ BrukerLagrerYrke
-                            |> lagTekstInputKnapp "Gå videre" yrke.yrke
-                        ]
-                    ]
+                [ viewTypeahead typeaheadState
                 ]
+
+
+viewTypeahead : TypeaheadState YrkeTypeahead -> Html Msg
+viewTypeahead typeaheadState =
+    typeaheadState
+        |> TypeaheadState.value
+        |> Typeahead.typeahead { label = "Yrke", msg = BrukerOppdatererYrke }
+        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
+        |> Typeahead.toHtml
+
+
+typeaheadStateSuggestionsTilViewSuggestion : TypeaheadState YrkeTypeahead -> List (Typeahead.Suggestion Msg)
+typeaheadStateSuggestionsTilViewSuggestion typeaheadState =
+    typeaheadState
+        |> TypeaheadState.map
+            (\activeState suggestion ->
+                { innhold = YrkeTypeahead.label suggestion
+                , onClick = BrukerVelgerYrke suggestion
+                , onActive = BrukerHovrerOverTypeaheadSuggestion suggestion
+                , active =
+                    case activeState of
+                        TypeaheadState.Active ->
+                            True
+
+                        TypeaheadState.NotActive ->
+                            False
+                }
+            )
 
 
 lagTekstInputKnapp : String -> String -> Msg -> Html Msg
@@ -1305,8 +1390,8 @@ lagTilMånedKnapp tilDatoInfo måned =
         |> Knapp.toHtml
 
 
-lagDatoInputBoks : ArbeidserfaringSkjema -> Html Msg
-lagDatoInputBoks arbeidserfaringSkjema =
+lagRedigerDatoInput : ArbeidserfaringSkjema -> Html Msg
+lagRedigerDatoInput arbeidserfaringSkjema =
     div []
         [ Select.select "Måned"
             (ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.FraMåned)

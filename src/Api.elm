@@ -3,6 +3,7 @@ module Api exposing
     , hentCv
     , hentPerson
     , hentPersonalia
+    , hentYrkeTypeahead
     , lagreArbeidserfaring
     , logError
     , oppdaterPersonalia
@@ -19,6 +20,7 @@ import Json.Decode
 import Personalia exposing (Personalia)
 import Skjema.ArbeidserfaringSkjema
 import Skjema.Personalia
+import YrkeTypeahead as YrkeTypahead exposing (YrkeTypeahead)
 
 
 hentPerson : (Result Error () -> msg) -> Cmd msg
@@ -95,6 +97,14 @@ lagreArbeidserfaring msgConstructor skjema =
         { url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring"
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
         , body = Skjema.ArbeidserfaringSkjema.encode skjema |> jsonBody
+        }
+
+
+hentYrkeTypeahead : (Result Error (List YrkeTypeahead) -> msg) -> String -> Cmd msg
+hentYrkeTypeahead msgConstructor string =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/yrke?q=" ++ string
+        , expect = expectJson msgConstructor (Json.Decode.list YrkeTypahead.decode)
         }
 
 

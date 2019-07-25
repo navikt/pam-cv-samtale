@@ -3,6 +3,8 @@ module Skjema.ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema(..), Felt(..
 import Cv.Arbeidserfaring as Cv
 import Dato exposing (Dato)
 import Json.Encode
+import TypeaheadState exposing (TypeaheadState)
+import YrkeTypeahead exposing (YrkeTypeahead)
 
 
 type ArbeidserfaringSkjema
@@ -10,7 +12,7 @@ type ArbeidserfaringSkjema
 
 
 type alias SkjemaInfo =
-    { yrke : String
+    { yrke : YrkeTypeahead
     , jobbTittel : String
     , bedriftNavn : String
     , lokasjon : String
@@ -18,6 +20,8 @@ type alias SkjemaInfo =
     , fraDato : Dato
     , naavarende : Bool
     , tilDato : Maybe Dato
+    , styrkkode : String
+    , konseptId : Int
     }
 
 
@@ -41,7 +45,7 @@ skjemaInfo arbeidserfaringSkjema =
             skjema
 
 
-yrke : ArbeidserfaringSkjema -> String
+yrke : ArbeidserfaringSkjema -> YrkeTypeahead
 yrke (ArbeidserfaringSkjema info) =
     info.yrke
 
@@ -88,10 +92,6 @@ tilDato (ArbeidserfaringSkjema info) =
 oppdaterStringFelt : ArbeidserfaringSkjema -> Felt -> String -> ArbeidserfaringSkjema
 oppdaterStringFelt skjema felt string =
     case felt of
-        Yrke ->
-            string
-                |> oppdaterYrkeFelt skjema
-
         JobbTittel ->
             string
                 |> oppdaterJobbTittelFelt skjema
@@ -163,7 +163,7 @@ oppdaterNavarendeFelt (ArbeidserfaringSkjema skjema) =
         ArbeidserfaringSkjema { skjema | naavarende = True }
 
 
-oppdaterYrkeFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
+oppdaterYrkeFelt : ArbeidserfaringSkjema -> YrkeTypeahead -> ArbeidserfaringSkjema
 oppdaterYrkeFelt (ArbeidserfaringSkjema skjema) string =
     ArbeidserfaringSkjema { skjema | yrke = string }
 
@@ -248,13 +248,30 @@ oppdaterTilÅr (ArbeidserfaringSkjema skjema) string =
 
 encode : ArbeidserfaringSkjema -> Json.Encode.Value
 encode (ArbeidserfaringSkjema skjema) =
-    Json.Encode.object
-        [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
-        , ( "yrke", Json.Encode.string skjema.yrke )
-        , ( "sted", Json.Encode.string skjema.lokasjon )
-        , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
-        , ( "tildato", Json.Encode.string (skjema.tilDato |> Maybe.withDefault skjema.fraDato |> Dato.tilStringForBackend) )
-        , ( "navarende", Json.Encode.bool skjema.naavarende )
-        , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
-        , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
-        ]
+    case skjema.tilDato of
+        Just tilArbeidsDato ->
+            Json.Encode.object
+                [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
+                , ( "yrke", Json.Encode.string (YrkeTypeahead.label skjema.yrke) )
+                , ( "sted", Json.Encode.string skjema.lokasjon )
+                , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
+                , ( "tildato", Json.Encode.string (tilArbeidsDato |> Dato.tilStringForBackend) )
+                , ( "navarende", Json.Encode.bool skjema.naavarende )
+                , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
+                , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
+                , ( "styrkkode", Json.Encode.string skjema.styrkkode )
+                , ( "konseptId", Json.Encode.int skjema.konseptId )
+                ]
+
+        Nothing ->
+            Json.Encode.object
+                [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
+                , ( "yrke", Json.Encode.string (YrkeTypeahead.label skjema.yrke) )
+                , ( "sted", Json.Encode.string skjema.lokasjon )
+                , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
+                , ( "navarende", Json.Encode.bool skjema.naavarende )
+                , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
+                , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
+                , ( "styrkkode", Json.Encode.string skjema.styrkkode )
+                , ( "konseptId", Json.Encode.int skjema.konseptId )
+                ]
