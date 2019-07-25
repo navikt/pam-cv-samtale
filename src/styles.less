@@ -1,4 +1,7 @@
+@import '../node_modules/pam-frontend-core/less/variables';
 // HTML ELEMENTER
+
+
 body {
   margin: 0;
   height: 100%;
@@ -136,4 +139,55 @@ html {
 .månedknapp {
   width: 140px;
 }
+}
+
+
+
+.typeahead {
+  position: relative;
+  ul {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    background-color: #fff;
+    border: 1px solid @green;
+    border-top: none;
+    box-shadow: 0 5px 15px -5px @navGra60;
+    overflow: auto;
+    max-height: 242px;
+  }
+  ul li {
+    display: block;
+    clear: both;
+    line-height: 1.15rem;
+    color: #333;
+    font-size: initial;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: pointer;
+  }
+}
+
+.typeahead-suggestions-hidden {
+  display: none;
+}
+
+.typeahead .typetext {
+  display: block;
+  width: 100%;
+  padding: 3px 10px;
+}
+
+.typeahead .active {
+  background-color: @greenLighten;
+}
+
+.typeahead-substring {
+  font-weight: 600;
 }
