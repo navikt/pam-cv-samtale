@@ -64,29 +64,31 @@ type Msg
     | HentAAregArbeidserfaring
     | HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
     | BrukerOppdatererYrke String
-    | BrukerLagrerYrke JobbtittelInfo
+    | BrukerLagrerYrke
     | BrukerVilEndreJobbtittel JobbtittelInfo
-    | BrukerOppdatererJobbtittelFelt JobbtittelInfo String
-    | BrukerVilRegistrereBedriftnavn String BeriftnavnsInfo
-    | BrukerOppdatererBedriftnavn BeriftnavnsInfo String
-    | BrukerVilRegistrereLokasjon LokasjonInfo
-    | BrukerOppdatererLokasjon LokasjonInfo String
-    | BrukerVilRegistrereArbeidsoppgaver ArbeidsoppgaverInfo
-    | BrukerOppdatererArbeidsoppgaver ArbeidsoppgaverInfo String
-    | BrukerVilRegistrereFraMåned FraDatoInfo
-    | BrukerTrykketFraMånedKnapp FraDatoInfo
-    | BrukerOppdatererFraÅr FraDatoInfo String
+    | BrukerOppdatererJobbtittelFelt String
+    | BrukerVilRegistrereBedriftnavn String
+    | BrukerOppdatererBedriftnavn String
+    | BrukerVilRegistrereSted
+    | BrukerOppdatererSted String
+    | BrukerVilRegistrereArbeidsoppgaver
+    | BrukerOppdatererArbeidsoppgaver String
+    | BrukerVilRegistrereFraMåned
+    | BrukerTrykketFraMånedKnapp Dato.Måned
+    | BrukerOppdatererFraÅr String
     | BrukerVilRegistrereNaavarende
     | BrukerSvarerJaTilNaavarende
-    | BrukerSvarerNeiTilNaavarende FraDatoInfo
-    | BrukerTrykketTilMånedKnapp TilDatoInfo
-    | BrukerOppdatererTilÅr TilDatoInfo String
+    | BrukerSvarerNeiTilNaavarende
+    | BrukerTrykketTilMånedKnapp Dato.Måned
+    | BrukerOppdatererTilÅr String
     | BrukerVilGåTilOppsummering
     | BrukerVilRedigereOppsummering
     | ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Felt String
     | ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Felt
     | BrukerTrykkerPåLagreArbeidserfaringKnapp String
-    | ArbeidserfaringOppdatert (Result Http.Error (List Arbeidserfaring))
+    | ArbeidserfaringLagret (Result Http.Error (List Arbeidserfaring))
+    | NyArbeidserfaring
+    | Ferdig
     | ErrorLogget (Result Http.Error ())
 
 
@@ -100,8 +102,8 @@ type Samtale
     | RegistrerYrke YrkeInfo
     | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
     | EndreJobbtittel JobbtittelInfo
-    | RegistrereBedriftNavn BeriftnavnsInfo
-    | RegistrereLokasjon LokasjonInfo
+    | RegistrereBedriftNavn BedriftnavnInfo
+    | RegistrereSted StedInfo
     | RegistrereArbeidsoppgaver ArbeidsoppgaverInfo
     | RegistrereFraMåned FraDatoInfo
     | RegistrereFraÅr FraDatoInfo
@@ -112,6 +114,8 @@ type Samtale
     | RedigerOppsummering ArbeidserfaringSkjema.ArbeidserfaringSkjema
     | LagreArbeidserfaring ArbeidserfaringSkjema
     | LagringFeilet Http.Error ArbeidserfaringSkjema
+    | SpørOmBrukerVilLeggeInnMer
+    | StartNyArbeidserfaring YrkeInfo
 
 
 type alias YrkeInfo =
@@ -124,20 +128,20 @@ type alias JobbtittelInfo =
     }
 
 
-type alias BeriftnavnsInfo =
+type alias BedriftnavnInfo =
     { tidligereInfo : JobbtittelInfo
     , bedriftNavn : String
     }
 
 
-type alias LokasjonInfo =
-    { tidligereInfo : BeriftnavnsInfo
+type alias StedInfo =
+    { tidligereInfo : BedriftnavnInfo
     , lokasjon : String
     }
 
 
 type alias ArbeidsoppgaverInfo =
-    { tidligereInfo : LokasjonInfo
+    { tidligereInfo : StedInfo
     , arbeidsoppgaver : String
     }
 
@@ -174,22 +178,22 @@ yrkeInfoTilJobbtittelInfo yrke =
     { tidligereInfo = yrke, jobbtittel = "" }
 
 
-jobbtittelInfoTilBedriftnavnsInfo : JobbtittelInfo -> BeriftnavnsInfo
+jobbtittelInfoTilBedriftnavnsInfo : JobbtittelInfo -> BedriftnavnInfo
 jobbtittelInfoTilBedriftnavnsInfo jobbtittelInfo =
     { tidligereInfo = jobbtittelInfo
     , bedriftNavn = ""
     }
 
 
-bedriftnavnsInfoTilLokasjonInfo : BeriftnavnsInfo -> LokasjonInfo
+bedriftnavnsInfoTilLokasjonInfo : BedriftnavnInfo -> StedInfo
 bedriftnavnsInfoTilLokasjonInfo beriftnavnsInfo =
     { tidligereInfo = beriftnavnsInfo
     , lokasjon = ""
     }
 
 
-lokasjonInfoTilArbeidsoppgaverInfo : LokasjonInfo -> ArbeidsoppgaverInfo
-lokasjonInfoTilArbeidsoppgaverInfo lokasjonInfo =
+stedInfoTilArbeidsoppgaverInfo : StedInfo -> ArbeidsoppgaverInfo
+stedInfoTilArbeidsoppgaverInfo lokasjonInfo =
     { tidligereInfo = lokasjonInfo
     , arbeidsoppgaver = ""
     }
@@ -240,6 +244,7 @@ update msg (Model info) =
                     | seksjonsMeldingsLogg =
                         info.seksjonsMeldingsLogg
                             |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
+                    , aktivSamtale = HenterFraAareg
                 }
             , Api.hentAAreg HentetAAregArbeidserfaring
             )
@@ -277,12 +282,20 @@ update msg (Model info) =
             )
                 |> IkkeFerdig
 
-        BrukerLagrerYrke jobbtittelInfo ->
-            ( SpørOmBrukerVilEndreJobbtittel jobbtittelInfo
-                |> nesteSamtaleSteg info (Melding.svar [ jobbtittelInfo.tidligereInfo.yrke ])
-            , Cmd.none
-            )
-                |> IkkeFerdig
+        BrukerLagrerYrke ->
+            case info.aktivSamtale of
+                RegistrerYrke yrkeInfo ->
+                    ( yrkeInfo
+                        |> yrkeInfoTilJobbtittelInfo
+                        |> SpørOmBrukerVilEndreJobbtittel
+                        |> nesteSamtaleSteg info (Melding.svar [ yrkeInfo.yrke ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
 
         BrukerVilEndreJobbtittel jobbtittelInfo ->
             ( EndreJobbtittel jobbtittelInfo
@@ -291,92 +304,171 @@ update msg (Model info) =
             )
                 |> IkkeFerdig
 
-        BrukerOppdatererJobbtittelFelt jobbtittelInfo string ->
-            ( Model
-                { info
-                    | aktivSamtale = EndreJobbtittel { jobbtittelInfo | jobbtittel = string }
-                }
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerVilRegistrereBedriftnavn knappeTekst bedriftnavnInfo ->
-            ( RegistrereBedriftNavn bedriftnavnInfo
-                |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerOppdatererBedriftnavn beriftnavnsInfo string ->
-            ( Model
-                { info
-                    | aktivSamtale = RegistrereBedriftNavn { beriftnavnsInfo | bedriftNavn = string }
-                }
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerVilRegistrereLokasjon lokasjonInfo ->
-            ( RegistrereLokasjon lokasjonInfo
-                |> nesteSamtaleSteg info (Melding.svar [ lokasjonInfo.tidligereInfo.bedriftNavn ])
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerOppdatererLokasjon lokasjonsInfo string ->
-            ( Model
-                { info
-                    | aktivSamtale = RegistrereLokasjon { lokasjonsInfo | lokasjon = string }
-                }
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerVilRegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
-            ( RegistrereArbeidsoppgaver arbeidsoppgaverInfo
-                |> nesteSamtaleSteg info (Melding.svar [ arbeidsoppgaverInfo.tidligereInfo.lokasjon ])
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerOppdatererArbeidsoppgaver arbeidsoppgaverInfo string ->
-            ( Model
-                { info
-                    | aktivSamtale =
-                        RegistrereArbeidsoppgaver { arbeidsoppgaverInfo | arbeidsoppgaver = string }
-                }
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerVilRegistrereFraMåned fraDatoInfo ->
-            ( RegistrereFraMåned fraDatoInfo
-                |> nesteSamtaleSteg info (Melding.svar [ fraDatoInfo.tidligereInfo.arbeidsoppgaver ])
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerTrykketFraMånedKnapp fraDatoInfo ->
-            ( RegistrereFraÅr fraDatoInfo
-                |> nesteSamtaleSteg info
-                    (Melding.svar
-                        [ fraDatoInfo.fraMåned
-                            |> Dato.månedTilString
-                        ]
+        BrukerOppdatererJobbtittelFelt string ->
+            case info.aktivSamtale of
+                EndreJobbtittel jobbtittelInfo ->
+                    ( Model
+                        { info
+                            | aktivSamtale = EndreJobbtittel { jobbtittelInfo | jobbtittel = string }
+                        }
+                    , Cmd.none
                     )
-            , Cmd.none
-            )
-                |> IkkeFerdig
+                        |> IkkeFerdig
 
-        BrukerOppdatererFraÅr fraDatoInfo string ->
-            ( Model
-                { info
-                    | aktivSamtale =
-                        RegistrereFraÅr { fraDatoInfo | fraÅr = string }
-                }
-            , Cmd.none
-            )
-                |> IkkeFerdig
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerVilRegistrereBedriftnavn knappeTekst ->
+            case info.aktivSamtale of
+                EndreJobbtittel jobbtittelInfo ->
+                    ( jobbtittelInfo
+                        |> jobbtittelInfoTilBedriftnavnsInfo
+                        |> RegistrereBedriftNavn
+                        |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
+                    ( jobbtittelInfo
+                        |> jobbtittelInfoTilBedriftnavnsInfo
+                        |> RegistrereBedriftNavn
+                        |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerOppdatererBedriftnavn string ->
+            case info.aktivSamtale of
+                RegistrereBedriftNavn beriftnavnsInfo ->
+                    ( Model
+                        { info
+                            | aktivSamtale = RegistrereBedriftNavn { beriftnavnsInfo | bedriftNavn = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerVilRegistrereSted ->
+            case info.aktivSamtale of
+                RegistrereBedriftNavn bedriftnavnInfo ->
+                    ( bedriftnavnInfo
+                        |> bedriftnavnsInfoTilLokasjonInfo
+                        |> RegistrereSted
+                        |> nesteSamtaleSteg info (Melding.svar [ bedriftnavnInfo.bedriftNavn ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerOppdatererSted string ->
+            case info.aktivSamtale of
+                RegistrereSted stedInfo ->
+                    ( Model
+                        { info
+                            | aktivSamtale = RegistrereSted { stedInfo | lokasjon = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerVilRegistrereArbeidsoppgaver ->
+            case info.aktivSamtale of
+                RegistrereSted stedInfo ->
+                    ( stedInfo
+                        |> stedInfoTilArbeidsoppgaverInfo
+                        |> RegistrereArbeidsoppgaver
+                        |> nesteSamtaleSteg info (Melding.svar [ stedInfo.lokasjon ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerOppdatererArbeidsoppgaver string ->
+            case info.aktivSamtale of
+                RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
+                    ( Model
+                        { info
+                            | aktivSamtale =
+                                RegistrereArbeidsoppgaver { arbeidsoppgaverInfo | arbeidsoppgaver = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerVilRegistrereFraMåned ->
+            case info.aktivSamtale of
+                RegistrereArbeidsoppgaver arbeidsOppgaveInfo ->
+                    ( arbeidsOppgaveInfo
+                        |> arbeidsoppgaverInfoTilfraDatoInfo
+                        |> RegistrereFraMåned
+                        |> nesteSamtaleSteg info (Melding.svar [ arbeidsOppgaveInfo.arbeidsoppgaver ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerTrykketFraMånedKnapp måned ->
+            case info.aktivSamtale of
+                RegistrereFraMåned fraDatoInfo ->
+                    ( måned
+                        |> setFraMåned fraDatoInfo
+                        |> RegistrereFraÅr
+                        |> nesteSamtaleSteg info
+                            (Melding.svar
+                                [ måned
+                                    |> Dato.månedTilString
+                                ]
+                            )
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerOppdatererFraÅr string ->
+            case info.aktivSamtale of
+                RegistrereFraÅr fraDatoInfo ->
+                    ( Model
+                        { info
+                            | aktivSamtale =
+                                RegistrereFraÅr { fraDatoInfo | fraÅr = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
 
         BrukerVilRegistrereNaavarende ->
             case info.aktivSamtale of
@@ -408,36 +500,54 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerSvarerNeiTilNaavarende fraDatoInfo ->
-            ( fraDatoInfo
-                |> fraDatoInfoTilTilDatoInfo
-                |> RegistrereTilMåned
-                |> nesteSamtaleSteg info (Melding.svar [ "Nei" ])
-            , Cmd.none
-            )
-                |> IkkeFerdig
-
-        BrukerTrykketTilMånedKnapp tilDatoInfo ->
-            ( RegistrereTilÅr tilDatoInfo
-                |> nesteSamtaleSteg info
-                    (Melding.svar
-                        [ tilDatoInfo.tilMåned
-                            |> Dato.månedTilString
-                        ]
+        BrukerSvarerNeiTilNaavarende ->
+            case info.aktivSamtale of
+                RegistrereNaavarende fraDatoInfo ->
+                    ( fraDatoInfo
+                        |> fraDatoInfoTilTilDatoInfo
+                        |> RegistrereTilMåned
+                        |> nesteSamtaleSteg info (Melding.svar [ "Nei" ])
+                    , Cmd.none
                     )
-            , Cmd.none
-            )
-                |> IkkeFerdig
+                        |> IkkeFerdig
 
-        BrukerOppdatererTilÅr tilDatoInfo string ->
-            ( Model
-                { info
-                    | aktivSamtale =
-                        RegistrereTilÅr { tilDatoInfo | tilÅr = string }
-                }
-            , Cmd.none
-            )
-                |> IkkeFerdig
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerTrykketTilMånedKnapp måned ->
+            case info.aktivSamtale of
+                RegistrereTilMåned tilDatoInfo ->
+                    ( RegistrereTilÅr tilDatoInfo
+                        |> nesteSamtaleSteg info
+                            (Melding.svar
+                                [ måned
+                                    |> Dato.månedTilString
+                                ]
+                            )
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerOppdatererTilÅr string ->
+            case info.aktivSamtale of
+                RegistrereTilÅr tilDatoInfo ->
+                    ( Model
+                        { info
+                            | aktivSamtale =
+                                RegistrereTilÅr { tilDatoInfo | tilÅr = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
 
         BrukerVilGåTilOppsummering ->
             case info.aktivSamtale of
@@ -511,7 +621,7 @@ update msg (Model info) =
                         |> nesteSamtaleSteg info
                             (Melding.svar [ brukerSvar ])
                     , skjema
-                        |> Api.lagreArbeidserfaring ArbeidserfaringOppdatert
+                        |> Api.lagreArbeidserfaring ArbeidserfaringLagret
                     )
                         |> IkkeFerdig
 
@@ -521,7 +631,7 @@ update msg (Model info) =
                         |> nesteSamtaleSteg info
                             (Melding.svar [ brukerSvar ])
                     , skjema
-                        |> Api.lagreArbeidserfaring ArbeidserfaringOppdatert
+                        |> Api.lagreArbeidserfaring ArbeidserfaringLagret
                     )
                         |> IkkeFerdig
 
@@ -529,12 +639,13 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
-        ArbeidserfaringOppdatert result ->
+        ArbeidserfaringLagret result ->
             case info.aktivSamtale of
                 LagreArbeidserfaring arbeidserfaringSkjema ->
                     case result of
                         Ok arbeidserfaringer ->
-                            ( Model { info | arbeidserfaringListe = arbeidserfaringer }
+                            ( SpørOmBrukerVilLeggeInnMer
+                                |> oppdaterSamtalesteg { info | arbeidserfaringListe = arbeidserfaringer }
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -549,6 +660,17 @@ update msg (Model info) =
                 _ ->
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
+
+        NyArbeidserfaring ->
+            ( StartNyArbeidserfaring { yrke = "" }
+                |> nesteSamtaleSteg info (Melding.svar [ "Ja, legg til en arbeidserfaring" ])
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        Ferdig ->
+            ( Model info, Cmd.none )
+                |> IkkeFerdig
 
         ErrorLogget result ->
             ( Model info, Cmd.none )
@@ -610,7 +732,10 @@ oppdaterSamtalesteg modelInfo samtaleSeksjon =
                 }
 
         _ ->
-            Model modelInfo
+            Model
+                { modelInfo
+                    | aktivSamtale = samtaleSeksjon
+                }
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -633,6 +758,11 @@ setNaavarendeTilTrue info =
 setTilTrue : FraDatoInfo -> FraDatoInfo
 setTilTrue fraDatoInfo =
     { fraDatoInfo | naavarende = True }
+
+
+setFraMåned : FraDatoInfo -> Dato.Måned -> FraDatoInfo
+setFraMåned fraDatoInfo måned =
+    { fraDatoInfo | fraMåned = måned }
 
 
 samtaleTilMeldingsLogg : Samtale -> List Melding
@@ -710,7 +840,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         RegistrereBedriftNavn beriftnavnsInfo ->
             [ Melding.spørsmål [ "Hva er navnet på bedriften du jobbet i?" ] ]
 
-        RegistrereLokasjon lokasjonInfo ->
+        RegistrereSted lokasjonInfo ->
             [ Melding.spørsmål [ "Hvor holder bedriften til?" ] ]
 
         RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
@@ -754,10 +884,18 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             []
 
         LagreArbeidserfaring arbeidserfaringSkjema ->
-            [ Melding.spørsmål [ "Lagrer arbeidserfaring" ] ]
+            [ Melding.spørsmål [ "Lagrer arbeidserfaring..." ]
+            , Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ]
+            ]
 
         LagringFeilet error arbeidserfaringSkjema ->
             []
+
+        SpørOmBrukerVilLeggeInnMer ->
+            [ Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ] ]
+
+        StartNyArbeidserfaring _ ->
+            [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
 
 
 hentStilling : ArbeidserfaringSkjema -> String
@@ -826,8 +964,7 @@ viewBrukerInput (Model info) =
                     ]
                     []
                 , button
-                    [ yrkeInfoTilJobbtittelInfo { yrke = "" }
-                        |> BrukerLagrerYrke
+                    [ BrukerLagrerYrke
                         |> onClick
                     ]
                     [ text "Lagre" ]
@@ -846,9 +983,7 @@ viewBrukerInput (Model info) =
                         |> Input.input { label = "Yrke", msg = BrukerOppdatererYrke }
                         |> Input.toHtml
                     , div [ class "inputrad" ]
-                        [ yrke
-                            |> yrkeInfoTilJobbtittelInfo
-                            |> BrukerLagrerYrke
+                        [ BrukerLagrerYrke
                             |> lagTekstInputKnapp "Gå videre" yrke.yrke
                         ]
                     ]
@@ -863,9 +998,7 @@ viewBrukerInput (Model info) =
                       )
                         "Nei, legg til nytt navn"
                         |> Knapp.toHtml
-                    , (jobbtittelInfo
-                        |> jobbtittelInfoTilBedriftnavnsInfo
-                        |> BrukerVilRegistrereBedriftnavn "Ja, det stemmer"
+                    , (BrukerVilRegistrereBedriftnavn "Ja, det stemmer"
                         |> Knapp.knapp
                       )
                         "Ja, det stemmer"
@@ -878,13 +1011,11 @@ viewBrukerInput (Model info) =
                 [ div [ class "skjema" ]
                     [ jobbtittelInfo.jobbtittel
                         |> Input.input
-                            { label = "Stilling/yrke som vil vises i CV", msg = BrukerOppdatererJobbtittelFelt jobbtittelInfo }
+                            { label = "Stilling/yrke som vil vises i CV", msg = BrukerOppdatererJobbtittelFelt }
                         |> Input.toHtml
                     ]
                 , div [ class "inputrad" ]
-                    [ jobbtittelInfo
-                        |> jobbtittelInfoTilBedriftnavnsInfo
-                        |> BrukerVilRegistrereBedriftnavn "Gå videre"
+                    [ BrukerVilRegistrereBedriftnavn "Gå videre"
                         |> lagTekstInputKnapp "Gå videre" jobbtittelInfo.jobbtittel
                     ]
                 ]
@@ -893,29 +1024,25 @@ viewBrukerInput (Model info) =
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema" ]
                     [ bedriftnanvsInfo.bedriftNavn
-                        |> Input.input { label = "Bedriftens navn", msg = BrukerOppdatererBedriftnavn bedriftnanvsInfo }
+                        |> Input.input { label = "Bedriftens navn", msg = BrukerOppdatererBedriftnavn }
                         |> Input.toHtml
                     ]
                 , div [ class "inputrad" ]
-                    [ bedriftnanvsInfo
-                        |> bedriftnavnsInfoTilLokasjonInfo
-                        |> BrukerVilRegistrereLokasjon
+                    [ BrukerVilRegistrereSted
                         |> lagTekstInputKnapp "Gå videre" bedriftnanvsInfo.bedriftNavn
                     ]
                 ]
 
-        RegistrereLokasjon lokasjonInfo ->
+        RegistrereSted stedInfo ->
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema" ]
-                    [ lokasjonInfo.lokasjon
-                        |> Input.input { label = "Sted/land", msg = BrukerOppdatererLokasjon lokasjonInfo }
+                    [ stedInfo.lokasjon
+                        |> Input.input { label = "Sted/land", msg = BrukerOppdatererSted }
                         |> Input.toHtml
                     ]
                 , div [ class "inputrad" ]
-                    [ lokasjonInfo
-                        |> lokasjonInfoTilArbeidsoppgaverInfo
-                        |> BrukerVilRegistrereArbeidsoppgaver
-                        |> lagTekstInputKnapp "Gå videre" lokasjonInfo.lokasjon
+                    [ BrukerVilRegistrereArbeidsoppgaver
+                        |> lagTekstInputKnapp "Gå videre" stedInfo.lokasjon
                     ]
                 ]
 
@@ -923,12 +1050,11 @@ viewBrukerInput (Model info) =
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema" ]
                     [ arbeidsoppgaverInfo.arbeidsoppgaver
-                        |> Input.input { label = "Hvilke arbeidsoppgaver gjorde du?", msg = BrukerOppdatererArbeidsoppgaver arbeidsoppgaverInfo }
+                        |> Input.input { label = "Hvilke arbeidsoppgaver gjorde du?", msg = BrukerOppdatererArbeidsoppgaver }
                         |> Input.toHtml
                     ]
                 , div [ class "inputrad" ]
-                    [ arbeidsoppgaverInfoTilfraDatoInfo arbeidsoppgaverInfo
-                        |> BrukerVilRegistrereFraMåned
+                    [ BrukerVilRegistrereFraMåned
                         |> lagTekstInputKnapp "Gå videre" arbeidsoppgaverInfo.arbeidsoppgaver
                     ]
                 ]
@@ -973,7 +1099,7 @@ viewBrukerInput (Model info) =
             div [ class "skjemawrapper" ]
                 [ div [ class "skjema" ]
                     [ fraDatoInfo.fraÅr
-                        |> Input.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr fraDatoInfo }
+                        |> Input.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr }
                         |> Input.toHtml
                     ]
                 , div [ class "inputrad" ]
@@ -987,8 +1113,7 @@ viewBrukerInput (Model info) =
                 [ div [ class "inputrad" ]
                     [ BrukerSvarerJaTilNaavarende
                         |> lagMessageKnapp "Ja"
-                    , fraDatoInfo
-                        |> BrukerSvarerNeiTilNaavarende
+                    , BrukerSvarerNeiTilNaavarende
                         |> lagMessageKnapp "Nei"
                     ]
                 ]
@@ -1034,8 +1159,7 @@ viewBrukerInput (Model info) =
                 [ label [] [ text "Skriv inn år" ]
                 , input
                     [ tilDatoInfo.tilÅr |> value
-                    , tilDatoInfo
-                        |> BrukerOppdatererTilÅr
+                    , BrukerOppdatererTilÅr
                         |> onInput
                     ]
                     []
@@ -1097,6 +1221,31 @@ viewBrukerInput (Model info) =
         LagringFeilet error arbeidserfaringSkjema ->
             div [] []
 
+        SpørOmBrukerVilLeggeInnMer ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "inputrad" ]
+                    [ Knapp.knapp
+                        NyArbeidserfaring
+                        "Ja, legg til en arbeidserfaring"
+                        |> Knapp.toHtml
+                    , Knapp.knapp Ferdig "Nei, jeg har lagt inn alle"
+                        |> Knapp.toHtml
+                    ]
+                ]
+
+        StartNyArbeidserfaring yrke ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema" ]
+                    [ yrke.yrke
+                        |> Input.input { label = "Yrke", msg = BrukerOppdatererYrke }
+                        |> Input.toHtml
+                    , div [ class "inputrad" ]
+                        [ BrukerLagrerYrke
+                            |> lagTekstInputKnapp "Gå videre" yrke.yrke
+                        ]
+                    ]
+                ]
+
 
 lagTekstInputKnapp : String -> String -> Msg -> Html Msg
 lagTekstInputKnapp knappeTekst inputTekst msg =
@@ -1132,7 +1281,7 @@ lagFraMånedKnapp : FraDatoInfo -> Dato.Måned -> Html Msg
 lagFraMånedKnapp fraDatoInfo måned =
     let
         msg =
-            { fraDatoInfo | fraMåned = måned }
+            måned
                 |> BrukerTrykketFraMånedKnapp
     in
     måned
@@ -1146,7 +1295,7 @@ lagTilMånedKnapp : TilDatoInfo -> Dato.Måned -> Html Msg
 lagTilMånedKnapp tilDatoInfo måned =
     let
         msg =
-            { tilDatoInfo | tilMåned = måned }
+            måned
                 |> BrukerTrykketTilMånedKnapp
     in
     måned
