@@ -2,25 +2,18 @@ module Seksjon.Utdanning exposing (Model, Msg, SamtaleStatus(..), init, meldings
 
 import Browser.Dom as Dom
 import Cv.Utdanning as Cv exposing (Nivå(..), Utdanning)
+import Dato exposing (Dato)
+import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Select as Select
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (MeldingsLogg)
 import SamtaleAnimasjon
-import Skjema.Utdanning as Skjema
-    exposing
-        ( Felt(..)
-        , oppdaterBeskrivelse
-        , oppdaterFradato
-        , oppdaterNavarende
-        , oppdaterNuskode
-        , oppdaterStudiested
-        , oppdaterTildato
-        , oppdaterUtdanningsretning
-        )
+import Skjema.Utdanning as Skjema exposing (Felt(..))
 
 
 
@@ -44,7 +37,11 @@ type Samtale
     | RegistrerSkole SkoleInfo
     | RegistrerRetning RetningInfo
     | RegistrerBeskrivelse BeskrivelseInfo
-    | RegistrerPeriode PeriodeInfo
+    | RegistrereFraMåned FradatoInfo
+    | RegistrereFraÅr FradatoInfo
+    | RegistrereNavarende FradatoInfo
+    | RegistrereTilMåned TildatoInfo
+    | RegistrereTilÅr TildatoInfo
     | Oppsummering Skjema.UtdanningSkjema
     | EndrerOppsummering Skjema.UtdanningSkjema
     | LagrerOppsummering OppsummeringInfo
@@ -72,8 +69,19 @@ type alias BeskrivelseInfo =
     { forrige : RetningInfo, beskrivelse : String }
 
 
-type alias PeriodeInfo =
-    { forrige : BeskrivelseInfo, periode : String }
+type alias FradatoInfo =
+    { forrige : BeskrivelseInfo
+    , fraMåned : Dato.Måned
+    , fraÅr : String
+    , navarende : Bool
+    }
+
+
+type alias TildatoInfo =
+    { forrige : FradatoInfo
+    , tilMåned : Dato.Måned
+    , tilÅr : String
+    }
 
 
 type alias OppsummeringInfo =
@@ -81,7 +89,9 @@ type alias OppsummeringInfo =
     , skole : String
     , retning : String
     , beskrivelse : String
-    , periode : String
+    , fradato : Dato
+    , navarende : Bool
+    , tilDato : Maybe Dato
     }
 
 
@@ -125,22 +135,43 @@ forrigeTilBeskrivelseInfo retning =
     { forrige = retning, beskrivelse = "" }
 
 
-forrigeTilPeriodeInfo : BeskrivelseInfo -> PeriodeInfo
-forrigeTilPeriodeInfo beskrivelse =
-    { forrige = beskrivelse, periode = "" }
+forrigeTilFradatoInfo : BeskrivelseInfo -> FradatoInfo
+forrigeTilFradatoInfo beskrivelse =
+    { forrige = beskrivelse
+    , fraMåned = Dato.Januar
+    , fraÅr = "1990"
+    , navarende = False
+    }
 
 
-forrigeTilOppsummeringInfo : PeriodeInfo -> Skjema.UtdanningSkjema
-forrigeTilOppsummeringInfo periodeInfo =
+forrigeTilTildatoInfo : FradatoInfo -> TildatoInfo
+forrigeTilTildatoInfo fradatoInfo =
+    { forrige = fradatoInfo
+    , tilMåned = Dato.Januar
+    , tilÅr = ""
+    }
+
+
+forrigeTilOppsummeringInfo : TildatoInfo -> Skjema.UtdanningSkjema
+forrigeTilOppsummeringInfo tildatoInfo =
     Skjema.initManueltSkjema
-        { nuskode = periodeInfo.forrige.forrige.forrige.forrige
-        , studiested = periodeInfo.forrige.forrige.forrige.skole
-        , utdanningsretning = periodeInfo.forrige.forrige.retning
-        , beskrivelse = periodeInfo.forrige.beskrivelse
-        , fradato = periodeInfo.periode
-        , tildato = periodeInfo.periode
-        , navarende = True
+        { nuskode = tildatoInfo.forrige.forrige.forrige.forrige.forrige
+        , studiested = tildatoInfo.forrige.forrige.forrige.forrige.skole
+        , utdanningsretning = tildatoInfo.forrige.forrige.forrige.retning
+        , beskrivelse = tildatoInfo.forrige.forrige.beskrivelse
+        , fradato = Dato.tilDato (tildatoInfo.forrige.fraÅr ++ "-" ++ (tildatoInfo.forrige.fraMåned |> Dato.månedTilString))
+        , tildato =
+            if tildatoInfo.forrige.navarende then
+                Just (Dato.tilDato "1999-09-09")
+
+            else
+                Just (Dato.tilDato (tildatoInfo.tilÅr ++ "-" ++ (tildatoInfo.tilMåned |> Dato.månedTilString)))
+        , navarende = tildatoInfo.forrige.navarende
         }
+
+
+
+--- UPDATE ---
 
 
 type Msg
@@ -154,28 +185,34 @@ type Msg
     | OppdaterRetning String
     | BrukerVilRegistrereBeskrivelse
     | OppdaterBeskrivelse String
-    | BrukerVilRegistrerePeriode
-    | OppdaterPeriode String
+    | BrukerVilRegistrereFraMåned FradatoInfo
+    | BrukerTrykketFraMånedKnapp FradatoInfo
+    | BrukerOppdatererFraÅr FradatoInfo String
+    | BrukerVilRegistrereNaavarende
+    | BrukerSvarerJaTilNaavarende
+    | BrukerSvarerNeiTilNaavarende FradatoInfo
+    | BrukerTrykketTilMånedKnapp TildatoInfo
+    | BrukerOppdatererTilÅr TildatoInfo String
+    | BrukerVilGåTilOppsummering
     | BrukerVilEndreOppsummering
     | OriginalOppsummeringBekreftet
     | OppsummeringEndret Skjema.Felt String
+    | OppsummeringBoolEndret Skjema.Felt
     | OppsummeringSkjemaLagreknappTrykket
     | SkjemaOppdatert SkjemaEndring
     | ViewportSatt (Result Dom.Error ())
 
 
 type SkjemaEndring
-    = NivåEndret Nivå
+    = NivåEndret String
     | BeskrivelseEndret String
     | SkoleEndret String
-    | FratidEndret String
-    | TiltidEndret String
+    | FraMånedEndret String
+    | FraÅrEndret String
+    | TilMånedEndret String
+    | TilÅrEndret String
     | NavarendeEndret Bool
     | RetningEndret String
-
-
-
---- UPDATE ---
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -235,23 +272,117 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerBeskrivelse beskrivelseinfo ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ beskrivelseinfo.beskrivelse ]) (RegistrerPeriode (forrigeTilPeriodeInfo beskrivelseinfo))
+                        ( nesteSamtaleSteg model (Melding.svar [ beskrivelseinfo.beskrivelse ]) (RegistrereFraMåned (forrigeTilFradatoInfo beskrivelseinfo))
                         , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                         )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        BrukerVilRegistrerePeriode ->
+        BrukerVilRegistrereFraMåned fraDatoInfo ->
+            ( RegistrereFraMåned fraDatoInfo
+                |> nesteSamtaleSteg model (Melding.svar [ fraDatoInfo.forrige.beskrivelse ])
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerTrykketFraMånedKnapp fraDatoInfo ->
+            ( RegistrereFraÅr fraDatoInfo
+                |> nesteSamtaleSteg model
+                    (Melding.svar
+                        [ fraDatoInfo.fraMåned
+                            |> Dato.månedTilString
+                        ]
+                    )
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerOppdatererFraÅr fraDatoInfo string ->
+            ( Model
+                { model
+                    | aktivSamtale =
+                        RegistrereFraÅr { fraDatoInfo | fraÅr = string }
+                }
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerVilRegistrereNaavarende ->
             case model.aktivSamtale of
-                RegistrerPeriode periodeinfo ->
-                    IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ periodeinfo.periode ]) (Oppsummering (forrigeTilOppsummeringInfo periodeinfo))
-                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                        )
+                RegistrereFraÅr datoInfo ->
+                    ( RegistrereNavarende datoInfo
+                        |> nesteSamtaleSteg model (Melding.svar [ datoInfo.fraÅr ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
 
                 _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerSvarerJaTilNaavarende ->
+            case model.aktivSamtale of
+                RegistrereNavarende datoInfo ->
+                    ( datoInfo
+                        |> forrigeTilTildatoInfo
+                        |> setNavarendeTilTrue
+                        |> forrigeTilOppsummeringInfo
+                        |> Oppsummering
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerSvarerNeiTilNaavarende fraDatoInfo ->
+            ( fraDatoInfo
+                |> forrigeTilTildatoInfo
+                |> RegistrereTilMåned
+                |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerTrykketTilMånedKnapp tilDatoInfo ->
+            ( RegistrereTilÅr tilDatoInfo
+                |> nesteSamtaleSteg model
+                    (Melding.svar
+                        [ tilDatoInfo.tilMåned
+                            |> Dato.månedTilString
+                        ]
+                    )
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerOppdatererTilÅr tilDatoInfo string ->
+            ( Model
+                { model
+                    | aktivSamtale =
+                        RegistrereTilÅr { tilDatoInfo | tilÅr = string }
+                }
+            , Cmd.none
+            )
+                |> IkkeFerdig
+
+        BrukerVilGåTilOppsummering ->
+            case model.aktivSamtale of
+                RegistrereTilÅr tilDatoInfo ->
+                    ( tilDatoInfo
+                        |> forrigeTilOppsummeringInfo
+                        |> Oppsummering
+                        |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
 
         BrukerVilEndreOppsummering ->
             case model.aktivSamtale of
@@ -291,14 +422,12 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdaterPeriode periode ->
-            case model.aktivSamtale of
-                RegistrerPeriode periodeinfo ->
-                    IkkeFerdig ( oppdaterSamtaleSteg model (RegistrerPeriode { periodeinfo | periode = periode }), Cmd.none )
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
+        -- OppdaterFradato fradato ->
+        --     case model.aktivSamtale of
+        --         RegistrerFradato fradatoinfo ->
+        --             IkkeFerdig ( oppdaterSamtaleSteg model (RegistrerFradato { fradatoinfo | fradato = fradato }), Cmd.none )
+        --         _ ->
+        --             IkkeFerdig ( Model model, Cmd.none )
         SkjemaOppdatert skjemaendring ->
             case model.aktivSamtale of
                 EndrerOppsummering skjemaendringinfo ->
@@ -316,12 +445,20 @@ update msg (Model model) =
         ViewportSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
+        OppsummeringBoolEndret felt ->
+            IkkeFerdig ( Model model, Cmd.none )
+
 
 oppdaterSkjema : SkjemaEndring -> Skjema.UtdanningSkjema -> Skjema.UtdanningSkjema
 oppdaterSkjema endring skjema =
     case endring of
-        NivåEndret nivå ->
-            Skjema.oppdaterNuskode nivå skjema
+        NivåEndret nivåstring ->
+            case stringToNivå nivåstring of
+                Just nivå ->
+                    Skjema.oppdaterNuskode nivå skjema
+
+                Nothing ->
+                    skjema
 
         BeskrivelseEndret string ->
             Skjema.oppdaterBeskrivelse string skjema
@@ -329,17 +466,61 @@ oppdaterSkjema endring skjema =
         SkoleEndret string ->
             Skjema.oppdaterStudiested string skjema
 
-        FratidEndret string ->
-            Skjema.oppdaterFradato string skjema
+        FraMånedEndret string ->
+            Skjema.oppdaterFraMåned string skjema
 
-        TiltidEndret string ->
-            Skjema.oppdaterTildato string skjema
+        FraÅrEndret string ->
+            Skjema.oppdaterFraÅr string skjema
+
+        TilMånedEndret string ->
+            Skjema.oppdaterTilMåned string skjema
+
+        TilÅrEndret string ->
+            Skjema.oppdaterTilÅr string skjema
 
         NavarendeEndret bool ->
             Skjema.oppdaterNavarende bool skjema
 
         RetningEndret string ->
             Skjema.oppdaterUtdanningsretning string skjema
+
+
+stringToNivå : String -> Maybe Nivå
+stringToNivå string =
+    case string of
+        "Grunnskole" ->
+            Just Grunnskole
+
+        "VideregåendeYrkesskole" ->
+            Just VideregåendeYrkesskole
+
+        "Fagskole" ->
+            Just Fagskole
+
+        "Folkehøyskole" ->
+            Just Folkehøyskole
+
+        "HøyereUtdanning1til4" ->
+            Just HøyereUtdanning1til4
+
+        "HøyereUtdanning4pluss" ->
+            Just HøyereUtdanning4pluss
+
+        "Phd" ->
+            Just Phd
+
+        _ ->
+            Nothing
+
+
+setNavarendeTilTrue : TildatoInfo -> TildatoInfo
+setNavarendeTilTrue info =
+    { info | forrige = setTilTrue info.forrige }
+
+
+setTilTrue : FradatoInfo -> FradatoInfo
+setTilTrue fraDatoInfo =
+    { fraDatoInfo | navarende = True }
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -390,12 +571,26 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 [ " Kan du beskrive denne utdannelsen din for meg? " ]
             ]
 
-        RegistrerPeriode _ ->
+        RegistrereFraMåned _ ->
             [ Melding.spørsmål
-                [ " Hvilken periode var det i? " ]
+                [ "Hvilken måned begynte du utdannelsen din? " ]
+            , Melding.spørsmål [ "Hint! De fleste utdannelser begynner i August" ]
             ]
 
-        --TODO: Implementer fra og til/nåværende
+        RegistrereFraÅr _ ->
+            [ Melding.spørsmål [ "Hvilket år begynte du på denne utdannelsen?" ] ]
+
+        RegistrereNavarende _ ->
+            [ Melding.spørsmål [ "Er dette et pågående studie?" ] ]
+
+        RegistrereTilMåned _ ->
+            [ Melding.spørsmål [ "Hvilken måned ble du ferdig med utdannelsen?" ]
+            , Melding.spørsmål [ "Hint! De fleste utdannlser slutter i Juni" ]
+            ]
+
+        RegistrereTilÅr _ ->
+            [ Melding.spørsmål [ "Når ble du ferdig med utdannelsen?" ] ]
+
         Oppsummering utdanningsskjema ->
             [ Melding.spørsmål
                 [ "Her har du en oppsummering av utdannelsen du la inn:"
@@ -403,7 +598,12 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 , "Skole: " ++ Skjema.studiested utdanningsskjema
                 , "Retning: " ++ Skjema.utdanningsretning utdanningsskjema
                 , "Beskrivelse: " ++ Skjema.beskrivelse utdanningsskjema
-                , "Periode: " ++ Skjema.fradato utdanningsskjema
+                , "Fra: " ++ hentFraDato utdanningsskjema
+                , if Skjema.navarende utdanningsskjema == True then
+                    "Nåværende studie"
+
+                  else
+                    hentTilDato utdanningsskjema
                 ]
             ]
 
@@ -416,6 +616,35 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             [ Melding.spørsmål
                 [ "Godt jobbet! Da tar jeg vare på den nye infoen! " ]
             ]
+
+
+hentFraDato : Skjema.UtdanningSkjema -> String
+hentFraDato skjema =
+    let
+        år =
+            skjema |> Skjema.fraDato |> Dato.år |> String.fromInt
+
+        maaned =
+            skjema |> Skjema.fraDato |> Dato.måned |> Dato.månedTilString
+    in
+    maaned
+        ++ " "
+        ++ år
+
+
+hentTilDato : Skjema.UtdanningSkjema -> String
+hentTilDato skjema =
+    if Skjema.navarende skjema == True then
+        ""
+
+    else
+        let
+            dato =
+                skjema
+                    |> Skjema.tilDato
+                    |> Maybe.withDefault (Skjema.fraDato skjema)
+        in
+        "Til: " ++ (dato |> Dato.måned |> Dato.månedTilString) ++ " " ++ (dato |> Dato.år |> String.fromInt)
 
 
 viewBrukerInput : Model -> Html Msg
@@ -465,11 +694,114 @@ viewBrukerInput (Model { aktivSamtale }) =
                     |> Knapp.toHtml
                 ]
 
-        RegistrerPeriode periodeinfo ->
-            div [ class "Skjema" ]
-                [ periodeinfo.periode |> Input.input { msg = OppdaterPeriode, label = "Periode" } |> Input.toHtml
-                , Knapp.knapp BrukerVilRegistrerePeriode "Lagre"
-                    |> Knapp.toHtml
+        RegistrereFraMåned fraDatoInfo ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "inputrad" ]
+                    [ Dato.Januar
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Februar
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Mars
+                        |> lagFraMånedKnapp fraDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.April
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Mai
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Juni
+                        |> lagFraMånedKnapp fraDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.Juli
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.August
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.September
+                        |> lagFraMånedKnapp fraDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.Oktober
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.November
+                        |> lagFraMånedKnapp fraDatoInfo
+                    , Dato.Desember
+                        |> lagFraMånedKnapp fraDatoInfo
+                    ]
+                ]
+
+        RegistrereFraÅr fraDatoInfo ->
+            div [ class "skjemawrapper" ]
+                [ div [ class "skjema" ]
+                    [ fraDatoInfo.fraÅr
+                        |> Input.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr fraDatoInfo }
+                        |> Input.toHtml
+                    ]
+                , div [ class "inputrad" ]
+                    [ BrukerVilRegistrereNaavarende
+                        |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
+                    ]
+                ]
+
+        RegistrereNavarende fraDatoInfo ->
+            div []
+                [ div [ class "inputrad" ]
+                    [ BrukerSvarerJaTilNaavarende
+                        |> lagMessageKnapp "Ja"
+                    , fraDatoInfo
+                        |> BrukerSvarerNeiTilNaavarende
+                        |> lagMessageKnapp "Nei"
+                    ]
+                ]
+
+        RegistrereTilMåned tilDatoInfo ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "inputrad" ]
+                    [ Dato.Januar
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.Februar
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.Mars
+                        |> lagTilMånedKnapp tilDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.April
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.Mai
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.Juni
+                        |> lagTilMånedKnapp tilDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.Juli
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.August
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.September
+                        |> lagTilMånedKnapp tilDatoInfo
+                    ]
+                , div [ class "inputrad" ]
+                    [ Dato.Oktober
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.November
+                        |> lagTilMånedKnapp tilDatoInfo
+                    , Dato.Desember
+                        |> lagTilMånedKnapp tilDatoInfo
+                    ]
+                ]
+
+        RegistrereTilÅr tilDatoInfo ->
+            div []
+                [ label [] [ text "Skriv inn år" ]
+                , input
+                    [ tilDatoInfo.tilÅr |> value
+                    , tilDatoInfo
+                        |> BrukerOppdatererTilÅr
+                        |> onInput
+                    ]
+                    []
+                , BrukerVilGåTilOppsummering
+                    |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
                 ]
 
         Oppsummering _ ->
@@ -483,7 +815,9 @@ viewBrukerInput (Model { aktivSamtale }) =
         EndrerOppsummering utdanningsskjema ->
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema" ]
-                    [ utdanningsskjema
+                    [ Select.select "Nivå: " (NivåEndret >> SkjemaOppdatert) selectNivåListe
+                        |> Select.toHtml
+                    , utdanningsskjema
                         |> Skjema.studiested
                         |> Input.input { label = "Studiested", msg = SkoleEndret >> SkjemaOppdatert }
                         |> Input.toHtml
@@ -495,23 +829,249 @@ viewBrukerInput (Model { aktivSamtale }) =
                         |> Skjema.beskrivelse
                         |> Input.input { label = "Beskrivelse", msg = BeskrivelseEndret >> SkjemaOppdatert }
                         |> Input.toHtml
-                    , utdanningsskjema
-                        |> Skjema.fradato
-                        |> Input.input { label = "Fra ", msg = FratidEndret >> SkjemaOppdatert }
-                        |> Input.toHtml
-                    , utdanningsskjema
-                        |> Skjema.tildato
-                        |> Input.input { label = "Til ", msg = TiltidEndret >> SkjemaOppdatert }
-                        |> Input.toHtml
-                    , div [ class "inputrad" ]
-                        [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
-                            |> Knapp.toHtml
+                    , Select.select "Måned"
+                        (OppsummeringEndret Skjema.FraMåned)
+                        [ ( "Januar", "Januar" )
+                        , ( "Februar", "Februar" )
+                        , ( "Mars", "Mars" )
+                        , ( "April", "April" )
+                        , ( "Mai", "Mai" )
+                        , ( "Juni", "Juni" )
+                        , ( "Juli", "Juli" )
+                        , ( "August", "August" )
+                        , ( "September", "September" )
+                        , ( "Oktober", "Oktober" )
+                        , ( "November", "November" )
+                        , ( "Desember", "Desember" )
                         ]
+                        |> Select.withSelected (utdanningsskjema |> Skjema.fraDato |> Dato.måned |> Dato.månedTilString)
+                        |> Select.toHtml
+                    , utdanningsskjema
+                        |> Skjema.fraDato
+                        |> Dato.år
+                        |> String.fromInt
+                        |> (\string ->
+                                if string == "0" then
+                                    ""
+
+                                else
+                                    string
+                           )
+                        |> Input.input { label = "År", msg = OppsummeringEndret Skjema.FraÅr }
+                        |> Input.toHtml
+                    , input
+                        [ type_ "checkbox"
+                        , utdanningsskjema
+                            |> Skjema.navarende
+                            |> checked
+                        , OppsummeringBoolEndret Skjema.Navarende
+                            |> onClick
+                        ]
+                        [ text "Nåværende jobb" ]
+                    , if Skjema.navarende utdanningsskjema then
+                        text ""
+
+                      else
+                        div []
+                            [ Select.select "Måned"
+                                (OppsummeringEndret Skjema.TilMåned)
+                                [ ( "Januar", "Januar" )
+                                , ( "Februar", "Februar" )
+                                , ( "Mars", "Mars" )
+                                , ( "April", "April" )
+                                , ( "Mai", "Mai" )
+                                , ( "Juni", "Juni" )
+                                , ( "Juli", "Juli" )
+                                , ( "August", "August" )
+                                , ( "September", "September" )
+                                , ( "Oktober", "Oktober" )
+                                , ( "November", "November" )
+                                , ( "Desember", "Desember" )
+                                ]
+                                |> Select.withSelected
+                                    (utdanningsskjema
+                                        |> Skjema.tilDato
+                                        |> Maybe.withDefault (Skjema.fraDato utdanningsskjema)
+                                        |> Dato.måned
+                                        |> Dato.månedTilString
+                                    )
+                                |> Select.toHtml
+                            , case Skjema.tilDato utdanningsskjema of
+                                Just dato ->
+                                    dato
+                                        |> Dato.år
+                                        |> String.fromInt
+                                        |> (\string ->
+                                                if string == "0" then
+                                                    ""
+
+                                                else
+                                                    string
+                                           )
+                                        |> Input.input { label = "År", msg = OppsummeringEndret Skjema.TilÅr }
+                                        |> Input.toHtml
+
+                                Nothing ->
+                                    text ""
+                            ]
+                    ]
+                , div [ class "inputrad" ]
+                    [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
+                        |> Knapp.toHtml
                     ]
                 ]
 
         LagrerOppsummering _ ->
             text ""
+
+
+lagÅrInputKnapp : String -> String -> Msg -> Html Msg
+lagÅrInputKnapp knappeTekst inputTekst msg =
+    Knapp.knapp msg knappeTekst
+        |> (if inputTekst /= "" && Dato.validerÅr inputTekst then
+                Knapp.withEnabled Knapp.Enabled
+
+            else
+                Knapp.withEnabled Knapp.Disabled
+           )
+        |> Knapp.toHtml
+
+
+lagMessageKnapp : String -> Msg -> Html Msg
+lagMessageKnapp knappeTekst msg =
+    Knapp.knapp msg knappeTekst
+        |> Knapp.toHtml
+
+
+lagFraMånedKnapp : FradatoInfo -> Dato.Måned -> Html Msg
+lagFraMånedKnapp fraDatoInfo måned =
+    let
+        msg =
+            { fraDatoInfo | fraMåned = måned }
+                |> BrukerTrykketFraMånedKnapp
+    in
+    måned
+        |> Dato.månedTilString
+        |> Knapp.knapp msg
+        |> Knapp.withClass Knapp.MånedKnapp
+        |> Knapp.toHtml
+
+
+lagTilMånedKnapp : TildatoInfo -> Dato.Måned -> Html Msg
+lagTilMånedKnapp tilDatoInfo måned =
+    let
+        msg =
+            { tilDatoInfo | tilMåned = måned }
+                |> BrukerTrykketTilMånedKnapp
+    in
+    måned
+        |> Dato.månedTilString
+        |> Knapp.knapp msg
+        |> Knapp.withClass Knapp.MånedKnapp
+        |> Knapp.toHtml
+
+
+lagDatoInputBoks : Skjema.UtdanningSkjema -> Html Msg
+lagDatoInputBoks utdanningskjema =
+    div []
+        [ Select.select "Måned"
+            (OppsummeringEndret Skjema.FraMåned)
+            [ ( "Januar", "Januar" )
+            , ( "Februar", "Februar" )
+            , ( "Mars", "Mars" )
+            , ( "April", "April" )
+            , ( "Mai", "Mai" )
+            , ( "Juni", "Juni" )
+            , ( "Juli", "Juli" )
+            , ( "August", "August" )
+            , ( "September", "September" )
+            , ( "Oktober", "Oktober" )
+            , ( "November", "November" )
+            , ( "Desember", "Desember" )
+            ]
+            |> Select.withSelected (utdanningskjema |> Skjema.fraDato |> Dato.måned |> Dato.månedTilString)
+            |> Select.toHtml
+        , utdanningskjema
+            |> Skjema.fraDato
+            |> Dato.år
+            |> String.fromInt
+            |> (\string ->
+                    if string == "0" then
+                        ""
+
+                    else
+                        string
+               )
+            |> Input.input { label = "År", msg = OppsummeringEndret Skjema.FraÅr }
+            |> Input.toHtml
+        , input
+            [ type_ "checkbox"
+            , utdanningskjema
+                |> Skjema.navarende
+                |> checked
+            , OppsummeringBoolEndret Skjema.Navarende
+                |> onClick
+            ]
+            [ text "Nåværende jobb" ]
+        , if Skjema.navarende utdanningskjema then
+            text ""
+
+          else
+            div []
+                [ Select.select "Måned"
+                    (OppsummeringEndret Skjema.TilMåned)
+                    [ ( "Januar", "Januar" )
+                    , ( "Februar", "Februar" )
+                    , ( "Mars", "Mars" )
+                    , ( "April", "April" )
+                    , ( "Mai", "Mai" )
+                    , ( "Juni", "Juni" )
+                    , ( "Juli", "Juli" )
+                    , ( "August", "August" )
+                    , ( "September", "September" )
+                    , ( "Oktober", "Oktober" )
+                    , ( "November", "November" )
+                    , ( "Desember", "Desember" )
+                    ]
+                    |> Select.withSelected
+                        (utdanningskjema
+                            |> Skjema.tilDato
+                            |> Maybe.withDefault (Skjema.fraDato utdanningskjema)
+                            |> Dato.måned
+                            |> Dato.månedTilString
+                        )
+                    |> Select.toHtml
+                , case Skjema.tilDato utdanningskjema of
+                    Just dato ->
+                        dato
+                            |> Dato.år
+                            |> String.fromInt
+                            |> (\string ->
+                                    if string == "0" then
+                                        ""
+
+                                    else
+                                        string
+                               )
+                            |> Input.input { label = "År", msg = OppsummeringEndret Skjema.TilÅr }
+                            |> Input.toHtml
+
+                    Nothing ->
+                        text ""
+                ]
+        ]
+
+
+selectNivåListe : List ( String, String )
+selectNivåListe =
+    [ ( "Grunnskole", "Grunnskole" )
+    , ( "VideregåendeYrkesskole", "Videregående/Yrkesskole" )
+    , ( "Fagskole", "Fagskole" )
+    , ( "Folkehøyskole", "Folkehøyskole" )
+    , ( "HøyereUtdanning1til4", "Høyere Utdanning (1-4 år)" )
+    , ( "HøyereUtdanning4pluss", "Høyere Utdanning (mer enn 4 år)" )
+    , ( "Phd", "PhD" )
+    ]
 
 
 init : MeldingsLogg -> List Utdanning -> Model
