@@ -6,13 +6,14 @@ import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (..)
 import Http
 import Melding exposing (Melding(..))
-import MeldingsLogg exposing (MeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Personalia exposing (Personalia)
+import Process
 import SamtaleAnimasjon
 import Skjema.Personalia exposing (PersonaliaSkjema)
+import Task
 
 
 
@@ -32,11 +33,12 @@ type Samtale
     | EndreOriginal PersonaliaSkjema
     | LagrerEndring PersonaliaSkjema
     | LagringFeilet Http.Error PersonaliaSkjema
+    | VenterPåAnimasjonFørFullføring Personalia
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig Personalia MeldingsLogg
+    | Ferdig Personalia FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -55,23 +57,32 @@ type Msg
     | PersonaliaskjemaLagreknappTrykket
     | PersonaliaOppdatert (Result Http.Error Personalia)
     | ViewportSatt (Result Dom.Error ())
+    | StartÅSkrive
+    | FullførMelding
 
 
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         OriginalPersonaliaBekreftet ->
-            model.seksjonsMeldingsLogg
-                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Bekreft" ])
-                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Så bra! Da ruller vi videre!" ] ]
-                |> Ferdig model.personalia
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Bekreft" ])
+                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Så bra! Da ruller vi videre!" ] ]
+                    , aktivSamtale = VenterPåAnimasjonFørFullføring model.personalia
+                }
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
 
         BrukerVilEndreOriginalPersonalia ->
             ( model.personalia
                 |> Skjema.Personalia.init
                 |> EndreOriginal
                 |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
-            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
@@ -109,9 +120,12 @@ update msg (Model model) =
                                     ++ Skjema.Personalia.poststed skjema
                                 ]
                             )
-                    , model.personalia
-                        |> Personalia.id
-                        |> Api.oppdaterPersonalia PersonaliaOppdatert skjema
+                    , Cmd.batch
+                        [ model.personalia
+                            |> Personalia.id
+                            |> Api.oppdaterPersonalia PersonaliaOppdatert skjema
+                        , lagtTilSpørsmålCmd
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -124,12 +138,12 @@ update msg (Model model) =
                 LagrerEndring skjema ->
                     case result of
                         Ok personalia ->
-                            Ferdig personalia model.seksjonsMeldingsLogg
+                            fullførSeksjonHvisMeldingsloggErFerdig model personalia
 
                         Err error ->
                             ( LagringFeilet error skjema
                                 |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ])
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
@@ -140,6 +154,74 @@ update msg (Model model) =
         ViewportSatt result ->
             ( Model model, Cmd.none )
                 |> IkkeFerdig
+
+        StartÅSkrive ->
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
+                }
+            , Cmd.batch
+                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                , Process.sleep 1000
+                    |> Task.perform (\_ -> FullførMelding)
+                ]
+            )
+                |> IkkeFerdig
+
+        FullførMelding ->
+            model.seksjonsMeldingsLogg
+                |> MeldingsLogg.fullførMelding
+                |> updateEtterFullførtMelding model
+
+
+updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
+updateEtterFullførtMelding model nyMeldingsLogg =
+    case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
+        FerdigAnimert ferdigAnimertSamtale ->
+            case model.aktivSamtale of
+                VenterPåAnimasjonFørFullføring personalia ->
+                    Ferdig personalia ferdigAnimertSamtale
+
+                _ ->
+                    ( Model
+                        { model
+                            | seksjonsMeldingsLogg =
+                                nyMeldingsLogg
+                        }
+                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    )
+                        |> IkkeFerdig
+
+        MeldingerGjenstår ->
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        nyMeldingsLogg
+                }
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
+
+
+fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> Personalia -> SamtaleStatus
+fullførSeksjonHvisMeldingsloggErFerdig modelInfo personalia =
+    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
+        FerdigAnimert ferdigAnimertMeldingsLogg ->
+            Ferdig personalia ferdigAnimertMeldingsLogg
+
+        MeldingerGjenstår ->
+            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring personalia }, Cmd.none )
+                |> IkkeFerdig
+
+
+lagtTilSpørsmålCmd : Cmd Msg
+lagtTilSpørsmålCmd =
+    Cmd.batch
+        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+        , Process.sleep 200
+            |> Task.perform (\_ -> StartÅSkrive)
+        ]
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -201,70 +283,81 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                 [ "Oops.. Noe gikk galt!" ]
             ]
 
+        VenterPåAnimasjonFørFullføring _ ->
+            []
+
 
 
 --- VIEW ---
 
 
 viewBrukerInput : Model -> Html Msg
-viewBrukerInput (Model { aktivSamtale }) =
-    case aktivSamtale of
-        BekreftOriginal personalia ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    [ Knapp.knapp BrukerVilEndreOriginalPersonalia "Endre"
-                        |> Knapp.toHtml
-                    , Knapp.knapp OriginalPersonaliaBekreftet "Bekreft"
-                        |> Knapp.toHtml
-                    ]
-                ]
+viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
+    case MeldingsLogg.ferdigAnimert seksjonsMeldingsLogg of
+        FerdigAnimert _ ->
+            case aktivSamtale of
+                BekreftOriginal personalia ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ Knapp.knapp BrukerVilEndreOriginalPersonalia "Endre"
+                                |> Knapp.toHtml
+                            , Knapp.knapp OriginalPersonaliaBekreftet "Bekreft"
+                                |> Knapp.toHtml
+                            ]
+                        ]
 
-        EndreOriginal personaliaSkjema ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ personaliaSkjema
-                        |> Skjema.Personalia.fornavn
-                        |> Input.input { label = "Fornavn", msg = PersonaliaSkjemaEndret Skjema.Personalia.Fornavn }
-                        |> Input.toHtml
-                    , personaliaSkjema
-                        |> Skjema.Personalia.etternavn
-                        |> Input.input { label = "Etternavn", msg = PersonaliaSkjemaEndret Skjema.Personalia.Etternavn }
-                        |> Input.toHtml
-                    , personaliaSkjema
-                        |> Skjema.Personalia.fodselsdato
-                        |> Input.input { label = "Fødselsdato", msg = PersonaliaSkjemaEndret Skjema.Personalia.Fodelsdato }
-                        |> Input.toHtml
-                    , personaliaSkjema
-                        |> Skjema.Personalia.epost
-                        |> Input.input { label = "Epost", msg = PersonaliaSkjemaEndret Skjema.Personalia.Epost }
-                        |> Input.toHtml
-                    , personaliaSkjema
-                        |> Skjema.Personalia.telefon
-                        |> Input.input { label = "Telefon", msg = PersonaliaSkjemaEndret Skjema.Personalia.Telefon }
-                        |> Input.toHtml
-                    , personaliaSkjema
-                        |> Skjema.Personalia.gateadresse
-                        |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Personalia.Gateadresse }
-                        |> Input.toHtml
-                    , personaliaSkjema
-                        |> Skjema.Personalia.postnummer
-                        |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Personalia.Postnummer }
-                        |> Input.toHtml
-                    , personaliaSkjema
-                        |> Skjema.Personalia.poststed
-                        |> Input.input { label = "Poststed", msg = PersonaliaSkjemaEndret Skjema.Personalia.Poststed }
-                        |> Input.toHtml
-                    ]
-                , div [ class "inputrad" ]
-                    [ Knapp.knapp PersonaliaskjemaLagreknappTrykket "Lagre"
-                        |> Knapp.toHtml
-                    ]
-                ]
+                EndreOriginal personaliaSkjema ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ personaliaSkjema
+                                |> Skjema.Personalia.fornavn
+                                |> Input.input { label = "Fornavn", msg = PersonaliaSkjemaEndret Skjema.Personalia.Fornavn }
+                                |> Input.toHtml
+                            , personaliaSkjema
+                                |> Skjema.Personalia.etternavn
+                                |> Input.input { label = "Etternavn", msg = PersonaliaSkjemaEndret Skjema.Personalia.Etternavn }
+                                |> Input.toHtml
+                            , personaliaSkjema
+                                |> Skjema.Personalia.fodselsdato
+                                |> Input.input { label = "Fødselsdato", msg = PersonaliaSkjemaEndret Skjema.Personalia.Fodelsdato }
+                                |> Input.toHtml
+                            , personaliaSkjema
+                                |> Skjema.Personalia.epost
+                                |> Input.input { label = "Epost", msg = PersonaliaSkjemaEndret Skjema.Personalia.Epost }
+                                |> Input.toHtml
+                            , personaliaSkjema
+                                |> Skjema.Personalia.telefon
+                                |> Input.input { label = "Telefon", msg = PersonaliaSkjemaEndret Skjema.Personalia.Telefon }
+                                |> Input.toHtml
+                            , personaliaSkjema
+                                |> Skjema.Personalia.gateadresse
+                                |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Personalia.Gateadresse }
+                                |> Input.toHtml
+                            , personaliaSkjema
+                                |> Skjema.Personalia.postnummer
+                                |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Personalia.Postnummer }
+                                |> Input.toHtml
+                            , personaliaSkjema
+                                |> Skjema.Personalia.poststed
+                                |> Input.input { label = "Poststed", msg = PersonaliaSkjemaEndret Skjema.Personalia.Poststed }
+                                |> Input.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp PersonaliaskjemaLagreknappTrykket "Lagre"
+                                |> Knapp.toHtml
+                            ]
+                        ]
 
-        LagrerEndring personaliaSkjema ->
-            text ""
+                LagrerEndring personaliaSkjema ->
+                    text ""
 
-        LagringFeilet error personaliaSkjema ->
+                LagringFeilet error personaliaSkjema ->
+                    text ""
+
+                VenterPåAnimasjonFørFullføring _ ->
+                    text ""
+
+        MeldingerGjenstår ->
             text ""
 
 
@@ -272,13 +365,13 @@ viewBrukerInput (Model { aktivSamtale }) =
 --- INIT ---
 
 
-init : Personalia -> MeldingsLogg -> Model
+init : Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
 init personalia gammelMeldingsLogg =
     let
         aktivSamtale =
             BekreftOriginal personalia
     in
-    Model
+    ( Model
         { seksjonsMeldingsLogg =
             MeldingsLogg.leggTilSpørsmål
                 (samtaleTilMeldingsLogg aktivSamtale)
@@ -286,3 +379,5 @@ init personalia gammelMeldingsLogg =
         , aktivSamtale = aktivSamtale
         , personalia = personalia
         }
+    , lagtTilSpørsmålCmd
+    )
