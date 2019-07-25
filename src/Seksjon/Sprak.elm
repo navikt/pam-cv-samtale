@@ -42,6 +42,7 @@ type Samtale
     | LeggTilFerdighetMuntlig String
     | LeggTilFerdighetSkriftlig SpråkMedMuntlig
     | LagrerAndre EnkeltSpråk SpråkSkjema
+    | SpråkkodeneFeilet Http.Error
     | LagringFeilet EnkeltSpråk Http.Error SpråkSkjema
 
 
@@ -51,7 +52,7 @@ type SamtaleStatus
 
 
 type RemoteDataSpråkKoder
-    = Loading
+    = Loading (Cmd Msg)
     | Success (List Sprakkoder)
     | Failure Http.Error
 
@@ -80,16 +81,6 @@ type Ferdighet
     | Morsmål
 
 
-
-{--
-        IKKE_OPPGITT("Ikke oppgitt"),
-        NYBEGYNNER("Nybegynner"),
-        GODT("Godt"),
-        VELDIG_GODT("Veldig godt"),
-        FOERSTESPRAAK("Førstespråk (morsmål)");
---}
-
-
 ferdighetTilString : Ferdighet -> String
 ferdighetTilString ferdighet =
     case ferdighet of
@@ -106,9 +97,18 @@ ferdighetTilString ferdighet =
             "FOERSTESPRAAK"
 
 
+norsk =
+    EnkeltSpråk "Norsk" Morsmål Morsmål
+
+
 meldingsLogg : Model -> MeldingsLogg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
+
+
+innlagteSpråk : Model -> SpråkListe
+innlagteSpråk (Model info) =
+    info.språk
 
 
 
@@ -132,10 +132,7 @@ type Msg
     | ErrorLogget (Result Http.Error ())
     | SpråkkoderHentet (Result Http.Error (List Sprakkoder))
     | SendSkjemaPåNytt SpråkSkjema Model
-
-
-norsk =
-    EnkeltSpråk "Norsk" Morsmål Morsmål
+    | BrukerVilHenteSpråkPåNytt
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -260,13 +257,13 @@ update msg (Model model) =
                 Ok value ->
                     case model.aktivSamtale of
                         LagrerNorsk enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg { model | språk = value } (Melding.svar [ "Norsk lagret" ]) LeggTilEngelsk
+                            ( nesteSamtaleSteg { model | språk = value } (Melding.spørsmål [ "Da legger jeg til norsk" ]) LeggTilEngelsk
                             , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                             )
                                 |> IkkeFerdig
 
                         LagrerAndre enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg { model | språk = value } (Melding.svar [ "Andre Språk lagret" ]) (LeggTilFlereSpråk enkeltSpråk (Model model))
+                            ( nesteSamtaleSteg { model | språk = value } (Melding.spørsmål [ "Supert! Da har jeg lagt til" ++ String.toLower enkeltSpråk.språkNavn ]) (LeggTilFlereSpråk enkeltSpråk (Model model))
                             , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                             )
                                 |> IkkeFerdig
@@ -286,13 +283,13 @@ update msg (Model model) =
                 Err error ->
                     case model.aktivSamtale of
                         LagrerNorsk enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til" ]) (LagringFeilet enkeltSpråk error språkSkjema)
+                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til norsk" ]) (LagringFeilet enkeltSpråk error språkSkjema)
                             , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                             )
                                 |> IkkeFerdig
 
                         LagrerAndre enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til" ]) (LagringFeilet enkeltSpråk error språkSkjema)
+                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til" ++ String.toLower enkeltSpråk.språkNavn ]) (LagringFeilet enkeltSpråk error språkSkjema)
                             , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                             )
                                 |> IkkeFerdig
@@ -318,7 +315,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 Err error ->
-                    ( nesteSamtaleSteg model (Melding.spørsmål [ "Oops! Noe gikk galt, la oss prøve igjen..." ]) (IntroLeggTilNorsk model.språk)
+                    ( nesteSamtaleSteg model (Melding.spørsmål [ "Oops! Noe gikk galt...", "Vil du prøve på nytt eller avslutte og gå videre?", "Prøv gjerne igjen senere." ]) (SpråkkodeneFeilet error)
                     , Cmd.batch
                         [ logFeilmelding error "Språkkoder Hentet"
                         , SamtaleAnimasjon.scrollTilBunn ViewportSatt
@@ -328,8 +325,8 @@ update msg (Model model) =
 
         ValgtSpråk valgtSpråk ->
             case model.språkKoder of
-                Loading ->
-                    ( Model model, Cmd.none ) |> IkkeFerdig
+                Loading cmd ->
+                    ( Model model, cmd ) |> IkkeFerdig
 
                 Success list ->
                     ( Model { model | aktivSamtale = VelgNyttSpråk (List.find (\sprakkode -> valgtSpråk == Sprakkoder.kode sprakkode) list) }
@@ -360,20 +357,8 @@ update msg (Model model) =
         SendSkjemaPåNytt språkSkjema nyModel ->
             ( nyModel, leggTilSpråkAPI språkSkjema ) |> IkkeFerdig
 
-
-loadSpråkkoder : ModelInfo -> Model
-loadSpråkkoder model =
-    case model.språkKoder of
-        Success list ->
-            Model
-                { seksjonsMeldingsLogg = model.seksjonsMeldingsLogg
-                , aktivSamtale = model.aktivSamtale
-                , språk = model.språk
-                , språkKoder = Success list
-                }
-
-        _ ->
-            loadSpråkkoder model
+        BrukerVilHenteSpråkPåNytt ->
+            ( Model model, hentSpråkkoder ) |> IkkeFerdig
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
@@ -381,11 +366,6 @@ logFeilmelding error operasjon =
     Feilmelding.feilmelding operasjon error
         |> Maybe.map (Api.logError ErrorLogget)
         |> Maybe.withDefault Cmd.none
-
-
-leggTilSpråk : ModelInfo -> SpråkListe -> ModelInfo
-leggTilSpråk info liste =
-    { info | språk = info.språk ++ liste }
 
 
 leggTilSpråkAPI : SpråkSkjema -> Cmd Msg
@@ -398,6 +378,24 @@ hentSpråkkoder =
     Api.hentSpråkkoder SpråkkoderHentet
 
 
+listOppSpråkFraSpråkliste : SpråkListe -> String
+listOppSpråkFraSpråkliste språkListe =
+    String.concat
+        (List.map
+            (\el ->
+                if List.elemIndex el språkListe == Just 0 then
+                    Spraakferdighet.sprak el |> Maybe.withDefault ""
+
+                else if List.elemIndex el språkListe == Just (List.length språkListe - 1) then
+                    String.concat [ " og ", String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "") ]
+
+                else
+                    String.concat [ ", ", String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "") ]
+            )
+            språkListe
+        )
+
+
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg språkSeksjon =
     case språkSeksjon of
@@ -408,9 +406,10 @@ samtaleTilMeldingsLogg språkSeksjon =
                 ]
 
             else
-                [ Melding.spørsmål
+                [ Melding.spørsmål [ "Nå skal vi legge til språk." ]
+                , Melding.spørsmål
                     [ "Jeg ser at du har lagt inn disse språkene allerede:"
-                    , String.concat (List.map (\el -> " " ++ (Spraakferdighet.sprak el |> Maybe.withDefault "")) språkListe)
+                    , listOppSpråkFraSpråkliste språkListe
                     ]
                 , Melding.spørsmål [ "Vil du legge til flere?" ]
                 ]
@@ -421,23 +420,31 @@ samtaleTilMeldingsLogg språkSeksjon =
 
         LeggTilFlereSpråk enkeltSpråk model ->
             [ Melding.spørsmål
-                [ "Supert! Da har du lagt inn "
-                    ++ String.concat (List.map (\el -> String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "") ++ ", ") (innlagteSpråk model) ++ [ "og ", enkeltSpråk.språkNavn ])
+                [ "Da har du lagt inn "
+                    ++ String.concat
+                        (List.map
+                            (\el ->
+                                String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "")
+                                    ++ ", "
+                            )
+                            (innlagteSpråk model)
+                            ++ [ "og ", String.toLower enkeltSpråk.språkNavn ]
+                        )
                 , "Kan du flere språk?"
                 ]
             ]
 
         LeggTilFerdighetSkriftlig enkeltSpråk ->
-            [ Melding.spørsmål [ "Hvor godt skriver du " ++ enkeltSpråk.språkNavn ++ "?" ] ]
+            [ Melding.spørsmål [ "Hvor godt skriver du " ++ String.toLower enkeltSpråk.språkNavn ++ "?" ] ]
 
         LeggTilFerdighetMuntlig enkeltSpråk ->
-            [ Melding.spørsmål [ "Hvor godt snakker du " ++ enkeltSpråk ++ "?" ] ]
+            [ Melding.spørsmål [ "Hvor godt snakker du " ++ String.toLower enkeltSpråk ++ "?" ] ]
+
+        LagringFeilet enkeltSpråk error språkSkjema ->
+            [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre " ++ String.toLower enkeltSpråk.språkNavn ++ ".", "Vil du prøve på nytt?" ] ]
 
         VelgNyttSpråk _ ->
             []
-
-        LagringFeilet enkeltSpråk error språkSkjema ->
-            [ Melding.spørsmål [ "Oops... Noe gikk galt!", "Vil du prøve på nytt?" ] ]
 
         LagrerNorsk enkeltSpråk språkSkjema ->
             []
@@ -445,10 +452,8 @@ samtaleTilMeldingsLogg språkSeksjon =
         LagrerAndre enkeltSpråk språkSkjema ->
             []
 
-
-innlagteSpråk : Model -> SpråkListe
-innlagteSpråk (Model info) =
-    info.språk
+        SpråkkodeneFeilet error ->
+            []
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -459,6 +464,17 @@ nesteSamtaleSteg model melding samtaleSeksjon =
             , seksjonsMeldingsLogg =
                 model.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSvar melding
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+        }
+
+
+nesteSamtaleStegUtenMelding : ModelInfo -> Samtale -> Model
+nesteSamtaleStegUtenMelding model samtaleSeksjon =
+    Model
+        { model
+            | aktivSamtale = samtaleSeksjon
+            , seksjonsMeldingsLogg =
+                model.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
         }
 
@@ -561,7 +577,7 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
-                Loading ->
+                Loading _ ->
                     div [ class "inputrad" ]
                         [ div [ class "inputrad-innhold" ]
                             [ text "Loading..." ]
@@ -589,6 +605,16 @@ viewBrukerInput (Model model) =
         LagrerAndre enkeltSpråk språkskjema ->
             text ""
 
+        SpråkkodeneFeilet error ->
+            div [ class "inputrad" ]
+                [ div [ class "inputrad-innhold" ]
+                    [ Knapp.knapp BrukerVilHenteSpråkPåNytt "Ja, prøv på nytt"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, avslutt og gå videre"
+                        |> Knapp.toHtml
+                    ]
+                ]
+
 
 
 -- INIT --
@@ -605,5 +631,5 @@ init gammelMeldingsLogg språkFerdighet =
             MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) gammelMeldingsLogg
         , aktivSamtale = aktivSamtale
         , språk = språkFerdighet
-        , språkKoder = Loading
+        , språkKoder = Loading hentSpråkkoder
         }
