@@ -503,6 +503,24 @@ språkFerdig model meldingsLogg =
 
 
 
+-- TODO: bruk denne for å gå til språk
+
+
+gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSpråk model ferdigAnimertMeldingsLogg =
+    let
+        ( språkModel, språkCmd ) =
+            Seksjon.Sprak.init ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = SpråkSeksjon språkModel
+        }
+    , Cmd.map (SpråkMsg >> SuccessMsg) språkCmd
+    )
+
+
+
 --- VIEW ---
 
 

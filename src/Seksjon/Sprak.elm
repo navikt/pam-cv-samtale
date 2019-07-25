@@ -15,10 +15,12 @@ import Html.Events exposing (..)
 import Http
 import List.Extra as List
 import Melding exposing (Melding(..))
-import MeldingsLogg exposing (MeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Process
 import SamtaleAnimasjon
 import Skjema.Sprak as SpråkSkjema exposing (SpråkSkjema)
 import Sprakkoder exposing (Sprakkoder)
+import Task
 
 
 type Model
@@ -133,6 +135,8 @@ type Msg
     | SpråkkoderHentet (Result Http.Error (List Sprakkoder))
     | SendSkjemaPåNytt SpråkSkjema Model
     | BrukerVilHenteSpråkPåNytt
+    | StartÅSkrive
+    | FullførMelding
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -144,8 +148,10 @@ update msg (Model model) =
                     SpråkSkjema.init "Norsk" "FOERSTESPRAAK" "FOERSTESPRAAK"
             in
             ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerNorsk norsk skjema)
-            , skjema
-                |> leggTilSpråkAPI
+            , Cmd.batch
+                [ leggTilSpråkAPI skjema
+                , lagtTilSpørsmålCmd
+                ]
             )
                 |> IkkeFerdig
 
@@ -257,13 +263,13 @@ update msg (Model model) =
                 Ok value ->
                     case model.aktivSamtale of
                         LagrerNorsk enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg { model | språk = value } (Melding.spørsmål [ "Da legger jeg til norsk" ]) LeggTilEngelsk
+                            ( nesteSamtaleStegUtenMelding { model | språk = value } LeggTilEngelsk
                             , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                             )
                                 |> IkkeFerdig
 
                         LagrerAndre enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg { model | språk = value } (Melding.spørsmål [ "Supert! Da har jeg lagt til" ++ String.toLower enkeltSpråk.språkNavn ]) (LeggTilFlereSpråk enkeltSpråk (Model model))
+                            ( nesteSamtaleStegUtenMelding { model | språk = value } (LeggTilFlereSpråk enkeltSpråk (Model model))
                             , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                             )
                                 |> IkkeFerdig
@@ -309,13 +315,13 @@ update msg (Model model) =
         SpråkkoderHentet result ->
             case result of
                 Ok koder ->
-                    ( nesteSamtaleSteg { model | språkKoder = Success koder } (Melding.spørsmål [ "Hvilket språk vil du legge til?" ]) (VelgNyttSpråk Nothing)
+                    ( Model { model | språkKoder = Success koder }
                     , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                     )
                         |> IkkeFerdig
 
                 Err error ->
-                    ( nesteSamtaleSteg model (Melding.spørsmål [ "Oops! Noe gikk galt...", "Vil du prøve på nytt eller avslutte og gå videre?", "Prøv gjerne igjen senere." ]) (SpråkkodeneFeilet error)
+                    ( nesteSamtaleStegUtenMelding model (SpråkkodeneFeilet error)
                     , Cmd.batch
                         [ logFeilmelding error "Språkkoder Hentet"
                         , SamtaleAnimasjon.scrollTilBunn ViewportSatt
@@ -359,6 +365,65 @@ update msg (Model model) =
 
         BrukerVilHenteSpråkPåNytt ->
             ( Model model, hentSpråkkoder ) |> IkkeFerdig
+
+        StartÅSkrive ->
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
+                }
+            , Cmd.batch
+                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                , Process.sleep 1000
+                    |> Task.perform (\_ -> FullførMelding)
+                ]
+            )
+                |> IkkeFerdig
+
+        FullførMelding ->
+            model.seksjonsMeldingsLogg
+                |> MeldingsLogg.fullførMelding
+                |> updateEtterFullførtMelding model
+
+
+updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
+updateEtterFullførtMelding model nyMeldingsLogg =
+    {--
+    case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
+        FerdigAnimert ferdigAnimertSamtale ->
+            case model.aktivSamtale of
+                VenterPåAnimasjonFørFullføring personalia ->
+                    Ferdig personalia ferdigAnimertSamtale
+
+                _ ->
+                    ( Model
+                        { model
+                            | seksjonsMeldingsLogg =
+                                nyMeldingsLogg
+                        }
+                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    )
+                        |> IkkeFerdig
+
+        MeldingerGjenstår ->
+-}
+    ( Model
+        { model
+            | seksjonsMeldingsLogg =
+                nyMeldingsLogg
+        }
+    , lagtTilSpørsmålCmd
+    )
+        |> IkkeFerdig
+
+
+lagtTilSpørsmålCmd : Cmd Msg
+lagtTilSpørsmålCmd =
+    Cmd.batch
+        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+        , Process.sleep 200
+            |> Task.perform (\_ -> StartÅSkrive)
+        ]
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
@@ -420,16 +485,8 @@ samtaleTilMeldingsLogg språkSeksjon =
 
         LeggTilFlereSpråk enkeltSpråk model ->
             [ Melding.spørsmål
-                [ "Da har du lagt inn "
-                    ++ String.concat
-                        (List.map
-                            (\el ->
-                                String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "")
-                                    ++ ", "
-                            )
-                            (innlagteSpråk model)
-                            ++ [ "og ", String.toLower enkeltSpråk.språkNavn ]
-                        )
+                [ "Supert! Da har jeg lagt til " ++ String.toLower enkeltSpråk.språkNavn ++ "."
+                , duHarNåLagtInnTilString enkeltSpråk model
                 , "Kan du flere språk?"
                 ]
             ]
@@ -444,7 +501,7 @@ samtaleTilMeldingsLogg språkSeksjon =
             [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre " ++ String.toLower enkeltSpråk.språkNavn ++ ".", "Vil du prøve på nytt?" ] ]
 
         VelgNyttSpråk _ ->
-            []
+            [ Melding.spørsmål [ "Hvilket språk vil du legge til?" ] ]
 
         LagrerNorsk enkeltSpråk språkSkjema ->
             []
@@ -453,7 +510,7 @@ samtaleTilMeldingsLogg språkSeksjon =
             []
 
         SpråkkodeneFeilet error ->
-            []
+            [ Melding.spørsmål [ "Oops! Noe gikk galt...", "Vil du prøve på nytt eller avslutte og gå videre?", "Prøv gjerne igjen senere." ] ]
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -479,157 +536,183 @@ nesteSamtaleStegUtenMelding model samtaleSeksjon =
         }
 
 
+duHarNåLagtInnTilString : EnkeltSpråk -> Model -> String
+duHarNåLagtInnTilString enkeltSpråk model =
+    "Du har nå lagt inn "
+        ++ String.concat
+            (List.map
+                (\el ->
+                    String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "")
+                        ++ (if List.elemIndex el (innlagteSpråk model) == Just (List.length (innlagteSpråk model) - 1) then
+                                " "
+
+                            else
+                                ", "
+                           )
+                )
+                (innlagteSpråk model)
+                ++ [ "og ", String.toLower enkeltSpråk.språkNavn ]
+            )
+
+
 
 -- VIEW --
 
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case model.aktivSamtale of
-        IntroLeggTilNorsk språkListe ->
-            if List.isEmpty språkListe then
-                div [ class "inputrad" ]
-                    [ div [ class "inputrad-innhold" ]
-                        [ Knapp.knapp NorskErMorsmål "Ja"
-                            |> Knapp.toHtml
-                        , Knapp.knapp NorskErIkkeMorsmål "Nei"
-                            |> Knapp.toHtml
-                        ]
-                    ]
-
-            else
-                div [ class "inputrad" ]
-                    [ div [ class "inputrad-innhold" ]
-                        [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
-                    ]
-
-        LeggTilEngelsk ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    [ Knapp.knapp BrukerKanEngelsk "Ja"
-                        |> Knapp.toHtml
-                    , Knapp.knapp BrukerKanIkkeEngelsk "Nei"
-                        |> Knapp.toHtml
-                    ]
-                ]
-
-        LeggTilFlereSpråk enkeltSpråk språkListe ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                        |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                        |> Knapp.toHtml
-                    ]
-                ]
-
-        LeggTilFerdighetSkriftlig enkeltSpråk ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    [ div [ class "skjema" ]
-                        [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Nybegynner)) "Jeg er nybegynner"
-                            |> Knapp.toHtml
-                        , Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Godt)) ("Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn)
-                            |> Knapp.toHtml
-                        , Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig VeldigGodt)) ("Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn)
-                            |> Knapp.toHtml
-                        ]
-                    ]
-                ]
-
-        LeggTilFerdighetMuntlig enkeltSpråk ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    [ div [ class "skjema" ]
-                        [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Nybegynner)) "Jeg er nybegynner"
-                            |> Knapp.toHtml
-                        , Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Godt)) ("Jeg snakker godt " ++ String.toLower enkeltSpråk)
-                            |> Knapp.toHtml
-                        , Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk VeldigGodt)) ("Jeg snakker veldig godt " ++ String.toLower enkeltSpråk)
-                            |> Knapp.toHtml
-                        ]
-                    ]
-                ]
-
-        VelgNyttSpråk valgtSpråk ->
-            case model.språkKoder of
-                Success list ->
-                    div []
-                        [ div [ class "inputrad" ]
+    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
+        FerdigAnimert _ ->
+            case model.aktivSamtale of
+                IntroLeggTilNorsk språkListe ->
+                    if List.isEmpty språkListe then
+                        div [ class "inputrad" ]
                             [ div [ class "inputrad-innhold" ]
-                                [ Select.select "Språk" ValgtSpråk (( "Velg språk", "Velg språk" ) :: List.map (\el -> ( Sprakkoder.kode el, Sprakkoder.term el )) list) |> Select.toHtml
+                                [ Knapp.knapp NorskErMorsmål "Ja"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp NorskErIkkeMorsmål "Nei"
+                                    |> Knapp.toHtml
                                 ]
                             ]
-                        , div [ class "inputrad" ]
-                            [ Knapp.knapp BrukerHarValgtSpråk "Legg til"
-                                |> Knapp.withEnabled
-                                    (if valgtSpråk /= Nothing then
-                                        Knapp.Enabled
 
-                                     else
-                                        Knapp.Disabled
-                                    )
+                    else
+                        div [ class "inputrad" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                    |> Knapp.toHtml
+                                ]
+                            ]
+
+                LeggTilEngelsk ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ Knapp.knapp BrukerKanEngelsk "Ja"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerKanIkkeEngelsk "Nei"
                                 |> Knapp.toHtml
                             ]
                         ]
 
-                Loading _ ->
+                LeggTilFlereSpråk enkeltSpråk språkListe ->
                     div [ class "inputrad" ]
                         [ div [ class "inputrad-innhold" ]
-                            [ text "Loading..." ]
+                            [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.toHtml
+                            ]
                         ]
 
-                Failure error ->
+                LeggTilFerdighetSkriftlig enkeltSpråk ->
                     div [ class "inputrad" ]
                         [ div [ class "inputrad-innhold" ]
-                            [ text "Noe gikk galt..." ]
+                            [ div [ class "skjema" ]
+                                [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Nybegynner)) "Jeg er nybegynner"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Godt)) ("Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                    |> Knapp.toHtml
+                                , Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig VeldigGodt)) ("Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                    |> Knapp.toHtml
+                                ]
+                            ]
                         ]
 
-        LagringFeilet enkeltSpråk error failedSpråkSkjema ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    [ Knapp.knapp (SendSkjemaPåNytt failedSpråkSkjema (Model model)) "Ja, prøv på nytt"
-                        |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                        |> Knapp.toHtml
-                    ]
-                ]
+                LeggTilFerdighetMuntlig enkeltSpråk ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ div [ class "skjema" ]
+                                [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Nybegynner)) "Jeg er nybegynner"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Godt)) ("Jeg snakker godt " ++ String.toLower enkeltSpråk)
+                                    |> Knapp.toHtml
+                                , Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk VeldigGodt)) ("Jeg snakker veldig godt " ++ String.toLower enkeltSpråk)
+                                    |> Knapp.toHtml
+                                ]
+                            ]
+                        ]
 
-        LagrerNorsk enkeltSpråk språkSkjema ->
+                VelgNyttSpråk valgtSpråk ->
+                    case model.språkKoder of
+                        Success list ->
+                            div []
+                                [ div [ class "inputrad" ]
+                                    [ div [ class "inputrad-innhold" ]
+                                        [ Select.select "Språk" ValgtSpråk (( "Velg språk", "Velg språk" ) :: List.map (\el -> ( Sprakkoder.kode el, Sprakkoder.term el )) list) |> Select.toHtml
+                                        ]
+                                    ]
+                                , div [ class "inputrad" ]
+                                    [ Knapp.knapp BrukerHarValgtSpråk "Legg til"
+                                        |> Knapp.withEnabled
+                                            (if valgtSpråk /= Nothing then
+                                                Knapp.Enabled
+
+                                             else
+                                                Knapp.Disabled
+                                            )
+                                        |> Knapp.toHtml
+                                    ]
+                                ]
+
+                        Loading _ ->
+                            div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ text "Loading..." ]
+                                ]
+
+                        Failure error ->
+                            div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ text "Noe gikk galt..." ]
+                                ]
+
+                LagringFeilet enkeltSpråk error failedSpråkSkjema ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ Knapp.knapp (SendSkjemaPåNytt failedSpråkSkjema (Model model)) "Ja, prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.toHtml
+                            ]
+                        ]
+
+                LagrerNorsk enkeltSpråk språkSkjema ->
+                    text ""
+
+                LagrerAndre enkeltSpråk språkskjema ->
+                    text ""
+
+                SpråkkodeneFeilet error ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ Knapp.knapp BrukerVilHenteSpråkPåNytt "Ja, prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, avslutt og gå videre"
+                                |> Knapp.toHtml
+                            ]
+                        ]
+
+        MeldingerGjenstår ->
             text ""
-
-        LagrerAndre enkeltSpråk språkskjema ->
-            text ""
-
-        SpråkkodeneFeilet error ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    [ Knapp.knapp BrukerVilHenteSpråkPåNytt "Ja, prøv på nytt"
-                        |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, avslutt og gå videre"
-                        |> Knapp.toHtml
-                    ]
-                ]
 
 
 
 -- INIT --
 
 
-init : MeldingsLogg -> List Spraakferdighet -> Model
+init : FerdigAnimertMeldingsLogg -> List Spraakferdighet -> ( Model, Cmd Msg )
 init gammelMeldingsLogg språkFerdighet =
     let
         aktivSamtale =
             IntroLeggTilNorsk språkFerdighet
     in
-    Model
+    ( Model
         { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) gammelMeldingsLogg
+            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , språk = språkFerdighet
         , språkKoder = Loading hentSpråkkoder
         }
+    , lagtTilSpørsmålCmd
+    )
