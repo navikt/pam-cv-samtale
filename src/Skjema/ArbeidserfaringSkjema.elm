@@ -1,18 +1,65 @@
-module Skjema.ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema(..), Felt(..), SkjemaInfo, arbeidsoppgaver, bedriftNavn, encode, fraDato, jobbTittel, lokasjon, naavarende, oppdaterStringFelt, skjemaInfo, tilDato, toggleBool, yrke)
+module Skjema.ArbeidserfaringSkjema exposing
+    ( ArbeidserfaringSkjema(..)
+    , Felt(..)
+    , SkjemaInfo
+    , TypeaheadFelt(..)
+    , ValidertArbeidserfaringSkjema
+    , arbeidsoppgaver
+    , bedriftNavn
+    , encode
+    , fraDato
+    , jobbTittel
+    , lokasjon
+    , mapTypeaheadState
+    , naavarende
+    , nyttValidertSkjema
+    , oppdaterStringFelt
+    , oppdaterYrkeFelt
+    , setYrkeFeltTilYrke
+    , tilArbeidserfaringSkjema
+    , tilDato
+    , toggleBool
+    , valider
+    , velgAktivYrkeITypeahead
+    , yrke
+    , yrkeTypeahead
+    )
 
-import Cv.Arbeidserfaring as Cv
 import Dato exposing (Dato)
 import Json.Encode
 import TypeaheadState exposing (TypeaheadState)
-import YrkeTypeahead exposing (YrkeTypeahead)
+import Yrke exposing (Yrke)
 
 
 type ArbeidserfaringSkjema
     = ArbeidserfaringSkjema SkjemaInfo
 
 
+type ValidertArbeidserfaringSkjema
+    = ValidertArbeidserfaringSkjema ValidertSkjemaInfo
+
+
+type alias ValidertSkjemaInfo =
+    { yrke : Yrke
+    , jobbTittel : String
+    , bedriftNavn : String
+    , lokasjon : String
+    , arbeidsoppgaver : String
+    , fraDato : Dato
+    , naavarende : Bool
+    , tilDato : Maybe Dato
+    , styrkkode : String
+    , konseptId : Int
+    }
+
+
+type TypeaheadFelt
+    = Yrke Yrke
+    | Typeahead (TypeaheadState Yrke)
+
+
 type alias SkjemaInfo =
-    { yrke : YrkeTypeahead
+    { yrke : TypeaheadFelt
     , jobbTittel : String
     , bedriftNavn : String
     , lokasjon : String
@@ -26,8 +73,7 @@ type alias SkjemaInfo =
 
 
 type Felt
-    = Yrke
-    | JobbTittel
+    = JobbTittel
     | BedriftNavn
     | Lokasjon
     | Arbeidsoppgaver
@@ -38,15 +84,13 @@ type Felt
     | TilÅr
 
 
-skjemaInfo : ArbeidserfaringSkjema -> SkjemaInfo
-skjemaInfo arbeidserfaringSkjema =
-    case arbeidserfaringSkjema of
-        ArbeidserfaringSkjema skjema ->
-            skjema
+yrkeTypeahead : ArbeidserfaringSkjema -> TypeaheadFelt
+yrkeTypeahead (ArbeidserfaringSkjema info) =
+    info.yrke
 
 
-yrke : ArbeidserfaringSkjema -> YrkeTypeahead
-yrke (ArbeidserfaringSkjema info) =
+yrke : ValidertArbeidserfaringSkjema -> Yrke
+yrke (ValidertArbeidserfaringSkjema info) =
     info.yrke
 
 
@@ -163,9 +207,62 @@ oppdaterNavarendeFelt (ArbeidserfaringSkjema skjema) =
         ArbeidserfaringSkjema { skjema | naavarende = True }
 
 
-oppdaterYrkeFelt : ArbeidserfaringSkjema -> YrkeTypeahead -> ArbeidserfaringSkjema
+oppdaterYrkeFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
 oppdaterYrkeFelt (ArbeidserfaringSkjema skjema) string =
-    ArbeidserfaringSkjema { skjema | yrke = string }
+    case skjema.yrke of
+        Yrke _ ->
+            ArbeidserfaringSkjema
+                { skjema
+                    | yrke =
+                        TypeaheadState.init string
+                            |> Typeahead
+                }
+
+        Typeahead typeaheadState ->
+            ArbeidserfaringSkjema
+                { skjema
+                    | yrke =
+                        typeaheadState
+                            |> TypeaheadState.updateValue string
+                            |> Typeahead
+                }
+
+
+mapTypeaheadState : ArbeidserfaringSkjema -> (TypeaheadState Yrke -> TypeaheadState Yrke) -> ArbeidserfaringSkjema
+mapTypeaheadState (ArbeidserfaringSkjema skjema) funksjon =
+    case skjema.yrke of
+        Yrke _ ->
+            ArbeidserfaringSkjema
+                skjema
+
+        Typeahead typeaheadState ->
+            ArbeidserfaringSkjema
+                { skjema
+                    | yrke =
+                        typeaheadState
+                            |> funksjon
+                            |> Typeahead
+                }
+
+
+velgAktivYrkeITypeahead : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+velgAktivYrkeITypeahead (ArbeidserfaringSkjema info) =
+    case info.yrke of
+        Yrke _ ->
+            ArbeidserfaringSkjema info
+
+        Typeahead typeaheadState ->
+            case TypeaheadState.getActive typeaheadState of
+                Just active ->
+                    ArbeidserfaringSkjema { info | yrke = Yrke active }
+
+                Nothing ->
+                    ArbeidserfaringSkjema info
+
+
+setYrkeFeltTilYrke : Yrke -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+setYrkeFeltTilYrke yrke_ (ArbeidserfaringSkjema info) =
+    ArbeidserfaringSkjema { info | yrke = Yrke yrke_ }
 
 
 oppdaterJobbTittelFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
@@ -246,13 +343,56 @@ oppdaterTilÅr (ArbeidserfaringSkjema skjema) string =
             ArbeidserfaringSkjema skjema
 
 
-encode : ArbeidserfaringSkjema -> Json.Encode.Value
-encode (ArbeidserfaringSkjema skjema) =
+nyttValidertSkjema : ValidertSkjemaInfo -> ValidertArbeidserfaringSkjema
+nyttValidertSkjema skjemaInfo =
+    ValidertArbeidserfaringSkjema skjemaInfo
+
+
+tilArbeidserfaringSkjema : ValidertArbeidserfaringSkjema -> ArbeidserfaringSkjema
+tilArbeidserfaringSkjema (ValidertArbeidserfaringSkjema info) =
+    ArbeidserfaringSkjema
+        { yrke = Yrke info.yrke
+        , jobbTittel = info.jobbTittel
+        , bedriftNavn = info.bedriftNavn
+        , lokasjon = info.lokasjon
+        , arbeidsoppgaver = info.arbeidsoppgaver
+        , fraDato = info.fraDato
+        , naavarende = info.naavarende
+        , tilDato = info.tilDato
+        , styrkkode = info.styrkkode
+        , konseptId = info.konseptId
+        }
+
+
+valider : ArbeidserfaringSkjema -> Maybe ValidertArbeidserfaringSkjema
+valider (ArbeidserfaringSkjema info) =
+    case info.yrke of
+        Yrke yrkefelt ->
+            ValidertArbeidserfaringSkjema
+                { yrke = yrkefelt
+                , jobbTittel = info.jobbTittel
+                , bedriftNavn = info.bedriftNavn
+                , lokasjon = info.lokasjon
+                , arbeidsoppgaver = info.arbeidsoppgaver
+                , fraDato = info.fraDato
+                , naavarende = info.naavarende
+                , tilDato = info.tilDato
+                , styrkkode = info.styrkkode
+                , konseptId = info.konseptId
+                }
+                |> Just
+
+        Typeahead typeaheadState ->
+            Nothing
+
+
+encode : ValidertArbeidserfaringSkjema -> Json.Encode.Value
+encode (ValidertArbeidserfaringSkjema skjema) =
     case skjema.tilDato of
         Just tilArbeidsDato ->
             Json.Encode.object
                 [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
-                , ( "yrke", Json.Encode.string (YrkeTypeahead.label skjema.yrke) )
+                , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
                 , ( "sted", Json.Encode.string skjema.lokasjon )
                 , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
                 , ( "tildato", Json.Encode.string (tilArbeidsDato |> Dato.tilStringForBackend) )
@@ -266,7 +406,7 @@ encode (ArbeidserfaringSkjema skjema) =
         Nothing ->
             Json.Encode.object
                 [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
-                , ( "yrke", Json.Encode.string (YrkeTypeahead.label skjema.yrke) )
+                , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
                 , ( "sted", Json.Encode.string skjema.lokasjon )
                 , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
                 , ( "navarende", Json.Encode.bool skjema.naavarende )

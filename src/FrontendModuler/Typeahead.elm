@@ -144,7 +144,11 @@ typeaheadKeys onTypeaheadChange i =
 toHtml : Typeahead msg -> Html msg
 toHtml (Typeahead options) =
     div [ class "typeahead" ]
-        [ input
+        [ label
+            --- TODO: htmlFor={inputId}
+            [ class "skjemaelement__label" ]
+            [ text options.label ]
+        , input
             [ onInput options.onInput
             , value options.innhold
             , class "skjemaelement__input input--fullbredde"

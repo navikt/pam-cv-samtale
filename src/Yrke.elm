@@ -1,12 +1,19 @@
-module YrkeTypeahead exposing (YrkeTypeahead(..), YrkeTypeaheadInfo, decode, konseptId, label, styrkkode)
+module Yrke exposing
+    ( Yrke
+    , YrkeTypeaheadInfo
+    , decode
+    , konseptId
+    , label
+    , styrkkode
+    )
 
 import FrontendModuler.Knapp as Knapp
 import Html exposing (Html)
 import Json.Decode exposing (Decoder, at, int, map, map3, string)
 
 
-type YrkeTypeahead
-    = YrkeTypeahead YrkeTypeaheadInfo
+type Yrke
+    = Yrke YrkeTypeaheadInfo
 
 
 type alias YrkeTypeaheadInfo =
@@ -16,25 +23,25 @@ type alias YrkeTypeaheadInfo =
     }
 
 
-label : YrkeTypeahead -> String
-label (YrkeTypeahead info) =
+label : Yrke -> String
+label (Yrke info) =
     info.label
 
 
-styrkkode : YrkeTypeahead -> String
-styrkkode (YrkeTypeahead info) =
+styrkkode : Yrke -> String
+styrkkode (Yrke info) =
     info.styrk08
 
 
-konseptId : YrkeTypeahead -> Int
-konseptId (YrkeTypeahead info) =
+konseptId : Yrke -> Int
+konseptId (Yrke info) =
     info.konseptId
 
 
-decode : Decoder YrkeTypeahead
+decode : Decoder Yrke
 decode =
     decodeBackendData
-        |> map YrkeTypeahead
+        |> map Yrke
 
 
 decodeBackendData : Decoder YrkeTypeaheadInfo

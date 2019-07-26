@@ -20,7 +20,7 @@ import Json.Decode
 import Personalia exposing (Personalia)
 import Skjema.ArbeidserfaringSkjema
 import Skjema.Personalia
-import YrkeTypeahead as YrkeTypahead exposing (YrkeTypeahead)
+import Yrke as YrkeTypahead exposing (Yrke)
 
 
 hentPerson : (Result Error () -> msg) -> Cmd msg
@@ -91,7 +91,7 @@ hentAAreg msgConstructor =
         }
 
 
-lagreArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ArbeidserfaringSkjema.ArbeidserfaringSkjema -> Cmd msg
+lagreArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
 lagreArbeidserfaring msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring"
@@ -100,7 +100,7 @@ lagreArbeidserfaring msgConstructor skjema =
         }
 
 
-hentYrkeTypeahead : (Result Error (List YrkeTypeahead) -> msg) -> String -> Cmd msg
+hentYrkeTypeahead : (Result Error (List Yrke) -> msg) -> String -> Cmd msg
 hentYrkeTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/yrke?q=" ++ string
