@@ -1,6 +1,9 @@
 module TypeaheadState exposing
     ( ActiveState(..)
     , TypeaheadState
+    , arrowDown
+    , arrowUp
+    , getActive
     , init
     , map
     , removeActive
@@ -29,6 +32,19 @@ init value_ =
 value : TypeaheadState a -> String
 value (TypeaheadState info) =
     info.value
+
+
+getActive : TypeaheadState a -> Maybe a
+getActive (TypeaheadState info) =
+    case info.suggestions of
+        TomListe ->
+            Nothing
+
+        IngenMarkert _ ->
+            Nothing
+
+        SuggestionMarkert { active } ->
+            Just active
 
 
 updateValue : String -> TypeaheadState a -> TypeaheadState a
@@ -106,6 +122,78 @@ makeActive newActive suggestions =
 
             else
                 IngenMarkert maybeMarkertState.before
+
+
+arrowDown : TypeaheadState a -> TypeaheadState a
+arrowDown (TypeaheadState info) =
+    TypeaheadState
+        { info
+            | suggestions =
+                case info.suggestions of
+                    TomListe ->
+                        TomListe
+
+                    IngenMarkert [] ->
+                        TomListe
+
+                    IngenMarkert (first :: rest) ->
+                        SuggestionMarkert
+                            { before = []
+                            , active = first
+                            , after = rest
+                            }
+
+                    SuggestionMarkert { before, active, after } ->
+                        case after of
+                            first :: rest ->
+                                SuggestionMarkert
+                                    { before = before ++ [ active ]
+                                    , active = first
+                                    , after = rest
+                                    }
+
+                            [] ->
+                                [ before, [ active ], after ]
+                                    |> List.concat
+                                    |> IngenMarkert
+        }
+
+
+arrowUp : TypeaheadState a -> TypeaheadState a
+arrowUp (TypeaheadState info) =
+    TypeaheadState
+        { info
+            | suggestions =
+                case info.suggestions of
+                    TomListe ->
+                        TomListe
+
+                    IngenMarkert list ->
+                        case List.reverse list of
+                            last :: rest ->
+                                SuggestionMarkert
+                                    { before = List.reverse rest
+                                    , active = last
+                                    , after = []
+                                    }
+
+                            [] ->
+                                TomListe
+
+                    SuggestionMarkert { before, active, after } ->
+                        case List.reverse before of
+                            last :: rest ->
+                                SuggestionMarkert
+                                    { before = List.reverse rest
+                                    , active = last
+                                    , after = active :: after
+                                    }
+
+                            [] ->
+                                [ before, [ active ], after ]
+                                    |> List.concat
+                                    |> IngenMarkert
+        }
 
 
 removeActive : TypeaheadState a -> TypeaheadState a

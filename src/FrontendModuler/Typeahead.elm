@@ -1,21 +1,42 @@
-module FrontendModuler.Typeahead exposing (Suggestion, Typeahead, TypeaheadOptions, toHtml, typeahead, withSuggestions)
+module FrontendModuler.Typeahead exposing
+    ( Operation(..)
+    , Suggestion
+    , Typeahead
+    , TypeaheadOptions
+    , toHtml
+    , typeahead
+    , withSuggestions
+    )
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Json.Decode
 
 
 type Typeahead msg
-    = Typeahead
-        { label : String
-        , msg : String -> msg
-        , innhold : String
-        , suggestions : List (Suggestion msg)
-        }
+    = Typeahead (TypeaheadInfo msg)
+
+
+type alias TypeaheadInfo msg =
+    { label : String
+    , onInput : String -> msg
+    , onTypeaheadChange : Operation -> msg
+    , innhold : String
+    , suggestions : List (Suggestion msg)
+    }
+
+
+type Operation
+    = ArrowUp
+    | ArrowDown
+    | Enter
+    | MouseLeaveSuggestions
 
 
 type alias TypeaheadOptions msg =
-    { msg : String -> msg
+    { onInput : String -> msg
+    , onTypeaheadChange : Operation -> msg
     , label : String
     }
 
@@ -24,7 +45,8 @@ typeahead : TypeaheadOptions msg -> String -> Typeahead msg
 typeahead options innhold =
     Typeahead
         { label = options.label
-        , msg = options.msg
+        , onInput = options.onInput
+        , onTypeaheadChange = options.onTypeaheadChange
         , innhold = innhold
         , suggestions = []
         }
@@ -41,6 +63,28 @@ type alias Suggestion msg =
 withSuggestions : List (Suggestion msg) -> Typeahead msg -> Typeahead msg
 withSuggestions suggestions (Typeahead options) =
     Typeahead { options | suggestions = suggestions }
+
+
+onKeyUp : (Operation -> msg) -> Html.Attribute msg
+onKeyUp onTypeaheadChange =
+    Html.Events.preventDefaultOn
+        "keydown"
+        (Json.Decode.andThen (typeaheadKeys onTypeaheadChange) Html.Events.keyCode)
+
+
+typeaheadKeys : (Operation -> msg) -> Int -> Json.Decode.Decoder ( msg, Bool )
+typeaheadKeys onTypeaheadChange i =
+    if i == 40 then
+        Json.Decode.succeed ( onTypeaheadChange ArrowDown, True )
+
+    else if i == 38 then
+        Json.Decode.succeed ( onTypeaheadChange ArrowUp, True )
+
+    else if i == 13 then
+        Json.Decode.succeed ( onTypeaheadChange Enter, True )
+
+    else
+        Json.Decode.fail ""
 
 
 
@@ -101,9 +145,10 @@ toHtml : Typeahead msg -> Html msg
 toHtml (Typeahead options) =
     div [ class "typeahead" ]
         [ input
-            [ onInput options.msg
+            [ onInput options.onInput
             , value options.innhold
             , class "skjemaelement__input input--fullbredde"
+            , onKeyUp options.onTypeaheadChange
             ]
             []
         , if List.isEmpty options.suggestions then
@@ -112,7 +157,7 @@ toHtml (Typeahead options) =
           else
             options.suggestions
                 |> List.map viewSuggestion
-                |> ul []
+                |> ul [ onMouseLeave (options.onTypeaheadChange MouseLeaveSuggestions) ]
         ]
 
 
