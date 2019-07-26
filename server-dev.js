@@ -8,6 +8,11 @@ const server = express();
 const entryFile = path.join(__dirname, './src/index.html');
 const bundler = new Bundler(entryFile, {});
 
+server.get('/cv-samtale/login', (req, res) => {
+    const redirectTo = req.query.redirect || 'http://localhost:1234';
+    res.redirect(`http://localhost:1337/pam-cv-api/local/cookie?redirect=${redirectTo}`);
+});
+
 server.post('/cv-samtale/log', express.json(), (req, res) => {
     console.log({
         ...req.body,
