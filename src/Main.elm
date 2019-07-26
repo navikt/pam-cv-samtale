@@ -474,12 +474,15 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 
 personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
+    {--
     ( Success
         { model
             | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (MeldingsLogg.tilMeldingsLogg ferdigAnimertMeldingsLogg) (Cv.utdanning model.cv))
         }
     , Cmd.none
     )
+--}
+    gåTilSpråk model ferdigAnimertMeldingsLogg
 
 
 utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
@@ -492,7 +495,7 @@ utdanningFerdig model utdanning utdanningMeldingsLogg =
     )
 
 
-språkFerdig : SuccessModel -> MeldingsLogg -> ( Model, Cmd Msg )
+språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 språkFerdig model meldingsLogg =
     ( Success
         { model

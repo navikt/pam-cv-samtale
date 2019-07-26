@@ -1,6 +1,17 @@
-module Seksjon.Sprak exposing (EnkeltSpråk, Ferdighet(..), Model(..), ModelInfo, Msg, Samtale(..), SamtaleStatus(..), SpråkListe, init, meldingsLogg, nesteSamtaleSteg, samtaleTilMeldingsLogg, update, viewBrukerInput)
-
--- MODEL --
+module Seksjon.Sprak exposing
+    ( EnkeltSpråk
+    , Ferdighet(..)
+    , Model
+    , Msg
+    , SamtaleStatus(..)
+    , SpråkListe
+    , init
+    , meldingsLogg
+    , nesteSamtaleSteg
+    , samtaleTilMeldingsLogg
+    , update
+    , viewBrukerInput
+    )
 
 import Api
 import Browser.Dom as Dom
@@ -21,6 +32,10 @@ import SamtaleAnimasjon
 import Skjema.Sprak as SpråkSkjema exposing (SpråkSkjema)
 import Sprakkoder exposing (Sprakkoder)
 import Task
+
+
+
+-- MODEL --
 
 
 type Model
@@ -44,17 +59,18 @@ type Samtale
     | LeggTilFerdighetMuntlig String
     | LeggTilFerdighetSkriftlig SpråkMedMuntlig
     | LagrerAndre EnkeltSpråk SpråkSkjema
-    | SpråkkodeneFeilet Http.Error
+    | SpråkkodeneFeilet (Maybe Http.Error)
     | LagringFeilet EnkeltSpråk Http.Error SpråkSkjema
+    | VenterPåAnimasjonFørFullføring
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig MeldingsLogg
+    | Ferdig FerdigAnimertMeldingsLogg
 
 
 type RemoteDataSpråkKoder
-    = Loading (Cmd Msg)
+    = Loading
     | Success (List Sprakkoder)
     | Failure Http.Error
 
@@ -158,7 +174,7 @@ update msg (Model model) =
         NorskErIkkeMorsmål ->
             ( LeggTilFerdighetMuntlig "Norsk"
                 |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
-            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
@@ -184,8 +200,10 @@ update msg (Model model) =
                                 "Noe gikk galt"
                         ]
                     )
-             , skjema
-                |> leggTilSpråkAPI
+             , Cmd.batch
+                [ leggTilSpråkAPI skjema
+                , lagtTilSpørsmålCmd
+                ]
              )
             )
                 |> IkkeFerdig
@@ -204,55 +222,57 @@ update msg (Model model) =
                             VeldigGodt ->
                                 "Jeg snakker veldig godt " ++ String.toLower språkMedMuntlig.språkNavn
 
-                            _ ->
-                                "Noe gikk galt"
+                            Morsmål ->
+                                "Dette er mitt morsmål"
                         ]
                     )
-            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
         BrukerKanEngelsk ->
             ( LeggTilFerdighetMuntlig "Engelsk"
                 |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
-            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
         BrukerKanIkkeEngelsk ->
             ( nesteSamtaleSteg model (Melding.svar [ "Nei" ]) (IntroLeggTilNorsk model.språk)
-            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
         BrukerVilLeggeTilSpråk språkNavn ->
             ( LeggTilFerdighetMuntlig språkNavn
                 |> nesteSamtaleSteg model (Melding.svar [ språkNavn ])
-            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
         BrukerKanFlereSpråk ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ]) (VelgNyttSpråk Nothing)
-            , case model.språkKoder of
+            case model.språkKoder of
                 Success list ->
-                    Cmd.batch
-                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ]) (VelgNyttSpråk Nothing)
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd
                         ]
+                    )
+                        |> IkkeFerdig
 
                 _ ->
-                    Cmd.batch
-                        [ hentSpråkkoder
-                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ]) (SpråkkodeneFeilet Nothing)
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd
                         ]
-            )
-                |> IkkeFerdig
+                    )
+                        |> IkkeFerdig
 
         BrukerVilAvslutteSeksjonen ->
-            model.seksjonsMeldingsLogg
-                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ])
-                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Okai! Da er vi ferdige med språk!" ] ]
-                |> Ferdig
+            ( nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ]) VenterPåAnimasjonFørFullføring
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
 
         ViewportSatt result ->
             ( Model model, Cmd.none )
@@ -264,25 +284,25 @@ update msg (Model model) =
                     case model.aktivSamtale of
                         LagrerNorsk enkeltSpråk språkSkjema ->
                             ( nesteSamtaleStegUtenMelding { model | språk = value } LeggTilEngelsk
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
                         LagrerAndre enkeltSpråk språkSkjema ->
                             ( nesteSamtaleStegUtenMelding { model | språk = value } (LeggTilFlereSpråk enkeltSpråk (Model model))
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
                         LagringFeilet enkeltSpråk error språkskjema ->
                             ( nesteSamtaleSteg { model | språk = value } (Melding.svar [ "Ja, prøv på nytt" ]) (LeggTilFlereSpråk enkeltSpråk (Model model))
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
                         _ ->
                             ( Model model
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
@@ -290,13 +310,13 @@ update msg (Model model) =
                     case model.aktivSamtale of
                         LagrerNorsk enkeltSpråk språkSkjema ->
                             ( nesteSamtaleSteg model (Melding.svar [ "Legg til norsk" ]) (LagringFeilet enkeltSpråk error språkSkjema)
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
                         LagrerAndre enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til" ++ String.toLower enkeltSpråk.språkNavn ]) (LagringFeilet enkeltSpråk error språkSkjema)
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til " ++ String.toLower enkeltSpråk.språkNavn ]) (LagringFeilet enkeltSpråk error språkSkjema)
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
@@ -304,7 +324,6 @@ update msg (Model model) =
                             ( Model model
                             , Cmd.batch
                                 [ logFeilmelding error "Lagre språk"
-                                , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                                 ]
                             )
                                 |> IkkeFerdig
@@ -316,23 +335,22 @@ update msg (Model model) =
             case result of
                 Ok koder ->
                     ( Model { model | språkKoder = Success koder }
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
                 Err error ->
-                    ( nesteSamtaleStegUtenMelding model (SpråkkodeneFeilet error)
+                    ( Model model
                     , Cmd.batch
                         [ logFeilmelding error "Språkkoder Hentet"
-                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                         ]
                     )
                         |> IkkeFerdig
 
         ValgtSpråk valgtSpråk ->
             case model.språkKoder of
-                Loading cmd ->
-                    ( Model model, cmd ) |> IkkeFerdig
+                Loading ->
+                    ( Model model, Cmd.none ) |> IkkeFerdig
 
                 Success list ->
                     ( Model { model | aktivSamtale = VelgNyttSpråk (List.find (\sprakkode -> valgtSpråk == Sprakkoder.kode sprakkode) list) }
@@ -350,7 +368,7 @@ update msg (Model model) =
                         Just kode ->
                             ( LeggTilFerdighetMuntlig (Sprakkoder.kode kode)
                                 |> nesteSamtaleSteg model (Melding.svar [ Sprakkoder.kode kode ])
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
@@ -364,7 +382,23 @@ update msg (Model model) =
             ( nyModel, leggTilSpråkAPI språkSkjema ) |> IkkeFerdig
 
         BrukerVilHenteSpråkPåNytt ->
-            ( Model model, hentSpråkkoder ) |> IkkeFerdig
+            case model.språkKoder of
+                Success list ->
+                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ]) (VelgNyttSpråk Nothing)
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd
+                        ]
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, prøve på nytt" ]) (SpråkkodeneFeilet Nothing)
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd
+                        , hentSpråkkoder
+                        ]
+                    )
+                        |> IkkeFerdig
 
         StartÅSkrive ->
             ( Model
@@ -388,12 +422,11 @@ update msg (Model model) =
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
 updateEtterFullførtMelding model nyMeldingsLogg =
-    {--
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring personalia ->
-                    Ferdig personalia ferdigAnimertSamtale
+                VenterPåAnimasjonFørFullføring ->
+                    Ferdig ferdigAnimertSamtale
 
                 _ ->
                     ( Model
@@ -406,15 +439,14 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                         |> IkkeFerdig
 
         MeldingerGjenstår ->
--}
-    ( Model
-        { model
-            | seksjonsMeldingsLogg =
-                nyMeldingsLogg
-        }
-    , lagtTilSpørsmålCmd
-    )
-        |> IkkeFerdig
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        nyMeldingsLogg
+                }
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
 
 
 lagtTilSpørsmålCmd : Cmd Msg
@@ -511,6 +543,9 @@ samtaleTilMeldingsLogg språkSeksjon =
 
         SpråkkodeneFeilet error ->
             [ Melding.spørsmål [ "Oops! Noe gikk galt...", "Vil du prøve på nytt eller avslutte og gå videre?", "Prøv gjerne igjen senere." ] ]
+
+        VenterPåAnimasjonFørFullføring ->
+            []
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -655,7 +690,7 @@ viewBrukerInput (Model model) =
                                     ]
                                 ]
 
-                        Loading _ ->
+                        Loading ->
                             div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ text "Loading..." ]
@@ -693,6 +728,9 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
+                VenterPåAnimasjonFørFullføring ->
+                    text ""
+
         MeldingerGjenstår ->
             text ""
 
@@ -712,7 +750,10 @@ init gammelMeldingsLogg språkFerdighet =
             MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , språk = språkFerdighet
-        , språkKoder = Loading hentSpråkkoder
+        , språkKoder = Loading
         }
-    , lagtTilSpørsmålCmd
+    , Cmd.batch
+        [ lagtTilSpørsmålCmd
+        , hentSpråkkoder
+        ]
     )
