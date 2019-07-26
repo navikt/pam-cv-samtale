@@ -2,6 +2,7 @@ module Api exposing
     ( hentCv
     , hentPerson
     , hentPersonalia
+    , leggTilUtdanning
     , logError
     , oppdaterPersonalia
     , opprettCv
@@ -10,10 +11,13 @@ module Api exposing
     )
 
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Utdanning exposing (Utdanning)
 import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
+import Json.Decode
 import Personalia exposing (Personalia)
 import Skjema.Personalia
+import Skjema.Utdanning
 
 
 hentPerson : (Result Error () -> msg) -> Cmd msg
@@ -73,6 +77,15 @@ opprettCv msgConstructor =
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         , body = emptyBody
+        }
+
+
+leggTilUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.UtdanningSkjema -> Cmd msg
+leggTilUtdanning msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/utdanning"
+        , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
+        , body = Skjema.Utdanning.encode skjema "id" (Skjema.Utdanning.nuskode skjema) |> jsonBody
         }
 
 

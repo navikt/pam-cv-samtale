@@ -22,6 +22,7 @@ module Skjema.Utdanning exposing
     , oppdaterUtdanningsretning
     , studiested
     , tilDato
+    , toggleBool
     , utdanningsretning
     )
 
@@ -93,17 +94,19 @@ nuskode (UtdanningSkjema info) =
 
 
 
---init : Utdanning -> Dato -> UtdanningSkjema
---init utdanning =
---    UtdanningSkjema
---        { studiested = Cv.Utdanning.studiested utdanning |> Maybe.withDefault ""
---        , utdanningsretning = Cv.Utdanning.utdanningsretning utdanning |> Maybe.withDefault ""
---        , beskrivelse = Cv.Utdanning.beskrivelse utdanning |> Maybe.withDefault ""
---        , fradato = Dato.tilDato (Cv.Utdanning.fradato utdanning)
---        , tildato = Dato.tilDato (Cv.Utdanning.tildato utdanning)
---        , navarende = Cv.Utdanning.navarende utdanning |> Maybe.withDefault False
---        , nuskode = Cv.Utdanning.nuskode utdanning
---        }
+{--
+init : Utdanning -> Dato -> UtdanningSkjema
+init utdanning =
+    UtdanningSkjema
+        { studiested = Cv.Utdanning.studiested utdanning |> Maybe.withDefault ""
+        , utdanningsretning = Cv.Utdanning.utdanningsretning utdanning |> Maybe.withDefault ""
+        , beskrivelse = Cv.Utdanning.beskrivelse utdanning |> Maybe.withDefault ""
+        , fradato = Dato.tilDato (Cv.Utdanning.fradato utdanning)
+        , tildato = Dato.tilDato (Cv.Utdanning.tildato utdanning)
+        , navarende = Cv.Utdanning.navarende utdanning |> Maybe.withDefault False
+        , nuskode = Cv.Utdanning.nuskode utdanning
+        }
+--}
 
 
 initManueltSkjema : UtdanningsSkjemaVerdier -> UtdanningSkjema
@@ -315,7 +318,7 @@ encode (UtdanningSkjema info) id nivå =
     Json.Encode.object
         [ ( "id", Json.Encode.string id )
         , ( "studiested", Json.Encode.string info.studiested )
-        , ( "utdannningsretning", Json.Encode.string info.utdanningsretning )
+        , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
         , ( "beskrivelse", Json.Encode.string info.beskrivelse )
         , ( "fradato", Json.Encode.string (info.fradato |> Dato.tilStringForBackend) )
         , ( "tildato", Json.Encode.string (info.tildato |> Maybe.withDefault info.fradato |> Dato.tilStringForBackend) )

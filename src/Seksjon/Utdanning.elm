@@ -1,8 +1,10 @@
 module Seksjon.Utdanning exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
 
+import Api
 import Browser.Dom as Dom
 import Cv.Utdanning as Cv exposing (Nivå(..), Utdanning)
 import Dato exposing (Dato)
+import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
@@ -10,6 +12,7 @@ import FrontendModuler.Select as Select
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import Http
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (MeldingsLogg)
 import SamtaleAnimasjon
@@ -32,7 +35,7 @@ type alias ModelInfo =
 
 
 type Samtale
-    = Intro
+    = Intro (List Utdanning)
     | RegistrerNivå
     | RegistrerSkole SkoleInfo
     | RegistrerRetning RetningInfo
@@ -44,7 +47,11 @@ type Samtale
     | RegistrereTilÅr TildatoInfo
     | Oppsummering Skjema.UtdanningSkjema
     | EndrerOppsummering Skjema.UtdanningSkjema
-    | LagrerOppsummering OppsummeringInfo
+    | LagrerOppsummering Skjema.UtdanningSkjema
+    | OppsummeringLagret Skjema.UtdanningSkjema
+    | LeggTilFlereUtdannelser
+    | LeggTilFlereUtdannelserTilApi
+    | LeggTilUtdanningFeiletIApi Http.Error Skjema.UtdanningSkjema
 
 
 type SamtaleStatus
@@ -139,7 +146,7 @@ forrigeTilFradatoInfo : BeskrivelseInfo -> FradatoInfo
 forrigeTilFradatoInfo beskrivelse =
     { forrige = beskrivelse
     , fraMåned = Dato.Januar
-    , fraÅr = "1990"
+    , fraÅr = "2019"
     , navarende = False
     }
 
@@ -187,12 +194,12 @@ type Msg
     | OppdaterBeskrivelse String
     | BrukerVilRegistrereFraMåned FradatoInfo
     | BrukerTrykketFraMånedKnapp FradatoInfo
-    | BrukerOppdatererFraÅr FradatoInfo String
+    | OppdaterFraÅr FradatoInfo String
     | BrukerVilRegistrereNaavarende
     | BrukerSvarerJaTilNaavarende
     | BrukerSvarerNeiTilNaavarende FradatoInfo
     | BrukerTrykketTilMånedKnapp TildatoInfo
-    | BrukerOppdatererTilÅr TildatoInfo String
+    | OppdaterTilÅr TildatoInfo String
     | BrukerVilGåTilOppsummering
     | BrukerVilEndreOppsummering
     | OriginalOppsummeringBekreftet
@@ -200,7 +207,10 @@ type Msg
     | OppsummeringBoolEndret Skjema.Felt
     | OppsummeringSkjemaLagreknappTrykket
     | SkjemaOppdatert SkjemaEndring
+    | UtdanningSendtTilApi (Result Http.Error (List Utdanning))
+    | AvbrytLagringOgTaMegTilIntro
     | ViewportSatt (Result Dom.Error ())
+    | ErrorLogget (Result Http.Error ())
 
 
 type SkjemaEndring
@@ -220,9 +230,22 @@ update msg (Model model) =
     case msg of
         BrukerVilRegistrereUtdanning ->
             case model.aktivSamtale of
-                Intro ->
+                Intro utdanningListe ->
+                    if List.isEmpty utdanningListe then
+                        IkkeFerdig
+                            ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere utdannning" ]) RegistrerNivå
+                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            )
+
+                    else
+                        IkkeFerdig
+                            ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere flere utdanninger" ]) RegistrerNivå
+                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            )
+
+                LeggTilFlereUtdannelserTilApi ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere utdannning" ]) RegistrerNivå
+                        ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere flere utdanninger" ]) RegistrerNivå
                         , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                         )
 
@@ -282,7 +305,7 @@ update msg (Model model) =
         BrukerVilRegistrereFraMåned fraDatoInfo ->
             ( RegistrereFraMåned fraDatoInfo
                 |> nesteSamtaleSteg model (Melding.svar [ fraDatoInfo.forrige.beskrivelse ])
-            , Cmd.none
+            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
             )
                 |> IkkeFerdig
 
@@ -298,7 +321,7 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        BrukerOppdatererFraÅr fraDatoInfo string ->
+        OppdaterFraÅr fraDatoInfo string ->
             ( Model
                 { model
                     | aktivSamtale =
@@ -313,7 +336,7 @@ update msg (Model model) =
                 RegistrereFraÅr datoInfo ->
                     ( RegistrereNavarende datoInfo
                         |> nesteSamtaleSteg model (Melding.svar [ datoInfo.fraÅr ])
-                    , Cmd.none
+                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                     )
                         |> IkkeFerdig
 
@@ -330,7 +353,7 @@ update msg (Model model) =
                         |> forrigeTilOppsummeringInfo
                         |> Oppsummering
                         |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
-                    , Cmd.none
+                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                     )
                         |> IkkeFerdig
 
@@ -343,7 +366,7 @@ update msg (Model model) =
                 |> forrigeTilTildatoInfo
                 |> RegistrereTilMåned
                 |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
-            , Cmd.none
+            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
             )
                 |> IkkeFerdig
 
@@ -359,7 +382,7 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        BrukerOppdatererTilÅr tilDatoInfo string ->
+        OppdaterTilÅr tilDatoInfo string ->
             ( Model
                 { model
                     | aktivSamtale =
@@ -376,7 +399,7 @@ update msg (Model model) =
                         |> forrigeTilOppsummeringInfo
                         |> Oppsummering
                         |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
-                    , Cmd.none
+                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                     )
                         |> IkkeFerdig
 
@@ -391,12 +414,6 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
-
-        OppsummeringEndret felt string ->
-            IkkeFerdig ( Model model, Cmd.none )
-
-        BekreftAlleredeRegistrert ->
-            IkkeFerdig ( Model model, Cmd.none )
 
         OppdaterRetning retning ->
             case model.aktivSamtale of
@@ -422,12 +439,6 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        -- OppdaterFradato fradato ->
-        --     case model.aktivSamtale of
-        --         RegistrerFradato fradatoinfo ->
-        --             IkkeFerdig ( oppdaterSamtaleSteg model (RegistrerFradato { fradatoinfo | fradato = fradato }), Cmd.none )
-        --         _ ->
-        --             IkkeFerdig ( Model model, Cmd.none )
         SkjemaOppdatert skjemaendring ->
             case model.aktivSamtale of
                 EndrerOppsummering skjemaendringinfo ->
@@ -437,16 +448,65 @@ update msg (Model model) =
                     IkkeFerdig ( Model model, Cmd.none )
 
         OriginalOppsummeringBekreftet ->
-            IkkeFerdig ( Model model, SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+            case model.aktivSamtale of
+                Oppsummering ferdigskjema ->
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, SamtaleAnimasjon.scrollTilBunn ViewportSatt ] )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         OppsummeringSkjemaLagreknappTrykket ->
-            IkkeFerdig ( Model model, SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+            case model.aktivSamtale of
+                EndrerOppsummering ferdigskjema ->
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, SamtaleAnimasjon.scrollTilBunn ViewportSatt ] )
 
-        ViewportSatt _ ->
+                LagrerOppsummering ferdigskjema ->
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, SamtaleAnimasjon.scrollTilBunn ViewportSatt ] )
+
+                LeggTilUtdanningFeiletIApi error feiletskjema ->
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret feiletskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi feiletskjema, SamtaleAnimasjon.scrollTilBunn ViewportSatt ] )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        UtdanningSendtTilApi result ->
+            case model.aktivSamtale of
+                OppsummeringLagret skjema ->
+                    case result of
+                        Ok value ->
+                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } LeggTilFlereUtdannelser, SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            ( nesteSamtaleStegUtenMelding model (LeggTilUtdanningFeiletIApi error skjema), logFeilmelding error "API kall" )
+                                |> IkkeFerdig
+
+                Oppsummering skjema ->
+                    case result of
+                        Ok value ->
+                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } LeggTilFlereUtdannelser, SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            ( nesteSamtaleStegUtenMelding model (LeggTilUtdanningFeiletIApi error skjema), logFeilmelding error "API kall" )
+                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AvbrytLagringOgTaMegTilIntro ->
+            ( nesteSamtaleSteg model (Melding.svar [ "Avbryt lagring" ]) (Intro model.utdanningListe), SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+                |> IkkeFerdig
+
+        _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        OppsummeringBoolEndret felt ->
-            IkkeFerdig ( Model model, Cmd.none )
+
+logFeilmelding : Http.Error -> String -> Cmd Msg
+logFeilmelding error operasjon =
+    Feilmelding.feilmelding operasjon error
+        |> Maybe.map (Api.logError ErrorLogget)
+        |> Maybe.withDefault Cmd.none
 
 
 oppdaterSkjema : SkjemaEndring -> Skjema.UtdanningSkjema -> Skjema.UtdanningSkjema
@@ -535,6 +595,17 @@ nesteSamtaleSteg model melding samtaleSeksjon =
         }
 
 
+nesteSamtaleStegUtenMelding : ModelInfo -> Samtale -> Model
+nesteSamtaleStegUtenMelding model samtaleSeksjon =
+    Model
+        { model
+            | aktivSamtale = samtaleSeksjon
+            , seksjonsMeldingsLogg =
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+        }
+
+
 oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
 oppdaterSamtaleSteg model samtaleSeksjon =
     Model
@@ -546,10 +617,14 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg utdanningSeksjon =
     case utdanningSeksjon of
-        Intro ->
-            [ Melding.spørsmål
-                [ "Nå skal vi legge til din utdanning" ]
-            ]
+        Intro utdannelseListe ->
+            if List.isEmpty utdannelseListe then
+                [ Melding.spørsmål
+                    [ "Nå skal vi legge til din utdanning" ]
+                ]
+
+            else
+                [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn tidligere utdannelser. Har du flere utdannelser du ønsker å ha med på CVen din?" ] ]
 
         RegistrerNivå ->
             [ Melding.spørsmål
@@ -617,6 +692,16 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 [ "Godt jobbet! Da tar jeg vare på den nye infoen! " ]
             ]
 
+        LeggTilFlereUtdannelser ->
+            [ Melding.spørsmål [ "Har du flere utdannelser du ønsker å legge inn?" ]
+            ]
+
+        LeggTilUtdanningFeiletIApi _ _ ->
+            [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
+
+        _ ->
+            []
+
 
 hentFraDato : Skjema.UtdanningSkjema -> String
 hentFraDato skjema =
@@ -648,17 +733,28 @@ hentTilDato skjema =
 
 
 viewBrukerInput : Model -> Html Msg
-viewBrukerInput (Model { aktivSamtale }) =
-    case aktivSamtale of
-        Intro ->
-            div [ class "inputrad" ]
-                [ div [ class "inputrad-innhold" ]
-                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
-                        |> Knapp.toHtml
-                    , Knapp.knapp GåTilArbeidserfaring "Jeg har ingen utdanning"
-                        |> Knapp.toHtml
+viewBrukerInput (Model model) =
+    case model.aktivSamtale of
+        Intro _ ->
+            if List.isEmpty model.utdanningListe then
+                div [ class "inputrad" ]
+                    [ div [ class "inputrad-innhold" ]
+                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
+                            |> Knapp.toHtml
+                        , Knapp.knapp GåTilArbeidserfaring "Jeg har ingen utdanning"
+                            |> Knapp.toHtml
+                        ]
                     ]
-                ]
+
+            else
+                div [ class "inputrad" ]
+                    [ div [ class "inputrad-innhold" ]
+                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil legge til flere utdannelser"
+                            |> Knapp.toHtml
+                        , Knapp.knapp GåTilArbeidserfaring "Jeg er ferdig med å legge til utdannelser"
+                            |> Knapp.toHtml
+                        ]
+                    ]
 
         RegistrerNivå ->
             div [ class "inputrad" ]
@@ -734,7 +830,7 @@ viewBrukerInput (Model { aktivSamtale }) =
             div [ class "skjemawrapper" ]
                 [ div [ class "skjema" ]
                     [ fraDatoInfo.fraÅr
-                        |> Input.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr fraDatoInfo }
+                        |> Input.input { label = "Hvilket år begynte du der?", msg = OppdaterFraÅr fraDatoInfo }
                         |> Input.toHtml
                     ]
                 , div [ class "inputrad" ]
@@ -796,7 +892,7 @@ viewBrukerInput (Model { aktivSamtale }) =
                 , input
                     [ tilDatoInfo.tilÅr |> value
                     , tilDatoInfo
-                        |> BrukerOppdatererTilÅr
+                        |> OppdaterTilÅr
                         |> onInput
                     ]
                     []
@@ -813,24 +909,90 @@ viewBrukerInput (Model { aktivSamtale }) =
                 ]
 
         EndrerOppsummering utdanningsskjema ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ Select.select "Nivå: " (NivåEndret >> SkjemaOppdatert) selectNivåListe
-                        |> Select.toHtml
-                    , utdanningsskjema
-                        |> Skjema.studiested
-                        |> Input.input { label = "Studiested", msg = SkoleEndret >> SkjemaOppdatert }
-                        |> Input.toHtml
-                    , utdanningsskjema
-                        |> Skjema.utdanningsretning
-                        |> Input.input { label = "Retning", msg = RetningEndret >> SkjemaOppdatert }
-                        |> Input.toHtml
-                    , utdanningsskjema
-                        |> Skjema.beskrivelse
-                        |> Input.input { label = "Beskrivelse", msg = BeskrivelseEndret >> SkjemaOppdatert }
-                        |> Input.toHtml
-                    , Select.select "Måned"
-                        (OppsummeringEndret Skjema.FraMåned)
+            endreSkjema model utdanningsskjema
+
+        LeggTilFlereUtdannelser ->
+            div [ class "inputrad" ]
+                [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
+                    |> Knapp.toHtml
+                , Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
+                    |> Knapp.toHtml
+                ]
+
+        LeggTilFlereUtdannelserTilApi ->
+            div [ class "inputrad" ]
+                [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
+                    |> Knapp.toHtml
+                , Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
+                    |> Knapp.toHtml
+                ]
+
+        LeggTilUtdanningFeiletIApi _ utdanningSkjema ->
+            endreSkjema model utdanningSkjema
+
+        _ ->
+            text ""
+
+
+endreSkjema : ModelInfo -> Skjema.UtdanningSkjema -> Html Msg
+endreSkjema model utdanningsskjema =
+    div [ class "skjema-wrapper" ]
+        [ div [ class "skjema" ]
+            [ Select.select "Nivå: " (NivåEndret >> SkjemaOppdatert) selectNivåListe
+                |> Select.toHtml
+            , utdanningsskjema
+                |> Skjema.studiested
+                |> Input.input { label = "Studiested", msg = SkoleEndret >> SkjemaOppdatert }
+                |> Input.toHtml
+            , utdanningsskjema
+                |> Skjema.utdanningsretning
+                |> Input.input { label = "Retning", msg = RetningEndret >> SkjemaOppdatert }
+                |> Input.toHtml
+            , utdanningsskjema
+                |> Skjema.beskrivelse
+                |> Input.input { label = "Beskrivelse", msg = BeskrivelseEndret >> SkjemaOppdatert }
+                |> Input.toHtml
+            , Select.select "Måned"
+                (FraMånedEndret >> SkjemaOppdatert)
+                [ ( "Januar", "Januar" )
+                , ( "Februar", "Februar" )
+                , ( "Mars", "Mars" )
+                , ( "April", "April" )
+                , ( "Mai", "Mai" )
+                , ( "Juni", "Juni" )
+                , ( "Juli", "Juli" )
+                , ( "August", "August" )
+                , ( "September", "September" )
+                , ( "Oktober", "Oktober" )
+                , ( "November", "November" )
+                , ( "Desember", "Desember" )
+                ]
+                |> Select.withSelected (utdanningsskjema |> Skjema.fraDato |> Dato.måned |> Dato.månedTilString)
+                |> Select.toHtml
+            , utdanningsskjema
+                |> Skjema.fraDato
+                |> Dato.år
+                |> String.fromInt
+                |> (\string ->
+                        if string == "0" then
+                            ""
+
+                        else
+                            string
+                   )
+                |> Input.input { label = "År", msg = FraÅrEndret >> SkjemaOppdatert }
+                |> Input.toHtml
+            , utdanningsskjema
+                |> Skjema.navarende
+                |> Checkbox.checkbox "Nåværende:" (SkjemaOppdatert (NavarendeEndret (Skjema.navarende (Skjema.toggleBool utdanningsskjema Skjema.Navarende))))
+                |> Checkbox.toHtml
+            , if Skjema.navarende utdanningsskjema == True then
+                text ""
+
+              else
+                div []
+                    [ Select.select "Måned"
+                        (TilMånedEndret >> SkjemaOppdatert)
                         [ ( "Januar", "Januar" )
                         , ( "Februar", "Februar" )
                         , ( "Mars", "Mars" )
@@ -844,85 +1006,51 @@ viewBrukerInput (Model { aktivSamtale }) =
                         , ( "November", "November" )
                         , ( "Desember", "Desember" )
                         ]
-                        |> Select.withSelected (utdanningsskjema |> Skjema.fraDato |> Dato.måned |> Dato.månedTilString)
+                        |> Select.withSelected
+                            (utdanningsskjema
+                                |> Skjema.tilDato
+                                |> Maybe.withDefault (Skjema.fraDato utdanningsskjema)
+                                |> Dato.måned
+                                |> Dato.månedTilString
+                            )
                         |> Select.toHtml
-                    , utdanningsskjema
-                        |> Skjema.fraDato
-                        |> Dato.år
-                        |> String.fromInt
-                        |> (\string ->
-                                if string == "0" then
-                                    ""
+                    , case Skjema.tilDato utdanningsskjema of
+                        Just dato ->
+                            dato
+                                |> Dato.år
+                                |> String.fromInt
+                                |> (\string ->
+                                        if string == "0" then
+                                            ""
 
-                                else
-                                    string
-                           )
-                        |> Input.input { label = "År", msg = OppsummeringEndret Skjema.FraÅr }
-                        |> Input.toHtml
-                    , input
-                        [ type_ "checkbox"
-                        , utdanningsskjema
-                            |> Skjema.navarende
-                            |> checked
-                        , OppsummeringBoolEndret Skjema.Navarende
-                            |> onClick
-                        ]
-                        [ text "Nåværende jobb" ]
-                    , if Skjema.navarende utdanningsskjema then
-                        text ""
+                                        else
+                                            string
+                                   )
+                                |> Input.input { label = "År", msg = TilÅrEndret >> SkjemaOppdatert }
+                                |> Input.toHtml
 
-                      else
-                        div []
-                            [ Select.select "Måned"
-                                (OppsummeringEndret Skjema.TilMåned)
-                                [ ( "Januar", "Januar" )
-                                , ( "Februar", "Februar" )
-                                , ( "Mars", "Mars" )
-                                , ( "April", "April" )
-                                , ( "Mai", "Mai" )
-                                , ( "Juni", "Juni" )
-                                , ( "Juli", "Juli" )
-                                , ( "August", "August" )
-                                , ( "September", "September" )
-                                , ( "Oktober", "Oktober" )
-                                , ( "November", "November" )
-                                , ( "Desember", "Desember" )
-                                ]
-                                |> Select.withSelected
-                                    (utdanningsskjema
-                                        |> Skjema.tilDato
-                                        |> Maybe.withDefault (Skjema.fraDato utdanningsskjema)
-                                        |> Dato.måned
-                                        |> Dato.månedTilString
-                                    )
-                                |> Select.toHtml
-                            , case Skjema.tilDato utdanningsskjema of
-                                Just dato ->
-                                    dato
-                                        |> Dato.år
-                                        |> String.fromInt
-                                        |> (\string ->
-                                                if string == "0" then
-                                                    ""
-
-                                                else
-                                                    string
-                                           )
-                                        |> Input.input { label = "År", msg = OppsummeringEndret Skjema.TilÅr }
-                                        |> Input.toHtml
-
-                                Nothing ->
-                                    text ""
-                            ]
+                        Nothing ->
+                            text ""
                     ]
-                , div [ class "inputrad" ]
+            ]
+        , case model.aktivSamtale of
+            EndrerOppsummering _ ->
+                div [ class "inputrad" ]
                     [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
                         |> Knapp.toHtml
                     ]
-                ]
 
-        LagrerOppsummering _ ->
-            text ""
+            LeggTilUtdanningFeiletIApi _ _ ->
+                div [ class "inputrad" ]
+                    [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
+                        |> Knapp.toHtml
+                    , Knapp.knapp AvbrytLagringOgTaMegTilIntro "Avbryt lagring"
+                        |> Knapp.toHtml
+                    ]
+
+            _ ->
+                text ""
+        ]
 
 
 lagÅrInputKnapp : String -> String -> Msg -> Html Msg
@@ -971,97 +1099,6 @@ lagTilMånedKnapp tilDatoInfo måned =
         |> Knapp.toHtml
 
 
-lagDatoInputBoks : Skjema.UtdanningSkjema -> Html Msg
-lagDatoInputBoks utdanningskjema =
-    div []
-        [ Select.select "Måned"
-            (OppsummeringEndret Skjema.FraMåned)
-            [ ( "Januar", "Januar" )
-            , ( "Februar", "Februar" )
-            , ( "Mars", "Mars" )
-            , ( "April", "April" )
-            , ( "Mai", "Mai" )
-            , ( "Juni", "Juni" )
-            , ( "Juli", "Juli" )
-            , ( "August", "August" )
-            , ( "September", "September" )
-            , ( "Oktober", "Oktober" )
-            , ( "November", "November" )
-            , ( "Desember", "Desember" )
-            ]
-            |> Select.withSelected (utdanningskjema |> Skjema.fraDato |> Dato.måned |> Dato.månedTilString)
-            |> Select.toHtml
-        , utdanningskjema
-            |> Skjema.fraDato
-            |> Dato.år
-            |> String.fromInt
-            |> (\string ->
-                    if string == "0" then
-                        ""
-
-                    else
-                        string
-               )
-            |> Input.input { label = "År", msg = OppsummeringEndret Skjema.FraÅr }
-            |> Input.toHtml
-        , input
-            [ type_ "checkbox"
-            , utdanningskjema
-                |> Skjema.navarende
-                |> checked
-            , OppsummeringBoolEndret Skjema.Navarende
-                |> onClick
-            ]
-            [ text "Nåværende jobb" ]
-        , if Skjema.navarende utdanningskjema then
-            text ""
-
-          else
-            div []
-                [ Select.select "Måned"
-                    (OppsummeringEndret Skjema.TilMåned)
-                    [ ( "Januar", "Januar" )
-                    , ( "Februar", "Februar" )
-                    , ( "Mars", "Mars" )
-                    , ( "April", "April" )
-                    , ( "Mai", "Mai" )
-                    , ( "Juni", "Juni" )
-                    , ( "Juli", "Juli" )
-                    , ( "August", "August" )
-                    , ( "September", "September" )
-                    , ( "Oktober", "Oktober" )
-                    , ( "November", "November" )
-                    , ( "Desember", "Desember" )
-                    ]
-                    |> Select.withSelected
-                        (utdanningskjema
-                            |> Skjema.tilDato
-                            |> Maybe.withDefault (Skjema.fraDato utdanningskjema)
-                            |> Dato.måned
-                            |> Dato.månedTilString
-                        )
-                    |> Select.toHtml
-                , case Skjema.tilDato utdanningskjema of
-                    Just dato ->
-                        dato
-                            |> Dato.år
-                            |> String.fromInt
-                            |> (\string ->
-                                    if string == "0" then
-                                        ""
-
-                                    else
-                                        string
-                               )
-                            |> Input.input { label = "År", msg = OppsummeringEndret Skjema.TilÅr }
-                            |> Input.toHtml
-
-                    Nothing ->
-                        text ""
-                ]
-        ]
-
-
 selectNivåListe : List ( String, String )
 selectNivåListe =
     [ ( "Grunnskole", "Grunnskole" )
@@ -1078,7 +1115,7 @@ init : MeldingsLogg -> List Utdanning -> Model
 init gammelMeldingsLogg utdanningListe =
     let
         aktivSamtale =
-            Intro
+            Intro utdanningListe
     in
     Model
         { seksjonsMeldingsLogg =
