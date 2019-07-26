@@ -67,6 +67,7 @@ type Msg
     | HentAAregArbeidserfaring
     | HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
     | BrukerOppdatererYrke String
+    | BrukerTrykkerTypeaheadTast Typeahead.Operation
     | HentetYrkeTypeahead (Result Http.Error (List YrkeTypeahead))
     | BrukerOppdtarerYrkeTypeahead YrkeTypeahead
     | BrukerHovrerOverTypeaheadSuggestion YrkeTypeahead
@@ -308,7 +309,7 @@ update msg (Model info) =
                     case result of
                         Ok suggestions ->
                             ( typeaheadState
-                                |> TypeaheadState.updateSuggestions "" suggestions
+                                |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> RegistrerYrke
                                 |> oppdaterSamtalesteg info
                             , Cmd.none
@@ -345,16 +346,68 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerVelgerYrke yrkesTypeahead ->
+        BrukerTrykkerTypeaheadTast operation ->
             case info.aktivSamtale of
                 RegistrerYrke typeaheadState ->
-                    ( yrkesTypeahead
-                        |> yrkeInfoTilJobbtittelInfo
-                        |> SpørOmBrukerVilEndreJobbtittel
-                        |> nesteSamtaleSteg info (Melding.svar [ YrkeTypeahead.label yrkesTypeahead ])
-                    , Cmd.none
-                    )
+                    case operation of
+                        Typeahead.ArrowUp ->
+                            ( Model
+                                { info
+                                    | aktivSamtale =
+                                        typeaheadState
+                                            |> TypeaheadState.arrowUp
+                                            |> RegistrerYrke
+                                }
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        Typeahead.ArrowDown ->
+                            ( Model
+                                { info
+                                    | aktivSamtale =
+                                        typeaheadState
+                                            |> TypeaheadState.arrowDown
+                                            |> RegistrerYrke
+                                }
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        Typeahead.Enter ->
+                            case TypeaheadState.getActive typeaheadState of
+                                Just active ->
+                                    brukerVelgerYrke info active
+
+                                Nothing ->
+                                    ( Model
+                                        { info
+                                            | aktivSamtale = RegistrerYrke typeaheadState
+                                        }
+                                    , Cmd.none
+                                    )
+                                        |> IkkeFerdig
+
+                        Typeahead.MouseLeaveSuggestions ->
+                            ( Model
+                                { info
+                                    | aktivSamtale =
+                                        typeaheadState
+                                            |> TypeaheadState.removeActive
+                                            |> RegistrerYrke
+                                }
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
                         |> IkkeFerdig
+
+        BrukerVelgerYrke yrkesTypeahead ->
+            case info.aktivSamtale of
+                RegistrerYrke _ ->
+                    brukerVelgerYrke info yrkesTypeahead
 
                 _ ->
                     ( Model info, Cmd.none )
@@ -740,6 +793,17 @@ update msg (Model info) =
         ErrorLogget result ->
             ( Model info, Cmd.none )
                 |> IkkeFerdig
+
+
+brukerVelgerYrke : ModelInfo -> YrkeTypeahead -> SamtaleStatus
+brukerVelgerYrke info yrkesTypeahead =
+    ( yrkesTypeahead
+        |> yrkeInfoTilJobbtittelInfo
+        |> SpørOmBrukerVilEndreJobbtittel
+        |> nesteSamtaleSteg info (Melding.svar [ YrkeTypeahead.label yrkesTypeahead ])
+    , Cmd.none
+    )
+        |> IkkeFerdig
 
 
 visAaregResultat : List Arbeidserfaring -> ModelInfo -> Model
@@ -1297,7 +1361,7 @@ viewTypeahead : TypeaheadState YrkeTypeahead -> Html Msg
 viewTypeahead typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Yrke", msg = BrukerOppdatererYrke }
+        |> Typeahead.typeahead { label = "Yrke", onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
         |> Typeahead.toHtml
 
