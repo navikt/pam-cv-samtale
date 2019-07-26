@@ -22,6 +22,7 @@ import Personalia exposing (Personalia)
 import Process
 import SamtaleAnimasjon
 import Seksjon.Personalia
+import Seksjon.Sprak
 import Seksjon.Utdanning
 import Svg exposing (path, svg)
 import Svg.Attributes exposing (d, fill, viewBox)
@@ -88,6 +89,7 @@ type SamtaleSeksjon
     = Introduksjon MeldingsLogg
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
+    | SpråkSeksjon Seksjon.Sprak.Model
     | ArbeidsErfaringSeksjon
 
 
@@ -120,6 +122,7 @@ type SuccessMsg
     | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
+    | SpråkMsg Seksjon.Sprak.Msg
     | StartÅSkrive
     | FullførMelding
 
@@ -457,6 +460,24 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        SpråkMsg msg ->
+            case model.aktivSamtale of
+                SpråkSeksjon språkModel ->
+                    case Seksjon.Sprak.update msg språkModel of
+                        Seksjon.Sprak.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> SpråkSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (SpråkMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Sprak.Ferdig meldingsLogg ->
+                            språkFerdig model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
@@ -467,12 +488,15 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 
 personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
+    {--
     ( Success
         { model
             | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (MeldingsLogg.tilMeldingsLogg ferdigAnimertMeldingsLogg) (Cv.utdanning model.cv))
         }
     , Cmd.none
     )
+--}
+    gåTilSpråk model ferdigAnimertMeldingsLogg
 
 
 utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
@@ -482,6 +506,34 @@ utdanningFerdig model utdanning utdanningMeldingsLogg =
             | aktivSamtale = ArbeidsErfaringSeksjon
         }
     , Cmd.none
+    )
+
+
+språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+språkFerdig model meldingsLogg =
+    ( Success
+        { model
+            | aktivSamtale = ArbeidsErfaringSeksjon
+        }
+    , Cmd.none
+    )
+
+
+
+-- TODO: bruk denne for å gå til språk
+
+
+gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSpråk model ferdigAnimertMeldingsLogg =
+    let
+        ( språkModel, språkCmd ) =
+            Seksjon.Sprak.init ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = SpråkSeksjon språkModel
+        }
+    , Cmd.map (SpråkMsg >> SuccessMsg) språkCmd
     )
 
 
@@ -536,6 +588,9 @@ meldingsLoggFraSeksjon successModel =
 
         ArbeidsErfaringSeksjon ->
             MeldingsLogg.init
+
+        SpråkSeksjon model ->
+            Seksjon.Sprak.meldingsLogg model
 
 
 viewSuccess : SuccessModel -> Html Msg
@@ -624,6 +679,11 @@ viewBrukerInput aktivSamtale =
             utdanningSeksjon
                 |> Seksjon.Utdanning.viewBrukerInput
                 |> Html.map (UtdanningsMsg >> SuccessMsg)
+
+        SpråkSeksjon språkSeksjon ->
+            språkSeksjon
+                |> Seksjon.Sprak.viewBrukerInput
+                |> Html.map (SpråkMsg >> SuccessMsg)
 
         _ ->
             text "Ikke implementert"
