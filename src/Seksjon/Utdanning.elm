@@ -14,9 +14,11 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
 import Melding exposing (Melding(..))
-import MeldingsLogg exposing (MeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Process
 import SamtaleAnimasjon
 import Skjema.Utdanning as Skjema exposing (Felt(..))
+import Task
 
 
 
@@ -47,16 +49,16 @@ type Samtale
     | RegistrereTilÅr TildatoInfo
     | Oppsummering Skjema.UtdanningSkjema
     | EndrerOppsummering Skjema.UtdanningSkjema
-    | LagrerOppsummering Skjema.UtdanningSkjema
     | OppsummeringLagret Skjema.UtdanningSkjema
-    | LeggTilFlereUtdannelser
-    | LeggTilFlereUtdannelserTilApi
+    | LeggTilFlereUtdannelser Skjema.UtdanningSkjema
     | LeggTilUtdanningFeiletIApi Http.Error Skjema.UtdanningSkjema
+    | VenterPåAnimasjonFørFullføring (List Utdanning)
+    | AvsluttSeksjon Skjema.UtdanningSkjema
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Utdanning) MeldingsLogg
+    | Ferdig (List Utdanning) FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -211,6 +213,8 @@ type Msg
     | AvbrytLagringOgTaMegTilIntro
     | ViewportSatt (Result Dom.Error ())
     | ErrorLogget (Result Http.Error ())
+    | StartÅSkrive
+    | FullførMelding
 
 
 type SkjemaEndring
@@ -234,36 +238,41 @@ update msg (Model model) =
                     if List.isEmpty utdanningListe then
                         IkkeFerdig
                             ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere utdannning" ]) RegistrerNivå
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , lagtTilSpørsmålCmd
                             )
 
                     else
                         IkkeFerdig
                             ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere flere utdanninger" ]) RegistrerNivå
-                            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                            , lagtTilSpørsmålCmd
                             )
 
-                LeggTilFlereUtdannelserTilApi ->
+                LeggTilFlereUtdannelser _ ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere flere utdanninger" ]) RegistrerNivå
-                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , lagtTilSpørsmålCmd
                         )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         GåTilArbeidserfaring ->
-            model.seksjonsMeldingsLogg
-                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Jeg har ingen utdanning" ])
-                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da fortsetter vi med arbeidserfaringen din" ] ]
-                |> Ferdig model.utdanningListe
+            case model.aktivSamtale of
+                --      LeggTilFlereUtdannelser _ ->
+                --          IkkeFerdig
+                --              ( nesteSamtaleSteg model (Melding.svar [ "Jeg er ferdig med å legge til utdannelser" ]) (VenterPåAnimasjonFørFullføring model.utdanningListe), Cmd.none )
+                --      Intro _ ->
+                --          IkkeFerdig
+                --              ( nesteSamtaleSteg model (Melding.svar [ "Jeg har ingen flere utdannelser å legge til" ]) (VenterPåAnimasjonFørFullføring model.utdanningListe), Cmd.none )
+                _ ->
+                    fullførSeksjonHvisMeldingsloggErFerdig model model.utdanningListe
 
         BrukerVilRegistrereNivå nivå ->
             case model.aktivSamtale of
                 RegistrerNivå ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ nivåToString nivå ]) (RegistrerSkole (forrigeTilSkoleInfo nivå))
-                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , lagtTilSpørsmålCmd
                         )
 
                 _ ->
@@ -274,7 +283,7 @@ update msg (Model model) =
                 RegistrerSkole skoleinfo ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ skoleinfo.skole ]) (RegistrerRetning (forrigeTilRetningInfo skoleinfo))
-                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , lagtTilSpørsmålCmd
                         )
 
                 _ ->
@@ -285,7 +294,7 @@ update msg (Model model) =
                 RegistrerRetning retninginfo ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ retninginfo.retning ]) (RegistrerBeskrivelse (forrigeTilBeskrivelseInfo retninginfo))
-                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , lagtTilSpørsmålCmd
                         )
 
                 _ ->
@@ -296,7 +305,7 @@ update msg (Model model) =
                 RegistrerBeskrivelse beskrivelseinfo ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ beskrivelseinfo.beskrivelse ]) (RegistrereFraMåned (forrigeTilFradatoInfo beskrivelseinfo))
-                        , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , lagtTilSpørsmålCmd
                         )
 
                 _ ->
@@ -305,7 +314,7 @@ update msg (Model model) =
         BrukerVilRegistrereFraMåned fraDatoInfo ->
             ( RegistrereFraMåned fraDatoInfo
                 |> nesteSamtaleSteg model (Melding.svar [ fraDatoInfo.forrige.beskrivelse ])
-            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
@@ -317,7 +326,7 @@ update msg (Model model) =
                             |> Dato.månedTilString
                         ]
                     )
-            , Cmd.none
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
@@ -336,7 +345,7 @@ update msg (Model model) =
                 RegistrereFraÅr datoInfo ->
                     ( RegistrereNavarende datoInfo
                         |> nesteSamtaleSteg model (Melding.svar [ datoInfo.fraÅr ])
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -353,7 +362,7 @@ update msg (Model model) =
                         |> forrigeTilOppsummeringInfo
                         |> Oppsummering
                         |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -366,7 +375,7 @@ update msg (Model model) =
                 |> forrigeTilTildatoInfo
                 |> RegistrereTilMåned
                 |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
-            , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
@@ -378,7 +387,7 @@ update msg (Model model) =
                             |> Dato.månedTilString
                         ]
                     )
-            , Cmd.none
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
@@ -399,7 +408,7 @@ update msg (Model model) =
                         |> forrigeTilOppsummeringInfo
                         |> Oppsummering
                         |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -410,7 +419,7 @@ update msg (Model model) =
         BrukerVilEndreOppsummering ->
             case model.aktivSamtale of
                 Oppsummering utdanningskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil endre" ]) (EndrerOppsummering utdanningskjema), SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil endre" ]) (EndrerOppsummering utdanningskjema), lagtTilSpørsmålCmd )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -450,7 +459,10 @@ update msg (Model model) =
         OriginalOppsummeringBekreftet ->
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, SamtaleAnimasjon.scrollTilBunn ViewportSatt ] )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "1Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
+
+                LeggTilFlereUtdannelser ferdigskjema ->
+                    fullførSeksjonHvisMeldingsloggErFerdig model model.utdanningListe
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -458,13 +470,10 @@ update msg (Model model) =
         OppsummeringSkjemaLagreknappTrykket ->
             case model.aktivSamtale of
                 EndrerOppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, SamtaleAnimasjon.scrollTilBunn ViewportSatt ] )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "3Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
 
-                LagrerOppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, SamtaleAnimasjon.scrollTilBunn ViewportSatt ] )
-
-                LeggTilUtdanningFeiletIApi error feiletskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret feiletskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi feiletskjema, SamtaleAnimasjon.scrollTilBunn ViewportSatt ] )
+                LeggTilUtdanningFeiletIApi _ feiletskjema ->
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "5Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret feiletskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi feiletskjema, lagtTilSpørsmålCmd ] )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -474,7 +483,7 @@ update msg (Model model) =
                 OppsummeringLagret skjema ->
                     case result of
                         Ok value ->
-                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } LeggTilFlereUtdannelser, SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } (LeggTilFlereUtdannelser skjema), lagtTilSpørsmålCmd )
                                 |> IkkeFerdig
 
                         Err error ->
@@ -484,7 +493,7 @@ update msg (Model model) =
                 Oppsummering skjema ->
                     case result of
                         Ok value ->
-                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } LeggTilFlereUtdannelser, SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } (LeggTilFlereUtdannelser skjema), lagtTilSpørsmålCmd )
                                 |> IkkeFerdig
 
                         Err error ->
@@ -495,11 +504,79 @@ update msg (Model model) =
                     IkkeFerdig ( Model model, Cmd.none )
 
         AvbrytLagringOgTaMegTilIntro ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Avbryt lagring" ]) (Intro model.utdanningListe), SamtaleAnimasjon.scrollTilBunn ViewportSatt )
+            ( nesteSamtaleSteg model (Melding.svar [ "Avbryt lagring" ]) (Intro model.utdanningListe), lagtTilSpørsmålCmd )
                 |> IkkeFerdig
+
+        StartÅSkrive ->
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
+                }
+            , Cmd.batch
+                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                , Process.sleep 1000
+                    |> Task.perform (\_ -> FullførMelding)
+                ]
+            )
+                |> IkkeFerdig
+
+        FullførMelding ->
+            model.seksjonsMeldingsLogg
+                |> MeldingsLogg.fullførMelding
+                |> updateEtterFullførtMelding model
 
         _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
+updateEtterFullførtMelding model nyMeldingsLogg =
+    case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
+        FerdigAnimert ferdigAnimertSamtale ->
+            case model.aktivSamtale of
+                VenterPåAnimasjonFørFullføring utdanningsListe ->
+                    Ferdig utdanningsListe ferdigAnimertSamtale
+
+                _ ->
+                    ( Model
+                        { model
+                            | seksjonsMeldingsLogg =
+                                nyMeldingsLogg
+                        }
+                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    )
+                        |> IkkeFerdig
+
+        MeldingerGjenstår ->
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        nyMeldingsLogg
+                }
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
+
+
+fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> List Utdanning -> SamtaleStatus
+fullførSeksjonHvisMeldingsloggErFerdig modelInfo utdanningListe =
+    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
+        FerdigAnimert ferdigAnimertMeldingsLogg ->
+            Ferdig utdanningListe ferdigAnimertMeldingsLogg
+
+        MeldingerGjenstår ->
+            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring utdanningListe }, Cmd.none )
+                |> IkkeFerdig
+
+
+lagtTilSpørsmålCmd : Cmd Msg
+lagtTilSpørsmålCmd =
+    Cmd.batch
+        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+        , Process.sleep 200
+            |> Task.perform (\_ -> StartÅSkrive)
+        ]
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
@@ -687,12 +764,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 [ "Ok! Vennligst skriv inn riktig informasjon i feltene under: " ]
             ]
 
-        LagrerOppsummering _ ->
-            [ Melding.spørsmål
-                [ "Godt jobbet! Da tar jeg vare på den nye infoen! " ]
-            ]
-
-        LeggTilFlereUtdannelser ->
+        LeggTilFlereUtdannelser _ ->
             [ Melding.spørsmål [ "Har du flere utdannelser du ønsker å legge inn?" ]
             ]
 
@@ -734,203 +806,199 @@ hentTilDato skjema =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case model.aktivSamtale of
-        Intro _ ->
-            if List.isEmpty model.utdanningListe then
-                div [ class "inputrad" ]
-                    [ div [ class "inputrad-innhold" ]
-                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
-                            |> Knapp.toHtml
-                        , Knapp.knapp GåTilArbeidserfaring "Jeg har ingen utdanning"
+    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
+        FerdigAnimert _ ->
+            case model.aktivSamtale of
+                Intro _ ->
+                    if List.isEmpty model.utdanningListe then
+                        div [ class "inputrad" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp GåTilArbeidserfaring "Jeg har ingen utdanning"
+                                    |> Knapp.toHtml
+                                ]
+                            ]
+
+                    else
+                        div [ class "inputrad" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil legge til flere utdannelser"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp GåTilArbeidserfaring "Jeg er ferdig med å legge til utdannelser"
+                                    |> Knapp.toHtml
+                                ]
+                            ]
+
+                RegistrerNivå ->
+                    div [ class "inputrad" ]
+                        [ div [ class "Utdanningsnivå" ]
+                            [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole) |> Knapp.toHtml
+                            , Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole) |> Knapp.toHtml
+                            , Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole) |> Knapp.toHtml
+                            , Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole) |> Knapp.toHtml
+                            , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4) |> Knapp.toHtml
+                            , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss) |> Knapp.toHtml
+                            , Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd) |> Knapp.toHtml
+                            ]
+                        ]
+
+                RegistrerSkole skoleinfo ->
+                    div [ class "Skjema" ]
+                        [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "Skole" } |> Input.toHtml
+                        , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
                             |> Knapp.toHtml
                         ]
-                    ]
 
-            else
-                div [ class "inputrad" ]
-                    [ div [ class "inputrad-innhold" ]
-                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil legge til flere utdannelser"
-                            |> Knapp.toHtml
-                        , Knapp.knapp GåTilArbeidserfaring "Jeg er ferdig med å legge til utdannelser"
+                RegistrerRetning retningsinfo ->
+                    div [ class "Skjema" ]
+                        [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "Retning" } |> Input.toHtml
+                        , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
                             |> Knapp.toHtml
                         ]
-                    ]
 
-        RegistrerNivå ->
-            div [ class "inputrad" ]
-                [ div [ class "Utdanningsnivå" ]
-                    [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole) |> Knapp.toHtml
-                    , Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole) |> Knapp.toHtml
-                    , Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole) |> Knapp.toHtml
-                    , Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole) |> Knapp.toHtml
-                    , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4) |> Knapp.toHtml
-                    , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss) |> Knapp.toHtml
-                    , Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd) |> Knapp.toHtml
-                    ]
-                ]
+                RegistrerBeskrivelse beskrivelseinfo ->
+                    div [ class "Skjema" ]
+                        [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterBeskrivelse, label = "Beskrivelse" } |> Input.toHtml
+                        , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
+                            |> Knapp.toHtml
+                        ]
 
-        RegistrerSkole skoleinfo ->
-            div [ class "Skjema" ]
-                [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "Skole" } |> Input.toHtml
-                , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
-                    |> Knapp.toHtml
-                ]
+                RegistrereFraMåned fraDatoInfo ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ Dato.Januar
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Februar
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Mars
+                                |> lagFraMånedKnapp fraDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.April
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Mai
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Juni
+                                |> lagFraMånedKnapp fraDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.Juli
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.August
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.September
+                                |> lagFraMånedKnapp fraDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.Oktober
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.November
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Desember
+                                |> lagFraMånedKnapp fraDatoInfo
+                            ]
+                        ]
 
-        RegistrerRetning retningsinfo ->
-            div [ class "Skjema" ]
-                [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "Retning" } |> Input.toHtml
-                , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
-                    |> Knapp.toHtml
-                ]
+                RegistrereFraÅr fraDatoInfo ->
+                    div [ class "skjemawrapper" ]
+                        [ div [ class "skjema" ]
+                            [ fraDatoInfo.fraÅr
+                                |> Input.input { label = "Hvilket år begynte du der?", msg = OppdaterFraÅr fraDatoInfo }
+                                |> Input.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ BrukerVilRegistrereNaavarende
+                                |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
+                            ]
+                        ]
 
-        RegistrerBeskrivelse beskrivelseinfo ->
-            div [ class "Skjema" ]
-                [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterBeskrivelse, label = "Beskrivelse" } |> Input.toHtml
-                , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
-                    |> Knapp.toHtml
-                ]
+                RegistrereNavarende fraDatoInfo ->
+                    div []
+                        [ div [ class "inputrad" ]
+                            [ BrukerSvarerJaTilNaavarende
+                                |> lagMessageKnapp "Ja"
+                            , fraDatoInfo
+                                |> BrukerSvarerNeiTilNaavarende
+                                |> lagMessageKnapp "Nei"
+                            ]
+                        ]
 
-        RegistrereFraMåned fraDatoInfo ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "inputrad" ]
-                    [ Dato.Januar
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Februar
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Mars
-                        |> lagFraMånedKnapp fraDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.April
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Mai
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Juni
-                        |> lagFraMånedKnapp fraDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.Juli
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.August
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.September
-                        |> lagFraMånedKnapp fraDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.Oktober
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.November
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Desember
-                        |> lagFraMånedKnapp fraDatoInfo
-                    ]
-                ]
+                RegistrereTilMåned tilDatoInfo ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ Dato.Januar
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Februar
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Mars
+                                |> lagTilMånedKnapp tilDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.April
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Mai
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Juni
+                                |> lagTilMånedKnapp tilDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.Juli
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.August
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.September
+                                |> lagTilMånedKnapp tilDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.Oktober
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.November
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Desember
+                                |> lagTilMånedKnapp tilDatoInfo
+                            ]
+                        ]
 
-        RegistrereFraÅr fraDatoInfo ->
-            div [ class "skjemawrapper" ]
-                [ div [ class "skjema" ]
-                    [ fraDatoInfo.fraÅr
-                        |> Input.input { label = "Hvilket år begynte du der?", msg = OppdaterFraÅr fraDatoInfo }
-                        |> Input.toHtml
-                    ]
-                , div [ class "inputrad" ]
-                    [ BrukerVilRegistrereNaavarende
-                        |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
-                    ]
-                ]
+                RegistrereTilÅr tilDatoInfo ->
+                    div [ class "skjemawrapper" ]
+                        [ div [ class "skjema" ]
+                            [ tilDatoInfo.tilÅr
+                                |> Input.input { label = "Hvilket år ble du ferdig", msg = OppdaterTilÅr tilDatoInfo }
+                                |> Input.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ BrukerVilGåTilOppsummering
+                                |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
+                            ]
+                        ]
 
-        RegistrereNavarende fraDatoInfo ->
-            div []
-                [ div [ class "inputrad" ]
-                    [ BrukerSvarerJaTilNaavarende
-                        |> lagMessageKnapp "Ja"
-                    , fraDatoInfo
-                        |> BrukerSvarerNeiTilNaavarende
-                        |> lagMessageKnapp "Nei"
-                    ]
-                ]
+                Oppsummering _ ->
+                    div [ class "inputrad" ]
+                        [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
+                            |> Knapp.toHtml
+                        , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
+                            |> Knapp.toHtml
+                        ]
 
-        RegistrereTilMåned tilDatoInfo ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "inputrad" ]
-                    [ Dato.Januar
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Februar
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Mars
-                        |> lagTilMånedKnapp tilDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.April
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Mai
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Juni
-                        |> lagTilMånedKnapp tilDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.Juli
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.August
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.September
-                        |> lagTilMånedKnapp tilDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.Oktober
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.November
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Desember
-                        |> lagTilMånedKnapp tilDatoInfo
-                    ]
-                ]
+                EndrerOppsummering utdanningsskjema ->
+                    endreSkjema model utdanningsskjema
 
-        RegistrereTilÅr tilDatoInfo ->
-            div []
-                [ label [] [ text "Skriv inn år" ]
-                , input
-                    [ tilDatoInfo.tilÅr |> value
-                    , tilDatoInfo
-                        |> OppdaterTilÅr
-                        |> onInput
-                    ]
-                    []
-                , BrukerVilGåTilOppsummering
-                    |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
-                ]
+                LeggTilFlereUtdannelser _ ->
+                    div [ class "inputrad" ]
+                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
+                            |> Knapp.toHtml
+                        , Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
+                            |> Knapp.toHtml
+                        ]
 
-        Oppsummering _ ->
-            div [ class "inputrad" ]
-                [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
-                    |> Knapp.toHtml
-                , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
-                    |> Knapp.toHtml
-                ]
+                LeggTilUtdanningFeiletIApi _ utdanningSkjema ->
+                    endreSkjema model utdanningSkjema
 
-        EndrerOppsummering utdanningsskjema ->
-            endreSkjema model utdanningsskjema
+                _ ->
+                    text ""
 
-        LeggTilFlereUtdannelser ->
-            div [ class "inputrad" ]
-                [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
-                    |> Knapp.toHtml
-                , Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
-                    |> Knapp.toHtml
-                ]
-
-        LeggTilFlereUtdannelserTilApi ->
-            div [ class "inputrad" ]
-                [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
-                    |> Knapp.toHtml
-                , Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
-                    |> Knapp.toHtml
-                ]
-
-        LeggTilUtdanningFeiletIApi _ utdanningSkjema ->
-            endreSkjema model utdanningSkjema
-
-        _ ->
+        MeldingerGjenstår ->
             text ""
 
 
@@ -1111,17 +1179,19 @@ selectNivåListe =
     ]
 
 
-init : MeldingsLogg -> List Utdanning -> Model
+init : FerdigAnimertMeldingsLogg -> List Utdanning -> ( Model, Cmd Msg )
 init gammelMeldingsLogg utdanningListe =
     let
         aktivSamtale =
             Intro utdanningListe
     in
-    Model
+    ( Model
         { seksjonsMeldingsLogg =
             MeldingsLogg.leggTilSpørsmål
                 (samtaleTilMeldingsLogg aktivSamtale)
-                gammelMeldingsLogg
+                (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , utdanningListe = utdanningListe
         }
+    , Cmd.batch [ lagtTilSpørsmålCmd ]
+    )

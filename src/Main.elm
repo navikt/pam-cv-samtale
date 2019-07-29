@@ -488,24 +488,34 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 
 personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
-    {--
-    ( Success
-        { model
-            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (MeldingsLogg.tilMeldingsLogg ferdigAnimertMeldingsLogg) (Cv.utdanning model.cv))
-        }
-    , Cmd.none
-    )
---}
-    gåTilSpråk model ferdigAnimertMeldingsLogg
+    gåTilUtdanning model ferdigAnimertMeldingsLogg
 
 
-utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
+
+-- gåTilSpråk model ferdigAnimertMeldingsLogg
+
+
+utdanningFerdig : SuccessModel -> List Utdanning -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
     ( Success
         { model
             | aktivSamtale = ArbeidsErfaringSeksjon
         }
     , Cmd.none
+    )
+
+
+gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilUtdanning model ferdigAnimertMeldingsLogg =
+    let
+        ( utdanningModel, utdanningCmd ) =
+            Seksjon.Utdanning.init ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = UtdanningSeksjon utdanningModel
+        }
+    , Cmd.map (UtdanningsMsg >> SuccessMsg) utdanningCmd
     )
 
 
