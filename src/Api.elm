@@ -2,6 +2,8 @@ module Api exposing
     ( hentCv
     , hentPerson
     , hentPersonalia
+    , hentSpråkkoder
+    , leggTilSpråk
     , leggTilUtdanning
     , logError
     , oppdaterPersonalia
@@ -11,13 +13,16 @@ module Api exposing
     )
 
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Spraakferdighet exposing (Spraakferdighet)
 import Cv.Utdanning exposing (Utdanning)
 import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
 import Json.Decode
 import Personalia exposing (Personalia)
 import Skjema.Personalia
+import Skjema.Sprak
 import Skjema.Utdanning
+import Sprakkoder exposing (Sprakkoder)
 
 
 hentPerson : (Result Error () -> msg) -> Cmd msg
@@ -60,6 +65,23 @@ oppdaterPersonalia msgConstructor skjema id =
         { url = "/cv-samtale/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
         , body = Skjema.Personalia.encode skjema id |> jsonBody
+        }
+
+
+leggTilSpråk : (Result Error (List Spraakferdighet) -> msg) -> Skjema.Sprak.SpråkSkjema -> Cmd msg
+leggTilSpråk msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/sprak"
+        , expect = expectJson msgConstructor (Json.Decode.list Cv.Spraakferdighet.decode)
+        , body = Skjema.Sprak.encode skjema |> jsonBody
+        }
+
+
+hentSpråkkoder : (Result Error (List Sprakkoder) -> msg) -> Cmd msg
+hentSpråkkoder msgConstructor =
+    Http.get
+        { url = "/cv-samtale/api/rest/koder/sprak"
+        , expect = expectJson msgConstructor (Json.Decode.list Sprakkoder.decode)
         }
 
 

@@ -4,6 +4,7 @@ import Api
 import Browser
 import Browser.Dom as Dom
 import Browser.Events
+import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
@@ -21,10 +22,12 @@ import Personalia exposing (Personalia)
 import Process
 import SamtaleAnimasjon
 import Seksjon.Personalia
+import Seksjon.Sprak
 import Seksjon.Utdanning
 import Svg exposing (path, svg)
 import Svg.Attributes exposing (d, fill, viewBox)
 import Task
+import Url
 
 
 
@@ -48,6 +51,13 @@ type Seksjonsstatus
 --- MODEL ---
 
 
+type alias ExtendedModel =
+    { model : Model
+    , navigationKey : Navigation.Key
+    , windowWidth : Int
+    }
+
+
 type Model
     = Loading LoadingModel
     | Success SuccessModel
@@ -64,7 +74,6 @@ type alias LoadingState =
     { cv : Maybe Cv
     , personalia : Personalia
     , registreringsProgresjon : Maybe RegistreringsProgresjon
-    , windowWidth : Maybe Int
     }
 
 
@@ -73,7 +82,6 @@ type alias SuccessModel =
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
     , aktivSamtale : SamtaleSeksjon
-    , windowWidth : Int
     }
 
 
@@ -81,6 +89,7 @@ type SamtaleSeksjon
     = Introduksjon MeldingsLogg
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
+    | SpråkSeksjon Seksjon.Sprak.Model
     | ArbeidsErfaringSeksjon
 
 
@@ -92,7 +101,10 @@ type Msg
     = LoadingMsg LoadingMsg
     | SuccessMsg SuccessMsg
     | ErrorLogget (Result Http.Error ())
+    | ViewportHentet Dom.Viewport
     | WindowResized Int Int
+    | UrlChanged Url.Url
+    | UrlRequestChanged Browser.UrlRequest
 
 
 type LoadingMsg
@@ -103,7 +115,6 @@ type LoadingMsg
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
-    | ViewportHentet Dom.Viewport
 
 
 type SuccessMsg
@@ -111,54 +122,72 @@ type SuccessMsg
     | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
+    | SpråkMsg Seksjon.Sprak.Msg
     | StartÅSkrive
     | FullførMelding
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
+update msg extendedModel =
     case msg of
-        LoadingMsg lm ->
-            updateLoading lm model
+        LoadingMsg loadingModel ->
+            updateLoading extendedModel.navigationKey loadingModel extendedModel.model
+                |> mapTilExtendedModel extendedModel
 
         SuccessMsg successMsg ->
-            case model of
+            case extendedModel.model of
                 Success successModel ->
                     updateSuccess successMsg successModel
+                        |> mapTilExtendedModel extendedModel
 
                 _ ->
-                    ( model, Cmd.none )
+                    ( extendedModel, Cmd.none )
 
         ErrorLogget _ ->
-            ( model, Cmd.none )
+            ( extendedModel, Cmd.none )
 
         WindowResized windowWidth _ ->
-            updateWindowResized model windowWidth
-
-
-updateWindowResized : Model -> Int -> ( Model, Cmd msg )
-updateWindowResized model windowWidth =
-    case model of
-        Success successModel ->
-            ( Success { successModel | windowWidth = windowWidth }
+            ( { model = extendedModel.model
+              , navigationKey = extendedModel.navigationKey
+              , windowWidth = windowWidth
+              }
             , Cmd.none
             )
 
-        Loading (VenterPåResten loadingState) ->
-            ( Loading (VenterPåResten { loadingState | windowWidth = Just windowWidth })
+        UrlChanged _ ->
+            ( extendedModel, Cmd.none )
+
+        UrlRequestChanged (Browser.External urlString) ->
+            ( extendedModel, Navigation.load urlString )
+
+        UrlRequestChanged _ ->
+            ( extendedModel, Cmd.none )
+
+        ViewportHentet viewport ->
+            ( { model = extendedModel.model
+              , navigationKey = extendedModel.navigationKey
+              , windowWidth = round viewport.scene.width
+              }
             , Cmd.none
             )
 
-        _ ->
-            ( model, Cmd.none )
+
+mapTilExtendedModel : ExtendedModel -> ( Model, Cmd Msg ) -> ( ExtendedModel, Cmd Msg )
+mapTilExtendedModel extendedModel ( model, cmd ) =
+    ( { model = model
+      , windowWidth = extendedModel.windowWidth
+      , navigationKey = extendedModel.navigationKey
+      }
+    , cmd
+    )
 
 
 
 --- Loading ---
 
 
-updateLoading : LoadingMsg -> Model -> ( Model, Cmd Msg )
-updateLoading msg model =
+updateLoading : Navigation.Key -> LoadingMsg -> Model -> ( Model, Cmd Msg )
+updateLoading navigationKey msg model =
     case msg of
         PersonHentet result ->
             case result of
@@ -169,6 +198,9 @@ updateLoading msg model =
                     case error of
                         Http.BadStatus 404 ->
                             ( model, Api.opprettPerson (PersonOpprettet >> LoadingMsg) )
+
+                        Http.BadStatus 401 ->
+                            ( model, redirectTilLogin navigationKey )
 
                         _ ->
                             ( Failure error
@@ -255,19 +287,10 @@ updateLoading msg model =
                     , logFeilmelding error "Hent registreringsprogresjon"
                     )
 
-        ViewportHentet viewport ->
-            case model of
-                Loading (VenterPåResten state) ->
-                    modelFraLoadingState
-                        { state
-                            | windowWidth =
-                                viewport.scene.width
-                                    |> round
-                                    |> Just
-                        }
 
-                _ ->
-                    ( model, Cmd.none )
+redirectTilLogin : Navigation.Key -> Cmd Msg
+redirectTilLogin _ =
+    Navigation.load "/cv-samtale/login"
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
@@ -279,14 +302,13 @@ logFeilmelding error operasjon =
 
 modelFraLoadingState : LoadingState -> ( Model, Cmd Msg )
 modelFraLoadingState state =
-    case ( state.cv, state.registreringsProgresjon, state.windowWidth ) of
-        ( Just cv, Just registreringsProgresjon, Just windowWidth ) ->
+    case ( state.cv, state.registreringsProgresjon ) of
+        ( Just cv, Just registreringsProgresjon ) ->
             ( Success
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
                 , aktivSamtale = initialiserSamtale
-                , windowWidth = windowWidth
                 }
             , Process.sleep 200
                 |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
@@ -317,7 +339,6 @@ initVenterPåResten personalia =
         (VenterPåResten
             { cv = Nothing
             , personalia = personalia
-            , windowWidth = Nothing
             , registreringsProgresjon =
                 Just
                     { erDetteFørsteGangManErInneILøsningen = True
@@ -326,11 +347,7 @@ initVenterPåResten personalia =
                     }
             }
         )
-    , Cmd.batch
-        [ Api.hentCv (CvHentet >> LoadingMsg)
-        , Dom.getViewport
-            |> Task.perform (ViewportHentet >> LoadingMsg)
-        ]
+    , Api.hentCv (CvHentet >> LoadingMsg)
     )
 
 
@@ -443,6 +460,24 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        SpråkMsg msg ->
+            case model.aktivSamtale of
+                SpråkSeksjon språkModel ->
+                    case Seksjon.Sprak.update msg språkModel of
+                        Seksjon.Sprak.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> SpråkSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (SpråkMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Sprak.Ferdig meldingsLogg ->
+                            språkFerdig model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
@@ -453,12 +488,15 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 
 personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
+    {--
     ( Success
         { model
             | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (MeldingsLogg.tilMeldingsLogg ferdigAnimertMeldingsLogg) (Cv.utdanning model.cv))
         }
     , Cmd.none
     )
+--}
+    gåTilSpråk model ferdigAnimertMeldingsLogg
 
 
 utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
@@ -471,21 +509,60 @@ utdanningFerdig model utdanning utdanningMeldingsLogg =
     )
 
 
+språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+språkFerdig model meldingsLogg =
+    ( Success
+        { model
+            | aktivSamtale = ArbeidsErfaringSeksjon
+        }
+    , Cmd.none
+    )
+
+
+
+-- TODO: bruk denne for å gå til språk
+
+
+gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSpråk model ferdigAnimertMeldingsLogg =
+    let
+        ( språkModel, språkCmd ) =
+            Seksjon.Sprak.init ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = SpråkSeksjon språkModel
+        }
+    , Cmd.map (SpråkMsg >> SuccessMsg) språkCmd
+    )
+
+
 
 --- VIEW ---
 
 
-view : Model -> Html Msg
-view model =
-    case model of
-        Loading _ ->
-            viewLoading
+viewDocument : ExtendedModel -> Browser.Document Msg
+viewDocument extendedModel =
+    { title = "CV-samtale - Arbeidsplassen"
+    , body = [ view extendedModel ]
+    }
 
-        Success successModel ->
-            viewSuccess successModel
 
-        Failure error ->
-            text "error"
+view : ExtendedModel -> Html Msg
+view { model, windowWidth } =
+    div [ class "app" ]
+        [ Header.header windowWidth
+            |> Header.toHtml
+        , case model of
+            Loading _ ->
+                viewLoading
+
+            Success successModel ->
+                viewSuccess successModel
+
+            Failure error ->
+                text "error"
+        ]
 
 
 viewLoading : Html msg
@@ -512,23 +589,22 @@ meldingsLoggFraSeksjon successModel =
         ArbeidsErfaringSeksjon ->
             MeldingsLogg.init
 
+        SpråkSeksjon model ->
+            Seksjon.Sprak.meldingsLogg model
+
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
-    div [ class "app" ]
-        [ Header.header successModel.windowWidth
-            |> Header.toHtml
-        , div [ class "samtale-wrapper", id "samtale" ]
-            [ div [ class "samtale" ]
-                [ successModel
-                    |> meldingsLoggFraSeksjon
-                    |> viewMeldingsLogg
-                , successModel
-                    |> meldingsLoggFraSeksjon
-                    |> viewSkriveStatus
-                , viewBrukerInput successModel.aktivSamtale
-                , div [ class "samtale-padding" ] []
-                ]
+    div [ class "samtale-wrapper", id "samtale" ]
+        [ div [ class "samtale" ]
+            [ successModel
+                |> meldingsLoggFraSeksjon
+                |> viewMeldingsLogg
+            , successModel
+                |> meldingsLoggFraSeksjon
+                |> viewSkriveStatus
+            , viewBrukerInput successModel.aktivSamtale
+            , div [ class "samtale-padding" ] []
             ]
         ]
 
@@ -604,6 +680,11 @@ viewBrukerInput aktivSamtale =
                 |> Seksjon.Utdanning.viewBrukerInput
                 |> Html.map (UtdanningsMsg >> SuccessMsg)
 
+        SpråkSeksjon språkSeksjon ->
+            språkSeksjon
+                |> Seksjon.Sprak.viewBrukerInput
+                |> Html.map (SpråkMsg >> SuccessMsg)
+
         _ ->
             text "Ikke implementert"
 
@@ -613,14 +694,25 @@ viewBrukerInput aktivSamtale =
 
 
 main =
-    Browser.element
+    Browser.application
         { init = init
         , update = update
-        , view = view
+        , view = viewDocument
         , subscriptions = always (Browser.Events.onResize WindowResized)
+        , onUrlChange = UrlChanged
+        , onUrlRequest = UrlRequestChanged
         }
 
 
-init : () -> ( Model, Cmd Msg )
-init flags =
-    ( Loading VenterPåPerson, Api.hentPerson (PersonHentet >> LoadingMsg) )
+init : () -> Url.Url -> Navigation.Key -> ( ExtendedModel, Cmd Msg )
+init _ _ navigationKey =
+    ( { model = Loading VenterPåPerson
+      , windowWidth = 1000
+      , navigationKey = navigationKey
+      }
+    , Cmd.batch
+        [ Api.hentPerson (PersonHentet >> LoadingMsg)
+        , Dom.getViewport
+            |> Task.perform ViewportHentet
+        ]
+    )
