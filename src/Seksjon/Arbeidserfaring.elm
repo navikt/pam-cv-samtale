@@ -6,12 +6,14 @@ module Seksjon.Arbeidserfaring exposing
     , SamtaleStatus(..)
     , TilDatoInfo
     , init
+    , lagtTilSpørsmålCmd
     , meldingsLogg
     , update
     , viewBrukerInput
     )
 
 import Api
+import Browser.Dom as Dom
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
 import Dato exposing (Dato)
 import Feilmelding
@@ -25,8 +27,11 @@ import Html.Attributes exposing (checked, class, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Melding exposing (Melding)
-import MeldingsLogg exposing (MeldingsLogg)
+import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Process
+import SamtaleAnimasjon
 import Skjema.ArbeidserfaringSkjema as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, TypeaheadFelt(..), ValidertArbeidserfaringSkjema)
+import Task
 import TypeaheadState exposing (TypeaheadState)
 import Yrke exposing (Yrke(..))
 
@@ -68,6 +73,7 @@ meldingsLogg (Model model) =
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
+    | Ferdig FerdigAnimertMeldingsLogg
 
 
 
@@ -111,7 +117,11 @@ type Msg
     | BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
     | ArbeidserfaringLagret (Result Http.Error (List Arbeidserfaring))
     | NyArbeidserfaring
-    | Ferdig
+    | FerdigMedArbeidserfaring
+    | StartÅSkrive
+    | FullFørMelding
+    | ViewportSatt (Result Dom.Error ())
+    | GåTilNesteSeksjon
     | ErrorLogget (Result Http.Error ())
 
 
@@ -139,6 +149,8 @@ type Samtale
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
     | SpørOmBrukerVilLeggeInnMer
     | StartNyArbeidserfaring (TypeaheadState Yrke)
+    | VenterPåAnimasjonFørFullføring
+    | HeltFerdig
 
 
 type alias YrkeInfo =
@@ -303,7 +315,7 @@ update msg (Model info) =
                 |> TypeaheadState.init
                 |> RegistrerYrke
                 |> nesteSamtaleSteg info (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
-            , Cmd.none
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
@@ -465,7 +477,7 @@ update msg (Model info) =
         BrukerVilEndreJobbtittel jobbtittelInfo ->
             ( EndreJobbtittel jobbtittelInfo
                 |> nesteSamtaleSteg info (Melding.svar [ "Nei, legg til et nytt navn" ])
-            , Cmd.none
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
@@ -491,7 +503,7 @@ update msg (Model info) =
                         |> jobbtittelInfoTilBedriftnavnsInfo
                         |> RegistrereBedriftNavn
                         |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -500,7 +512,7 @@ update msg (Model info) =
                         |> jobbtittelInfoTilBedriftnavnsInfo
                         |> RegistrereBedriftNavn
                         |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -530,7 +542,7 @@ update msg (Model info) =
                         |> bedriftnavnsInfoTilLokasjonInfo
                         |> RegistrereSted
                         |> nesteSamtaleSteg info (Melding.svar [ bedriftnavnInfo.bedriftNavn ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -560,7 +572,7 @@ update msg (Model info) =
                         |> stedInfoTilArbeidsoppgaverInfo
                         |> RegistrereArbeidsoppgaver
                         |> nesteSamtaleSteg info (Melding.svar [ stedInfo.lokasjon ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -591,7 +603,7 @@ update msg (Model info) =
                         |> arbeidsoppgaverInfoTilfraDatoInfo
                         |> RegistrereFraMåned
                         |> nesteSamtaleSteg info (Melding.svar [ arbeidsOppgaveInfo.arbeidsoppgaver ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -611,7 +623,7 @@ update msg (Model info) =
                                     |> Dato.månedTilString
                                 ]
                             )
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -640,7 +652,7 @@ update msg (Model info) =
                 RegistrereFraÅr datoInfo ->
                     ( RegistrereNaavarende datoInfo
                         |> nesteSamtaleSteg info (Melding.svar [ datoInfo.fraÅr ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -657,7 +669,7 @@ update msg (Model info) =
                         |> tilDatoTilSkjema
                         |> VisOppsummering
                         |> nesteSamtaleSteg info (Melding.svar [ "Ja" ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -672,7 +684,7 @@ update msg (Model info) =
                         |> fraDatoInfoTilTilDatoInfo
                         |> RegistrereTilMåned
                         |> nesteSamtaleSteg info (Melding.svar [ "Nei" ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -690,7 +702,7 @@ update msg (Model info) =
                                     |> Dato.månedTilString
                                 ]
                             )
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -721,7 +733,7 @@ update msg (Model info) =
                         |> tilDatoTilSkjema
                         |> VisOppsummering
                         |> nesteSamtaleSteg info (Melding.svar [ tilDatoInfo.tilÅr ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -737,7 +749,7 @@ update msg (Model info) =
                         |> RedigerOppsummering
                         |> nesteSamtaleSteg info
                             (Melding.svar [ "Nei, jeg vil endre" ])
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -881,8 +893,11 @@ update msg (Model info) =
                         |> LagreArbeidserfaring
                         |> nesteSamtaleSteg info
                             (Melding.svar [ brukerSvar ])
-                    , validertSkjema
-                        |> Api.lagreArbeidserfaring ArbeidserfaringLagret
+                    , Cmd.batch
+                        [ validertSkjema
+                            |> Api.lagreArbeidserfaring ArbeidserfaringLagret
+                        , lagtTilSpørsmålCmd
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -891,8 +906,11 @@ update msg (Model info) =
                         |> LagreArbeidserfaring
                         |> nesteSamtaleSteg info
                             (Melding.svar [ brukerSvar ])
-                    , skjema
-                        |> Api.lagreArbeidserfaring ArbeidserfaringLagret
+                    , Cmd.batch
+                        [ skjema
+                            |> Api.lagreArbeidserfaring ArbeidserfaringLagret
+                        , lagtTilSpørsmålCmd
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -931,17 +949,102 @@ update msg (Model info) =
                 |> TypeaheadState.init
                 |> StartNyArbeidserfaring
                 |> nesteSamtaleSteg info (Melding.svar [ "Ja, legg til en arbeidserfaring" ])
-            , Cmd.none
+            , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
 
-        Ferdig ->
-            ( Model info, Cmd.none )
+        StartÅSkrive ->
+            ( Model
+                { info
+                    | seksjonsMeldingsLogg =
+                        MeldingsLogg.startÅSkrive info.seksjonsMeldingsLogg
+                }
+            , Cmd.batch
+                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                , Process.sleep 0
+                    |> Task.perform (\_ -> FullFørMelding)
+                ]
+            )
                 |> IkkeFerdig
+
+        FullFørMelding ->
+            info.seksjonsMeldingsLogg
+                |> MeldingsLogg.fullførMelding
+                |> updateEtterFullførtMelding info
 
         ErrorLogget result ->
             ( Model info, Cmd.none )
                 |> IkkeFerdig
+
+        ViewportSatt result ->
+            ( Model info, Cmd.none )
+                |> IkkeFerdig
+
+        FerdigMedArbeidserfaring ->
+            ( HeltFerdig
+                |> nesteSamtaleSteg info (Melding.svar [ "Nei, jeg har lagt inn alle" ])
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
+
+        GåTilNesteSeksjon ->
+            case MeldingsLogg.ferdigAnimert info.seksjonsMeldingsLogg of
+                FerdigAnimert ferdigAnimertMeldingsLogg ->
+                    Ferdig ferdigAnimertMeldingsLogg
+
+                MeldingerGjenstår ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+
+updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
+updateEtterFullførtMelding info nyMeldingsLogg =
+    case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
+        MeldingsLogg.FerdigAnimert ferdigAnimertSamtale ->
+            case info.aktivSamtale of
+                VenterPåAnimasjonFørFullføring ->
+                    Ferdig ferdigAnimertSamtale
+
+                SpørOmBrukerVilLeggeInnMer ->
+                    Ferdig ferdigAnimertSamtale
+
+                _ ->
+                    ( Model
+                        { info
+                            | seksjonsMeldingsLogg = nyMeldingsLogg
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+        MeldingsLogg.MeldingerGjenstår ->
+            ( Model
+                { info
+                    | seksjonsMeldingsLogg = nyMeldingsLogg
+                }
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
+
+
+fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> SamtaleStatus
+fullførSeksjonHvisMeldingsloggErFerdig modelInfo =
+    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
+        FerdigAnimert ferdigAnimertMeldingsLogg ->
+            Ferdig ferdigAnimertMeldingsLogg
+
+        MeldingerGjenstår ->
+            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring }, Cmd.none )
+                |> IkkeFerdig
+
+
+lagtTilSpørsmålCmd : Cmd Msg
+lagtTilSpørsmålCmd =
+    Cmd.batch
+        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+        , Process.sleep 0
+            |> Task.perform (\_ -> StartÅSkrive)
+        ]
 
 
 brukerVelgerYrke : ModelInfo -> Yrke -> SamtaleStatus
@@ -950,7 +1053,7 @@ brukerVelgerYrke info yrkesTypeahead =
         |> yrkeInfoTilJobbtittelInfo
         |> SpørOmBrukerVilEndreJobbtittel
         |> nesteSamtaleSteg info (Melding.svar [ Yrke.label yrkesTypeahead ])
-    , Cmd.none
+    , lagtTilSpørsmålCmd
     )
         |> IkkeFerdig
 
@@ -1166,6 +1269,12 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         StartNyArbeidserfaring _ ->
             [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
 
+        VenterPåAnimasjonFørFullføring ->
+            []
+
+        HeltFerdig ->
+            [ Melding.spørsmål [ "Kjempebra jobba! :) Nå kan en arbeidsgiver se om du har den erfaringen de leter etter. " ] ]
+
 
 hentStilling : ValidertArbeidserfaringSkjema -> String
 hentStilling validertSkjema =
@@ -1217,295 +1326,311 @@ hentTilDato skjema =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model info) =
-    case info.aktivSamtale of
-        Intro ->
-            div [ class "inputrad" ]
-                [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
-                    |> Knapp.toHtml
-                ]
-
-        HenterFraAareg ->
-            div [] []
-
-        HentetFraAAreg ->
-            div [] []
-
-        IkkeHentetFraAAreg ->
-            div []
-                []
-
-        IngenArbeidserfaringFraAareg liste ->
-            div [] []
-
-        VisArbeidserfaringFraAareg liste ->
-            div [] []
-
-        RegistrerYrke typeaheadState ->
-            div [ class "skjema-wrapper" ]
-                [ viewTypeaheadRegistrerYrke typeaheadState
-                ]
-
-        SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
-            div [ class "skjmawrapper" ]
-                [ div [ class "inputrad" ]
-                    [ (jobbtittelInfo
-                        |> BrukerVilEndreJobbtittel
-                        |> Knapp.knapp
-                      )
-                        "Nei, legg til nytt navn"
-                        |> Knapp.toHtml
-                    , (BrukerVilRegistrereBedriftnavn "Ja, det stemmer"
-                        |> Knapp.knapp
-                      )
-                        "Ja, det stemmer"
-                        |> Knapp.toHtml
-                    ]
-                ]
-
-        EndreJobbtittel jobbtittelInfo ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ jobbtittelInfo.jobbtittel
-                        |> Input.input
-                            { label = "Stilling/yrke som vil vises i CV", msg = BrukerOppdatererJobbtittelFelt }
-                        |> Input.toHtml
-                    ]
-                , div [ class "inputrad" ]
-                    [ BrukerVilRegistrereBedriftnavn "Gå videre"
-                        |> lagTekstInputKnapp "Gå videre" jobbtittelInfo.jobbtittel
-                    ]
-                ]
-
-        RegistrereBedriftNavn bedriftnanvsInfo ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ bedriftnanvsInfo.bedriftNavn
-                        |> Input.input { label = "Bedriftens navn", msg = BrukerOppdatererBedriftnavn }
-                        |> Input.toHtml
-                    ]
-                , div [ class "inputrad" ]
-                    [ BrukerVilRegistrereSted
-                        |> lagTekstInputKnapp "Gå videre" bedriftnanvsInfo.bedriftNavn
-                    ]
-                ]
-
-        RegistrereSted stedInfo ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ stedInfo.lokasjon
-                        |> Input.input { label = "Sted/land", msg = BrukerOppdatererSted }
-                        |> Input.toHtml
-                    ]
-                , div [ class "inputrad" ]
-                    [ BrukerVilRegistrereArbeidsoppgaver
-                        |> lagTekstInputKnapp "Gå videre" stedInfo.lokasjon
-                    ]
-                ]
-
-        RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ arbeidsoppgaverInfo.arbeidsoppgaver
-                        |> Textarea.textarea { label = "Hvilke arbeidsoppgaver gjorde du?", msg = BrukerOppdatererArbeidsoppgaver }
-                        |> Textarea.toHtml
-                    ]
-                , div [ class "inputrad" ]
-                    [ BrukerVilRegistrereFraMåned
-                        |> lagTekstInputKnapp "Gå videre" arbeidsoppgaverInfo.arbeidsoppgaver
-                    ]
-                ]
-
-        RegistrereFraMåned fraDatoInfo ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "inputrad" ]
-                    [ Dato.Januar
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Februar
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Mars
-                        |> lagFraMånedKnapp fraDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.April
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Mai
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Juni
-                        |> lagFraMånedKnapp fraDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.Juli
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.August
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.September
-                        |> lagFraMånedKnapp fraDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.Oktober
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.November
-                        |> lagFraMånedKnapp fraDatoInfo
-                    , Dato.Desember
-                        |> lagFraMånedKnapp fraDatoInfo
-                    ]
-                ]
-
-        RegistrereFraÅr fraDatoInfo ->
-            div [ class "skjemawrapper" ]
-                [ div [ class "skjema" ]
-                    [ fraDatoInfo.fraÅr
-                        |> Input.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr }
-                        |> Input.toHtml
-                    ]
-                , div [ class "inputrad" ]
-                    [ BrukerVilRegistrereNaavarende
-                        |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
-                    ]
-                ]
-
-        RegistrereNaavarende fraDatoInfo ->
-            div []
-                [ div [ class "inputrad" ]
-                    [ BrukerSvarerJaTilNaavarende
-                        |> lagMessageKnapp "Ja"
-                    , BrukerSvarerNeiTilNaavarende
-                        |> lagMessageKnapp "Nei"
-                    ]
-                ]
-
-        RegistrereTilMåned tilDatoInfo ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "inputrad" ]
-                    [ Dato.Januar
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Februar
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Mars
-                        |> lagTilMånedKnapp tilDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.April
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Mai
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Juni
-                        |> lagTilMånedKnapp tilDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.Juli
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.August
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.September
-                        |> lagTilMånedKnapp tilDatoInfo
-                    ]
-                , div [ class "inputrad" ]
-                    [ Dato.Oktober
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.November
-                        |> lagTilMånedKnapp tilDatoInfo
-                    , Dato.Desember
-                        |> lagTilMånedKnapp tilDatoInfo
-                    ]
-                ]
-
-        RegistrereTilÅr tilDatoInfo ->
-            div []
-                [ label [] [ text "Skriv inn år" ]
-                , input
-                    [ tilDatoInfo.tilÅr |> value
-                    , BrukerOppdatererTilÅr
-                        |> onInput
-                    ]
-                    []
-                , BrukerVilGåTilOppsummering
-                    |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
-                ]
-
-        VisOppsummering validertSkjema ->
-            div []
-                [ BrukerTrykkerPåLagreArbeidserfaringKnapp "Ja, informasjonen er riktig" validertSkjema
-                    |> lagMessageKnapp "Ja, informasjonen er riktig"
-                , BrukerVilRedigereOppsummering
-                    |> lagMessageKnapp "Nei, jeg vil endre"
-                ]
-
-        RedigerOppsummering skjema ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ case ArbeidserfaringSkjema.yrkeTypeahead skjema of
-                        Yrke yrkeTypeahead ->
-                            yrkeTypeahead
-                                |> Yrke.label
-                                |> Input.input { label = "Yrke", msg = YrkeRedigeringsfeltEndret }
-                                |> Input.toHtml
-
-                        Typeahead typeaheadState ->
-                            viewTypeaheadOppsummering typeaheadState
-                    , if
-                        ArbeidserfaringSkjema.jobbTittel skjema
-                            == ""
-                      then
-                        div [] []
-
-                      else
-                        skjema
-                            |> ArbeidserfaringSkjema.jobbTittel
-                            |> Input.input { label = "Jobbtittel", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.JobbTittel }
-                            |> Input.toHtml
-                    , skjema
-                        |> ArbeidserfaringSkjema.bedriftNavn
-                        |> Input.input { label = "Bedriftnavn", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.BedriftNavn }
-                        |> Input.toHtml
-                    , skjema
-                        |> ArbeidserfaringSkjema.lokasjon
-                        |> Input.input { label = "Sted", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Lokasjon }
-                        |> Input.toHtml
-                    , skjema
-                        |> ArbeidserfaringSkjema.arbeidsoppgaver
-                        |> Input.input { label = "Arbeidsoppgaver", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Arbeidsoppgaver }
-                        |> Input.toHtml
-                    , skjema
-                        |> lagRedigerDatoInput
-                    , div [ class "inputrad" ]
-                        [ case ArbeidserfaringSkjema.valider skjema of
-                            Just validertSkjema ->
-                                "Utfør endringene"
-                                    |> Knapp.knapp (BrukerTrykkerPåLagreArbeidserfaringKnapp "Utfør endringene" validertSkjema)
-                                    |> Knapp.toHtml
-
-                            Nothing ->
-                                "Utfør endringene"
-                                    |> Knapp.knapp BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
-                                    |> Knapp.withEnabled Knapp.Disabled
-                                    |> Knapp.toHtml
+    case MeldingsLogg.ferdigAnimert info.seksjonsMeldingsLogg of
+        MeldingsLogg.FerdigAnimert ferdigAnimertMeldingsLogg ->
+            case info.aktivSamtale of
+                Intro ->
+                    div [ class "inputrad" ]
+                        [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
+                            |> Knapp.toHtml
                         ]
-                    ]
-                ]
 
-        LagreArbeidserfaring arbeidserfaringSkjema ->
+                HenterFraAareg ->
+                    div [] []
+
+                HentetFraAAreg ->
+                    div [] []
+
+                IkkeHentetFraAAreg ->
+                    div []
+                        []
+
+                IngenArbeidserfaringFraAareg liste ->
+                    div [] []
+
+                VisArbeidserfaringFraAareg liste ->
+                    div [] []
+
+                RegistrerYrke typeaheadState ->
+                    div [ class "skjema-wrapper" ]
+                        [ viewTypeaheadRegistrerYrke typeaheadState
+                        ]
+
+                SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
+                    div [ class "skjmawrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ (jobbtittelInfo
+                                |> BrukerVilEndreJobbtittel
+                                |> Knapp.knapp
+                              )
+                                "Nei, legg til nytt navn"
+                                |> Knapp.toHtml
+                            , (BrukerVilRegistrereBedriftnavn "Ja, det stemmer"
+                                |> Knapp.knapp
+                              )
+                                "Ja, det stemmer"
+                                |> Knapp.toHtml
+                            ]
+                        ]
+
+                EndreJobbtittel jobbtittelInfo ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ jobbtittelInfo.jobbtittel
+                                |> Input.input
+                                    { label = "Stilling/yrke som vil vises i CV", msg = BrukerOppdatererJobbtittelFelt }
+                                |> Input.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ BrukerVilRegistrereBedriftnavn "Gå videre"
+                                |> lagTekstInputKnapp "Gå videre" jobbtittelInfo.jobbtittel
+                            ]
+                        ]
+
+                RegistrereBedriftNavn bedriftnanvsInfo ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ bedriftnanvsInfo.bedriftNavn
+                                |> Input.input { label = "Bedriftens navn", msg = BrukerOppdatererBedriftnavn }
+                                |> Input.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ BrukerVilRegistrereSted
+                                |> lagTekstInputKnapp "Gå videre" bedriftnanvsInfo.bedriftNavn
+                            ]
+                        ]
+
+                RegistrereSted stedInfo ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ stedInfo.lokasjon
+                                |> Input.input { label = "Sted/land", msg = BrukerOppdatererSted }
+                                |> Input.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ BrukerVilRegistrereArbeidsoppgaver
+                                |> lagTekstInputKnapp "Gå videre" stedInfo.lokasjon
+                            ]
+                        ]
+
+                RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ arbeidsoppgaverInfo.arbeidsoppgaver
+                                |> Textarea.textarea { label = "Hvilke arbeidsoppgaver gjorde du?", msg = BrukerOppdatererArbeidsoppgaver }
+                                |> Textarea.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ BrukerVilRegistrereFraMåned
+                                |> lagTekstInputKnapp "Gå videre" arbeidsoppgaverInfo.arbeidsoppgaver
+                            ]
+                        ]
+
+                RegistrereFraMåned fraDatoInfo ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ Dato.Januar
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Februar
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Mars
+                                |> lagFraMånedKnapp fraDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.April
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Mai
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Juni
+                                |> lagFraMånedKnapp fraDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.Juli
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.August
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.September
+                                |> lagFraMånedKnapp fraDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.Oktober
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.November
+                                |> lagFraMånedKnapp fraDatoInfo
+                            , Dato.Desember
+                                |> lagFraMånedKnapp fraDatoInfo
+                            ]
+                        ]
+
+                RegistrereFraÅr fraDatoInfo ->
+                    div [ class "skjemawrapper" ]
+                        [ div [ class "skjema" ]
+                            [ fraDatoInfo.fraÅr
+                                |> Input.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr }
+                                |> Input.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ BrukerVilRegistrereNaavarende
+                                |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
+                            ]
+                        ]
+
+                RegistrereNaavarende fraDatoInfo ->
+                    div []
+                        [ div [ class "inputrad" ]
+                            [ BrukerSvarerJaTilNaavarende
+                                |> lagMessageKnapp "Ja"
+                            , BrukerSvarerNeiTilNaavarende
+                                |> lagMessageKnapp "Nei"
+                            ]
+                        ]
+
+                RegistrereTilMåned tilDatoInfo ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ Dato.Januar
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Februar
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Mars
+                                |> lagTilMånedKnapp tilDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.April
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Mai
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Juni
+                                |> lagTilMånedKnapp tilDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.Juli
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.August
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.September
+                                |> lagTilMånedKnapp tilDatoInfo
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Dato.Oktober
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.November
+                                |> lagTilMånedKnapp tilDatoInfo
+                            , Dato.Desember
+                                |> lagTilMånedKnapp tilDatoInfo
+                            ]
+                        ]
+
+                RegistrereTilÅr tilDatoInfo ->
+                    div []
+                        [ label [] [ text "Skriv inn år" ]
+                        , input
+                            [ tilDatoInfo.tilÅr |> value
+                            , BrukerOppdatererTilÅr
+                                |> onInput
+                            ]
+                            []
+                        , BrukerVilGåTilOppsummering
+                            |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
+                        ]
+
+                VisOppsummering validertSkjema ->
+                    div []
+                        [ BrukerTrykkerPåLagreArbeidserfaringKnapp "Ja, informasjonen er riktig" validertSkjema
+                            |> lagMessageKnapp "Ja, informasjonen er riktig"
+                        , BrukerVilRedigereOppsummering
+                            |> lagMessageKnapp "Nei, jeg vil endre"
+                        ]
+
+                RedigerOppsummering skjema ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ case ArbeidserfaringSkjema.yrkeTypeahead skjema of
+                                Yrke yrkeTypeahead ->
+                                    yrkeTypeahead
+                                        |> Yrke.label
+                                        |> Input.input { label = "Yrke", msg = YrkeRedigeringsfeltEndret }
+                                        |> Input.toHtml
+
+                                Typeahead typeaheadState ->
+                                    viewTypeaheadOppsummering typeaheadState
+                            , if
+                                ArbeidserfaringSkjema.jobbTittel skjema
+                                    == ""
+                              then
+                                div [] []
+
+                              else
+                                skjema
+                                    |> ArbeidserfaringSkjema.jobbTittel
+                                    |> Input.input { label = "Jobbtittel", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.JobbTittel }
+                                    |> Input.toHtml
+                            , skjema
+                                |> ArbeidserfaringSkjema.bedriftNavn
+                                |> Input.input { label = "Bedriftnavn", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.BedriftNavn }
+                                |> Input.toHtml
+                            , skjema
+                                |> ArbeidserfaringSkjema.lokasjon
+                                |> Input.input { label = "Sted", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Lokasjon }
+                                |> Input.toHtml
+                            , skjema
+                                |> ArbeidserfaringSkjema.arbeidsoppgaver
+                                |> Input.input { label = "Arbeidsoppgaver", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Arbeidsoppgaver }
+                                |> Input.toHtml
+                            , skjema
+                                |> lagRedigerDatoInput
+                            , div [ class "inputrad" ]
+                                [ case ArbeidserfaringSkjema.valider skjema of
+                                    Just validertSkjema ->
+                                        "Utfør endringene"
+                                            |> Knapp.knapp (BrukerTrykkerPåLagreArbeidserfaringKnapp "Utfør endringene" validertSkjema)
+                                            |> Knapp.toHtml
+
+                                    Nothing ->
+                                        "Utfør endringene"
+                                            |> Knapp.knapp BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
+                                            |> Knapp.withEnabled Knapp.Disabled
+                                            |> Knapp.toHtml
+                                ]
+                            ]
+                        ]
+
+                LagreArbeidserfaring arbeidserfaringSkjema ->
+                    div [] []
+
+                LagringFeilet error arbeidserfaringSkjema ->
+                    div [] []
+
+                SpørOmBrukerVilLeggeInnMer ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ Knapp.knapp
+                                NyArbeidserfaring
+                                "Ja, legg til en arbeidserfaring"
+                                |> Knapp.toHtml
+                            , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle"
+                                |> Knapp.toHtml
+                            ]
+                        ]
+
+                StartNyArbeidserfaring typeaheadState ->
+                    div [ class "skjema-wrapper" ]
+                        [ viewTypeaheadRegistrerYrke typeaheadState
+                        ]
+
+                VenterPåAnimasjonFørFullføring ->
+                    div [] []
+
+                HeltFerdig ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ Knapp.knapp GåTilNesteSeksjon "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+                        ]
+
+        MeldingsLogg.MeldingerGjenstår ->
             div [] []
-
-        LagringFeilet error arbeidserfaringSkjema ->
-            div [] []
-
-        SpørOmBrukerVilLeggeInnMer ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "inputrad" ]
-                    [ Knapp.knapp
-                        NyArbeidserfaring
-                        "Ja, legg til en arbeidserfaring"
-                        |> Knapp.toHtml
-                    , Knapp.knapp Ferdig "Nei, jeg har lagt inn alle"
-                        |> Knapp.toHtml
-                    ]
-                ]
-
-        StartNyArbeidserfaring typeaheadState ->
-            div [ class "skjema-wrapper" ]
-                [ viewTypeaheadRegistrerYrke typeaheadState
-                ]
 
 
 viewTypeaheadRegistrerYrke : TypeaheadState Yrke -> Html Msg
@@ -1720,12 +1845,15 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-init : MeldingsLogg -> Model
+init : FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 init gammelMeldingsLogg =
-    Model
+    ( Model
         { seksjonsMeldingsLogg =
             gammelMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Har du arbeidserfaring du vil legge inn?" ] ]
         , arbeidserfaringListe = []
         , aktivSamtale = Intro
         }
+    , lagtTilSpørsmålCmd
+    )

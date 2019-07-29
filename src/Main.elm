@@ -1,24 +1,31 @@
-module Main exposing (SuccessMsg, main)
+module Main exposing (main)
 
 import Api
 import Browser
 import Browser.Dom as Dom
+import Browser.Events
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
+import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Spinner as Spinner
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Attributes.Aria exposing (ariaLabel)
 import Html.Events exposing (..)
 import Http
 import Melding exposing (Melding)
-import MeldingsLogg exposing (MeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Personalia exposing (Personalia)
+import Process
 import SamtaleAnimasjon
 import Seksjon.Arbeidserfaring
 import Seksjon.Personalia
 import Seksjon.Utdanning
+import Svg exposing (path, svg)
+import Svg.Attributes exposing (d, fill, viewBox)
+import Task
 
 
 
@@ -58,6 +65,7 @@ type alias LoadingState =
     { cv : Maybe Cv
     , personalia : Personalia
     , registreringsProgresjon : Maybe RegistreringsProgresjon
+    , windowWidth : Maybe Int
     }
 
 
@@ -66,6 +74,7 @@ type alias SuccessModel =
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
     , aktivSamtale : SamtaleSeksjon
+    , windowWidth : Int
     }
 
 
@@ -84,6 +93,7 @@ type Msg
     = LoadingMsg LoadingMsg
     | SuccessMsg SuccessMsg
     | ErrorLogget (Result Http.Error ())
+    | WindowResized Int Int
 
 
 type LoadingMsg
@@ -94,6 +104,7 @@ type LoadingMsg
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
+    | ViewportHentet Dom.Viewport
 
 
 type SuccessMsg
@@ -101,6 +112,8 @@ type SuccessMsg
     | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
+    | StartÅSkrive
+    | FullførMelding
     | ArbeidserfaringsMsg Seksjon.Arbeidserfaring.Msg
 
 
@@ -119,6 +132,26 @@ update msg model =
                     ( model, Cmd.none )
 
         ErrorLogget _ ->
+            ( model, Cmd.none )
+
+        WindowResized windowWidth _ ->
+            updateWindowResized model windowWidth
+
+
+updateWindowResized : Model -> Int -> ( Model, Cmd msg )
+updateWindowResized model windowWidth =
+    case model of
+        Success successModel ->
+            ( Success { successModel | windowWidth = windowWidth }
+            , Cmd.none
+            )
+
+        Loading (VenterPåResten loadingState) ->
+            ( Loading (VenterPåResten { loadingState | windowWidth = Just windowWidth })
+            , Cmd.none
+            )
+
+        _ ->
             ( model, Cmd.none )
 
 
@@ -184,7 +217,7 @@ updateLoading msg model =
                 Loading (VenterPåResten state) ->
                     case result of
                         Ok cv ->
-                            ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
+                            modelFraLoadingState { state | cv = Just cv }
 
                         Err error ->
                             case error of
@@ -204,7 +237,7 @@ updateLoading msg model =
                 Loading (VenterPåResten state) ->
                     case result of
                         Ok cv ->
-                            ( modelFraLoadingState { state | cv = Just cv }, Cmd.none )
+                            modelFraLoadingState { state | cv = Just cv }
 
                         Err error ->
                             ( Failure error
@@ -224,6 +257,20 @@ updateLoading msg model =
                     , logFeilmelding error "Hent registreringsprogresjon"
                     )
 
+        ViewportHentet viewport ->
+            case model of
+                Loading (VenterPåResten state) ->
+                    modelFraLoadingState
+                        { state
+                            | windowWidth =
+                                viewport.scene.width
+                                    |> round
+                                    |> Just
+                        }
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
 logFeilmelding error operasjon =
@@ -232,19 +279,23 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-modelFraLoadingState : LoadingState -> Model
+modelFraLoadingState : LoadingState -> ( Model, Cmd Msg )
 modelFraLoadingState state =
-    case ( state.cv, state.registreringsProgresjon ) of
-        ( Just cv, Just registreringsProgresjon ) ->
-            Success
+    case ( state.cv, state.registreringsProgresjon, state.windowWidth ) of
+        ( Just cv, Just registreringsProgresjon, Just windowWidth ) ->
+            ( Success
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
                 , aktivSamtale = initialiserSamtale
+                , windowWidth = windowWidth
                 }
+            , Process.sleep 200
+                |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
+            )
 
         _ ->
-            Loading (VenterPåResten state)
+            ( Loading (VenterPåResten state), Cmd.none )
 
 
 initialiserSamtale : SamtaleSeksjon
@@ -268,6 +319,7 @@ initVenterPåResten personalia =
         (VenterPåResten
             { cv = Nothing
             , personalia = personalia
+            , windowWidth = Nothing
             , registreringsProgresjon =
                 Just
                     { erDetteFørsteGangManErInneILøsningen = True
@@ -276,7 +328,11 @@ initVenterPåResten personalia =
                     }
             }
         )
-    , Api.hentCv (CvHentet >> LoadingMsg)
+    , Cmd.batch
+        [ Api.hentCv (CvHentet >> LoadingMsg)
+        , Dom.getViewport
+            |> Task.perform (ViewportHentet >> LoadingMsg)
+        ]
     )
 
 
@@ -290,13 +346,17 @@ updateSuccess successMsg model =
         BrukerSierHeiIIntroduksjonen ->
             case model.aktivSamtale of
                 Introduksjon meldingsLogg ->
-                    ( meldingsLogg
-                        |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
-                        |> Seksjon.Personalia.init model.personalia
+                    let
+                        ( personaliaModel, personaliaCmd ) =
+                            meldingsLogg
+                                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
+                                |> Seksjon.Personalia.init model.personalia
+                    in
+                    ( personaliaModel
                         |> PersonaliaSeksjon
                         |> oppdaterSamtaleSteg model
                         |> Success
-                    , SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
+                    , Cmd.map (PersonaliaMsg >> SuccessMsg) personaliaCmd
                     )
 
                 _ ->
@@ -315,7 +375,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Personalia.Ferdig personalia personaliaMeldingsLogg ->
-                            personaliaTilArbeidserfaring model personalia personaliaMeldingsLogg
+                            personaliaTilArbeidserfaring model personaliaMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -333,7 +393,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Utdanning.Ferdig utdanning meldingsLogg ->
-                            utdanningFerdig model utdanning meldingsLogg
+                            ( Success model, Cmd.none )
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -350,11 +410,58 @@ updateSuccess successMsg model =
                             , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) cmd
                             )
 
+                        Seksjon.Arbeidserfaring.Ferdig ferdigAnimertMeldingsLogg ->
+                            ( Success model, Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) Seksjon.Arbeidserfaring.lagtTilSpørsmålCmd )
+
                 _ ->
                     ( Success model, Cmd.none )
 
         ViewportSatt _ ->
             ( Success model, Cmd.none )
+
+        StartÅSkrive ->
+            case model.aktivSamtale of
+                Introduksjon meldingsLogg ->
+                    ( meldingsLogg
+                        |> MeldingsLogg.startÅSkrive
+                        |> Introduksjon
+                        |> oppdaterSamtaleSteg model
+                        |> Success
+                    , Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
+                        , Process.sleep 1000
+                            |> Task.perform (\_ -> SuccessMsg FullførMelding)
+                        ]
+                    )
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+        FullførMelding ->
+            case model.aktivSamtale of
+                Introduksjon meldingsLogg ->
+                    let
+                        nyMeldingslogg =
+                            MeldingsLogg.fullførMelding meldingsLogg
+                    in
+                    ( nyMeldingslogg
+                        |> Introduksjon
+                        |> oppdaterSamtaleSteg model
+                        |> Success
+                    , Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
+                        , case MeldingsLogg.ferdigAnimert nyMeldingslogg of
+                            FerdigAnimert _ ->
+                                Cmd.none
+
+                            MeldingerGjenstår ->
+                                Process.sleep 200
+                                    |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
+                        ]
+                    )
+
+                _ ->
+                    ( Success model, Cmd.none )
 
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
@@ -364,40 +471,38 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     }
 
 
-personaliaFerdig : SuccessModel -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
-personaliaFerdig model personalia personaliaMeldingsLogg =
+personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
     ( Success
         { model
-            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init personaliaMeldingsLogg (Cv.utdanning model.cv))
+            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (MeldingsLogg.tilMeldingsLogg ferdigAnimertMeldingsLogg) (Cv.utdanning model.cv))
         }
     , Cmd.none
     )
 
 
-personaliaTilArbeidserfaring : SuccessModel -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
-personaliaTilArbeidserfaring model personalia personaliaMeldingsLogg =
-    ( Success
-        { model
-            | aktivSamtale =
-                personaliaMeldingsLogg
-                    |> Seksjon.Arbeidserfaring.init
-                    |> ArbeidsErfaringSeksjon
-        }
-    , Cmd.none
+personaliaTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+personaliaTilArbeidserfaring model ferdigAnimertMeldingsLogg =
+    let
+        ( arbeidsModell, arbeidsCmd ) =
+            Seksjon.Arbeidserfaring.init ferdigAnimertMeldingsLogg
+    in
+    ( Success { model | aktivSamtale = ArbeidsErfaringSeksjon arbeidsModell }
+    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) arbeidsCmd
     )
 
 
+
+{--
 utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
     ( Success
         { model
             | aktivSamtale = ArbeidsErfaringSeksjon (Seksjon.Arbeidserfaring.init utdanningMeldingsLogg)
         }
-    , Cmd.none
+    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) Seksjon.Arbeidserfaring.lagtTilSpørsmålCmd
     )
-
-
-
+--}
 --- VIEW ---
 
 
@@ -442,12 +547,16 @@ meldingsLoggFraSeksjon successModel =
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div [ class "app" ]
-        [ div [] []
+        [ Header.header successModel.windowWidth
+            |> Header.toHtml
         , div [ class "samtale-wrapper", id "samtale" ]
             [ div [ class "samtale" ]
                 [ successModel
                     |> meldingsLoggFraSeksjon
                     |> viewMeldingsLogg
+                , successModel
+                    |> meldingsLoggFraSeksjon
+                    |> viewSkriveStatus
                 , viewBrukerInput successModel.aktivSamtale
                 , div [ class "samtale-padding" ] []
                 ]
@@ -455,7 +564,7 @@ viewSuccess successModel =
         ]
 
 
-viewMeldingsLogg : MeldingsLogg -> Html msg
+viewMeldingsLogg : MeldingsLogg -> Html Msg
 viewMeldingsLogg meldingsLogg =
     meldingsLogg
         |> MeldingsLogg.meldinger
@@ -463,7 +572,7 @@ viewMeldingsLogg meldingsLogg =
         |> div []
 
 
-viewMelding : Melding -> Html msg
+viewMelding : Melding -> Html Msg
 viewMelding melding =
     div [ class ("meldingsrad " ++ meldingsClass melding) ]
         [ div [ class "melding" ]
@@ -484,14 +593,37 @@ meldingsClass melding =
             "svar"
 
 
+viewSkriveStatus : MeldingsLogg -> Html msg
+viewSkriveStatus meldingsLogg =
+    case MeldingsLogg.skriveStatus meldingsLogg of
+        MeldingsLogg.Skriver ->
+            div [ class "meldingsrad sporsmal" ]
+                [ div [ class "melding" ]
+                    [ div [ class "skriver-melding" ]
+                        [ div [ class "bounce bounce1" ] []
+                        , div [ class "bounce bounce2" ] []
+                        , div [ class "bounce bounce3" ] []
+                        ]
+                    ]
+                ]
+
+        MeldingsLogg.SkriverIkke ->
+            text ""
+
+
 viewBrukerInput : SamtaleSeksjon -> Html Msg
 viewBrukerInput aktivSamtale =
     case aktivSamtale of
         Introduksjon logg ->
-            div [ class "inputrad" ]
-                [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
-                    |> Knapp.toHtml
-                ]
+            case MeldingsLogg.ferdigAnimert logg of
+                FerdigAnimert _ ->
+                    div [ class "inputrad" ]
+                        [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
+                            |> Knapp.toHtml
+                        ]
+
+                MeldingerGjenstår ->
+                    text ""
 
         PersonaliaSeksjon personaliaSeksjon ->
             personaliaSeksjon
@@ -518,7 +650,7 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = always Sub.none
+        , subscriptions = always (Browser.Events.onResize WindowResized)
         }
 
 
