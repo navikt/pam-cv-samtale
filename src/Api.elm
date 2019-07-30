@@ -3,6 +3,7 @@ module Api exposing
     , hentPerson
     , hentPersonalia
     , hentSpråkkoder
+    , leggTilSammendrag
     , leggTilSpråk
     , logError
     , oppdaterPersonalia
@@ -12,10 +13,12 @@ module Api exposing
     )
 
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
 import Cv.Spraakferdighet exposing (Spraakferdighet)
 import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
 import Json.Decode
+import Json.Encode
 import Personalia exposing (Personalia)
 import Skjema.Personalia
 import Skjema.Sprak
@@ -79,6 +82,15 @@ hentSpråkkoder msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/koder/sprak"
         , expect = expectJson msgConstructor (Json.Decode.list Sprakkoder.decode)
+        }
+
+
+leggTilSammendrag : (Result Error Sammendrag -> msg) -> String -> Cmd msg
+leggTilSammendrag msgConstructor sammendrag =
+    put
+        { url = "/cv-samtale/api/rest/cv/sammendrag"
+        , expect = expectJson msgConstructor Sammendrag.decode
+        , body = Json.Encode.object [ ( "sammendrag", Json.Encode.string sammendrag ) ] |> jsonBody
         }
 
 

@@ -449,6 +449,17 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                 |> IkkeFerdig
 
 
+fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> SamtaleStatus
+fullførSeksjonHvisMeldingsloggErFerdig modelInfo =
+    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
+        FerdigAnimert ferdigAnimertMeldingsLogg ->
+            Ferdig ferdigAnimertMeldingsLogg
+
+        MeldingerGjenstår ->
+            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring }, Cmd.none )
+                |> IkkeFerdig
+
+
 lagtTilSpørsmålCmd : Cmd Msg
 lagtTilSpørsmålCmd =
     Cmd.batch
@@ -545,7 +556,7 @@ samtaleTilMeldingsLogg språkSeksjon =
             [ Melding.spørsmål [ "Oops! Noe gikk galt...", "Vil du prøve på nytt eller avslutte og gå videre?", "Prøv gjerne igjen senere." ] ]
 
         VenterPåAnimasjonFørFullføring ->
-            []
+            [ Melding.spørsmål [ "Da var vi ferdige med språkdelen." ] ]
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model

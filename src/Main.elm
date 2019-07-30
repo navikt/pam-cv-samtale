@@ -6,6 +6,7 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Sammendrag
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
@@ -22,6 +23,7 @@ import Personalia exposing (Personalia)
 import Process
 import SamtaleAnimasjon
 import Seksjon.Personalia
+import Seksjon.Sammendrag
 import Seksjon.Sprak
 import Seksjon.Utdanning
 import Svg exposing (path, svg)
@@ -90,6 +92,7 @@ type SamtaleSeksjon
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
     | SpråkSeksjon Seksjon.Sprak.Model
+    | SammendragSeksjon Seksjon.Sammendrag.Model
     | ArbeidsErfaringSeksjon
 
 
@@ -123,6 +126,7 @@ type SuccessMsg
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
     | SpråkMsg Seksjon.Sprak.Msg
+    | SammendragMsg Seksjon.Sammendrag.Msg
     | StartÅSkrive
     | FullførMelding
 
@@ -478,6 +482,24 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        SammendragMsg msg ->
+            case model.aktivSamtale of
+                SammendragSeksjon sammendragModel ->
+                    case Seksjon.Sammendrag.update msg sammendragModel of
+                        Seksjon.Sammendrag.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> SammendragSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (SammendragMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Sammendrag.Ferdig meldingsLogg ->
+                            sammendragFerdig model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
@@ -511,6 +533,11 @@ utdanningFerdig model utdanning utdanningMeldingsLogg =
 
 språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 språkFerdig model meldingsLogg =
+    gåTilSammendrag model meldingsLogg
+
+
+sammendragFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+sammendragFerdig model ferdigAnimertMeldingsLogg =
     ( Success
         { model
             | aktivSamtale = ArbeidsErfaringSeksjon
@@ -534,6 +561,20 @@ gåTilSpråk model ferdigAnimertMeldingsLogg =
             | aktivSamtale = SpråkSeksjon språkModel
         }
     , Cmd.map (SpråkMsg >> SuccessMsg) språkCmd
+    )
+
+
+gåTilSammendrag : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSammendrag model ferdigAnimertMeldingsLogg =
+    let
+        ( sammendragModel, sammendragCmd ) =
+            Seksjon.Sammendrag.init ferdigAnimertMeldingsLogg (Cv.sammendrag model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = SammendragSeksjon sammendragModel
+        }
+    , Cmd.map (SammendragMsg >> SuccessMsg) sammendragCmd
     )
 
 
@@ -591,6 +632,9 @@ meldingsLoggFraSeksjon successModel =
 
         SpråkSeksjon model ->
             Seksjon.Sprak.meldingsLogg model
+
+        SammendragSeksjon model ->
+            Seksjon.Sammendrag.meldingsLogg model
 
 
 viewSuccess : SuccessModel -> Html Msg
@@ -684,6 +728,11 @@ viewBrukerInput aktivSamtale =
             språkSeksjon
                 |> Seksjon.Sprak.viewBrukerInput
                 |> Html.map (SpråkMsg >> SuccessMsg)
+
+        SammendragSeksjon sammendragSeksjon ->
+            sammendragSeksjon
+                |> Seksjon.Sammendrag.viewBrukerInput
+                |> Html.map (SammendragMsg >> SuccessMsg)
 
         _ ->
             text "Ikke implementert"
