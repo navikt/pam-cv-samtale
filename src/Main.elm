@@ -432,7 +432,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Arbeidserfaring.Ferdig ferdigAnimertMeldingsLogg ->
-                            ( Success model, Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) Seksjon.Arbeidserfaring.lagtTilSpørsmålCmd )
+                            gåTilSpråk model ferdigAnimertMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -550,14 +550,14 @@ utdanningFerdig model utdanning utdanningMeldingsLogg =
 språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 språkFerdig model meldingsLogg =
     let
-        ( arbMddel, arbCmd ) =
+        ( arbModel, arbCmd ) =
             Seksjon.Arbeidserfaring.init meldingsLogg
     in
     ( Success
         { model
-            | aktivSamtale = ArbeidsErfaringSeksjon arbMddel
+            | aktivSamtale = ArbeidsErfaringSeksjon arbModel
         }
-    , Cmd.none
+    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) arbCmd
     )
 
 

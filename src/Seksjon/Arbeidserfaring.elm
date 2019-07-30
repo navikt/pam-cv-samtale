@@ -329,7 +329,10 @@ update msg (Model info) =
                                     |> TypeaheadState.updateValue string
                                     |> RegistrerYrke
                         }
-                    , Api.hentYrkeTypeahead HentetYrkeTypeahead string
+                    , Cmd.batch
+                        [ Api.hentYrkeTypeahead HentetYrkeTypeahead string
+                        , lagtTilSpørsmålCmd
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -341,12 +344,15 @@ update msg (Model info) =
                                     |> TypeaheadState.updateValue string
                                     |> RegistrerYrke
                         }
-                    , Api.hentYrkeTypeahead HentetYrkeTypeahead string
+                    , Cmd.batch
+                        [ Api.hentYrkeTypeahead HentetYrkeTypeahead string
+                        , lagtTilSpørsmålCmd
+                        ]
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model info, lagtTilSpørsmålCmd )
                         |> IkkeFerdig
 
         HentetYrkeTypeahead result ->
@@ -358,7 +364,7 @@ update msg (Model info) =
                                 |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> RegistrerYrke
                                 |> oppdaterSamtalesteg info
-                            , Cmd.none
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
@@ -373,7 +379,7 @@ update msg (Model info) =
                                 |> ArbeidserfaringSkjema.mapTypeaheadState skjema
                                 |> RedigerOppsummering
                                 |> oppdaterSamtalesteg info
-                            , Cmd.none
+                            , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
 
@@ -467,11 +473,11 @@ update msg (Model info) =
                     brukerVelgerYrke info yrkesTypeahead
 
                 RedigerOppsummering skjema ->
-                    ( Model info, Cmd.none )
+                    ( Model info, lagtTilSpørsmålCmd )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model info, lagtTilSpørsmålCmd )
                         |> IkkeFerdig
 
         BrukerVilEndreJobbtittel jobbtittelInfo ->
@@ -517,7 +523,7 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model info, lagtTilSpørsmålCmd )
                         |> IkkeFerdig
 
         BrukerOppdatererBedriftnavn string ->
@@ -718,7 +724,7 @@ update msg (Model info) =
                             | aktivSamtale =
                                 RegistrereTilÅr { tilDatoInfo | tilÅr = string }
                         }
-                    , Cmd.none
+                    , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
 
@@ -961,7 +967,7 @@ update msg (Model info) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep 0
+                , Process.sleep 1000
                     |> Task.perform (\_ -> FullFørMelding)
                 ]
             )
@@ -1005,15 +1011,12 @@ updateEtterFullførtMelding info nyMeldingsLogg =
                 VenterPåAnimasjonFørFullføring ->
                     Ferdig ferdigAnimertSamtale
 
-                SpørOmBrukerVilLeggeInnMer ->
-                    Ferdig ferdigAnimertSamtale
-
                 _ ->
                     ( Model
                         { info
                             | seksjonsMeldingsLogg = nyMeldingsLogg
                         }
-                    , Cmd.none
+                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
                     )
                         |> IkkeFerdig
 
@@ -1042,7 +1045,7 @@ lagtTilSpørsmålCmd : Cmd Msg
 lagtTilSpørsmålCmd =
     Cmd.batch
         [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , Process.sleep 0
+        , Process.sleep 200
             |> Task.perform (\_ -> StartÅSkrive)
         ]
 
@@ -1331,8 +1334,10 @@ viewBrukerInput (Model info) =
             case info.aktivSamtale of
                 Intro ->
                     div [ class "inputrad" ]
-                        [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
-                            |> Knapp.toHtml
+                        [ div [ class "inputrad-innhold" ]
+                            [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 HenterFraAareg ->
@@ -1476,7 +1481,7 @@ viewBrukerInput (Model info) =
                         ]
 
                 RegistrereNaavarende fraDatoInfo ->
-                    div []
+                    div [ class "skjema-wrapper" ]
                         [ div [ class "inputrad" ]
                             [ BrukerSvarerJaTilNaavarende
                                 |> lagMessageKnapp "Ja"
@@ -1522,20 +1527,22 @@ viewBrukerInput (Model info) =
                         ]
 
                 RegistrereTilÅr tilDatoInfo ->
-                    div []
-                        [ label [] [ text "Skriv inn år" ]
-                        , input
-                            [ tilDatoInfo.tilÅr |> value
-                            , BrukerOppdatererTilÅr
-                                |> onInput
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ label [] [ text "Skriv inn år" ]
+                            , input
+                                [ tilDatoInfo.tilÅr |> value
+                                , BrukerOppdatererTilÅr
+                                    |> onInput
+                                ]
+                                []
+                            , BrukerVilGåTilOppsummering
+                                |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
                             ]
-                            []
-                        , BrukerVilGåTilOppsummering
-                            |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
                         ]
 
                 VisOppsummering validertSkjema ->
-                    div []
+                    div [ class "inputrad" ]
                         [ BrukerTrykkerPåLagreArbeidserfaringKnapp "Ja, informasjonen er riktig" validertSkjema
                             |> lagMessageKnapp "Ja, informasjonen er riktig"
                         , BrukerVilRedigereOppsummering
