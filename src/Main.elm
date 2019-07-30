@@ -536,9 +536,9 @@ gåTilUtdanning model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = ArbeidsErfaringSeksjon (Seksjon.Arbeidserfaring.init utdanningMeldingsLogg)
+            | aktivSamtale = UtdanningSeksjon utdanningModel
         }
-    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) Seksjon.Arbeidserfaring.lagtTilSpørsmålCmd
+    , Cmd.map (UtdanningsMsg >> SuccessMsg) utdanningCmd
     )
 
 
