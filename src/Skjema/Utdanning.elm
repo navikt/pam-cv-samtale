@@ -1,6 +1,33 @@
-module Skjema.Utdanning exposing (Felt(..), UtdanningSkjema, beskrivelse, encode, fradato, init, navarende, oppdaterFelt, studiested, tildato, utdanningsretning)
+module Skjema.Utdanning exposing
+    ( Felt(..)
+    , UtdanningSkjema(..)
+    , UtdanningsSkjemaVerdier
+    , beskrivelse
+    , encode
+    ,  fraDato
+       --, init
 
-import Cv.Utdanning exposing (Utdanning, Yrkesskole(..))
+    , initManueltSkjema
+    , navarende
+    , nuskode
+    , oppdaterBeskrivelse
+    , oppdaterFraMåned
+    , oppdaterFraÅr
+    , oppdaterNavarende
+    , oppdaterNavarendeFelt
+    , oppdaterNuskode
+    , oppdaterStudiested
+    , oppdaterTilMåned
+    , oppdaterTilÅr
+    , oppdaterUtdanningsretning
+    , studiested
+    , tilDato
+    , toggleBool
+    , utdanningsretning
+    )
+
+import Cv.Utdanning exposing (Nivå(..), Utdanning, Yrkesskole(..))
+import Dato exposing (Dato)
 import Json.Encode
 
 
@@ -11,11 +38,11 @@ type UtdanningSkjema
 type alias UtdanningSkjemaInfo =
     { studiested : String
     , utdanningsretning : String
-    , fradato : String
-    , tildato : String
+    , fradato : Dato
+    , tildato : Maybe Dato
     , beskrivelse : String
-    , navarende : Bool --- bool? ref Dtoen
-    , nuskode : String
+    , navarende : Bool
+    , nuskode : Nivå
     }
 
 
@@ -23,9 +50,11 @@ type Felt
     = Studiested
     | Utdanningsretning
     | Beskrivelse
-    | Fradato
-    | Tildato
+    | FraMåned
+    | FraÅr
     | Navarende
+    | TilMåned
+    | TilÅr
     | Nuskode
 
 
@@ -39,16 +68,6 @@ utdanningsretning (UtdanningSkjema info) =
     info.utdanningsretning
 
 
-fradato : UtdanningSkjema -> String
-fradato (UtdanningSkjema info) =
-    info.fradato
-
-
-tildato : UtdanningSkjema -> String
-tildato (UtdanningSkjema info) =
-    info.tildato
-
-
 beskrivelse : UtdanningSkjema -> String
 beskrivelse (UtdanningSkjema info) =
     info.beskrivelse
@@ -59,21 +78,217 @@ navarende (UtdanningSkjema info) =
     info.navarende
 
 
-init : Utdanning -> UtdanningSkjema
+fraDato : UtdanningSkjema -> Dato
+fraDato (UtdanningSkjema info) =
+    info.fradato
+
+
+tilDato : UtdanningSkjema -> Maybe Dato
+tilDato (UtdanningSkjema info) =
+    info.tildato
+
+
+nuskode : UtdanningSkjema -> Nivå
+nuskode (UtdanningSkjema info) =
+    info.nuskode
+
+
+
+{--
+init : Utdanning -> Dato -> UtdanningSkjema
 init utdanning =
     UtdanningSkjema
         { studiested = Cv.Utdanning.studiested utdanning |> Maybe.withDefault ""
         , utdanningsretning = Cv.Utdanning.utdanningsretning utdanning |> Maybe.withDefault ""
         , beskrivelse = Cv.Utdanning.beskrivelse utdanning |> Maybe.withDefault ""
-        , fradato = Cv.Utdanning.fradato utdanning |> Maybe.withDefault ""
-        , tildato = Cv.Utdanning.tildato utdanning |> Maybe.withDefault ""
+        , fradato = Dato.tilDato (Cv.Utdanning.fradato utdanning)
+        , tildato = Dato.tilDato (Cv.Utdanning.tildato utdanning)
         , navarende = Cv.Utdanning.navarende utdanning |> Maybe.withDefault False
-        , nuskode = Cv.Utdanning.nuskode utdanning |> Maybe.withDefault ""
+        , nuskode = Cv.Utdanning.nuskode utdanning
+        }
+--}
+
+
+initManueltSkjema : UtdanningsSkjemaVerdier -> UtdanningSkjema
+initManueltSkjema info =
+    UtdanningSkjema info
+
+
+type alias UtdanningsSkjemaVerdier =
+    { studiested : String
+    , utdanningsretning : String
+    , fradato : Dato
+    , tildato : Maybe Dato
+    , beskrivelse : String
+    , navarende : Bool
+    , nuskode : Nivå
+    }
+
+
+oppdaterNuskode : Nivå -> UtdanningSkjema -> UtdanningSkjema
+oppdaterNuskode nivå (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | nuskode = nivå }
+
+
+oppdaterStudiested : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterStudiested skole (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | studiested = skole }
+
+
+oppdaterUtdanningsretning : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterUtdanningsretning retning (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | utdanningsretning = retning }
+
+
+oppdaterBeskrivelse : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterBeskrivelse beskr (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | beskrivelse = beskr }
+
+
+oppdaterNavarende : Bool -> UtdanningSkjema -> UtdanningSkjema
+oppdaterNavarende bool (UtdanningSkjema skjema) =
+    UtdanningSkjema { skjema | navarende = bool }
+
+
+oppdaterFraMåned : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterFraMåned string (UtdanningSkjema skjema) =
+    UtdanningSkjema
+        { skjema
+            | fradato =
+                string
+                    |> Dato.stringTilMåned
+                    |> Dato.setMåned skjema.fradato
         }
 
 
-oppdaterFelt : Felt -> UtdanningSkjema -> ( String, Bool ) -> UtdanningSkjema
-oppdaterFelt felt (UtdanningSkjema info) ( str, bol ) =
+oppdaterFraÅr : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterFraÅr string (UtdanningSkjema skjema) =
+    UtdanningSkjema
+        { skjema
+            | fradato =
+                string
+                    |> String.toInt
+                    |> Maybe.withDefault 0
+                    |> Dato.setÅr skjema.fradato
+        }
+
+
+oppdaterNavarendeFelt : UtdanningSkjema -> UtdanningSkjema
+oppdaterNavarendeFelt (UtdanningSkjema skjema) =
+    if skjema.navarende == True then
+        UtdanningSkjema { skjema | navarende = False }
+
+    else
+        UtdanningSkjema { skjema | navarende = True }
+
+
+oppdaterTilMåned : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterTilMåned string (UtdanningSkjema skjema) =
+    case skjema.tildato of
+        Just dato ->
+            UtdanningSkjema
+                { skjema
+                    | tildato =
+                        string
+                            |> Dato.stringTilMåned
+                            |> Dato.setMåned dato
+                            |> Just
+                }
+
+        Nothing ->
+            UtdanningSkjema skjema
+
+
+oppdaterTilÅr : String -> UtdanningSkjema -> UtdanningSkjema
+oppdaterTilÅr string (UtdanningSkjema skjema) =
+    case skjema.tildato of
+        Just dato ->
+            UtdanningSkjema
+                { skjema
+                    | tildato =
+                        string
+                            |> String.toInt
+                            |> Maybe.withDefault 0
+                            |> Dato.setÅr dato
+                            |> Just
+                }
+
+        Nothing ->
+            UtdanningSkjema skjema
+
+
+
+{--
+oppdaterStringFelt : UtdanningSkjema -> Felt -> String -> UtdanningSkjema
+oppdaterStringFelt skjema felt string =
+    case felt of
+        Yrke ->
+            string
+                |> oppdaterYrkeFelt skjema
+
+        JobbTittel ->
+            string
+                |> oppdaterJobbTittelFelt skjema
+
+        BedriftNavn ->
+            string
+                |> oppdaterBedriftNavnFelt skjema
+
+        Lokasjon ->
+            string
+                |> oppdaterLokasjonFelt skjema
+
+        Arbeidsoppgaver ->
+            string
+                |> oppdaterArbeidsoppgaverFelt skjema
+
+        FraMåned ->
+            string
+                |> oppdaterFraMåned skjema
+
+        FraÅr ->
+            if string == "" then
+                oppdaterFraÅr skjema string
+
+            else
+                case String.toInt string of
+                    Just a ->
+                        oppdaterFraÅr skjema string
+
+                    Nothing ->
+                        skjema
+
+        TilMåned ->
+            string
+                |> oppdaterTilMåned skjema
+
+        TilÅr ->
+            string
+                |> oppdaterTilÅr skjema
+
+        _ ->
+            skjema
+--}
+
+
+toggleBool : UtdanningSkjema -> Felt -> UtdanningSkjema
+toggleBool (UtdanningSkjema skjema) felt =
+    case felt of
+        Navarende ->
+            let
+                nyVerdi =
+                    skjema.navarende
+            in
+            UtdanningSkjema { skjema | navarende = not nyVerdi }
+
+        _ ->
+            UtdanningSkjema skjema
+
+
+
+{--
+oppdaterFelt : Felt -> UtdanningSkjema -> ( String, Bool, Nivå ) -> UtdanningSkjema
+oppdaterFelt felt (UtdanningSkjema info) ( str, bol, nivå ) =
     case felt of
         Studiested ->
             UtdanningSkjema { info | studiested = str }
@@ -94,30 +309,44 @@ oppdaterFelt felt (UtdanningSkjema info) ( str, bol ) =
             UtdanningSkjema { info | navarende = bol }
 
         Nuskode ->
-            UtdanningSkjema { info | nuskode = str }
+            UtdanningSkjema { info | nuskode = nivå }
+--}
 
 
-encode : UtdanningSkjema -> String -> String -> Json.Encode.Value
+encode : UtdanningSkjema -> String -> Nivå -> Json.Encode.Value
 encode (UtdanningSkjema info) id nivå =
-    -- FIXME: ta inn nivå som en custom type
     Json.Encode.object
         [ ( "id", Json.Encode.string id )
         , ( "studiested", Json.Encode.string info.studiested )
-        , ( "utdannningsretning", Json.Encode.string info.utdanningsretning )
+        , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
         , ( "beskrivelse", Json.Encode.string info.beskrivelse )
-        , ( "fradato", Json.Encode.string info.fradato )
-        , ( "tildato", Json.Encode.string info.tildato )
+        , ( "fradato", Json.Encode.string (info.fradato |> Dato.tilStringForBackend) )
+        , ( "tildato", Json.Encode.string (info.tildato |> Maybe.withDefault info.fradato |> Dato.tilStringForBackend) )
         , ( "navarende", Json.Encode.bool info.navarende )
         , ( "nuskode", encodeNuskode nivå )
         ]
 
 
-encodeNuskode : String -> Json.Encode.Value
+encodeNuskode : Nivå -> Json.Encode.Value
 encodeNuskode nivå =
-    -- FIXME: nivå til nuskode enocder
     case nivå of
-        "Bachelor" ->
-            Json.Encode.int 0
+        Grunnskole ->
+            Json.Encode.string "2"
 
-        _ ->
-            Json.Encode.int 0
+        VideregåendeYrkesskole ->
+            Json.Encode.string "3"
+
+        Fagskole ->
+            Json.Encode.string "4"
+
+        Folkehøyskole ->
+            Json.Encode.string "5"
+
+        HøyereUtdanning1til4 ->
+            Json.Encode.string "6"
+
+        HøyereUtdanning4pluss ->
+            Json.Encode.string "7"
+
+        Phd ->
+            Json.Encode.string "8"

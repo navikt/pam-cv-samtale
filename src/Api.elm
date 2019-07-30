@@ -7,6 +7,7 @@ module Api exposing
     , hentYrkeTypeahead
     , lagreArbeidserfaring
     , leggTilSpråk
+    , leggTilUtdanning
     , logError
     , oppdaterPersonalia
     , opprettCv
@@ -17,6 +18,7 @@ module Api exposing
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Spraakferdighet exposing (Spraakferdighet)
+import Cv.Utdanning exposing (Utdanning)
 import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
 import Json.Decode
@@ -24,6 +26,7 @@ import Personalia exposing (Personalia)
 import Skjema.ArbeidserfaringSkjema
 import Skjema.Personalia
 import Skjema.Sprak
+import Skjema.Utdanning
 import Sprakkoder exposing (Sprakkoder)
 import Yrke as YrkeTypahead exposing (Yrke)
 
@@ -127,6 +130,15 @@ hentYrkeTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/yrke?q=" ++ string
         , expect = expectJson msgConstructor (Json.Decode.list YrkeTypahead.decode)
+        }
+
+
+leggTilUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.UtdanningSkjema -> Cmd msg
+leggTilUtdanning msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/utdanning"
+        , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
+        , body = Skjema.Utdanning.encode skjema "id" (Skjema.Utdanning.nuskode skjema) |> jsonBody
         }
 
 

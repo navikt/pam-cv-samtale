@@ -351,9 +351,7 @@ initVenterPåResten personalia =
                     }
             }
         )
-    , Cmd.batch
-        [ Api.hentCv (CvHentet >> LoadingMsg)
-        ]
+    , Api.hentCv (CvHentet >> LoadingMsg)
     )
 
 
@@ -512,15 +510,11 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 
 personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
-    {--
-    ( Success
-        { model
-            | aktivSamtale = UtdanningSeksjon (Seksjon.Utdanning.init (MeldingsLogg.tilMeldingsLogg ferdigAnimertMeldingsLogg) (Cv.utdanning model.cv))
-        }
-    , Cmd.none
-    )
---}
-    gåTilSpråk model ferdigAnimertMeldingsLogg
+    gåTilUtdanning model ferdigAnimertMeldingsLogg
+
+
+
+-- gåTilSpråk model ferdigAnimertMeldingsLogg
 
 
 personaliaTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
@@ -534,10 +528,31 @@ personaliaTilArbeidserfaring model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilUtdanning model ferdigAnimertMeldingsLogg =
+    let
+        ( utdanningModel, utdanningCmd ) =
+            Seksjon.Utdanning.init ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = ArbeidsErfaringSeksjon (Seksjon.Arbeidserfaring.init utdanningMeldingsLogg)
+        }
+    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) Seksjon.Arbeidserfaring.lagtTilSpørsmålCmd
+    )
+
+
 
 {--
 utdanningFerdig : SuccessModel -> List Utdanning -> MeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
+
+gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilUtdanning model ferdigAnimertMeldingsLogg =
+    let
+        ( utdanningModel, utdanningCmd ) =
+            Seksjon.Utdanning.init ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
+    in
     ( Success
         { model
             | aktivSamtale = ArbeidsErfaringSeksjon (Seksjon.Arbeidserfaring.init utdanningMeldingsLogg)
