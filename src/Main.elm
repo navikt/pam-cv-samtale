@@ -394,7 +394,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Personalia.Ferdig personalia personaliaMeldingsLogg ->
-                            personaliaTilArbeidserfaring model personaliaMeldingsLogg
+                            gåTilUtdanning model personaliaMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -412,7 +412,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Utdanning.Ferdig utdanning meldingsLogg ->
-                            ( Success model, Cmd.none )
+                            gåTilArbeidserfaring model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -508,8 +508,8 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     }
 
 
-personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
+personaliaFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+personaliaFerdig model ferdigAnimertMeldingsLogg =
     gåTilUtdanning model ferdigAnimertMeldingsLogg
 
 
@@ -517,8 +517,8 @@ personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
 -- gåTilSpråk model ferdigAnimertMeldingsLogg
 
 
-personaliaTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-personaliaTilArbeidserfaring model ferdigAnimertMeldingsLogg =
+gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
     let
         ( arbeidsModell, arbeidsCmd ) =
             Seksjon.Arbeidserfaring.init ferdigAnimertMeldingsLogg
