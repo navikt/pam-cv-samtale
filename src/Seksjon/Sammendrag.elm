@@ -10,8 +10,7 @@ module Seksjon.Sammendrag exposing
 
 import Api
 import Browser.Dom as Dom
-import Cv.Sammendrag exposing (Sammendrag, stringToSammendrag)
-import FrontendModuler.Input as Input exposing (Input)
+import Cv.Sammendrag exposing (Sammendrag)
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
@@ -105,13 +104,27 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         BrukerVilLagreSammendrag sammendrag ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Gå videre" ]) (LagrerEndring sammendrag)
-            , Cmd.batch
-                [ lagtTilSpørsmålCmd
-                , leggSammendragTilAPI sammendrag
-                ]
-            )
-                |> IkkeFerdig
+            case model.aktivSamtale of
+                LagringFeilet error feiletSammendrag ->
+                    ( nesteSamtaleSteg model (Melding.svar [ "Prøv på nytt" ]) (LagrerEndring feiletSammendrag)
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd
+                        , leggSammendragTilAPI sammendrag
+                        ]
+                    )
+                        |> IkkeFerdig
+
+                EndreOriginal _ ->
+                    ( nesteSamtaleSteg model (Melding.svar [ "Lagre og gå videre" ]) (LagrerEndring sammendrag)
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd
+                        , leggSammendragTilAPI sammendrag
+                        ]
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none ) |> IkkeFerdig
 
         ViewportSatt result ->
             ( Model model, Cmd.none )
@@ -144,7 +157,7 @@ update msg (Model model) =
                             fullførSeksjonHvisMeldingsloggErFerdig { model | sammendrag = Cv.Sammendrag.sammendrag value } (Cv.Sammendrag.sammendrag value)
 
                         Err error ->
-                            ( nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ]) (LagringFeilet error sammendrag)
+                            ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre!" ]) (LagringFeilet error sammendrag)
                             , lagtTilSpørsmålCmd
                             )
                                 |> IkkeFerdig
@@ -230,17 +243,17 @@ samtaleTilMeldingsLogg sammendragSeksjon =
             [ Melding.spørsmål [ "Ok! Fyll ut sammendraget ditt i boksen under." ] ]
 
         LagrerEndring string ->
-            [ Melding.spørsmål
-                [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ]
-            ]
+            []
 
         LagringFeilet error string ->
             [ Melding.spørsmål
-                [ "Oops.. Noe gikk galt!" ]
+                [ "Sjekk at du er på internett og prøv igjen!" ]
             ]
 
         VenterPåAnimasjonFørFullføring string ->
-            []
+            [ Melding.spørsmål
+                [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ]
+            ]
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -286,8 +299,9 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
+                                |> Textarea.withTextAreaClass "textarea_stor"
                                 |> Textarea.toHtml
-                            , Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Gå videre"
+                            , Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Lagre og gå videre"
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -295,8 +309,15 @@ viewBrukerInput (Model model) =
                 LagrerEndring string ->
                     text "lagrer"
 
-                LagringFeilet error string ->
-                    text "lagring feilet"
+                LagringFeilet error sammendrag ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp OriginalSammendragBekreftet "Gå videre uten å lagre"
+                                |> Knapp.toHtml
+                            ]
+                        ]
 
                 VenterPåAnimasjonFørFullføring string ->
                     text ""
