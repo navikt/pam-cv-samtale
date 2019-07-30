@@ -1,9 +1,11 @@
 module FrontendModuler.Knapp exposing
-    ( Enabled(..)
+    ( Class(..)
+    , Enabled(..)
     , Knapp
     , Type(..)
     , knapp
     , toHtml
+    , withClass
     , withEnabled
     , withType
     )
@@ -22,6 +24,7 @@ type alias Options msg =
     , innhold : String
     , enabled : Enabled
     , knappeType : Type
+    , class : Maybe Class
     }
 
 
@@ -35,6 +38,10 @@ type Type
     | Hoved
 
 
+type Class
+    = MånedKnapp
+
+
 knapp : msg -> String -> Knapp msg
 knapp msg innhold =
     Knapp
@@ -42,7 +49,13 @@ knapp msg innhold =
         , innhold = innhold
         , enabled = Enabled
         , knappeType = Normal
+        , class = Nothing
         }
+
+
+withClass : Class -> Knapp msg -> Knapp msg
+withClass class (Knapp options) =
+    Knapp { options | class = Just class }
 
 
 withEnabled : Enabled -> Knapp msg -> Knapp msg
@@ -57,17 +70,35 @@ withType knappeType (Knapp options) =
 
 toHtml : Knapp msg -> Html msg
 toHtml (Knapp options) =
-    case options.enabled of
-        Enabled ->
-            button
-                [ classList [ ( "Knapp", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
-                , onClick options.msg
-                ]
-                [ text options.innhold ]
+    case options.class of
+        Just månedknapp ->
+            case options.enabled of
+                Enabled ->
+                    button
+                        [ classList [ ( "Knapp", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
+                        , onClick options.msg
+                        ]
+                        [ text options.innhold ]
 
-        Disabled ->
-            button
-                [ classList [ ( "Knapp", True ), ( "Knapp--disabled", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
-                , disabled True
-                ]
-                [ text options.innhold ]
+                Disabled ->
+                    button
+                        [ classList [ ( "Knapp", True ), ( "Knapp--disabled", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
+                        , disabled True
+                        ]
+                        [ text options.innhold ]
+
+        Nothing ->
+            case options.enabled of
+                Enabled ->
+                    button
+                        [ classList [ ( "Knapp", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
+                        , onClick options.msg
+                        ]
+                        [ text options.innhold ]
+
+                Disabled ->
+                    button
+                        [ classList [ ( "Knapp", True ), ( "Knapp--disabled", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
+                        , disabled True
+                        ]
+                        [ text options.innhold ]

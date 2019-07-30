@@ -25,7 +25,10 @@ type Model
 
 
 type alias ModelInfo =
-    { seksjonsMeldingsLogg : MeldingsLogg, aktivSamtale : Samtale, personalia : Personalia }
+    { seksjonsMeldingsLogg : MeldingsLogg
+    , aktivSamtale : Samtale
+    , personalia : Personalia
+    }
 
 
 type Samtale
@@ -248,7 +251,7 @@ samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
-            [ Melding.spørsmål [ "Da settter vi i gang :)" ]
+            [ Melding.spørsmål [ "Da setter vi i gang :)" ]
             , Melding.spørsmål
                 [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
                 , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
