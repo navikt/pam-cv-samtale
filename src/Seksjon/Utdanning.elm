@@ -148,7 +148,7 @@ forrigeTilFradatoInfo : BeskrivelseInfo -> FradatoInfo
 forrigeTilFradatoInfo beskrivelse =
     { forrige = beskrivelse
     , fraMåned = Dato.Januar
-    , fraÅr = "2019"
+    , fraÅr = ""
     , navarende = False
     }
 
@@ -243,13 +243,13 @@ update msg (Model model) =
 
                     else
                         IkkeFerdig
-                            ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere flere utdanninger" ]) RegistrerNivå
+                            ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil legge til flere utdannelser" ]) RegistrerNivå
                             , lagtTilSpørsmålCmd
                             )
 
                 LeggTilFlereUtdannelser _ ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere flere utdanninger" ]) RegistrerNivå
+                        ( nesteSamtaleSteg model (Melding.svar [ "Legg til flere" ]) RegistrerNivå
                         , lagtTilSpørsmålCmd
                         )
 
@@ -459,7 +459,7 @@ update msg (Model model) =
         OriginalOppsummeringBekreftet ->
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "1Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
 
                 LeggTilFlereUtdannelser ferdigskjema ->
                     fullførSeksjonHvisMeldingsloggErFerdig model model.utdanningListe
@@ -470,10 +470,10 @@ update msg (Model model) =
         OppsummeringSkjemaLagreknappTrykket ->
             case model.aktivSamtale of
                 EndrerOppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "3Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
 
                 LeggTilUtdanningFeiletIApi _ feiletskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "5Skjemaet stemmer, så den lagrer jeg" ]) (OppsummeringLagret feiletskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi feiletskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret feiletskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi feiletskjema, lagtTilSpørsmålCmd ] )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -845,21 +845,21 @@ viewBrukerInput (Model model) =
 
                 RegistrerSkole skoleinfo ->
                     div [ class "Skjema" ]
-                        [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "Skole" } |> Input.toHtml
+                        [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "" } |> Input.toHtml
                         , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
                             |> Knapp.toHtml
                         ]
 
                 RegistrerRetning retningsinfo ->
                     div [ class "Skjema" ]
-                        [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "Retning" } |> Input.toHtml
+                        [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "" } |> Input.toHtml
                         , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
                             |> Knapp.toHtml
                         ]
 
                 RegistrerBeskrivelse beskrivelseinfo ->
                     div [ class "Skjema" ]
-                        [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterBeskrivelse, label = "Beskrivelse" } |> Input.toHtml
+                        [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterBeskrivelse, label = "" } |> Input.toHtml
                         , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
                             |> Knapp.toHtml
                         ]
@@ -904,12 +904,12 @@ viewBrukerInput (Model model) =
                     div [ class "skjemawrapper" ]
                         [ div [ class "skjema" ]
                             [ fraDatoInfo.fraÅr
-                                |> Input.input { label = "Hvilket år begynte du der?", msg = OppdaterFraÅr fraDatoInfo }
+                                |> Input.input { label = "", msg = OppdaterFraÅr fraDatoInfo }
                                 |> Input.toHtml
                             ]
                         , div [ class "inputrad" ]
                             [ BrukerVilRegistrereNaavarende
-                                |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
+                                |> lagÅrInputKnapp "Lagre" fraDatoInfo.fraÅr
                             ]
                         ]
 
@@ -964,12 +964,12 @@ viewBrukerInput (Model model) =
                     div [ class "skjemawrapper" ]
                         [ div [ class "skjema" ]
                             [ tilDatoInfo.tilÅr
-                                |> Input.input { label = "Hvilket år ble du ferdig", msg = OppdaterTilÅr tilDatoInfo }
+                                |> Input.input { label = "", msg = OppdaterTilÅr tilDatoInfo }
                                 |> Input.toHtml
                             ]
                         , div [ class "inputrad" ]
                             [ BrukerVilGåTilOppsummering
-                                |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
+                                |> lagÅrInputKnapp "Lagre" tilDatoInfo.tilÅr
                             ]
                         ]
 
