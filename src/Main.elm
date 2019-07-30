@@ -513,18 +513,9 @@ personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
     gåTilUtdanning model ferdigAnimertMeldingsLogg
 
 
-
--- gåTilSpråk model ferdigAnimertMeldingsLogg
-
-
 utdanningFerdig : SuccessModel -> List Utdanning -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
-    ( Success
-        { model
-            | aktivSamtale = ArbeidsErfaringSeksjon
-        }
-    , Cmd.none
-    )
+    gåTilSpråk model utdanningMeldingsLogg
 
 
 gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
@@ -554,10 +545,6 @@ sammendragFerdig model ferdigAnimertMeldingsLogg =
         }
     , Cmd.none
     )
-
-
-
--- TODO: bruk denne for å gå til språk
 
 
 gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
