@@ -12,10 +12,15 @@ if (!process.env.PAM_CV_API_PROXY_KEY) {
 if (!process.env.API_GATEWAY_HOST) {
     throw new Error("Miljøvariabel API_GATEWAY_HOST er ikke satt");
 }
+if (!process.env.LOGINSERVICE_URL) {
+    throw new Error("Miljøvariabel LOGINSERVICE_URL er ikke satt");
+}
+
 
 const MILJOVARIABLER = {
     API_GATEWAY_HOST: process.env.API_GATEWAY_HOST,
-    PROXY_API_KEY: process.env.PAM_CV_API_PROXY_KEY
+    PROXY_API_KEY: process.env.PAM_CV_API_PROXY_KEY,
+    LOGINSERVICE_URL: process.env.LOGINSERVICE_URL
 };
 
 console.log(`API_GATEWAY_HOST: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
@@ -37,6 +42,10 @@ const getCookie = (name: string, cookie: string) => {
     const match = re.exec(cookie);
     return match !== null ? match[1] : '';
 };
+
+server.get('/cv-samtale/login', (req, res) => {
+    res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?redirect=https://${req.hostname}/cv-samtale`);
+});
 
 server.post('/cv-samtale/log', express.json(), (req, res) => {
     console.log(JSON.stringify({

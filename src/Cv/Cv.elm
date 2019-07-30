@@ -1,4 +1,4 @@
-module Cv.Cv exposing (Cv, decode, utdanning)
+module Cv.Cv exposing (Cv, decode, spraakferdighet, utdanning)
 
 import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)

@@ -32,3 +32,5 @@ spec:
     env:
         - name: API_GATEWAY_HOST
           value: {{{ apiGatewayHost }}}
+        - name: LOGINSERVICE_URL
+          value: {{{ loginservice }}}
