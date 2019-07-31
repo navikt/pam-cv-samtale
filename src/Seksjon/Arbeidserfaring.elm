@@ -117,7 +117,7 @@ type Msg
     | BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
     | ArbeidserfaringLagret (Result Http.Error (List Arbeidserfaring))
     | NyArbeidserfaring
-    | FerdigMedArbeidserfaring
+    | FerdigMedArbeidserfaring String
     | StartÅSkrive
     | FullFørMelding
     | ViewportSatt (Result Dom.Error ())
@@ -987,11 +987,11 @@ update msg (Model info) =
             ( Model info, Cmd.none )
                 |> IkkeFerdig
 
-        FerdigMedArbeidserfaring ->
+        FerdigMedArbeidserfaring knappeTekst ->
             if List.isEmpty info.arbeidserfaringListe then
                 ( HeltFerdigUtenArbeidsErfaring
                     |> nesteSamtaleSteg info
-                        (Melding.svar [ "Nei, jeg har ingen arbeidserfaring" ])
+                        (Melding.svar [ knappeTekst ])
                 , lagtTilSpørsmålCmd
                 )
                     |> IkkeFerdig
@@ -999,7 +999,7 @@ update msg (Model info) =
             else
                 ( HeltFerdig
                     |> nesteSamtaleSteg info
-                        (Melding.svar [ "Nei, jeg har lagt inn alle" ])
+                        (Melding.svar [ knappeTekst ])
                 , lagtTilSpørsmålCmd
                 )
                     |> IkkeFerdig
@@ -1353,7 +1353,7 @@ viewBrukerInput (Model info) =
                             [ div [ class "inputrad-innhold" ]
                                 [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
                                     |> Knapp.toHtml
-                                , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har ingen arbeidserfaring"
+                                , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har ingen arbeidserfaring") "Nei, jeg har ingen arbeidserfaring"
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -1363,7 +1363,7 @@ viewBrukerInput (Model info) =
                             [ div [ class "inputrad-innhold" ]
                                 [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg vil legge til mer"
                                     |> Knapp.toHtml
-                                , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg er ferdig"
+                                , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg er ferdig") "Nei, jeg er ferdig"
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -1643,7 +1643,7 @@ viewBrukerInput (Model info) =
                                 NyArbeidserfaring
                                 "Ja, legg til en arbeidserfaring"
                                 |> Knapp.toHtml
-                            , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle"
+                            , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
                                 |> Knapp.toHtml
                             ]
                         ]
