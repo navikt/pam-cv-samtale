@@ -478,12 +478,12 @@ logFeilmelding error operasjon =
 
 leggTilSpråkAPI : SpråkSkjema -> Cmd Msg
 leggTilSpråkAPI skjema =
-    Api.leggTilSpråk SpråkLagtTil skjema
+    Api.postSpråk SpråkLagtTil skjema
 
 
 hentSpråkkoder : Cmd Msg
 hentSpråkkoder =
-    Api.hentSpråkkoder SpråkkoderHentet
+    Api.getSpråkkoder SpråkkoderHentet
 
 
 listOppSpråkFraSpråkliste : SpråkListe -> String

@@ -1,19 +1,19 @@
 module Api exposing
-    ( hentAAreg
-    , hentCv
-    , hentPerson
-    , hentPersonalia
-    , hentSpråkkoder
-    , hentYrkeTypeahead
-    , lagreArbeidserfaring
-    , leggTilSammendrag
-    , leggTilSpråk
-    , leggTilUtdanning
+    ( getAAreg
+    , getCv
+    , getPerson
+    , getPersonalia
+    , getSpråkkoder
+    , getYrkeTypeahead
     , logError
-    , oppdaterPersonalia
-    , opprettCv
-    , opprettPerson
-    , opprettPersonalia
+    , postArbeidserfaring
+    , postCv
+    , postPerson
+    , postPersonalia
+    , postSpråk
+    , postUtdanning
+    , putPersonalia
+    , putSammendrag
     )
 
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
@@ -34,16 +34,16 @@ import Sprakkoder exposing (Sprakkoder)
 import Yrke as YrkeTypahead exposing (Yrke)
 
 
-hentPerson : (Result Error () -> msg) -> Cmd msg
-hentPerson msgConstructor =
+getPerson : (Result Error () -> msg) -> Cmd msg
+getPerson msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/person"
         , expect = expectWhatever msgConstructor
         }
 
 
-opprettPerson : (Result Error () -> msg) -> Cmd msg
-opprettPerson msgConstructor =
+postPerson : (Result Error () -> msg) -> Cmd msg
+postPerson msgConstructor =
     Http.post
         { url = "/cv-samtale/api/rest/person"
         , expect = expectWhatever msgConstructor
@@ -51,16 +51,16 @@ opprettPerson msgConstructor =
         }
 
 
-hentPersonalia : (Result Error Personalia -> msg) -> Cmd msg
-hentPersonalia msgConstructor =
+getPersonalia : (Result Error Personalia -> msg) -> Cmd msg
+getPersonalia msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
         }
 
 
-opprettPersonalia : (Result Error Personalia -> msg) -> Cmd msg
-opprettPersonalia msgConstructor =
+postPersonalia : (Result Error Personalia -> msg) -> Cmd msg
+postPersonalia msgConstructor =
     Http.post
         { url = "/cv-samtale/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
@@ -68,8 +68,8 @@ opprettPersonalia msgConstructor =
         }
 
 
-oppdaterPersonalia : (Result Error Personalia -> msg) -> Skjema.Personalia.PersonaliaSkjema -> String -> Cmd msg
-oppdaterPersonalia msgConstructor skjema id =
+putPersonalia : (Result Error Personalia -> msg) -> Skjema.Personalia.PersonaliaSkjema -> String -> Cmd msg
+putPersonalia msgConstructor skjema id =
     put
         { url = "/cv-samtale/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
@@ -77,8 +77,8 @@ oppdaterPersonalia msgConstructor skjema id =
         }
 
 
-leggTilSpråk : (Result Error (List Spraakferdighet) -> msg) -> Skjema.Sprak.SpråkSkjema -> Cmd msg
-leggTilSpråk msgConstructor skjema =
+postSpråk : (Result Error (List Spraakferdighet) -> msg) -> Skjema.Sprak.SpråkSkjema -> Cmd msg
+postSpråk msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/sprak"
         , expect = expectJson msgConstructor (Json.Decode.list Cv.Spraakferdighet.decode)
@@ -86,16 +86,16 @@ leggTilSpråk msgConstructor skjema =
         }
 
 
-hentSpråkkoder : (Result Error (List Sprakkoder) -> msg) -> Cmd msg
-hentSpråkkoder msgConstructor =
+getSpråkkoder : (Result Error (List Sprakkoder) -> msg) -> Cmd msg
+getSpråkkoder msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/koder/sprak"
         , expect = expectJson msgConstructor (Json.Decode.list Sprakkoder.decode)
         }
 
 
-leggTilSammendrag : (Result Error Sammendrag -> msg) -> String -> Cmd msg
-leggTilSammendrag msgConstructor sammendrag =
+putSammendrag : (Result Error Sammendrag -> msg) -> String -> Cmd msg
+putSammendrag msgConstructor sammendrag =
     put
         { url = "/cv-samtale/api/rest/cv/sammendrag"
         , expect = expectJson msgConstructor Sammendrag.decode
@@ -103,16 +103,16 @@ leggTilSammendrag msgConstructor sammendrag =
         }
 
 
-hentCv : (Result Error Cv -> msg) -> Cmd msg
-hentCv msgConstructor =
+getCv : (Result Error Cv -> msg) -> Cmd msg
+getCv msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         }
 
 
-opprettCv : (Result Error Cv -> msg) -> Cmd msg
-opprettCv msgConstructor =
+postCv : (Result Error Cv -> msg) -> Cmd msg
+postCv msgConstructor =
     Http.post
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
@@ -120,16 +120,16 @@ opprettCv msgConstructor =
         }
 
 
-hentAAreg : (Result Error (List Arbeidserfaring) -> msg) -> Cmd msg
-hentAAreg msgConstructor =
+getAAreg : (Result Error (List Arbeidserfaring) -> msg) -> Cmd msg
+getAAreg msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/cv/aareg"
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
         }
 
 
-lagreArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
-lagreArbeidserfaring msgConstructor skjema =
+postArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
+postArbeidserfaring msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring"
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
@@ -137,16 +137,16 @@ lagreArbeidserfaring msgConstructor skjema =
         }
 
 
-hentYrkeTypeahead : (Result Error (List Yrke) -> msg) -> String -> Cmd msg
-hentYrkeTypeahead msgConstructor string =
+getYrkeTypeahead : (Result Error (List Yrke) -> msg) -> String -> Cmd msg
+getYrkeTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/yrke?q=" ++ string
         , expect = expectJson msgConstructor (Json.Decode.list YrkeTypahead.decode)
         }
 
 
-leggTilUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.UtdanningSkjema -> Cmd msg
-leggTilUtdanning msgConstructor skjema =
+postUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.UtdanningSkjema -> Cmd msg
+postUtdanning msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/utdanning"
         , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)

@@ -199,12 +199,12 @@ updateLoading navigationKey msg model =
         PersonHentet result ->
             case result of
                 Ok _ ->
-                    ( Loading VenterPåPersonalia, Api.hentPersonalia (PersonaliaHentet >> LoadingMsg) )
+                    ( Loading VenterPåPersonalia, Api.getPersonalia (PersonaliaHentet >> LoadingMsg) )
 
                 Err error ->
                     case error of
                         Http.BadStatus 404 ->
-                            ( model, Api.opprettPerson (PersonOpprettet >> LoadingMsg) )
+                            ( model, Api.postPerson (PersonOpprettet >> LoadingMsg) )
 
                         Http.BadStatus 401 ->
                             ( model, redirectTilLogin navigationKey )
@@ -217,7 +217,7 @@ updateLoading navigationKey msg model =
         PersonOpprettet result ->
             case result of
                 Ok _ ->
-                    ( Loading VenterPåPersonalia, Api.hentPersonalia (PersonaliaHentet >> LoadingMsg) )
+                    ( Loading VenterPåPersonalia, Api.getPersonalia (PersonaliaHentet >> LoadingMsg) )
 
                 Err error ->
                     ( Failure error
@@ -232,7 +232,7 @@ updateLoading navigationKey msg model =
                 Err error ->
                     case error of
                         Http.BadStatus 404 ->
-                            ( model, Api.opprettPersonalia (PersonaliaOpprettet >> LoadingMsg) )
+                            ( model, Api.postPersonalia (PersonaliaOpprettet >> LoadingMsg) )
 
                         _ ->
                             ( Failure error
@@ -259,7 +259,7 @@ updateLoading navigationKey msg model =
                         Err error ->
                             case error of
                                 Http.BadStatus 404 ->
-                                    ( model, Api.opprettCv (CvOpprettet >> LoadingMsg) )
+                                    ( model, Api.postCv (CvOpprettet >> LoadingMsg) )
 
                                 _ ->
                                     ( Failure error
@@ -355,7 +355,7 @@ initVenterPåResten personalia =
                     }
             }
         )
-    , Api.hentCv (CvHentet >> LoadingMsg)
+    , Api.getCv (CvHentet >> LoadingMsg)
     )
 
 
@@ -787,7 +787,7 @@ init _ _ navigationKey =
       , navigationKey = navigationKey
       }
     , Cmd.batch
-        [ Api.hentPerson (PersonHentet >> LoadingMsg)
+        [ Api.getPerson (PersonHentet >> LoadingMsg)
         , Dom.getViewport
             |> Task.perform ViewportHentet
         ]

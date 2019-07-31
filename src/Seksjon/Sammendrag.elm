@@ -90,7 +90,13 @@ update msg (Model model) =
         BrukerVilEndreSammendrag sammendrag ->
             ( model.sammendrag
                 |> EndreOriginal
-                |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil se over" ])
+                |> nesteSamtaleSteg model
+                    (if model.sammendrag == "" then
+                        Melding.svar [ "Jeg vil legge til" ]
+
+                     else
+                        Melding.svar [ "Ja, jeg vil se over" ]
+                    )
             , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
@@ -168,7 +174,7 @@ update msg (Model model) =
 
 leggSammendragTilAPI : String -> Cmd Msg
 leggSammendragTilAPI sammendrag =
-    Api.leggTilSammendrag SammendragOppdatert sammendrag
+    Api.putSammendrag SammendragOppdatert sammendrag
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -288,7 +294,13 @@ viewBrukerInput (Model model) =
                 BekreftOriginal sammendrag ->
                     div [ class "inputrad" ]
                         [ div [ class "inputrad-innhold" ]
-                            [ Knapp.knapp (BrukerVilEndreSammendrag sammendrag) "Ja, jeg vil se over"
+                            [ Knapp.knapp (BrukerVilEndreSammendrag sammendrag)
+                                (if sammendrag == "" then
+                                    "Jeg vil legge til sammendrag"
+
+                                 else
+                                    "Ja, jeg vil se over"
+                                )
                                 |> Knapp.toHtml
                             , Knapp.knapp OriginalSammendragBekreftet "Nei, gå videre"
                                 |> Knapp.toHtml

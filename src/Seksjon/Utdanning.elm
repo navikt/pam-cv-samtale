@@ -474,7 +474,7 @@ update msg (Model model) =
         OriginalOppsummeringBekreftet ->
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
 
                 LeggTilFlereUtdannelser ferdigskjema ->
                     fullførSeksjonHvisMeldingsloggErFerdig model model.utdanningListe
@@ -485,10 +485,10 @@ update msg (Model model) =
         OppsummeringSkjemaLagreknappTrykket ->
             case model.aktivSamtale of
                 EndrerOppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
 
                 LeggTilUtdanningFeiletIApi _ feiletskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret feiletskjema), Cmd.batch [ Api.leggTilUtdanning UtdanningSendtTilApi feiletskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret feiletskjema), Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi feiletskjema, lagtTilSpørsmålCmd ] )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
