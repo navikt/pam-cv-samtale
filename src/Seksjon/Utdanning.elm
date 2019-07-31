@@ -185,7 +185,7 @@ forrigeTilOppsummeringInfo tildatoInfo =
 
 type Msg
     = BrukerVilRegistrereUtdanning
-    | GåTilArbeidserfaring
+    | GåTilArbeidserfaring String
     | BekreftAlleredeRegistrert
     | BrukerVilRegistrereNivå Nivå
     | BrukerVilRegistrereSkole
@@ -256,16 +256,31 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        GåTilArbeidserfaring ->
+        GåTilArbeidserfaring knappeTekst ->
             case model.aktivSamtale of
-                --      LeggTilFlereUtdannelser _ ->
-                --          IkkeFerdig
-                --              ( nesteSamtaleSteg model (Melding.svar [ "Jeg er ferdig med å legge til utdannelser" ]) (VenterPåAnimasjonFørFullføring model.utdanningListe), Cmd.none )
-                --      Intro _ ->
-                --          IkkeFerdig
-                --              ( nesteSamtaleSteg model (Melding.svar [ "Jeg har ingen flere utdannelser å legge til" ]) (VenterPåAnimasjonFørFullføring model.utdanningListe), Cmd.none )
+                Intro _ ->
+                    ( model.utdanningListe
+                        |> VenterPåAnimasjonFørFullføring
+                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
+
+                LeggTilFlereUtdannelser _ ->
+                    ( model.utdanningListe
+                        |> VenterPåAnimasjonFørFullføring
+                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
+
                 _ ->
-                    fullførSeksjonHvisMeldingsloggErFerdig model model.utdanningListe
+                    ( model.utdanningListe
+                        |> VenterPåAnimasjonFørFullføring
+                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
 
         BrukerVilRegistrereNivå nivå ->
             case model.aktivSamtale of
@@ -815,7 +830,8 @@ viewBrukerInput (Model model) =
                             [ div [ class "inputrad-innhold" ]
                                 [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
                                     |> Knapp.toHtml
-                                , Knapp.knapp GåTilArbeidserfaring "Jeg har ingen utdanning"
+                                , "Jeg har ingen utdanning"
+                                    |> Knapp.knapp (GåTilArbeidserfaring "Jeg har ingen utdanning")
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -825,7 +841,8 @@ viewBrukerInput (Model model) =
                             [ div [ class "inputrad-innhold" ]
                                 [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil legge til flere utdannelser"
                                     |> Knapp.toHtml
-                                , Knapp.knapp GåTilArbeidserfaring "Jeg er ferdig med å legge til utdannelser"
+                                , "Jeg er ferdig med å legge til utdannelser"
+                                    |> Knapp.knapp (GåTilArbeidserfaring "Jeg er ferdig med å legge til utdannelser")
                                     |> Knapp.toHtml
                                 ]
                             ]
