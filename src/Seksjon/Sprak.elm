@@ -449,6 +449,17 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                 |> IkkeFerdig
 
 
+fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> SamtaleStatus
+fullførSeksjonHvisMeldingsloggErFerdig modelInfo =
+    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
+        FerdigAnimert ferdigAnimertMeldingsLogg ->
+            Ferdig ferdigAnimertMeldingsLogg
+
+        MeldingerGjenstår ->
+            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring }, Cmd.none )
+                |> IkkeFerdig
+
+
 lagtTilSpørsmålCmd : Cmd Msg
 lagtTilSpørsmålCmd =
     Cmd.batch
@@ -467,12 +478,12 @@ logFeilmelding error operasjon =
 
 leggTilSpråkAPI : SpråkSkjema -> Cmd Msg
 leggTilSpråkAPI skjema =
-    Api.leggTilSpråk SpråkLagtTil skjema
+    Api.postSpråk SpråkLagtTil skjema
 
 
 hentSpråkkoder : Cmd Msg
 hentSpråkkoder =
-    Api.hentSpråkkoder SpråkkoderHentet
+    Api.getSpråkkoder SpråkkoderHentet
 
 
 listOppSpråkFraSpråkliste : SpråkListe -> String
@@ -545,7 +556,7 @@ samtaleTilMeldingsLogg språkSeksjon =
             [ Melding.spørsmål [ "Oops! Noe gikk galt...", "Vil du prøve på nytt eller avslutte og gå videre?", "Prøv gjerne igjen senere." ] ]
 
         VenterPåAnimasjonFørFullføring ->
-            []
+            [ Melding.spørsmål [ "Da var vi ferdige med språkdelen." ] ]
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model

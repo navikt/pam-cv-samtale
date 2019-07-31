@@ -63,7 +63,7 @@ aktivSamtale (Model info) =
 
 hentAAregArbeidserfaring : Model -> Cmd Msg
 hentAAregArbeidserfaring (Model info) =
-    Api.hentAAreg HentetAAregArbeidserfaring
+    Api.getAAreg HentetAAregArbeidserfaring
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -290,7 +290,7 @@ update msg (Model info) =
                             |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
                     , aktivSamtale = HenterFraAareg
                 }
-            , Api.hentAAreg HentetAAregArbeidserfaring
+            , Api.getAAreg HentetAAregArbeidserfaring
             )
                 |> IkkeFerdig
 
@@ -330,7 +330,7 @@ update msg (Model info) =
                                     |> RegistrerYrke
                         }
                     , Cmd.batch
-                        [ Api.hentYrkeTypeahead HentetYrkeTypeahead string
+                        [ Api.getYrkeTypeahead HentetYrkeTypeahead string
                         , lagtTilSpørsmålCmd
                         ]
                     )
@@ -345,7 +345,7 @@ update msg (Model info) =
                                     |> RegistrerYrke
                         }
                     , Cmd.batch
-                        [ Api.hentYrkeTypeahead HentetYrkeTypeahead string
+                        [ Api.getYrkeTypeahead HentetYrkeTypeahead string
                         , lagtTilSpørsmålCmd
                         ]
                     )
@@ -772,7 +772,7 @@ update msg (Model info) =
                                 ArbeidserfaringSkjema.oppdaterYrkeFelt skjema string
                                     |> RedigerOppsummering
                         }
-                    , Api.hentYrkeTypeahead HentetYrkeTypeahead string
+                    , Api.getYrkeTypeahead HentetYrkeTypeahead string
                     )
                         |> IkkeFerdig
 
@@ -901,7 +901,7 @@ update msg (Model info) =
                             (Melding.svar [ brukerSvar ])
                     , Cmd.batch
                         [ validertSkjema
-                            |> Api.lagreArbeidserfaring ArbeidserfaringLagret
+                            |> Api.postArbeidserfaring ArbeidserfaringLagret
                         , lagtTilSpørsmålCmd
                         ]
                     )
@@ -914,7 +914,7 @@ update msg (Model info) =
                             (Melding.svar [ brukerSvar ])
                     , Cmd.batch
                         [ skjema
-                            |> Api.lagreArbeidserfaring ArbeidserfaringLagret
+                            |> Api.postArbeidserfaring ArbeidserfaringLagret
                         , lagtTilSpørsmålCmd
                         ]
                     )

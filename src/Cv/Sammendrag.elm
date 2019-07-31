@@ -1,4 +1,4 @@
-module Cv.Sammendrag exposing (Sammendrag, decode, sammendrag)
+module Cv.Sammendrag exposing (Sammendrag, decode, sammendrag, stringToSammendrag)
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
@@ -11,6 +11,11 @@ type Sammendrag
 type alias SammendragInfo =
     { sammendrag : String
     }
+
+
+stringToSammendrag : String -> Sammendrag
+stringToSammendrag string =
+    Sammendrag { sammendrag = string }
 
 
 sammendrag : Sammendrag -> String

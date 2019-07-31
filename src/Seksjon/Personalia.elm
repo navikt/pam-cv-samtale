@@ -126,7 +126,7 @@ update msg (Model model) =
                     , Cmd.batch
                         [ model.personalia
                             |> Personalia.id
-                            |> Api.oppdaterPersonalia PersonaliaOppdatert skjema
+                            |> Api.putPersonalia PersonaliaOppdatert skjema
                         , lagtTilSpørsmålCmd
                         ]
                     )
