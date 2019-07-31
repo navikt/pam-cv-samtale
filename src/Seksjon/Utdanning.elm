@@ -848,15 +848,43 @@ viewBrukerInput (Model model) =
                             ]
 
                 RegistrerNivå ->
-                    div [ class "inputrad" ]
-                        [ div [ class "Utdanningsnivå" ]
-                            [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole) |> Knapp.toHtml
-                            , Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole) |> Knapp.toHtml
-                            , Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole) |> Knapp.toHtml
-                            , Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole) |> Knapp.toHtml
-                            , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4) |> Knapp.toHtml
-                            , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss) |> Knapp.toHtml
-                            , Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd) |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ div []
+                                [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole)
+                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                    |> Knapp.toHtml
+                                , div []
+                                    [ Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole)
+                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                        |> Knapp.toHtml
+                                    , div []
+                                        [ Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole)
+                                            |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                            |> Knapp.toHtml
+                                        , div []
+                                            [ Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole)
+                                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                                |> Knapp.toHtml
+                                            , div []
+                                                [ Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4)
+                                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                                    |> Knapp.toHtml
+                                                , div []
+                                                    [ Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss)
+                                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                                        |> Knapp.toHtml
+                                                    , div []
+                                                        [ Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd)
+                                                            |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                                            |> Knapp.toHtml
+                                                        ]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
                             ]
                         ]
 
@@ -864,6 +892,12 @@ viewBrukerInput (Model model) =
                     div [ class "Skjema" ]
                         [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "" } |> Input.toHtml
                         , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
+                            |> (if skoleinfo.skole /= "" then
+                                    Knapp.withEnabled Knapp.Enabled
+
+                                else
+                                    Knapp.withEnabled Knapp.Disabled
+                               )
                             |> Knapp.toHtml
                         ]
 
@@ -871,6 +905,12 @@ viewBrukerInput (Model model) =
                     div [ class "Skjema" ]
                         [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "" } |> Input.toHtml
                         , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
+                            |> (if retningsinfo.retning /= "" then
+                                    Knapp.withEnabled Knapp.Enabled
+
+                                else
+                                    Knapp.withEnabled Knapp.Disabled
+                               )
                             |> Knapp.toHtml
                         ]
 
@@ -878,6 +918,12 @@ viewBrukerInput (Model model) =
                     div [ class "Skjema" ]
                         [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterBeskrivelse, label = "" } |> Input.toHtml
                         , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
+                            |> (if beskrivelseinfo.beskrivelse /= "" then
+                                    Knapp.withEnabled Knapp.Enabled
+
+                                else
+                                    Knapp.withEnabled Knapp.Disabled
+                               )
                             |> Knapp.toHtml
                         ]
 

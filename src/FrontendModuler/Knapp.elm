@@ -24,7 +24,13 @@ type alias Options msg =
     , innhold : String
     , enabled : Enabled
     , knappeType : Type
-    , class : Maybe Class
+    , class : Maybe ClassInfo
+    }
+
+
+type alias ClassInfo =
+    { classType : Class
+    , className : String
     }
 
 
@@ -40,6 +46,8 @@ type Type
 
 type Class
     = MånedKnapp
+    | UtdanningsNivåKnapp
+    | SpråknivåKnapp
 
 
 knapp : msg -> String -> Knapp msg
@@ -55,7 +63,15 @@ knapp msg innhold =
 
 withClass : Class -> Knapp msg -> Knapp msg
 withClass class (Knapp options) =
-    Knapp { options | class = Just class }
+    case class of
+        MånedKnapp ->
+            Knapp { options | class = Just { classType = MånedKnapp, className = "månedknapp" } }
+
+        UtdanningsNivåKnapp ->
+            Knapp { options | class = Just { classType = UtdanningsNivåKnapp, className = "utdanningsnivåknapp" } }
+
+        SpråknivåKnapp ->
+            Knapp { options | class = Just { classType = SpråknivåKnapp, className = "språknivåknapp" } }
 
 
 withEnabled : Enabled -> Knapp msg -> Knapp msg
@@ -71,11 +87,11 @@ withType knappeType (Knapp options) =
 toHtml : Knapp msg -> Html msg
 toHtml (Knapp options) =
     case options.class of
-        Just månedknapp ->
+        Just classInfo ->
             case options.enabled of
                 Enabled ->
                     button
-                        [ classList [ ( "Knapp", True ), ( "Knapp--hoved", options.knappeType == Hoved ), ( "månedknapp", True ) ]
+                        [ classList [ ( "Knapp", True ), ( "Knapp--hoved", options.knappeType == Hoved ), ( classInfo.className, True ) ]
                         , onClick options.msg
                         ]
                         [ text options.innhold ]

@@ -241,7 +241,7 @@ arbeidsoppgaverInfoTilfraDatoInfo : ArbeidsoppgaverInfo -> FraDatoInfo
 arbeidsoppgaverInfoTilfraDatoInfo arbeidsoppgaverInfo =
     { tidligereInfo = arbeidsoppgaverInfo
     , fraMåned = Dato.Januar
-    , fraÅr = "1990"
+    , fraÅr = ""
     , naavarende = False
     }
 
