@@ -564,16 +564,7 @@ gåTilUtdanning model ferdigAnimertMeldingsLogg =
 
 språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 språkFerdig model meldingsLogg =
-    let
-        ( arbModel, arbCmd ) =
-            Seksjon.Arbeidserfaring.init meldingsLogg
-    in
-    ( Success
-        { model
-            | aktivSamtale = ArbeidsErfaringSeksjon arbModel
-        }
-    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) arbCmd
-    )
+    ( Success model, Cmd.none )
 
 
 

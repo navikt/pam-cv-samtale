@@ -1,6 +1,5 @@
 module Yrke exposing
     ( Yrke
-    , YrkeTypeaheadInfo
     , decode
     , konseptId
     , label
