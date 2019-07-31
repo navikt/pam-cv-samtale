@@ -75,7 +75,7 @@ toHtml (Knapp options) =
             case options.enabled of
                 Enabled ->
                     button
-                        [ classList [ ( "Knapp", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
+                        [ classList [ ( "Knapp", True ), ( "Knapp--hoved", options.knappeType == Hoved ), ( "månedknapp", True ) ]
                         , onClick options.msg
                         ]
                         [ text options.innhold ]

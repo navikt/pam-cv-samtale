@@ -22,6 +22,7 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Personalia exposing (Personalia)
 import Process
 import SamtaleAnimasjon
+import Seksjon.Arbeidserfaring
 import Seksjon.Personalia
 import Seksjon.Sammendrag
 import Seksjon.Sprak
@@ -76,6 +77,7 @@ type alias LoadingState =
     { cv : Maybe Cv
     , personalia : Personalia
     , registreringsProgresjon : Maybe RegistreringsProgresjon
+    , windowWidth : Maybe Int
     }
 
 
@@ -91,9 +93,9 @@ type SamtaleSeksjon
     = Introduksjon MeldingsLogg
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
+    | ArbeidsErfaringSeksjon Seksjon.Arbeidserfaring.Model
     | SpråkSeksjon Seksjon.Sprak.Model
     | SammendragSeksjon Seksjon.Sammendrag.Model
-    | ArbeidsErfaringSeksjon
 
 
 
@@ -125,6 +127,7 @@ type SuccessMsg
     | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
+    | ArbeidserfaringsMsg Seksjon.Arbeidserfaring.Msg
     | SpråkMsg Seksjon.Sprak.Msg
     | SammendragMsg Seksjon.Sammendrag.Msg
     | StartÅSkrive
@@ -343,6 +346,7 @@ initVenterPåResten personalia =
         (VenterPåResten
             { cv = Nothing
             , personalia = personalia
+            , windowWidth = Nothing
             , registreringsProgresjon =
                 Just
                     { erDetteFørsteGangManErInneILøsningen = True
@@ -394,7 +398,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Personalia.Ferdig personalia personaliaMeldingsLogg ->
-                            personaliaFerdig model personalia personaliaMeldingsLogg
+                            gåTilUtdanning model personaliaMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -412,7 +416,25 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Utdanning.Ferdig utdanning meldingsLogg ->
-                            utdanningFerdig model utdanning meldingsLogg
+                            gåTilArbeidserfaring model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+        ArbeidserfaringsMsg msg ->
+            case model.aktivSamtale of
+                ArbeidsErfaringSeksjon arbeidserfaringsModel ->
+                    case Seksjon.Arbeidserfaring.update msg arbeidserfaringsModel of
+                        Seksjon.Arbeidserfaring.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> ArbeidsErfaringSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Arbeidserfaring.Ferdig ferdigAnimertMeldingsLogg ->
+                            gåTilSpråk model ferdigAnimertMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -508,14 +530,35 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     }
 
 
-personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
+personaliaFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+personaliaFerdig model ferdigAnimertMeldingsLogg =
     gåTilUtdanning model ferdigAnimertMeldingsLogg
 
 
 utdanningFerdig : SuccessModel -> List Utdanning -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
     gåTilSpråk model utdanningMeldingsLogg
+
+
+språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+språkFerdig model meldingsLogg =
+    gåTilSammendrag model meldingsLogg
+
+
+sammendragFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+sammendragFerdig model ferdigAnimertMeldingsLogg =
+    ( Success model, Cmd.none )
+
+
+gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
+    let
+        ( arbeidsModell, arbeidsCmd ) =
+            Seksjon.Arbeidserfaring.init ferdigAnimertMeldingsLogg
+    in
+    ( Success { model | aktivSamtale = ArbeidsErfaringSeksjon arbeidsModell }
+    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) arbeidsCmd
+    )
 
 
 gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
@@ -529,21 +572,6 @@ gåTilUtdanning model ferdigAnimertMeldingsLogg =
             | aktivSamtale = UtdanningSeksjon utdanningModel
         }
     , Cmd.map (UtdanningsMsg >> SuccessMsg) utdanningCmd
-    )
-
-
-språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-språkFerdig model meldingsLogg =
-    gåTilSammendrag model meldingsLogg
-
-
-sammendragFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-sammendragFerdig model ferdigAnimertMeldingsLogg =
-    ( Success
-        { model
-            | aktivSamtale = ArbeidsErfaringSeksjon
-        }
-    , Cmd.none
     )
 
 
@@ -624,8 +652,8 @@ meldingsLoggFraSeksjon successModel =
         UtdanningSeksjon model ->
             Seksjon.Utdanning.meldingsLogg model
 
-        ArbeidsErfaringSeksjon ->
-            MeldingsLogg.init
+        ArbeidsErfaringSeksjon model ->
+            Seksjon.Arbeidserfaring.meldingsLogg model
 
         SpråkSeksjon model ->
             Seksjon.Sprak.meldingsLogg model
@@ -731,8 +759,10 @@ viewBrukerInput aktivSamtale =
                 |> Seksjon.Sammendrag.viewBrukerInput
                 |> Html.map (SammendragMsg >> SuccessMsg)
 
-        _ ->
-            text "Ikke implementert"
+        ArbeidsErfaringSeksjon arbeidserfaringSeksjon ->
+            arbeidserfaringSeksjon
+                |> Seksjon.Arbeidserfaring.viewBrukerInput
+                |> Html.map (ArbeidserfaringsMsg >> SuccessMsg)
 
 
 

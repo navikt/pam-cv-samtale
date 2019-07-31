@@ -23,6 +23,10 @@ type Arbeidserfaring
     = Arbeidserfaring ArbeidserfaringInfo
 
 
+type AAregArbeidserfaring
+    = AAregArbeidserfaring (List ArbeidserfaringInfo)
+
+
 type alias ArbeidserfaringInfo =
     { id : String
     , arbeidsgiver : Maybe String

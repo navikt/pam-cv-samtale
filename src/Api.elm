@@ -1,8 +1,11 @@
 module Api exposing
-    ( hentCv
+    ( hentAAreg
+    , hentCv
     , hentPerson
     , hentPersonalia
     , hentSpråkkoder
+    , hentYrkeTypeahead
+    , lagreArbeidserfaring
     , leggTilSammendrag
     , leggTilSpråk
     , leggTilUtdanning
@@ -13,6 +16,7 @@ module Api exposing
     , opprettPersonalia
     )
 
+import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
 import Cv.Spraakferdighet exposing (Spraakferdighet)
@@ -22,10 +26,12 @@ import Http exposing (..)
 import Json.Decode
 import Json.Encode
 import Personalia exposing (Personalia)
+import Skjema.ArbeidserfaringSkjema
 import Skjema.Personalia
 import Skjema.Sprak
 import Skjema.Utdanning
 import Sprakkoder exposing (Sprakkoder)
+import Yrke as YrkeTypahead exposing (Yrke)
 
 
 hentPerson : (Result Error () -> msg) -> Cmd msg
@@ -111,6 +117,31 @@ opprettCv msgConstructor =
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         , body = emptyBody
+        }
+
+
+hentAAreg : (Result Error (List Arbeidserfaring) -> msg) -> Cmd msg
+hentAAreg msgConstructor =
+    Http.get
+        { url = "/cv-samtale/api/rest/cv/aareg"
+        , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
+        }
+
+
+lagreArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
+lagreArbeidserfaring msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring"
+        , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
+        , body = Skjema.ArbeidserfaringSkjema.encode skjema |> jsonBody
+        }
+
+
+hentYrkeTypeahead : (Result Error (List Yrke) -> msg) -> String -> Cmd msg
+hentYrkeTypeahead msgConstructor string =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/yrke?q=" ++ string
+        , expect = expectJson msgConstructor (Json.Decode.list YrkeTypahead.decode)
         }
 
 
