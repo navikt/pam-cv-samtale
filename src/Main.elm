@@ -23,6 +23,7 @@ import Personalia exposing (Personalia)
 import Process
 import SamtaleAnimasjon
 import Seksjon.Arbeidserfaring
+import Seksjon.Avslutning
 import Seksjon.Personalia
 import Seksjon.Sammendrag
 import Seksjon.Sprak
@@ -95,6 +96,7 @@ type SamtaleSeksjon
     | UtdanningSeksjon Seksjon.Utdanning.Model
     | ArbeidsErfaringSeksjon Seksjon.Arbeidserfaring.Model
     | SpråkSeksjon Seksjon.Sprak.Model
+    | AvslutningSeksjon Seksjon.Avslutning.Model
     | SammendragSeksjon Seksjon.Sammendrag.Model
 
 
@@ -130,6 +132,7 @@ type SuccessMsg
     | ArbeidserfaringsMsg Seksjon.Arbeidserfaring.Msg
     | SpråkMsg Seksjon.Sprak.Msg
     | SammendragMsg Seksjon.Sammendrag.Msg
+    | AvslutningMsg Seksjon.Avslutning.Msg
     | StartÅSkrive
     | FullførMelding
 
@@ -499,7 +502,8 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Sprak.Ferdig meldingsLogg ->
-                            språkFerdig model meldingsLogg
+                            -- TODO: Gå til mellomlanding
+                            gåTilSammendrag model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -517,7 +521,25 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Sammendrag.Ferdig meldingsLogg ->
-                            sammendragFerdig model meldingsLogg
+                            gåTilAvslutning model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+        AvslutningMsg msg ->
+            case model.aktivSamtale of
+                AvslutningSeksjon avslutningModel ->
+                    case Seksjon.Avslutning.update msg avslutningModel of
+                        Seksjon.Avslutning.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> AvslutningSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (AvslutningMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Avslutning.Ferdig nyModel meldingsLogg ->
+                            ( Success model, Cmd.none )
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -528,26 +550,6 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     { model
         | aktivSamtale = samtaleSeksjon
     }
-
-
-personaliaFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-personaliaFerdig model ferdigAnimertMeldingsLogg =
-    gåTilUtdanning model ferdigAnimertMeldingsLogg
-
-
-utdanningFerdig : SuccessModel -> List Utdanning -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-utdanningFerdig model utdanning utdanningMeldingsLogg =
-    gåTilSpråk model utdanningMeldingsLogg
-
-
-språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-språkFerdig model meldingsLogg =
-    gåTilSammendrag model meldingsLogg
-
-
-sammendragFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-sammendragFerdig model ferdigAnimertMeldingsLogg =
-    ( Success model, Cmd.none )
 
 
 gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
@@ -600,6 +602,20 @@ gåTilSammendrag model ferdigAnimertMeldingsLogg =
             | aktivSamtale = SammendragSeksjon sammendragModel
         }
     , Cmd.map (SammendragMsg >> SuccessMsg) sammendragCmd
+    )
+
+
+gåTilAvslutning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilAvslutning model ferdigAnimertMeldingsLogg =
+    let
+        ( avslutningModel, avslutningCmd ) =
+            Seksjon.Avslutning.init model.personalia model.cv ferdigAnimertMeldingsLogg
+    in
+    ( Success
+        { model
+            | aktivSamtale = AvslutningSeksjon avslutningModel
+        }
+    , Cmd.map (AvslutningMsg >> SuccessMsg) avslutningCmd
     )
 
 
@@ -660,6 +676,9 @@ meldingsLoggFraSeksjon successModel =
 
         SammendragSeksjon model ->
             Seksjon.Sammendrag.meldingsLogg model
+
+        AvslutningSeksjon model ->
+            Seksjon.Avslutning.meldingsLogg model
 
 
 viewSuccess : SuccessModel -> Html Msg
@@ -763,6 +782,9 @@ viewBrukerInput aktivSamtale =
             arbeidserfaringSeksjon
                 |> Seksjon.Arbeidserfaring.viewBrukerInput
                 |> Html.map (ArbeidserfaringsMsg >> SuccessMsg)
+
+        AvslutningSeksjon model ->
+            text ""
 
 
 

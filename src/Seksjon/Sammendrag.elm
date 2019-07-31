@@ -43,7 +43,7 @@ type Samtale
     | EndreOriginal String
     | LagrerEndring String
     | LagringFeilet Http.Error String
-    | VenterPåAnimasjonFørFullføring String
+    | VenterPåAnimasjonFørFullføring
 
 
 type SamtaleStatus
@@ -66,6 +66,7 @@ type Msg
     | SammendragEndret String
     | BrukerVilLagreSammendrag String
     | SammendragOppdatert (Result Http.Error Sammendrag)
+    | BrukerVilAvslutteSeksjonen
     | ViewportSatt (Result Dom.Error ())
     | StartÅSkrive
     | FullførMelding
@@ -81,7 +82,7 @@ update msg (Model model) =
                         model.seksjonsMeldingsLogg
                             |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ])
                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Flott! Da er vi nesten ferdige!" ] ]
-                    , aktivSamtale = VenterPåAnimasjonFørFullføring model.sammendrag
+                    , aktivSamtale = VenterPåAnimasjonFørFullføring
                 }
             , lagtTilSpørsmålCmd
             )
@@ -131,6 +132,12 @@ update msg (Model model) =
 
                 _ ->
                     ( Model model, Cmd.none ) |> IkkeFerdig
+
+        BrukerVilAvslutteSeksjonen ->
+            ( nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ]) VenterPåAnimasjonFørFullføring
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
 
         ViewportSatt result ->
             ( Model model, Cmd.none )
@@ -182,7 +189,7 @@ updateEtterFullførtMelding model nyMeldingsLogg =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring sammendrag ->
+                VenterPåAnimasjonFørFullføring ->
                     Ferdig ferdigAnimertSamtale
 
                 _ ->
@@ -213,7 +220,7 @@ fullførSeksjonHvisMeldingsloggErFerdig modelInfo sammendrag =
             Ferdig ferdigAnimertMeldingsLogg
 
         MeldingerGjenstår ->
-            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring sammendrag }, Cmd.none )
+            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring }, Cmd.none )
                 |> IkkeFerdig
 
 
@@ -256,10 +263,8 @@ samtaleTilMeldingsLogg sammendragSeksjon =
                 [ "Sjekk at du er på internett og prøv igjen!" ]
             ]
 
-        VenterPåAnimasjonFørFullføring string ->
-            [ Melding.spørsmål
-                [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ]
-            ]
+        VenterPåAnimasjonFørFullføring ->
+            [ Melding.spørsmål [ "Kjempebra! Nå er vi ferdige med det vanskelige!" ] ]
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -302,7 +307,7 @@ viewBrukerInput (Model model) =
                                     "Ja, jeg vil se over"
                                 )
                                 |> Knapp.toHtml
-                            , Knapp.knapp OriginalSammendragBekreftet "Nei, gå videre"
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -319,19 +324,19 @@ viewBrukerInput (Model model) =
                         ]
 
                 LagrerEndring string ->
-                    text "lagrer"
+                    text ""
 
                 LagringFeilet error sammendrag ->
                     div [ class "inputrad" ]
                         [ div [ class "inputrad-innhold" ]
                             [ Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Prøv på nytt"
                                 |> Knapp.toHtml
-                            , Knapp.knapp OriginalSammendragBekreftet "Gå videre uten å lagre"
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Gå videre uten å lagre"
                                 |> Knapp.toHtml
                             ]
                         ]
 
-                VenterPåAnimasjonFørFullføring string ->
+                VenterPåAnimasjonFørFullføring ->
                     text ""
 
         MeldingerGjenstår ->
