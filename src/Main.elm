@@ -554,7 +554,7 @@ gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cm
 gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
     let
         ( arbeidsModell, arbeidsCmd ) =
-            Seksjon.Arbeidserfaring.init ferdigAnimertMeldingsLogg
+            Seksjon.Arbeidserfaring.init ferdigAnimertMeldingsLogg (Cv.arbeidserfaring model.cv)
     in
     ( Success { model | aktivSamtale = ArbeidsErfaringSeksjon arbeidsModell }
     , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) arbeidsCmd

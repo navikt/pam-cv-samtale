@@ -151,6 +151,7 @@ type Samtale
     | StartNyArbeidserfaring (TypeaheadState Yrke)
     | VenterPåAnimasjonFørFullføring
     | HeltFerdig
+    | HeltFerdigUtenArbeidsErfaring
 
 
 type alias YrkeInfo =
@@ -987,11 +988,21 @@ update msg (Model info) =
                 |> IkkeFerdig
 
         FerdigMedArbeidserfaring ->
-            ( HeltFerdig
-                |> nesteSamtaleSteg info (Melding.svar [ "Nei, jeg har lagt inn alle" ])
-            , lagtTilSpørsmålCmd
-            )
-                |> IkkeFerdig
+            if List.isEmpty info.arbeidserfaringListe then
+                ( HeltFerdigUtenArbeidsErfaring
+                    |> nesteSamtaleSteg info
+                        (Melding.svar [ "Nei, jeg har ingen arbeidserfaring" ])
+                , lagtTilSpørsmålCmd
+                )
+                    |> IkkeFerdig
+
+            else
+                ( HeltFerdig
+                    |> nesteSamtaleSteg info
+                        (Melding.svar [ "Nei, jeg har lagt inn alle" ])
+                , lagtTilSpørsmålCmd
+                )
+                    |> IkkeFerdig
 
         GåTilNesteSeksjon ->
             case MeldingsLogg.ferdigAnimert info.seksjonsMeldingsLogg of
@@ -1147,6 +1158,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Nå skal vi registrere arbeidserfaringen din" ] ]
 
         HenterFraAareg ->
+            -- TODO: fiks dette etter at vi har skjekket om det funker
             [ Melding.spørsmål [ "bla bla bla" ] ]
 
         HentetFraAAreg ->
@@ -1278,6 +1290,9 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         HeltFerdig ->
             [ Melding.spørsmål [ "Kjempebra jobba! :) Nå kan en arbeidsgiver se om du har den erfaringen de leter etter. " ] ]
 
+        HeltFerdigUtenArbeidsErfaring ->
+            [ Melding.spørsmål [ "Det var synd! Du kan alltid komme tilbake og legge til om du kommer på noe!" ] ]
+
 
 hentStilling : ValidertArbeidserfaringSkjema -> String
 hentStilling validertSkjema =
@@ -1333,12 +1348,25 @@ viewBrukerInput (Model info) =
         MeldingsLogg.FerdigAnimert ferdigAnimertMeldingsLogg ->
             case info.aktivSamtale of
                 Intro ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
-                            [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
-                                |> Knapp.toHtml
+                    if List.isEmpty info.arbeidserfaringListe then
+                        div [ class "inputrad" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har ingen arbeidserfaring"
+                                    |> Knapp.toHtml
+                                ]
                             ]
-                        ]
+
+                    else
+                        div [ class "inputrad" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg vil legge til mer"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg er ferdig"
+                                    |> Knapp.toHtml
+                                ]
+                            ]
 
                 HenterFraAareg ->
                     div [] []
@@ -1636,6 +1664,14 @@ viewBrukerInput (Model info) =
                             ]
                         ]
 
+                HeltFerdigUtenArbeidsErfaring ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ Knapp.knapp GåTilNesteSeksjon "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+                        ]
+
         MeldingsLogg.MeldingerGjenstår ->
             div [] []
 
@@ -1852,14 +1888,42 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-init : FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-init gammelMeldingsLogg =
+init : FerdigAnimertMeldingsLogg -> List Arbeidserfaring -> ( Model, Cmd Msg )
+init gammelMeldingsLogg arbeidserfaringsListe =
     ( Model
         { seksjonsMeldingsLogg =
             gammelMeldingsLogg
                 |> MeldingsLogg.tilMeldingsLogg
-                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Har du arbeidserfaring du vil legge inn?" ] ]
-        , arbeidserfaringListe = []
+                |> (if List.isEmpty arbeidserfaringsListe then
+                        MeldingsLogg.leggTilSpørsmål
+                            [ Melding.spørsmål
+                                [ "Nå skal vi legge til arbeidserfaringen din. Det er viktig at du legger til alt du har av erfaringer her!"
+                                , "Har du arbeidserfaring du vil legge inn?"
+                                ]
+                            ]
+
+                    else
+                        MeldingsLogg.leggTilSpørsmål
+                            [ Melding.spørsmål
+                                [ "Nå skal vi legge til arbeidserfaringen din."
+                                ]
+                            , Melding.spørsmål [ "Jeg ser at du har lagt til noe allerede." ]
+                            , Melding.spørsmål
+                                (List.map
+                                    (\el ->
+                                        (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                                            ++ " ("
+                                            ++ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
+                                            ++ ")"
+                                            ++ " "
+                                            ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
+                                    )
+                                    arbeidserfaringsListe
+                                )
+                            , Melding.spørsmål [ "Vil du legge til mer?" ]
+                            ]
+                   )
+        , arbeidserfaringListe = arbeidserfaringsListe
         , aktivSamtale = Intro
         }
     , lagtTilSpørsmålCmd
