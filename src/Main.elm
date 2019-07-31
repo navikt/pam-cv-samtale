@@ -6,6 +6,7 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Sammendrag
 import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
@@ -21,7 +22,9 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Personalia exposing (Personalia)
 import Process
 import SamtaleAnimasjon
+import Seksjon.Arbeidserfaring
 import Seksjon.Personalia
+import Seksjon.Sammendrag
 import Seksjon.Sprak
 import Seksjon.Utdanning
 import Svg exposing (path, svg)
@@ -74,6 +77,7 @@ type alias LoadingState =
     { cv : Maybe Cv
     , personalia : Personalia
     , registreringsProgresjon : Maybe RegistreringsProgresjon
+    , windowWidth : Maybe Int
     }
 
 
@@ -89,8 +93,9 @@ type SamtaleSeksjon
     = Introduksjon MeldingsLogg
     | PersonaliaSeksjon Seksjon.Personalia.Model
     | UtdanningSeksjon Seksjon.Utdanning.Model
+    | ArbeidsErfaringSeksjon Seksjon.Arbeidserfaring.Model
     | SpråkSeksjon Seksjon.Sprak.Model
-    | ArbeidsErfaringSeksjon
+    | SammendragSeksjon Seksjon.Sammendrag.Model
 
 
 
@@ -122,7 +127,9 @@ type SuccessMsg
     | ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Seksjon.Personalia.Msg
     | UtdanningsMsg Seksjon.Utdanning.Msg
+    | ArbeidserfaringsMsg Seksjon.Arbeidserfaring.Msg
     | SpråkMsg Seksjon.Sprak.Msg
+    | SammendragMsg Seksjon.Sammendrag.Msg
     | StartÅSkrive
     | FullførMelding
 
@@ -192,12 +199,12 @@ updateLoading navigationKey msg model =
         PersonHentet result ->
             case result of
                 Ok _ ->
-                    ( Loading VenterPåPersonalia, Api.hentPersonalia (PersonaliaHentet >> LoadingMsg) )
+                    ( Loading VenterPåPersonalia, Api.getPersonalia (PersonaliaHentet >> LoadingMsg) )
 
                 Err error ->
                     case error of
                         Http.BadStatus 404 ->
-                            ( model, Api.opprettPerson (PersonOpprettet >> LoadingMsg) )
+                            ( model, Api.postPerson (PersonOpprettet >> LoadingMsg) )
 
                         Http.BadStatus 401 ->
                             ( model, redirectTilLogin navigationKey )
@@ -210,7 +217,7 @@ updateLoading navigationKey msg model =
         PersonOpprettet result ->
             case result of
                 Ok _ ->
-                    ( Loading VenterPåPersonalia, Api.hentPersonalia (PersonaliaHentet >> LoadingMsg) )
+                    ( Loading VenterPåPersonalia, Api.getPersonalia (PersonaliaHentet >> LoadingMsg) )
 
                 Err error ->
                     ( Failure error
@@ -225,7 +232,7 @@ updateLoading navigationKey msg model =
                 Err error ->
                     case error of
                         Http.BadStatus 404 ->
-                            ( model, Api.opprettPersonalia (PersonaliaOpprettet >> LoadingMsg) )
+                            ( model, Api.postPersonalia (PersonaliaOpprettet >> LoadingMsg) )
 
                         _ ->
                             ( Failure error
@@ -252,7 +259,7 @@ updateLoading navigationKey msg model =
                         Err error ->
                             case error of
                                 Http.BadStatus 404 ->
-                                    ( model, Api.opprettCv (CvOpprettet >> LoadingMsg) )
+                                    ( model, Api.postCv (CvOpprettet >> LoadingMsg) )
 
                                 _ ->
                                     ( Failure error
@@ -339,6 +346,7 @@ initVenterPåResten personalia =
         (VenterPåResten
             { cv = Nothing
             , personalia = personalia
+            , windowWidth = Nothing
             , registreringsProgresjon =
                 Just
                     { erDetteFørsteGangManErInneILøsningen = True
@@ -347,7 +355,7 @@ initVenterPåResten personalia =
                     }
             }
         )
-    , Api.hentCv (CvHentet >> LoadingMsg)
+    , Api.getCv (CvHentet >> LoadingMsg)
     )
 
 
@@ -390,7 +398,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Personalia.Ferdig personalia personaliaMeldingsLogg ->
-                            personaliaFerdig model personalia personaliaMeldingsLogg
+                            gåTilUtdanning model personaliaMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -408,7 +416,25 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Utdanning.Ferdig utdanning meldingsLogg ->
-                            utdanningFerdig model utdanning meldingsLogg
+                            gåTilArbeidserfaring model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+        ArbeidserfaringsMsg msg ->
+            case model.aktivSamtale of
+                ArbeidsErfaringSeksjon arbeidserfaringsModel ->
+                    case Seksjon.Arbeidserfaring.update msg arbeidserfaringsModel of
+                        Seksjon.Arbeidserfaring.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> ArbeidsErfaringSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Arbeidserfaring.Ferdig ferdigAnimertMeldingsLogg ->
+                            gåTilSpråk model ferdigAnimertMeldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -478,6 +504,24 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        SammendragMsg msg ->
+            case model.aktivSamtale of
+                SammendragSeksjon sammendragModel ->
+                    case Seksjon.Sammendrag.update msg sammendragModel of
+                        Seksjon.Sammendrag.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> SammendragSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (SammendragMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Sammendrag.Ferdig meldingsLogg ->
+                            sammendragFerdig model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
 
 oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
 oppdaterSamtaleSteg model samtaleSeksjon =
@@ -486,22 +530,34 @@ oppdaterSamtaleSteg model samtaleSeksjon =
     }
 
 
-personaliaFerdig : SuccessModel -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-personaliaFerdig model personalia ferdigAnimertMeldingsLogg =
+personaliaFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+personaliaFerdig model ferdigAnimertMeldingsLogg =
     gåTilUtdanning model ferdigAnimertMeldingsLogg
-
-
-
--- gåTilSpråk model ferdigAnimertMeldingsLogg
 
 
 utdanningFerdig : SuccessModel -> List Utdanning -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 utdanningFerdig model utdanning utdanningMeldingsLogg =
-    ( Success
-        { model
-            | aktivSamtale = ArbeidsErfaringSeksjon
-        }
-    , Cmd.none
+    gåTilSpråk model utdanningMeldingsLogg
+
+
+språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+språkFerdig model meldingsLogg =
+    gåTilSammendrag model meldingsLogg
+
+
+sammendragFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+sammendragFerdig model ferdigAnimertMeldingsLogg =
+    ( Success model, Cmd.none )
+
+
+gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
+    let
+        ( arbeidsModell, arbeidsCmd ) =
+            Seksjon.Arbeidserfaring.init ferdigAnimertMeldingsLogg
+    in
+    ( Success { model | aktivSamtale = ArbeidsErfaringSeksjon arbeidsModell }
+    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) arbeidsCmd
     )
 
 
@@ -519,20 +575,6 @@ gåTilUtdanning model ferdigAnimertMeldingsLogg =
     )
 
 
-språkFerdig : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-språkFerdig model meldingsLogg =
-    ( Success
-        { model
-            | aktivSamtale = ArbeidsErfaringSeksjon
-        }
-    , Cmd.none
-    )
-
-
-
--- TODO: bruk denne for å gå til språk
-
-
 gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 gåTilSpråk model ferdigAnimertMeldingsLogg =
     let
@@ -544,6 +586,20 @@ gåTilSpråk model ferdigAnimertMeldingsLogg =
             | aktivSamtale = SpråkSeksjon språkModel
         }
     , Cmd.map (SpråkMsg >> SuccessMsg) språkCmd
+    )
+
+
+gåTilSammendrag : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSammendrag model ferdigAnimertMeldingsLogg =
+    let
+        ( sammendragModel, sammendragCmd ) =
+            Seksjon.Sammendrag.init ferdigAnimertMeldingsLogg (Cv.sammendrag model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = SammendragSeksjon sammendragModel
+        }
+    , Cmd.map (SammendragMsg >> SuccessMsg) sammendragCmd
     )
 
 
@@ -596,11 +652,14 @@ meldingsLoggFraSeksjon successModel =
         UtdanningSeksjon model ->
             Seksjon.Utdanning.meldingsLogg model
 
-        ArbeidsErfaringSeksjon ->
-            MeldingsLogg.init
+        ArbeidsErfaringSeksjon model ->
+            Seksjon.Arbeidserfaring.meldingsLogg model
 
         SpråkSeksjon model ->
             Seksjon.Sprak.meldingsLogg model
+
+        SammendragSeksjon model ->
+            Seksjon.Sammendrag.meldingsLogg model
 
 
 viewSuccess : SuccessModel -> Html Msg
@@ -695,8 +754,15 @@ viewBrukerInput aktivSamtale =
                 |> Seksjon.Sprak.viewBrukerInput
                 |> Html.map (SpråkMsg >> SuccessMsg)
 
-        _ ->
-            text "Ikke implementert"
+        SammendragSeksjon sammendragSeksjon ->
+            sammendragSeksjon
+                |> Seksjon.Sammendrag.viewBrukerInput
+                |> Html.map (SammendragMsg >> SuccessMsg)
+
+        ArbeidsErfaringSeksjon arbeidserfaringSeksjon ->
+            arbeidserfaringSeksjon
+                |> Seksjon.Arbeidserfaring.viewBrukerInput
+                |> Html.map (ArbeidserfaringsMsg >> SuccessMsg)
 
 
 
@@ -721,7 +787,7 @@ init _ _ navigationKey =
       , navigationKey = navigationKey
       }
     , Cmd.batch
-        [ Api.hentPerson (PersonHentet >> LoadingMsg)
+        [ Api.getPerson (PersonHentet >> LoadingMsg)
         , Dom.getViewport
             |> Task.perform ViewportHentet
         ]

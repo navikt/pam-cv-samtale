@@ -1,4 +1,4 @@
-module Skjema.Sprak exposing (SpråkSkjema(..), SpråkSkjemaInfo, encode, init)
+module Skjema.Sprak exposing (SpråkSkjema(..), encode, init)
 
 import Cv.Spraakferdighet as Spraakferdighet exposing (Spraakferdighet)
 import Json.Encode

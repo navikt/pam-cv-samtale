@@ -1,4 +1,18 @@
-module Skjema.Personalia exposing (Felt(..), PersonaliaSkjema, encode, epost, etternavn, fodselsdato, fornavn, gateadresse, init, oppdaterFelt, postnummer, poststed, telefon)
+module Skjema.Personalia exposing
+    ( Felt(..)
+    , PersonaliaSkjema(..)
+    , encode
+    , epost
+    , etternavn
+    , fodselsdato
+    , fornavn
+    , gateadresse
+    , init
+    , oppdaterFelt
+    , postnummer
+    , poststed
+    , telefon
+    )
 
 import Json.Encode
 import Personalia exposing (Personalia)
