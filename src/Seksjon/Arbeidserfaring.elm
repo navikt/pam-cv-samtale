@@ -1168,7 +1168,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
 
         HenterFraAareg ->
             -- TODO: fiks dette etter at vi har skjekket om det funker
-            [ Melding.spørsmål [ "bla bla bla" ] ]
+            []
 
         HentetFraAAreg ->
             [ Melding.spørsmål
@@ -1525,11 +1525,13 @@ viewBrukerInput (Model info) =
 
                 RegistrereNaavarende fraDatoInfo ->
                     div [ class "skjema-wrapper" ]
-                        [ div [ class "inputrad" ]
-                            [ BrukerSvarerJaTilNaavarende
-                                |> lagMessageKnapp "Ja"
-                            , BrukerSvarerNeiTilNaavarende
-                                |> lagMessageKnapp "Nei"
+                        [ div [ class "knapperad-wrapper" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ BrukerSvarerJaTilNaavarende
+                                    |> lagMessageKnapp "Ja"
+                                , BrukerSvarerNeiTilNaavarende
+                                    |> lagMessageKnapp "Nei"
+                                ]
                             ]
                         ]
 
@@ -1586,10 +1588,12 @@ viewBrukerInput (Model info) =
 
                 VisOppsummering validertSkjema ->
                     div [ class "inputrad" ]
-                        [ BrukerTrykkerPåLagreArbeidserfaringKnapp "Ja, informasjonen er riktig" validertSkjema
-                            |> lagMessageKnapp "Ja, informasjonen er riktig"
-                        , BrukerVilRedigereOppsummering
-                            |> lagMessageKnapp "Nei, jeg vil endre"
+                        [ div [ class "inputrad-innhold" ]
+                            [ BrukerTrykkerPåLagreArbeidserfaringKnapp "Ja, informasjonen er riktig" validertSkjema
+                                |> lagMessageKnapp "Ja, informasjonen er riktig"
+                            , BrukerVilRedigereOppsummering
+                                |> lagMessageKnapp "Nei, jeg vil endre"
+                            ]
                         ]
 
                 RedigerOppsummering skjema ->
@@ -1652,8 +1656,8 @@ viewBrukerInput (Model info) =
                     div [] []
 
                 SpørOmBrukerVilLeggeInnMer ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "inputrad" ]
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
                             [ Knapp.knapp
                                 NyArbeidserfaring
                                 "Ja, legg til en arbeidserfaring"
@@ -1925,12 +1929,23 @@ init gammelMeldingsLogg arbeidserfaringsListe =
                             , Melding.spørsmål
                                 (List.map
                                     (\el ->
-                                        (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                            ++ " ("
-                                            ++ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
-                                            ++ ")"
-                                            ++ " "
-                                            ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
+                                        if Cv.Arbeidserfaring.navarende el then
+                                            (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                                                ++ " ("
+                                                ++ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
+                                                ++ ")"
+                                                ++ " "
+                                                ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
+
+                                        else
+                                            (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                                                ++ " ("
+                                                ++ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
+                                                ++ " til "
+                                                ++ (Cv.Arbeidserfaring.tildato el |> Maybe.withDefault "")
+                                                ++ ")"
+                                                ++ " "
+                                                ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
                                     )
                                     arbeidserfaringsListe
                                 )

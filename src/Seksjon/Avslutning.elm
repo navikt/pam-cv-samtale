@@ -319,20 +319,24 @@ viewBrukerInput (Model model) =
                     text ""
 
                 DelMedArbeidsgiver _ ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
-                            [ let
-                                synligCV =
-                                    "Ja, Cv-en skal være synlig for arbeidsgivere"
-                              in
-                              Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
-                                |> Knapp.toHtml
-                            , let
-                                ikkeSynligCV =
-                                    "Nei, CV-en skal bare være synlig for meg"
-                              in
-                              Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "knapperad-wrapper" ]
+                            [ div [ class "inputrad" ]
+                                [ let
+                                    synligCV =
+                                        "Ja, Cv-en skal være synlig for arbeidsgivere"
+                                  in
+                                  Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ let
+                                    ikkeSynligCV =
+                                        "Nei, CV-en skal bare være synlig for meg"
+                                  in
+                                  Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
@@ -361,26 +365,32 @@ viewBrukerInput (Model model) =
                         ]
 
                 LagringSynlighetFeilet ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
-                            [ let
-                                synligCV =
-                                    "Ja, Cv-en skal være synlig for arbeidsgivere"
-                              in
-                              Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
-                                |> Knapp.toHtml
-                            , let
-                                ikkeSynligCV =
-                                    "Nei, CV-en skal bare være synlig for meg"
-                              in
-                              Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
-                                |> Knapp.toHtml
-                            , let
-                                avslutt =
-                                    "Avslutt, jeg gjør det senere"
-                              in
-                              Knapp.knapp (BrukerVilAvslutte avslutt) avslutt
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "knapperad-wrapper" ]
+                            [ div [ class "inputrad" ]
+                                [ let
+                                    synligCV =
+                                        "Ja, Cv-en skal være synlig for arbeidsgivere"
+                                  in
+                                  Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ let
+                                    ikkeSynligCV =
+                                        "Nei, CV-en skal bare være synlig for meg"
+                                  in
+                                  Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ let
+                                    avslutt =
+                                        "Avslutt, jeg gjør det senere"
+                                  in
+                                  Knapp.knapp (BrukerVilAvslutte avslutt) avslutt
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 

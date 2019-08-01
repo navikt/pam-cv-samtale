@@ -9,6 +9,7 @@ import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Select as Select
+import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -724,7 +725,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
         RegistrerNivå ->
             [ Melding.spørsmål
-                [ "Hvilket nivå var utdanningen på?" ]
+                [ "Hvilket nivå er utdanningen på?" ]
             ]
 
         RegistrerSkole _ ->
@@ -791,7 +792,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
 
         VenterPåAnimasjonFørFullføring _ ->
-            [ Melding.spørsmål [ "Hvis du ikke har utdanning, så går vi videre til arbeidserfaring" ] ]
+            [ Melding.spørsmål [ "Hvis du ikke vil legge til utdanning, så går vi videre til arbeidserfaring" ] ]
 
         _ ->
             []
@@ -902,34 +903,40 @@ viewBrukerInput (Model model) =
                         ]
 
                 RegistrerSkole skoleinfo ->
-                    div [ class "Skjema" ]
-                        [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "" } |> Input.toHtml
-                        , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
-                            |> (if skoleinfo.skole /= "" then
-                                    Knapp.withEnabled Knapp.Enabled
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "Skjema" ]
+                            [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "" } |> Input.toHtml
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp BrukerVilRegistrereSkole "Lagre"
+                                    |> (if skoleinfo.skole /= "" then
+                                            Knapp.withEnabled Knapp.Enabled
 
-                                else
-                                    Knapp.withEnabled Knapp.Disabled
-                               )
-                            |> Knapp.toHtml
+                                        else
+                                            Knapp.withEnabled Knapp.Disabled
+                                       )
+                                    |> Knapp.toHtml
+                                ]
+                            ]
                         ]
 
                 RegistrerRetning retningsinfo ->
                     div [ class "Skjema" ]
                         [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "" } |> Input.toHtml
-                        , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
-                            |> (if retningsinfo.retning /= "" then
-                                    Knapp.withEnabled Knapp.Enabled
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp BrukerVilRegistrereRetning "Lagre"
+                                |> (if retningsinfo.retning /= "" then
+                                        Knapp.withEnabled Knapp.Enabled
 
-                                else
-                                    Knapp.withEnabled Knapp.Disabled
-                               )
-                            |> Knapp.toHtml
+                                    else
+                                        Knapp.withEnabled Knapp.Disabled
+                                   )
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 RegistrerBeskrivelse beskrivelseinfo ->
                     div [ class "Skjema" ]
-                        [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterBeskrivelse, label = "" } |> Input.toHtml
+                        [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "" } |> Textarea.toHtml
                         , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
                             |> (if beskrivelseinfo.beskrivelse /= "" then
                                     Knapp.withEnabled Knapp.Enabled
@@ -1061,11 +1068,15 @@ viewBrukerInput (Model model) =
                     endreSkjema model utdanningsskjema
 
                 LeggTilFlereUtdannelser _ ->
-                    div [ class "inputrad" ]
-                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
-                            |> Knapp.toHtml
-                        , Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
-                            |> Knapp.toHtml
+                    div [ class "knapperad-wrapper" ]
+                        [ div [ class "inputrad" ]
+                            [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
+                                |> Knapp.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 LeggTilUtdanningFeiletIApi _ utdanningSkjema ->
