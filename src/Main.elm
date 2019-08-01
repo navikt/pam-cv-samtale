@@ -19,6 +19,7 @@ import Html.Events exposing (..)
 import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Process
 import SamtaleAnimasjon
@@ -115,7 +116,7 @@ type Msg
 
 
 type LoadingMsg
-    = PersonHentet (Result Http.Error ())
+    = PersonHentet (Result Http.Error Person)
     | PersonOpprettet (Result Http.Error ())
     | PersonaliaHentet (Result Http.Error Personalia)
     | PersonaliaOpprettet (Result Http.Error Personalia)
@@ -783,8 +784,10 @@ viewBrukerInput aktivSamtale =
                 |> Seksjon.Arbeidserfaring.viewBrukerInput
                 |> Html.map (ArbeidserfaringsMsg >> SuccessMsg)
 
-        AvslutningSeksjon model ->
-            text ""
+        AvslutningSeksjon avslutningSeksjon ->
+            avslutningSeksjon
+                |> Seksjon.Avslutning.viewBrukerInput
+                |> Html.map (AvslutningMsg >> SuccessMsg)
 
 
 

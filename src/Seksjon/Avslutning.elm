@@ -10,11 +10,17 @@ module Seksjon.Avslutning exposing
 
 -- MODEL --
 
+import Api
 import Browser.Dom as Dom
 import Cv.Cv exposing (Cv)
-import Html exposing (Html, text)
+import FrontendModuler.Knapp as Knapp
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
+import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Process
 import SamtaleAnimasjon
@@ -34,7 +40,12 @@ type alias ModelInfo =
 
 
 type Samtale
-    = AvsluttendeOrd
+    = Intro
+    | UnderOppfølging
+    | DelMedArbeidsgiver Bool
+    | AvsluttendeOrd
+    | LagringSynlighetFeilet
+    | HentPersonFeilet
     | VenterPåAnimasjonFørFullføring
 
 
@@ -53,7 +64,12 @@ meldingsLogg (Model model) =
 
 
 type Msg
-    = BrukerBekrefterOppsummering
+    = BrukerGodkjennerSynligCV String
+    | BrukerGodkjennerIkkeSynligCV String
+    | BrukerVilHentePersonPåNytt String
+    | BrukerVilAvslutte String
+    | PersonHentet (Result Http.Error Person)
+    | SynlighetPostet (Result Http.Error Bool)
     | ViewportSatt (Result Dom.Error ())
     | StartÅSkrive
     | FullførMelding
@@ -62,9 +78,6 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        BrukerBekrefterOppsummering ->
-            ( Model model, Cmd.none ) |> IkkeFerdig
-
         ViewportSatt result ->
             ( Model model, Cmd.none )
                 |> IkkeFerdig
@@ -87,6 +100,104 @@ update msg (Model model) =
             model.seksjonsMeldingsLogg
                 |> MeldingsLogg.fullførMelding
                 |> updateEtterFullførtMelding model
+
+        PersonHentet result ->
+            case result of
+                Ok value ->
+                    if Person.underOppfolging value then
+                        ( nesteSamtaleStegUtenMelding model UnderOppfølging
+                        , lagtTilSpørsmålCmd
+                        )
+                            |> IkkeFerdig
+
+                    else if Person.cvSynligForArbeidsgiver value then
+                        ( nesteSamtaleStegUtenMelding model (DelMedArbeidsgiver True)
+                        , lagtTilSpørsmålCmd
+                        )
+                            |> IkkeFerdig
+
+                    else
+                        ( nesteSamtaleStegUtenMelding model (DelMedArbeidsgiver False)
+                        , lagtTilSpørsmålCmd
+                        )
+                            |> IkkeFerdig
+
+                Err error ->
+                    ( nesteSamtaleStegUtenMelding model HentPersonFeilet
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
+
+        BrukerGodkjennerSynligCV knappeTekst ->
+            ( nesteSamtaleSteg model (Melding.svar [ knappeTekst ]) AvsluttendeOrd
+            , Cmd.batch
+                [ lagtTilSpørsmålCmd
+                , Api.postSynlighet SynlighetPostet True
+                ]
+            )
+                |> IkkeFerdig
+
+        BrukerGodkjennerIkkeSynligCV knappeTekst ->
+            ( nesteSamtaleSteg model (Melding.svar [ knappeTekst ]) AvsluttendeOrd
+            , Cmd.batch
+                [ lagtTilSpørsmålCmd
+                , Api.postSynlighet SynlighetPostet False
+                ]
+            )
+                |> IkkeFerdig
+
+        SynlighetPostet result ->
+            case result of
+                Ok value ->
+                    ( Model model, Cmd.none ) |> IkkeFerdig
+
+                Err error ->
+                    ( Model model, Cmd.none ) |> IkkeFerdig
+
+        BrukerVilHentePersonPåNytt knappeTekst ->
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
+                }
+            , Cmd.batch
+                [ lagtTilSpørsmålCmd
+                , hentSynlighet
+                ]
+            )
+                |> IkkeFerdig
+
+        BrukerVilAvslutte knappeTekst ->
+            ( nesteSamtaleSteg model (Melding.svar [ knappeTekst ]) AvsluttendeOrd
+            , Cmd.batch
+                [ lagtTilSpørsmålCmd
+                ]
+            )
+                |> IkkeFerdig
+
+
+nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
+nesteSamtaleSteg model melding samtaleSeksjon =
+    Model
+        { model
+            | aktivSamtale = samtaleSeksjon
+            , seksjonsMeldingsLogg =
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSvar melding
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+        }
+
+
+nesteSamtaleStegUtenMelding : ModelInfo -> Samtale -> Model
+nesteSamtaleStegUtenMelding model samtaleSeksjon =
+    Model
+        { model
+            | aktivSamtale = samtaleSeksjon
+            , seksjonsMeldingsLogg =
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+        }
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -130,14 +241,51 @@ lagtTilSpørsmålCmd =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg avslutningsSeksjon =
     case avslutningsSeksjon of
+        VenterPåAnimasjonFørFullføring ->
+            []
+
+        Intro ->
+            [ Melding.spørsmål
+                [ "I vår løsning kan arbeidsgivere søke opp CV-en din. De kan ta kontakt med deg hvis de har en ledig jobb du kan passe til." ]
+            ]
+
+        DelMedArbeidsgiver synlig ->
+            if synlig then
+                [ Melding.spørsmål
+                    [ "CV-en din er allerede synlig for arbeidsgivere!"
+                    , "Ønsker du fremdeles at arbeidsgivere skal kunne se CV-en din?"
+                    ]
+                ]
+
+            else
+                [ Melding.spørsmål
+                    [ "Ønsker du at arbeidsgivere skal kunne se CV-en din?" ]
+                ]
+
+        UnderOppfølging ->
+            [ Melding.spørsmål
+                [ "Siden du er under oppfølging fra NAV, så vil CV-en din være synlig for arbeidsgivere og NAV-veiledere." ]
+            ]
+
         AvsluttendeOrd ->
             [ Melding.spørsmål [ "Bra innsats! Alt du har skrevet her er lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
             , Melding.spørsmål [ "Lykke til med jobbjakten! :)" ]
             ]
 
-        VenterPåAnimasjonFørFullføring ->
-            []
+        HentPersonFeilet ->
+            [ Melding.spørsmål
+                [ "Oisann. Jeg klarte ikke å hente informasjonen for å fullføre registreringen."
+                , "Vil du prøve på nytt?"
+                ]
+            ]
+
+        LagringSynlighetFeilet ->
+            [ Melding.spørsmål
+                [ "Oops. Jeg klarte ikke å lagre iformasjonen."
+                , "Vil du prøve på nytt?"
+                ]
+            ]
 
 
 
@@ -145,15 +293,75 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
 
 
 viewBrukerInput : Model -> Html Msg
-viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
-    case MeldingsLogg.ferdigAnimert seksjonsMeldingsLogg of
+viewBrukerInput (Model model) =
+    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         FerdigAnimert _ ->
-            case aktivSamtale of
+            case model.aktivSamtale of
                 AvsluttendeOrd ->
                     text ""
 
                 VenterPåAnimasjonFørFullføring ->
                     text ""
+
+                DelMedArbeidsgiver _ ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ let
+                                synligCV =
+                                    "Ja, Cv-en skal være synlig for arbeidsgivere"
+                              in
+                              Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
+                                |> Knapp.toHtml
+                            , let
+                                ikkeSynligCV =
+                                    "Nei, CV-en skal bare være synlig for meg"
+                              in
+                              Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
+                                |> Knapp.toHtml
+                            ]
+                        ]
+
+                Intro ->
+                    text ""
+
+                UnderOppfølging ->
+                    text ""
+
+                HentPersonFeilet ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ let
+                                hentBruker =
+                                    "Ja, prøv på nytt"
+                              in
+                              Knapp.knapp (BrukerVilHentePersonPåNytt hentBruker) hentBruker
+                                |> Knapp.toHtml
+                            , let
+                                avslutt =
+                                    "Nei, jeg gjør det senere"
+                              in
+                              Knapp.knapp (BrukerVilAvslutte avslutt) avslutt
+                                |> Knapp.toHtml
+                            ]
+                        ]
+
+                LagringSynlighetFeilet ->
+                    div [ class "inputrad" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ let
+                                synligCV =
+                                    "Ja, Cv-en skal være synlig for arbeidsgivere"
+                              in
+                              Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
+                                |> Knapp.toHtml
+                            , let
+                                ikkeSynligCV =
+                                    "Nei, CV-en skal bare være synlig for meg"
+                              in
+                              Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
+                                |> Knapp.toHtml
+                            ]
+                        ]
 
         MeldingerGjenstår ->
             text ""
@@ -163,11 +371,16 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
 -- INIT --
 
 
+hentSynlighet : Cmd Msg
+hentSynlighet =
+    Api.getPerson PersonHentet
+
+
 init : Personalia -> Cv -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 init personalia cv gammelMeldingsLogg =
     let
         aktivSamtale =
-            AvsluttendeOrd
+            Intro
     in
     ( Model
         { seksjonsMeldingsLogg =
@@ -176,5 +389,8 @@ init personalia cv gammelMeldingsLogg =
         , personalia = personalia
         , cv = cv
         }
-    , lagtTilSpørsmålCmd
+    , Cmd.batch
+        [ lagtTilSpørsmålCmd
+        , hentSynlighet
+        ]
     )
