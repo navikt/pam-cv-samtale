@@ -864,41 +864,39 @@ viewBrukerInput (Model model) =
                 RegistrerNivå ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "inputrad" ]
-                            [ div []
-                                [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole)
-                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                    |> Knapp.toHtml
-                                , div []
-                                    [ Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole)
-                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                        |> Knapp.toHtml
-                                    , div []
-                                        [ Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole)
-                                            |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                            |> Knapp.toHtml
-                                        , div []
-                                            [ Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole)
-                                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                                |> Knapp.toHtml
-                                            , div []
-                                                [ Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4)
-                                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                                    |> Knapp.toHtml
-                                                , div []
-                                                    [ Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss)
-                                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                                        |> Knapp.toHtml
-                                                    , div []
-                                                        [ Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd)
-                                                            |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                                            |> Knapp.toHtml
-                                                        ]
-                                                    ]
-                                                ]
-                                            ]
-                                        ]
-                                    ]
-                                ]
+                            [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole)
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                |> Knapp.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole)
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                |> Knapp.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole)
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                |> Knapp.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole)
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                |> Knapp.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4)
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                |> Knapp.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss)
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                |> Knapp.toHtml
+                            ]
+                        , div [ class "inputrad" ]
+                            [ Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd)
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                |> Knapp.toHtml
                             ]
                         ]
 
