@@ -48,6 +48,7 @@ type Class
     = MånedKnapp
     | UtdanningsNivåKnapp
     | SpråknivåKnapp
+    | LeggeTilUtdannelseKnapp
 
 
 knapp : msg -> String -> Knapp msg
@@ -72,6 +73,9 @@ withClass class (Knapp options) =
 
         SpråknivåKnapp ->
             Knapp { options | class = Just { classType = SpråknivåKnapp, className = "språknivåknapp" } }
+
+        LeggeTilUtdannelseKnapp ->
+            Knapp { options | class = Just { classType = LeggeTilUtdannelseKnapp, className = "leggetilutdannelseknapp" } }
 
 
 withEnabled : Enabled -> Knapp msg -> Knapp msg

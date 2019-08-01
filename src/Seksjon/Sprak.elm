@@ -652,35 +652,38 @@ viewBrukerInput (Model model) =
                         ]
 
                 LeggTilFerdighetSkriftlig enkeltSpråk ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad" ]
-                            [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Nybegynner)) "Jeg er nybegynner"
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            , Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Godt)) ("Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn)
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            , Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig VeldigGodt)) ("Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn)
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "knapperad-wrapper" ]
+                            [ div [ class "inputrad" ]
+                                [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Nybegynner)) "Jeg er nybegynner"
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Godt)) ("Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig VeldigGodt)) ("Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
                 LeggTilFerdighetMuntlig enkeltSpråk ->
                     div [ class "skjema-wrapper" ]
-                        [ div [ class "inputrad" ]
-                            [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Nybegynner)) "Jeg er nybegynner"
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Godt)) ("Jeg snakker godt " ++ String.toLower enkeltSpråk)
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk VeldigGodt)) ("Jeg snakker veldig godt " ++ String.toLower enkeltSpråk)
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
+                        [ div [ class "knapperad-wrapper" ]
+                            [ div [ class "inputrad" ]
+                                [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Nybegynner)) "Jeg er nybegynner"
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Godt)) ("Jeg snakker godt " ++ String.toLower enkeltSpråk)
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk VeldigGodt)) ("Jeg snakker veldig godt " ++ String.toLower enkeltSpråk)
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 

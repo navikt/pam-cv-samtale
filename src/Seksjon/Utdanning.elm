@@ -477,7 +477,11 @@ update msg (Model model) =
                     IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
 
                 LeggTilFlereUtdannelser ferdigskjema ->
-                    fullførSeksjonHvisMeldingsloggErFerdig model model.utdanningListe
+                    ( VenterPåAnimasjonFørFullføring model.utdanningListe
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ferdig med å legge til utdannelser" ])
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -786,6 +790,9 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         LeggTilUtdanningFeiletIApi _ _ ->
             [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
 
+        VenterPåAnimasjonFørFullføring _ ->
+            [ Melding.spørsmål [ "Hvis du ikke har utdanning, så går vi videre til arbeidserfaring" ] ]
+
         _ ->
             []
 
@@ -838,12 +845,18 @@ viewBrukerInput (Model model) =
 
                     else
                         div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil legge til flere utdannelser"
-                                    |> Knapp.toHtml
-                                , "Jeg er ferdig med å legge til utdannelser"
-                                    |> Knapp.knapp (GåTilArbeidserfaring "Jeg er ferdig med å legge til utdannelser")
-                                    |> Knapp.toHtml
+                            [ div [ class "knapperad-wrapper" ]
+                                [ div [ class "inputrad" ]
+                                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil legge til flere utdannelser"
+                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
+                                        |> Knapp.toHtml
+                                    ]
+                                , div [ class "inputrad" ]
+                                    [ "Jeg er ferdig med å legge til utdannelser"
+                                        |> Knapp.knapp (GåTilArbeidserfaring "Jeg er ferdig med å legge til utdannelser")
+                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
                             ]
 
