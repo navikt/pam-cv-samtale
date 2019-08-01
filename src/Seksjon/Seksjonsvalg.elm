@@ -173,53 +173,55 @@ viewBrukerInput (Model model) =
                     text ""
 
                 Intro ->
-                    div [ class "skjema" ]
-                        [ div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp (GåTilSeksjon "Utdanning") "Utdanning"
-                                    |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Utdanning") "Utdanning"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
-                            ]
-                        , div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp (GåTilSeksjon "Arbeidserfaring") "Arbeidserfaring"
-                                    |> Knapp.toHtml
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Arbeidserfaring") "Arbeidserfaring"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
-                            ]
-                        , div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp (GåTilSeksjon "Språk") "Språk"
-                                    |> Knapp.toHtml
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Språk") "Språk"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
-                            ]
-                        , div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp (GåTilSeksjon "Fagbrev/Svennebrev") "Fagbrev/Svennebrev"
-                                    |> Knapp.toHtml
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Fagbrev/Svennebrev") "Fagbrev/Svennebrev"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
-                            ]
-                        , div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp (GåTilSeksjon "Mesterbrev") "Mesterbrev"
-                                    |> Knapp.toHtml
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Mesterbrev") "Mesterbrev"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
-                            ]
-                        , div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp (GåTilSeksjon "Autorisasjon") "Autorisasjon"
-                                    |> Knapp.toHtml
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Autorisasjon") "Autorisasjon"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
-                            ]
-                        , div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp (GåTilSeksjon "Sertifisering") "Sertifisering"
-                                    |> Knapp.toHtml
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Sertifisering") "Sertifisering"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
-                            ]
-                        , div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp (GåTilSeksjon "Nei, gå videre") "Nei, gå videre"
-                                    |> Knapp.toHtml
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Nei, gå videre") "Nei, gå videre"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
                             ]
                         ]
