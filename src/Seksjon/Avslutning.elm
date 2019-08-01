@@ -129,7 +129,12 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         BrukerGodkjennerSynligCV knappeTekst ->
-            ( nesteSamtaleSteg model (Melding.svar [ knappeTekst ]) AvsluttendeOrd
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
+                }
             , Cmd.batch
                 [ lagtTilSpørsmålCmd
                 , Api.postSynlighet SynlighetPostet True
@@ -138,7 +143,12 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         BrukerGodkjennerIkkeSynligCV knappeTekst ->
-            ( nesteSamtaleSteg model (Melding.svar [ knappeTekst ]) AvsluttendeOrd
+            ( Model
+                { model
+                    | seksjonsMeldingsLogg =
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
+                }
             , Cmd.batch
                 [ lagtTilSpørsmålCmd
                 , Api.postSynlighet SynlighetPostet False
@@ -149,10 +159,13 @@ update msg (Model model) =
         SynlighetPostet result ->
             case result of
                 Ok value ->
-                    ( Model model, Cmd.none ) |> IkkeFerdig
+                    ( nesteSamtaleStegUtenMelding model AvsluttendeOrd, lagtTilSpørsmålCmd ) |> IkkeFerdig
 
                 Err error ->
-                    ( Model model, Cmd.none ) |> IkkeFerdig
+                    ( nesteSamtaleStegUtenMelding model LagringSynlighetFeilet
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
 
         BrukerVilHentePersonPåNytt knappeTekst ->
             ( Model
@@ -282,7 +295,7 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
 
         LagringSynlighetFeilet ->
             [ Melding.spørsmål
-                [ "Oops. Jeg klarte ikke å lagre iformasjonen."
+                [ "Oops. Jeg klarte ikke å lagre informasjonen."
                 , "Vil du prøve på nytt?"
                 ]
             ]
@@ -359,6 +372,12 @@ viewBrukerInput (Model model) =
                                     "Nei, CV-en skal bare være synlig for meg"
                               in
                               Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
+                                |> Knapp.toHtml
+                            , let
+                                avslutt =
+                                    "Avslutt, jeg gjør det senere"
+                              in
+                              Knapp.knapp (BrukerVilAvslutte avslutt) avslutt
                                 |> Knapp.toHtml
                             ]
                         ]
