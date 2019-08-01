@@ -58,7 +58,7 @@ postSynlighet : (Result Error Bool -> msg) -> Bool -> Cmd msg
 postSynlighet msgConstructor synlighet =
     Http.post
         { url = "/cv-samtale/api/rest/person/synlighet"
-        , expect = expectJson msgConstructor (field "cvSynligForArbeidsgiver" bool)
+        , expect = expectJson msgConstructor (field "synligForArbeidsgiver" bool)
         , body = Json.Encode.object [ ( "synligForArbeidsgiver", Json.Encode.bool synlighet ) ] |> jsonBody
         }
 
