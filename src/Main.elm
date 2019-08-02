@@ -1,4 +1,4 @@
-module Main exposing (gåTilAutorisasjon, gåTilSammendrag, gåTilSpråk, main)
+module Main exposing (main)
 
 import Api
 import Browser
@@ -6,9 +6,6 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
-import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
-import Cv.Sammendrag
-import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp

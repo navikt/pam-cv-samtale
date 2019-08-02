@@ -1,4 +1,17 @@
-module Seksjon.Fagdokumentasjon exposing (Model, ModelInfo, Msg, SamtaleStatus(..), init, initAutorisasjon, initFagbrev, initMesterbrev, lagtTilSpørsmålCmd, meldingsLogg, update, viewBrukerInput)
+module Seksjon.Fagdokumentasjon exposing
+    ( Model
+    , ModelInfo
+    , Msg
+    , SamtaleStatus(..)
+    , init
+    , initAutorisasjon
+    , initFagbrev
+    , initMesterbrev
+    , lagtTilSpørsmålCmd
+    , meldingsLogg
+    , update
+    , viewBrukerInput
+    )
 
 import Api
 import Browser.Dom as Dom
@@ -17,8 +30,7 @@ import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Fagdokumentasjon as Skjema exposing (FagdokumentasjonSkjema, init)
-import Sprakkoder exposing (Sprakkoder)
+import Skjema.Fagdokumentasjon as Skjema exposing (FagdokumentasjonSkjema)
 import Task
 import TypeaheadState exposing (TypeaheadState)
 

@@ -1,1 +1,0 @@
-module Skjema.Fagbrevv exposing (..)
