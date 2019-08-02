@@ -1,4 +1,4 @@
-module Main exposing (gåTilSammendrag, gåTilSpråk, main)
+module Main exposing (gåTilAutorisasjon, gåTilSammendrag, gåTilSpråk, main)
 
 import Api
 import Browser
@@ -581,13 +581,13 @@ updateSuccess successMsg model =
 
                                 -- FIXME: ikke implementert
                                 "Fagbrev/Svennebrev" ->
-                                    ( Success model, Cmd.none )
+                                    gåTilFagbrev model meldingsLogg
 
                                 "Mesterbrev" ->
-                                    ( Success model, Cmd.none )
+                                    gåTilMesterbrev model meldingsLogg
 
                                 "Autorisasjon" ->
-                                    ( Success model, Cmd.none )
+                                    gåTilAutorisasjon model meldingsLogg
 
                                 "Sertifisering" ->
                                     ( Success model, Cmd.none )
@@ -620,7 +620,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Fagdokumentasjon.Ferdig fagdokumentasjonListe meldingsLogg ->
-                            gåTilSammendrag model meldingsLogg
+                            gåTilSeksjonsValg model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -672,11 +672,39 @@ gåTilSpråk model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilFagdokumentasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-gåTilFagdokumentasjon model ferdigAnimertMeldingsLogg =
+gåTilFagbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilFagbrev model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
-            Seksjon.Fagdokumentasjon.init ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+            Seksjon.Fagdokumentasjon.initFagbrev ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = FagdokumentasjonSeksjon fagbrevModel
+        }
+    , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) fagbrevCmd
+    )
+
+
+gåTilMesterbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilMesterbrev model ferdigAnimertMeldingsLogg =
+    let
+        ( fagbrevModel, fagbrevCmd ) =
+            Seksjon.Fagdokumentasjon.initMesterbrev ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = FagdokumentasjonSeksjon fagbrevModel
+        }
+    , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) fagbrevCmd
+    )
+
+
+gåTilAutorisasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
+    let
+        ( fagbrevModel, fagbrevCmd ) =
+            Seksjon.Fagdokumentasjon.initAutorisasjon ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
     in
     ( Success
         { model

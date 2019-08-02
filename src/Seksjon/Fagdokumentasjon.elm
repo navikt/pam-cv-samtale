@@ -1,4 +1,4 @@
-module Seksjon.Fagdokumentasjon exposing (Model, ModelInfo, Msg, SamtaleStatus(..), init, lagtTilSpørsmålCmd, meldingsLogg, update, viewBrukerInput)
+module Seksjon.Fagdokumentasjon exposing (Model, ModelInfo, Msg, SamtaleStatus(..), init, initAutorisasjon, initFagbrev, initMesterbrev, lagtTilSpørsmålCmd, meldingsLogg, update, viewBrukerInput)
 
 import Api
 import Browser.Dom as Dom
@@ -17,7 +17,7 @@ import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Fagdokumentasjon as Skjema exposing (FagdokumentasjonSkjema)
+import Skjema.Fagdokumentasjon as Skjema exposing (FagdokumentasjonSkjema, init)
 import Sprakkoder exposing (Sprakkoder)
 import Task
 import TypeaheadState exposing (TypeaheadState)
@@ -43,6 +43,8 @@ type Samtale
     | RegistrerMesterbrevBeskrivelse BeskrivelseInfo
     | RegistrerAutorisasjon (TypeaheadState Konsept)
     | RegistrerAutorisasjonBeskrivelse BeskrivelseInfo
+    | FagdokumentasjonLagret
+    | LagringFeilet Http.Error
     | LeggTilFlereFagdokumentasjoner Skjema.FagdokumentasjonSkjema
     | VenterPåAnimasjonFørFullføring (List Fagdokumentasjon)
 
@@ -89,7 +91,6 @@ type Msg
     | BrukerVilRegistrereMesterbrevBeskrivelse
     | BrukerVilRegistrereAutorisasjonBeskrivelse
     | OppdaterFagdokumentasjonBeskrivelse String
-    | LagreBeskrivelseKnappTrykket
     | FagbrevSendtTilApi (Result Http.Error (List Fagdokumentasjon))
     | MesterbrevSendtTilApi (Result Http.Error (List Fagdokumentasjon))
     | AutorisasjonSendtTilApi (Result Http.Error (List Fagdokumentasjon))
@@ -530,66 +531,115 @@ update msg (Model model) =
                     ( Model model, lagtTilSpørsmålCmd )
                         |> IkkeFerdig
 
-        --   BrukerVilRegistrereFagbrevBeskrivelse ->
-        --            case model.aktivSamtale of
-        --                            RegistrerFagbrevBeskrivelse info->
-        --                                IkkeFerdig
-        --                                    ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) (FagbrevSendtTilApi )
-        --                                    , lagtTilSpørsmålCmd
-        --                                    )
-        --                            _ ->
-        --                                IkkeFerdig ( Model model, Cmd.none )
-        --   BrukerVilRegistrereAutorisasjonBeskrivelse ->
-        --           case model.aktivSamtale of
-        --                           RegistrerAutorisasjonBeskrivelse info ->
-        --                               IkkeFerdig
-        --                                   ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) (MesterbrevSendtTilApi )
-        --                                   , lagtTilSpørsmålCmd
-        --                                   )
-        --                           _ ->
-        --                               IkkeFerdig ( Model model, Cmd.none )
-        --   BrukerVilRegistrereMesterbrevBeskrivelse ->
-        --           case model.aktivSamtale of
-        --                           RegistrerMesterbrevBeskrivelse info ->
-        --                               IkkeFerdig
-        --                                   ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) (AutorisasjonSendtTilApi (forrigeTilSkoleInfo nivå))
-        --                                   , lagtTilSpørsmålCmd
-        --                                   )
-        --                           _ ->
-        --                               IkkeFerdig ( Model model, Cmd.none )
-        --   LagreBeskrivelseKnappTrykket ->
-        --           case model.aktivSamtale of
-        --              RegistrerFagbrevBeskrivelse beskrivelseinfo ->  IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Lagre" ]) ( beskrivelseinfo), Cmd.batch [ Api.postFagdokumentasjon UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
-        --              RegistrerMesterbrevBeskrivelse
-        --              RegistrerAutorisasjonBeskrivelse
+        BrukerVilRegistrereFagbrevBeskrivelse ->
+            case model.aktivSamtale of
+                RegistrerFagbrevBeskrivelse info ->
+                    let
+                        skjema =
+                            Skjema.init Fagdokumentasjon.SvennebrevFagbrev (Konsept.label info.forrige) (Konsept.konseptId info.forrige) info.beskrivelse
+                    in
+                    IkkeFerdig
+                        ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) FagdokumentasjonLagret
+                        , Cmd.batch
+                            [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
+                            , lagtTilSpørsmålCmd
+                            ]
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilRegistrereAutorisasjonBeskrivelse ->
+            case model.aktivSamtale of
+                RegistrerAutorisasjonBeskrivelse info ->
+                    let
+                        skjema =
+                            Skjema.init Fagdokumentasjon.Autorisasjon (Konsept.label info.forrige) (Konsept.konseptId info.forrige) info.beskrivelse
+                    in
+                    IkkeFerdig
+                        ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) FagdokumentasjonLagret
+                        , Cmd.batch
+                            [ Api.postFagdokumentasjon AutorisasjonSendtTilApi skjema
+                            , lagtTilSpørsmålCmd
+                            ]
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilRegistrereMesterbrevBeskrivelse ->
+            case model.aktivSamtale of
+                RegistrerMesterbrevBeskrivelse info ->
+                    let
+                        skjema =
+                            Skjema.init Fagdokumentasjon.Mesterbrev (Konsept.label info.forrige) (Konsept.konseptId info.forrige) info.beskrivelse
+                    in
+                    IkkeFerdig
+                        ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) FagdokumentasjonLagret
+                        , Cmd.batch
+                            [ Api.postFagdokumentasjon MesterbrevSendtTilApi skjema
+                            , lagtTilSpørsmålCmd
+                            ]
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         OppdaterFagdokumentasjonBeskrivelse beskrivelse ->
             case model.aktivSamtale of
                 RegistrerFagbrevBeskrivelse info ->
                     ( oppdaterSamtaleSteg model (RegistrerFagbrevBeskrivelse { info | beskrivelse = beskrivelse })
-                    , Cmd.batch
-                        [ lagtTilSpørsmålCmd
-                        ]
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
                 RegistrerMesterbrevBeskrivelse info ->
                     ( oppdaterSamtaleSteg model (RegistrerMesterbrevBeskrivelse { info | beskrivelse = beskrivelse })
-                    , Cmd.batch
-                        [ lagtTilSpørsmålCmd
-                        ]
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
                 RegistrerAutorisasjonBeskrivelse info ->
                     ( oppdaterSamtaleSteg model (RegistrerAutorisasjonBeskrivelse { info | beskrivelse = beskrivelse })
-                    , Cmd.batch
-                        [ lagtTilSpørsmålCmd
-                        ]
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+        FagbrevSendtTilApi result ->
+            case result of
+                Ok value ->
+                    fullførSeksjonHvisMeldingsloggErFerdig { model | seksjonsMeldingsLogg = model.seksjonsMeldingsLogg |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ] } value
+
+                Err error ->
+                    ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
+
+        MesterbrevSendtTilApi result ->
+            case result of
+                Ok value ->
+                    fullførSeksjonHvisMeldingsloggErFerdig { model | seksjonsMeldingsLogg = model.seksjonsMeldingsLogg |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ] } value
+
+                Err error ->
+                    ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
+
+        AutorisasjonSendtTilApi result ->
+            case result of
+                Ok value ->
+                    fullførSeksjonHvisMeldingsloggErFerdig { model | seksjonsMeldingsLogg = model.seksjonsMeldingsLogg |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ] } value
+
+                Err error ->
+                    ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
+                    , lagtTilSpørsmålCmd
+                    )
+                        |> IkkeFerdig
 
         StartÅSkrive ->
             ( Model
@@ -885,6 +935,60 @@ init gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
             Intro fagdokumentasjonListe
+    in
+    ( Model
+        { seksjonsMeldingsLogg =
+            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
+        , aktivSamtale = aktivSamtale
+        , fagdokumentasjonListe = fagdokumentasjonListe
+        }
+    , lagtTilSpørsmålCmd
+    )
+
+
+initFagbrev : FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initFagbrev gammelMeldingsLogg fagdokumentasjonListe =
+    let
+        aktivSamtale =
+            ""
+                |> TypeaheadState.init
+                |> RegistrerFagbrev
+    in
+    ( Model
+        { seksjonsMeldingsLogg =
+            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
+        , aktivSamtale = aktivSamtale
+        , fagdokumentasjonListe = fagdokumentasjonListe
+        }
+    , lagtTilSpørsmålCmd
+    )
+
+
+initMesterbrev : FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initMesterbrev gammelMeldingsLogg fagdokumentasjonListe =
+    let
+        aktivSamtale =
+            ""
+                |> TypeaheadState.init
+                |> RegistrerMesterbrev
+    in
+    ( Model
+        { seksjonsMeldingsLogg =
+            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
+        , aktivSamtale = aktivSamtale
+        , fagdokumentasjonListe = fagdokumentasjonListe
+        }
+    , lagtTilSpørsmålCmd
+    )
+
+
+initAutorisasjon : FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initAutorisasjon gammelMeldingsLogg fagdokumentasjonListe =
+    let
+        aktivSamtale =
+            ""
+                |> TypeaheadState.init
+                |> RegistrerAutorisasjon
     in
     ( Model
         { seksjonsMeldingsLogg =

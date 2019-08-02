@@ -68,11 +68,11 @@ encodeFagdokumentasjonType fagtype =
 --INIT --
 
 
-init : FagdokumentasjonType -> String -> String -> String -> FagdokumentasjonSkjema
+init : FagdokumentasjonType -> String -> Int -> String -> FagdokumentasjonSkjema
 init skjemaType skjemaTittel skjemaKonseptid skjemaBeskrivelse =
     FagdokumentasjonSkjema
         { tittel = skjemaTittel
-        , konseptId = skjemaKonseptid
+        , konseptId = String.fromInt skjemaKonseptid
         , beskrivelse = skjemaBeskrivelse
         , fagdokumentasjonType = skjemaType
         }
