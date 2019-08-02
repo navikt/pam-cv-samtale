@@ -561,6 +561,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Seksjonsvalg.Ferdig seksjon nyModel meldingsLogg ->
+                            -- TODO: her legger man inn caser for hvor seksjonsvalget skal gå
                             case seksjon of
                                 "Arbeidserfaring" ->
                                     gåTilArbeidserfaring model meldingsLogg
@@ -573,6 +574,28 @@ updateSuccess successMsg model =
 
                                 "Nei, gå videre" ->
                                     gåTilSammendrag model meldingsLogg
+
+                                -- FIXME: ikke implementert
+                                "Fagbrev/Svennebrev" ->
+                                    ( Success model, Cmd.none )
+
+                                "Mesterbrev" ->
+                                    ( Success model, Cmd.none )
+
+                                "Autorisasjon" ->
+                                    ( Success model, Cmd.none )
+
+                                "Sertifisering" ->
+                                    ( Success model, Cmd.none )
+
+                                "Annen erfaring" ->
+                                    ( Success model, Cmd.none )
+
+                                "Kurs" ->
+                                    ( Success model, Cmd.none )
+
+                                "Førerkort" ->
+                                    ( Success model, Cmd.none )
 
                                 _ ->
                                     ( Success model, Cmd.none )

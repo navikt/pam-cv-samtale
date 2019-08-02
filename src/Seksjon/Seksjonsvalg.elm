@@ -1,4 +1,13 @@
-module Seksjon.Seksjonsvalg exposing (Model(..), ModelInfo, Msg(..), Samtale(..), SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
+module Seksjon.Seksjonsvalg exposing
+    ( Model(..)
+    , Msg(..)
+    , Samtale(..)
+    , SamtaleStatus(..)
+    , init
+    , meldingsLogg
+    , update
+    , viewBrukerInput
+    )
 
 -- MODEL --
 
@@ -27,7 +36,8 @@ type alias ModelInfo =
 
 
 type Samtale
-    = Intro
+    = LeggTilAutorisasjoner
+    | LeggTilAnnet
     | VenterPåAnimasjonFørFullføring
 
 
@@ -50,6 +60,7 @@ type Msg
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
     | GåTilSeksjon String
+    | BrukerVilGåTilNesteDel String
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -85,6 +96,12 @@ update msg (Model model) =
                         model.seksjonsMeldingsLogg
                             |> MeldingsLogg.leggTilSvar (Melding.svar [ seksjon ])
                 }
+
+        BrukerVilGåTilNesteDel knappeTekst ->
+            ( nesteSamtaleSteg model (Melding.svar [ knappeTekst ]) LeggTilAnnet
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -154,8 +171,16 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
         VenterPåAnimasjonFørFullføring ->
             []
 
-        Intro ->
+        LeggTilAutorisasjoner ->
             [ Melding.spørsmål [ "Nå begynner CV-en din å ta form. Er det ner mer du trenger å legge inn?" ]
+            , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
+            ]
+
+        LeggTilAnnet ->
+            [ Melding.spørsmål [ "Det er viktig å få med deg alt du kan på CV-en." ]
+            , Melding.spørsmål [ "Har du jobbet som frivillig eller hatt verv? Legg til annen erfaring." ]
+            , Melding.spørsmål [ "Har du tatt norskprøve? Legg til kurs." ]
+            , Melding.spørsmål [ "Hva med førerkort? Husk å leegge det inn i CV-en din. Mange arbeidsgivere ser etter jobbsøkere som kan kjøre." ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
@@ -172,28 +197,10 @@ viewBrukerInput (Model model) =
                 VenterPåAnimasjonFørFullføring ->
                     text ""
 
-                Intro ->
+                LeggTilAutorisasjoner ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Utdanning") "Utdanning"
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Arbeidserfaring") "Arbeidserfaring"
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Språk") "Språk"
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Fagbrev/Svennebrev") "Fagbrev/Svennebrev"
                                         |> Knapp.toHtml
@@ -219,6 +226,36 @@ viewBrukerInput (Model model) =
                                 ]
                             , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
+                                        |> Knapp.toHtml
+                                    ]
+                                ]
+                            ]
+                        ]
+
+                LeggTilAnnet ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Annen erfaring") "Annen erfaring"
+                                        |> Knapp.toHtml
+                                    ]
+                                ]
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Kurs") "Kurs"
+                                        |> Knapp.toHtml
+                                    ]
+                                ]
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ Knapp.knapp (GåTilSeksjon "Førerkort") "Førerkort"
+                                        |> Knapp.toHtml
+                                    ]
+                                ]
+                            , div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Nei, gå videre") "Nei, gå videre"
                                         |> Knapp.toHtml
                                     ]
@@ -238,7 +275,7 @@ init : FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 init gammelMeldingsLogg =
     let
         aktivSamtale =
-            Intro
+            LeggTilAutorisasjoner
     in
     ( Model
         { seksjonsMeldingsLogg =
