@@ -1,6 +1,9 @@
 module Api exposing
     ( getAAreg
+    , getAutorisasjonTypeahead
     , getCv
+    , getFagbrevTypeahead
+    , getMesterbrevTypeahead
     , getPerson
     , getPersonalia
     , getSpråkkoder
@@ -8,6 +11,7 @@ module Api exposing
     , logError
     , postArbeidserfaring
     , postCv
+    , postFagdokumentasjon
     , postPerson
     , postPersonalia
     , postSpråk
@@ -18,6 +22,7 @@ module Api exposing
 
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
 import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
 import Cv.Spraakferdighet exposing (Spraakferdighet)
 import Cv.Utdanning exposing (Utdanning)
@@ -25,8 +30,10 @@ import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
 import Json.Decode
 import Json.Encode
+import Konsept exposing (Konsept)
 import Personalia exposing (Personalia)
 import Skjema.ArbeidserfaringSkjema
+import Skjema.Fagdokumentasjon
 import Skjema.Personalia
 import Skjema.Sprak
 import Skjema.Utdanning
@@ -151,6 +158,39 @@ postUtdanning msgConstructor skjema =
         { url = "/cv-samtale/api/rest/cv/utdanning"
         , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
         , body = Skjema.Utdanning.encode skjema "id" (Skjema.Utdanning.nuskode skjema) |> jsonBody
+        }
+
+
+postFagdokumentasjon : (Result Error (List Fagdokumentasjon) -> msg) -> Skjema.Fagdokumentasjon.FagdokumentasjonSkjema -> Cmd msg
+postFagdokumentasjon msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/fagdokumentasjon"
+        , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.decode)
+        , body = Skjema.Fagdokumentasjon.encode skjema "id" (Skjema.Fagdokumentasjon.fagdokumentasjonType skjema) |> jsonBody
+        }
+
+
+getFagbrevTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd msg
+getFagbrevTypeahead msgConstructor string =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/fagbrev?q=" ++ string
+        , expect = expectJson msgConstructor (Json.Decode.list Konsept.decode)
+        }
+
+
+getMesterbrevTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd msg
+getMesterbrevTypeahead msgConstructor string =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/mesterbrev?q=" ++ string
+        , expect = expectJson msgConstructor (Json.Decode.list Konsept.decode)
+        }
+
+
+getAutorisasjonTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd msg
+getAutorisasjonTypeahead msgConstructor string =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/autorisasjon?q=" ++ string
+        , expect = expectJson msgConstructor (Json.Decode.list Konsept.decode)
         }
 
 

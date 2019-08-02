@@ -476,7 +476,7 @@ update msg (Model model) =
                 Oppsummering ferdigskjema ->
                     IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
 
-                LeggTilFlereUtdannelser ferdigskjema ->
+                LeggTilFlereUtdannelser _ ->
                     fullførSeksjonHvisMeldingsloggErFerdig model model.utdanningListe
 
                 _ ->
@@ -817,6 +817,10 @@ hentTilDato skjema =
                     |> Maybe.withDefault (Skjema.fraDato skjema)
         in
         "Til: " ++ (dato |> Dato.måned |> Dato.månedTilString) ++ " " ++ (dato |> Dato.år |> String.fromInt)
+
+
+
+-- View --
 
 
 viewBrukerInput : Model -> Html Msg
