@@ -25,7 +25,7 @@ import FrontendModuler.Typeahead as Typeahead
 import Html exposing (Attribute, Html, button, div, input, label, option, select, text)
 import Html.Attributes exposing (checked, class, type_, value)
 import Html.Events exposing (onClick, onInput)
-import Http
+import Http exposing (Error)
 import Melding exposing (Melding)
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
@@ -82,6 +82,8 @@ type SamtaleStatus
 
 type Msg
     = BrukerOppretterNyArbeidserfaring
+    | BrukerVilRedigereArbeidserfaring String
+    | BrukerHarValgtArbeidserfaringÅRedigere ArbeidserfaringSkjema String
     | BrukerHopperOverArbeidserfaring String
     | HentAAregArbeidserfaring
     | HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
@@ -102,12 +104,12 @@ type Msg
     | BrukerTrykketFraMånedKnapp Dato.Måned
     | BrukerOppdatererFraÅr String
     | BrukerVilRegistrereNaavarende
-    | BrukerSvarerJaTilNaavarende
-    | BrukerSvarerNeiTilNaavarende
+    | BrukerSvarerJaTilNaavarende String
+    | BrukerSvarerNeiTilNaavarende String
     | BrukerTrykketTilMånedKnapp Dato.Måned
     | BrukerOppdatererTilÅr String
     | BrukerVilGåTilOppsummering
-    | BrukerVilRedigereOppsummering
+    | BrukerVilRedigereOppsummering String
     | YrkeRedigeringsfeltEndret String
     | BrukerTrykkerTypeaheadTastIOppsummering Typeahead.Operation
     | BrukerHovrerOverTypeaheadSuggestionIOppsummering Yrke
@@ -128,6 +130,7 @@ type Msg
 
 type Samtale
     = Intro
+    | VelgEnArbeidserfaringÅRedigere
     | HenterFraAareg
     | HentetFraAAreg
     | IkkeHentetFraAAreg
@@ -278,6 +281,7 @@ tilDatoTilSkjema tilDatoInfo =
         , konseptId =
             tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
                 |> Yrke.konseptId
+        , id = Nothing
         }
 
 
@@ -288,6 +292,21 @@ update msg (Model info) =
             ( VenterPåAnimasjonFørFullføring "Ok, da går vi videre. Du kan alltid komme tilbake og legge til om du kommer på noe!"
                 |> nesteSamtaleSteg info
                     (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
+
+        BrukerVilRedigereArbeidserfaring knappeTekst ->
+            ( VelgEnArbeidserfaringÅRedigere
+                |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
+
+        BrukerHarValgtArbeidserfaringÅRedigere skjema knappeTekst ->
+            ( skjema
+                |> RedigerOppsummering
+                |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
             , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
@@ -389,7 +408,7 @@ update msg (Model info) =
                                 |> ArbeidserfaringSkjema.mapTypeaheadState skjema
                                 |> RedigerOppsummering
                                 |> oppdaterSamtalesteg info
-                            , lagtTilSpørsmålCmd
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
@@ -676,7 +695,7 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerSvarerJaTilNaavarende ->
+        BrukerSvarerJaTilNaavarende knappeTekst ->
             case info.aktivSamtale of
                 RegistrereNaavarende datoInfo ->
                     ( datoInfo
@@ -684,7 +703,7 @@ update msg (Model info) =
                         |> setNaavarendeTilTrue
                         |> tilDatoTilSkjema
                         |> VisOppsummering
-                        |> nesteSamtaleSteg info (Melding.svar [ "Ja" ])
+                        |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
                     , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
@@ -693,13 +712,13 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerSvarerNeiTilNaavarende ->
+        BrukerSvarerNeiTilNaavarende knappeTekst ->
             case info.aktivSamtale of
                 RegistrereNaavarende fraDatoInfo ->
                     ( fraDatoInfo
                         |> fraDatoInfoTilTilDatoInfo
                         |> RegistrereTilMåned
-                        |> nesteSamtaleSteg info (Melding.svar [ "Nei" ])
+                        |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
                     , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
@@ -757,14 +776,14 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerVilRedigereOppsummering ->
+        BrukerVilRedigereOppsummering knappeTekst ->
             case info.aktivSamtale of
                 VisOppsummering skjema ->
                     ( skjema
                         |> ArbeidserfaringSkjema.tilArbeidserfaringSkjema
                         |> RedigerOppsummering
                         |> nesteSamtaleSteg info
-                            (Melding.svar [ "Nei, jeg vil endre" ])
+                            (Melding.svar [ knappeTekst ])
                     , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
@@ -911,7 +930,7 @@ update msg (Model info) =
                             (Melding.svar [ brukerSvar ])
                     , Cmd.batch
                         [ validertSkjema
-                            |> Api.postArbeidserfaring ArbeidserfaringLagret
+                            |> postEllerPutArbeidserfaring ArbeidserfaringLagret
                         , lagtTilSpørsmålCmd
                         ]
                     )
@@ -923,8 +942,8 @@ update msg (Model info) =
                         |> nesteSamtaleSteg info
                             (Melding.svar [ brukerSvar ])
                     , Cmd.batch
-                        [ skjema
-                            |> Api.postArbeidserfaring ArbeidserfaringLagret
+                        [ validertSkjema
+                            |> postEllerPutArbeidserfaring ArbeidserfaringLagret
                         , lagtTilSpørsmålCmd
                         ]
                     )
@@ -1166,6 +1185,9 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         Intro ->
             [ Melding.spørsmål [ "Nå skal vi registrere arbeidserfaringen din" ] ]
 
+        VelgEnArbeidserfaringÅRedigere ->
+            [ Melding.spørsmål [ "Hvilken registrerte arbeidserfaring ønsker du å redigere?" ] ]
+
         HenterFraAareg ->
             -- TODO: fiks dette etter at vi har skjekket om det funker
             []
@@ -1277,10 +1299,22 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             ]
 
         RedigerOppsummering skjema ->
-            []
+            [ Melding.spørsmål [ "Rediger de feltene du ønsker. Husk å sjekke at alle feltene er riktige før du går videre!" ] ]
 
-        LagreArbeidserfaring arbeidserfaringSkjema ->
+        LagreArbeidserfaring validertSkjema ->
             [ Melding.spørsmål [ "Flott! Da har du lagret en arbeidserfaring" ]
+            , Melding.spørsmål
+                [ "Stilling/Yrke " ++ hentStilling validertSkjema
+                , "Bedriftnavn: " ++ ArbeidserfaringSkjema.bedriftNavn (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+                , "Sted: " ++ ArbeidserfaringSkjema.lokasjon (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+                , "Arbeidsoppgaver: " ++ ArbeidserfaringSkjema.arbeidsoppgaver (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+                , "Fra: " ++ hentFraDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+                , if ArbeidserfaringSkjema.naavarende (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema) == True then
+                    "Nåværende jobb"
+
+                  else
+                    hentTilDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+                ]
             , Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ]
             ]
 
@@ -1372,14 +1406,31 @@ viewBrukerInput (Model info) =
                             ]
 
                     else
-                        div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg vil legge til mer"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp (BrukerHopperOverArbeidserfaring "Nei, jeg er ferdig") "Nei, jeg er ferdig"
-                                    |> Knapp.toHtml
+                        div [ class "skjema-wrapper" ]
+                            [ div [ class "knapperad-wrapper" ]
+                                [ div [ class "inputrad" ]
+                                    [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg vil legge til mer"
+                                        |> Knapp.toHtml
+                                    ]
+                                , div [ class "inputrad" ]
+                                    [ Knapp.knapp (BrukerHopperOverArbeidserfaring "Nei, jeg er ferdig") "Nei, jeg er ferdig"
+                                        |> Knapp.toHtml
+                                    ]
+                                , div [ class "inputrad" ]
+                                    [ Knapp.knapp (BrukerVilRedigereArbeidserfaring "Jeg vil redigere det jeg har lagt inn") "Jeg vil redigere det jeg har lagt inn"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
                             ]
+
+                VelgEnArbeidserfaringÅRedigere ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "knapperad-wrapper" ]
+                            (lagArbeidserfaringKnapper
+                                (Model info)
+                                |> List.map (\msg -> div [ class "inputrad" ] [ msg ])
+                            )
+                        ]
 
                 HenterFraAareg ->
                     div [] []
@@ -1527,9 +1578,11 @@ viewBrukerInput (Model info) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputrad-innhold" ]
-                                [ BrukerSvarerJaTilNaavarende
+                                [ "Ja"
+                                    |> BrukerSvarerJaTilNaavarende
                                     |> lagMessageKnapp "Ja"
-                                , BrukerSvarerNeiTilNaavarende
+                                , "Nei"
+                                    |> BrukerSvarerNeiTilNaavarende
                                     |> lagMessageKnapp "Nei"
                                 ]
                             ]
@@ -1591,7 +1644,8 @@ viewBrukerInput (Model info) =
                         [ div [ class "inputrad-innhold" ]
                             [ BrukerTrykkerPåLagreArbeidserfaringKnapp "Ja, informasjonen er riktig" validertSkjema
                                 |> lagMessageKnapp "Ja, informasjonen er riktig"
-                            , BrukerVilRedigereOppsummering
+                            , "Nei, jeg vil endre"
+                                |> BrukerVilRedigereOppsummering
                                 |> lagMessageKnapp "Nei, jeg vil endre"
                             ]
                         ]
@@ -1751,6 +1805,67 @@ typeaheadStateSuggestionsTilViewSuggestionOppsummering typeaheadState =
             )
 
 
+lagArbeidserfaringKnapper : Model -> List (Html Msg)
+lagArbeidserfaringKnapper (Model info) =
+    info.arbeidserfaringListe
+        |> List.map
+            (\arbErf ->
+                let
+                    text =
+                        Maybe.withDefault "" (Cv.Arbeidserfaring.yrke arbErf)
+                            ++ " "
+                            ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbErf)
+                in
+                Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere (arbeidserfaringTilSkjema arbErf) text) text
+                    |> Knapp.toHtml
+            )
+
+
+arbeidserfaringTilSkjema : Cv.Arbeidserfaring.Arbeidserfaring -> ArbeidserfaringSkjema
+arbeidserfaringTilSkjema arbeidserfaring =
+    let
+        yrk =
+            Maybe.withDefault "" (Cv.Arbeidserfaring.yrke arbeidserfaring)
+
+        styrkKode =
+            Maybe.withDefault "" (Cv.Arbeidserfaring.yrke arbeidserfaring)
+
+        konsept =
+            Maybe.withDefault "" (Cv.Arbeidserfaring.konseptid arbeidserfaring)
+
+        ferdigYrke =
+            Yrke.fraString yrk styrkKode konsept
+    in
+    ArbeidserfaringSkjema.nyttValidertSkjema
+        { yrke = ferdigYrke
+        , jobbTittel = Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeFritekst arbeidserfaring)
+        , bedriftNavn = Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
+        , lokasjon = Maybe.withDefault "" (Cv.Arbeidserfaring.sted arbeidserfaring)
+        , arbeidsoppgaver = Maybe.withDefault "" (Cv.Arbeidserfaring.beskrivelse arbeidserfaring)
+        , fraDato =
+            Maybe.withDefault "2007-09" (Cv.Arbeidserfaring.fradato arbeidserfaring)
+                |> Dato.tilDato
+        , naavarende = Cv.Arbeidserfaring.navarende arbeidserfaring
+        , tilDato =
+            if Cv.Arbeidserfaring.navarende arbeidserfaring then
+                Nothing
+
+            else
+                Just
+                    (Maybe.withDefault "2007-09" (Cv.Arbeidserfaring.tildato arbeidserfaring)
+                        |> Dato.tilDato
+                    )
+        , styrkkode =
+            Maybe.withDefault "" (Cv.Arbeidserfaring.styrkkode arbeidserfaring)
+        , konseptId =
+            Maybe.withDefault "1" (Cv.Arbeidserfaring.konseptid arbeidserfaring)
+                |> String.toInt
+                |> Maybe.withDefault 1
+        , id = Just (Cv.Arbeidserfaring.id arbeidserfaring)
+        }
+        |> ArbeidserfaringSkjema.tilArbeidserfaringSkjema
+
+
 lagTekstInputKnapp : String -> String -> Msg -> Html Msg
 lagTekstInputKnapp knappeTekst inputTekst msg =
     Knapp.knapp msg knappeTekst
@@ -1895,9 +2010,21 @@ lagRedigerDatoInput arbeidserfaringSkjema =
                             |> Input.toHtml
 
                     Nothing ->
-                        text ""
+                        ""
+                            |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.TilÅr }
+                            |> Input.toHtml
                 ]
         ]
+
+
+postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
+postEllerPutArbeidserfaring msgConstructor skjema =
+    case ArbeidserfaringSkjema.id skjema of
+        Just id ->
+            Api.putArbeidserfaring msgConstructor skjema id
+
+        Nothing ->
+            Api.postArbeidserfaring msgConstructor skjema
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
