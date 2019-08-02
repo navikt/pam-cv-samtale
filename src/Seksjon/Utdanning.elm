@@ -827,6 +827,10 @@ hentTilDato skjema =
         "Til: " ++ (dato |> Dato.måned |> Dato.månedTilString) ++ " " ++ (dato |> Dato.år |> String.fromInt)
 
 
+
+-- View --
+
+
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
     case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of

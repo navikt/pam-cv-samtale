@@ -1,4 +1,4 @@
-module Cv.Fagdokumentasjon exposing (Fagdokumentasjon, beskrivelse, decode, id, konseptId, tittel, type_)
+module Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..), beskrivelse, decode, fagdokumentasjonType, id, konseptId, tittel)
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
@@ -13,11 +13,11 @@ type alias FagdokumentasjonInfo =
     , tittel : Maybe String
     , beskrivelse : Maybe String
     , konseptId : Maybe String
-    , type_ : Fagdokumentype
+    , fagdokumentasjonType : FagdokumentasjonType
     }
 
 
-type Fagdokumentype
+type FagdokumentasjonType
     = SvennebrevFagbrev
     | Mesterbrev
     | Autorisasjon
@@ -43,9 +43,9 @@ beskrivelse (Fagdokumentasjon info) =
     info.beskrivelse
 
 
-type_ : Fagdokumentasjon -> Fagdokumentype
-type_ (Fagdokumentasjon info) =
-    info.type_
+fagdokumentasjonType : Fagdokumentasjon -> FagdokumentasjonType
+fagdokumentasjonType (Fagdokumentasjon info) =
+    info.fagdokumentasjonType
 
 
 
@@ -75,17 +75,17 @@ tilFagdokumentasjonInfo backendData =
         |> map (lagFagdokumentasjonInfo backendData)
 
 
-lagFagdokumentasjonInfo : BackendData -> Fagdokumentype -> FagdokumentasjonInfo
+lagFagdokumentasjonInfo : BackendData -> FagdokumentasjonType -> FagdokumentasjonInfo
 lagFagdokumentasjonInfo backendData fd =
     { id = backendData.id
     , tittel = backendData.tittel
     , konseptId = backendData.konseptId
     , beskrivelse = backendData.beskrivelse
-    , type_ = fd
+    , fagdokumentasjonType = fd
     }
 
 
-decodeFagdokument : String -> Decoder Fagdokumentype
+decodeFagdokument : String -> Decoder FagdokumentasjonType
 decodeFagdokument fd =
     if fd == "SVENNEBREV_FAGBREV" then
         succeed SvennebrevFagbrev
