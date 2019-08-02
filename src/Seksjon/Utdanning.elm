@@ -721,7 +721,32 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 ]
 
             else
-                [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn tidligere utdannelser. Har du flere utdannelser du ønsker å ha med på CVen din?" ] ]
+                [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn utdannelser tidligere." ]
+                , Melding.spørsmål
+                    (List.map
+                        (\el ->
+                            if Cv.navarende el |> Maybe.withDefault False then
+                                (Cv.fradato el |> Maybe.withDefault "")
+                                    ++ ": "
+                                    ++ (Cv.studiested el |> Maybe.withDefault "")
+                                    ++ ", "
+                                    ++ " "
+                                    ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+
+                            else
+                                (Cv.fradato el |> Maybe.withDefault "")
+                                    ++ " til "
+                                    ++ (Cv.tildato el |> Maybe.withDefault "")
+                                    ++ ": "
+                                    ++ (Cv.studiested el |> Maybe.withDefault "")
+                                    ++ ", "
+                                    ++ " "
+                                    ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                        )
+                        utdannelseListe
+                    )
+                , Melding.spørsmål [ "Har du flere utdannelser du ønsker å ha med på CVen din?" ]
+                ]
 
         RegistrerNivå ->
             [ Melding.spørsmål
@@ -792,7 +817,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
 
         VenterPåAnimasjonFørFullføring _ ->
-            [ Melding.spørsmål [ "Hvis du ikke vil legge til utdanning, så går vi videre til arbeidserfaring" ] ]
+            [ Melding.spørsmål [ "Da er vi ferdige med din utdanning og fortsetter med arbeidserfaring." ] ]
 
         _ ->
             []
@@ -1070,7 +1095,7 @@ viewBrukerInput (Model model) =
                     endreSkjema model utdanningsskjema
 
                 LeggTilFlereUtdannelser _ ->
-                    div [ class "knapperad-wrapper" ]
+                    div [ class "skjema-wrapper" ]
                         [ div [ class "inputrad" ]
                             [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
                                 |> Knapp.toHtml
