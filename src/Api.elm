@@ -201,7 +201,7 @@ getMesterbrevTypeahead msgConstructor string =
 getAutorisasjonTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd msg
 getAutorisasjonTypeahead msgConstructor string =
     Http.get
-        { url = "/cv-samtale/api/rest/typeahead/autorisasjon?q=" ++ string
+        { url = "/cv-samtale/api/rest/typeahead/autorisasjoner?q=" ++ string
         , expect = expectJson msgConstructor (Json.Decode.list Konsept.decode)
         }
 
