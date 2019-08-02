@@ -15,6 +15,7 @@ module Api exposing
     , postPerson
     , postPersonalia
     , postSpråk
+    , postSynlighet
     , postUtdanning
     , putPersonalia
     , putSammendrag
@@ -28,9 +29,11 @@ import Cv.Spraakferdighet exposing (Spraakferdighet)
 import Cv.Utdanning exposing (Utdanning)
 import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
-import Json.Decode
+import Json.Decode exposing (Decoder, bool, field, succeed)
+import Json.Decode.Pipeline exposing (required)
 import Json.Encode
 import Konsept exposing (Konsept)
+import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Skjema.ArbeidserfaringSkjema
 import Skjema.Fagdokumentasjon
@@ -41,11 +44,11 @@ import Sprakkoder exposing (Sprakkoder)
 import Yrke as YrkeTypahead exposing (Yrke)
 
 
-getPerson : (Result Error () -> msg) -> Cmd msg
+getPerson : (Result Error Person -> msg) -> Cmd msg
 getPerson msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/person"
-        , expect = expectWhatever msgConstructor
+        , expect = expectJson msgConstructor Person.decode
         }
 
 
@@ -55,6 +58,15 @@ postPerson msgConstructor =
         { url = "/cv-samtale/api/rest/person"
         , expect = expectWhatever msgConstructor
         , body = emptyBody
+        }
+
+
+postSynlighet : (Result Error Bool -> msg) -> Bool -> Cmd msg
+postSynlighet msgConstructor synlighet =
+    Http.post
+        { url = "/cv-samtale/api/rest/person/synlighet"
+        , expect = expectJson msgConstructor (field "synligForArbeidsgiver" bool)
+        , body = Json.Encode.object [ ( "synligForArbeidsgiver", Json.Encode.bool synlighet ) ] |> jsonBody
         }
 
 

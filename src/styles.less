@@ -67,6 +67,19 @@ html {
     background-color: #f1f1f1;
     color: #062140;
   }
+  .melding:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 0;
+    height: 0;
+    border: 6px solid transparent;
+    border-right-color: #f1f1f1;
+    border-left: 0;
+    margin-top: -6px;
+    margin-left: -6px;
+  }
 }
 
 .svar {
@@ -74,6 +87,19 @@ html {
   .melding {
     background-color: #062140;
     color: white;
+  }
+  .melding:after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 0;
+    height: 0;
+    border: 6px solid transparent;
+    border-left-color: #062140;
+    border-right: 0;
+    margin-top: -6px;
+    margin-right: -6px;
   }
 }
 
@@ -86,11 +112,13 @@ html {
   }
   padding: 1rem;
   border-radius: 12px;
+  position: relative;
   margin-top: 1.25rem;
   p {
     margin: 0;
   }
 }
+
 
 // SKJEMA
 .skjema-wrapper {
@@ -193,6 +221,11 @@ html {
   }
 }
 
+.knapperad-wrapper {
+  width: max-content;
+  align-self: flex-end;
+
+}
 
 .inputrad {
   display: flex;
@@ -201,7 +234,7 @@ html {
   .inputrad-innhold {
     display: flex;
     justify-content: flex-end;
-    flex-wrap: wrap;
+    //flex-wrap: wrap;
     @media (min-width: 768px) {
       width: @meldingBredde;
     }
@@ -212,6 +245,7 @@ html {
 
     .Knapp {
       margin-top: 0.5rem;
+      width: -moz-fit-content;
     }
 
     .Knapp:not(:first-child) {
@@ -219,9 +253,22 @@ html {
     }
   }
 
-.månedknapp {
-  width: 140px;
-}
+  .månedknapp {
+    width: 140px;
+  }
+
+  .utdanningsnivåknapp {
+    width: 320px;
+  }
+
+  .språknivåknapp {
+    width: 300px;
+  }
+
+  .leggetilutdannelseknapp {
+    width: 380px;
+  }
+
 }
 
 
