@@ -315,16 +315,37 @@ oppdaterFelt felt (UtdanningSkjema info) ( str, bol, nivå ) =
 
 encode : UtdanningSkjema -> String -> Nivå -> Json.Encode.Value
 encode (UtdanningSkjema info) id nivå =
-    Json.Encode.object
-        [ ( "id", Json.Encode.string id )
-        , ( "studiested", Json.Encode.string info.studiested )
-        , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
-        , ( "beskrivelse", Json.Encode.string info.beskrivelse )
-        , ( "fradato", Json.Encode.string (info.fradato |> Dato.tilStringForBackend) )
-        , ( "tildato", Json.Encode.string (info.tildato |> Maybe.withDefault info.fradato |> Dato.tilStringForBackend) )
-        , ( "navarende", Json.Encode.bool info.navarende )
-        , ( "nuskode", encodeNuskode nivå )
-        ]
+    case info.tildato of
+        Just dato ->
+            Json.Encode.object
+                [ ( "id", Json.Encode.string id )
+                , ( "studiested", Json.Encode.string info.studiested )
+                , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
+                , ( "beskrivelse", Json.Encode.string info.beskrivelse )
+                , ( "fradato"
+                  , info.fradato
+                        |> Dato.tilStringForBackend
+                        |> Json.Encode.string
+                  )
+                , ( "tildato"
+                  , dato
+                        |> Dato.tilStringForBackend
+                        |> Json.Encode.string
+                  )
+                , ( "navarende", Json.Encode.bool info.navarende )
+                , ( "nuskode", encodeNuskode nivå )
+                ]
+
+        Nothing ->
+            Json.Encode.object
+                [ ( "id", Json.Encode.string id )
+                , ( "studiested", Json.Encode.string info.studiested )
+                , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
+                , ( "beskrivelse", Json.Encode.string info.beskrivelse )
+                , ( "fradato", Json.Encode.string (info.fradato |> Dato.tilStringForBackend) )
+                , ( "navarende", Json.Encode.bool info.navarende )
+                , ( "nuskode", encodeNuskode nivå )
+                ]
 
 
 encodeNuskode : Nivå -> Json.Encode.Value

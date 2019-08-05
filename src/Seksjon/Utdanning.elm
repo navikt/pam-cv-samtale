@@ -172,7 +172,7 @@ forrigeTilOppsummeringInfo tildatoInfo =
         , fradato = Dato.tilDato (tildatoInfo.forrige.fraÅr ++ "-" ++ (tildatoInfo.forrige.fraMåned |> Dato.månedTilString))
         , tildato =
             if tildatoInfo.forrige.navarende then
-                Just (Dato.tilDato "1999-09-09")
+                Nothing
 
             else
                 Just (Dato.tilDato (tildatoInfo.tilÅr ++ "-" ++ (tildatoInfo.tilMåned |> Dato.månedTilString)))
