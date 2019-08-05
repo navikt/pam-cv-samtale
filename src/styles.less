@@ -224,7 +224,6 @@ html {
 .knapperad-wrapper {
   width: max-content;
   align-self: flex-end;
-
 }
 
 .inputrad {
@@ -234,7 +233,7 @@ html {
   .inputrad-innhold {
     display: flex;
     justify-content: flex-end;
-    //flex-wrap: wrap;
+    flex-wrap: wrap;
     @media (min-width: 768px) {
       width: @meldingBredde;
     }
@@ -245,12 +244,13 @@ html {
 
     .Knapp {
       margin-top: 0.5rem;
-      width: -moz-fit-content;
-    }
-
-    .Knapp:not(:first-child) {
+      //width: auto;
       margin-left: 1rem;
     }
+
+    //.Knapp:not(:first-child) {
+    //  margin-left: 1rem;
+    //}
   }
 
   .månedknapp {
@@ -262,11 +262,11 @@ html {
   }
 
   .språknivåknapp {
-    width: 300px;
+    min-width: 320px;
   }
 
   .leggetilutdannelseknapp {
-    width: 380px;
+    width: 320px
   }
 
 }

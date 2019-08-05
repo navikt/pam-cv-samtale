@@ -307,8 +307,10 @@ viewBrukerInput (Model model) =
                                  else
                                     "Ja, jeg vil se over"
                                 )
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -331,8 +333,10 @@ viewBrukerInput (Model model) =
                     div [ class "inputrad" ]
                         [ div [ class "inputrad-innhold" ]
                             [ Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Prøv på nytt"
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerVilAvslutteSeksjonen "Gå videre uten å lagre"
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             ]
                         ]

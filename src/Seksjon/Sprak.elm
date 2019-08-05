@@ -625,8 +625,10 @@ viewBrukerInput (Model model) =
                         div [ class "inputrad" ]
                             [ div [ class "inputrad-innhold" ]
                                 [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -645,8 +647,10 @@ viewBrukerInput (Model model) =
                     div [ class "inputrad" ]
                         [ div [ class "inputrad-innhold" ]
                             [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -656,14 +660,17 @@ viewBrukerInput (Model model) =
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputrad" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Nybegynner)) "Jeg er nybegynner"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Godt)) ("Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig VeldigGodt)) ("Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -674,14 +681,17 @@ viewBrukerInput (Model model) =
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputrad" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Nybegynner)) "Jeg er nybegynner"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Godt)) ("Jeg snakker godt " ++ String.toLower enkeltSpråk)
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk VeldigGodt)) ("Jeg snakker veldig godt " ++ String.toLower enkeltSpråk)
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             ]

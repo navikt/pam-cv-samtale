@@ -203,30 +203,35 @@ viewBrukerInput (Model model) =
                             [ div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Fagbrev/Svennebrev") "Fagbrev/Svennebrev"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
                             , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Mesterbrev") "Mesterbrev"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
                             , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Autorisasjon") "Autorisasjon"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
                             , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Sertifisering") "Sertifisering"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
                             , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
@@ -239,24 +244,28 @@ viewBrukerInput (Model model) =
                             [ div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Annen erfaring") "Annen erfaring"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
                             , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Kurs") "Kurs"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
                             , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Førerkort") "Førerkort"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
                             , div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ Knapp.knapp (GåTilSeksjon "Nei, gå videre") "Nei, gå videre"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
