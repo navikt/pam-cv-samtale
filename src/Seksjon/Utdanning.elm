@@ -939,16 +939,14 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "" } |> Input.toHtml
-                            , div [ class "inputrad" ]
-                                [ Knapp.knapp BrukerVilRegistrereSkole "Lagre"
-                                    |> (if skoleinfo.skole /= "" then
-                                            Knapp.withEnabled Knapp.Enabled
+                            , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
+                                |> (if skoleinfo.skole /= "" then
+                                        Knapp.withEnabled Knapp.Enabled
 
-                                        else
-                                            Knapp.withEnabled Knapp.Disabled
-                                       )
-                                    |> Knapp.toHtml
-                                ]
+                                    else
+                                        Knapp.withEnabled Knapp.Disabled
+                                   )
+                                |> Knapp.toHtml
                             ]
                         ]
 
@@ -956,16 +954,14 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "" } |> Input.toHtml
-                            , div [ class "inputrad" ]
-                                [ Knapp.knapp BrukerVilRegistrereRetning "Lagre"
-                                    |> (if retningsinfo.retning /= "" then
-                                            Knapp.withEnabled Knapp.Enabled
+                            , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
+                                |> (if retningsinfo.retning /= "" then
+                                        Knapp.withEnabled Knapp.Enabled
 
-                                        else
-                                            Knapp.withEnabled Knapp.Disabled
-                                       )
-                                    |> Knapp.toHtml
-                                ]
+                                    else
+                                        Knapp.withEnabled Knapp.Disabled
+                                   )
+                                |> Knapp.toHtml
                             ]
                         ]
 
@@ -1026,9 +1022,7 @@ viewBrukerInput (Model model) =
                             [ fraDatoInfo.fraÅr
                                 |> Input.input { label = "", msg = OppdaterFraÅr fraDatoInfo }
                                 |> Input.toHtml
-                            ]
-                        , div [ class "inputrad" ]
-                            [ BrukerVilRegistrereNaavarende
+                            , BrukerVilRegistrereNaavarende
                                 |> lagÅrInputKnapp "Lagre" fraDatoInfo.fraÅr
                             ]
                         ]
@@ -1036,11 +1030,13 @@ viewBrukerInput (Model model) =
                 RegistrereNavarende fraDatoInfo ->
                     div []
                         [ div [ class "inputrad" ]
-                            [ BrukerSvarerJaTilNaavarende
-                                |> lagMessageKnapp "Ja"
-                            , fraDatoInfo
-                                |> BrukerSvarerNeiTilNaavarende
-                                |> lagMessageKnapp "Nei"
+                            [ div [ class "inputrad-innhold" ]
+                                [ BrukerSvarerJaTilNaavarende
+                                    |> lagMessageKnapp "Ja"
+                                , fraDatoInfo
+                                    |> BrukerSvarerNeiTilNaavarende
+                                    |> lagMessageKnapp "Nei"
+                                ]
                             ]
                         ]
 
@@ -1086,19 +1082,19 @@ viewBrukerInput (Model model) =
                             [ tilDatoInfo.tilÅr
                                 |> Input.input { label = "", msg = OppdaterTilÅr tilDatoInfo }
                                 |> Input.toHtml
-                            ]
-                        , div [ class "inputrad" ]
-                            [ BrukerVilGåTilOppsummering
+                            , BrukerVilGåTilOppsummering
                                 |> lagÅrInputKnapp "Lagre" tilDatoInfo.tilÅr
                             ]
                         ]
 
                 Oppsummering _ ->
                     div [ class "inputrad" ]
-                        [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
-                            |> Knapp.toHtml
-                        , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
-                            |> Knapp.toHtml
+                        [ div [ class "inputrad-innhold" ]
+                            [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
+                                |> Knapp.toHtml
+                            , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 EndrerOppsummering utdanningsskjema ->
@@ -1108,10 +1104,12 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "inputrad" ]
                             [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
                         , div [ class "inputrad" ]
                             [ Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
                         ]

@@ -314,7 +314,7 @@ viewBrukerInput (Model model) =
             case model.aktivSamtale of
                 AvsluttendeOrd ->
                     div []
-                        [ a [ href "https://arbeidsplassen.nav.no/cv" ]
+                        [ a [ href "https://arbeidsplassen.nav.no/cv", class "avslutt-knapp" ]
                             [ div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ div [ class "Knapp" ]

@@ -1786,7 +1786,7 @@ lagÅrInputKnapp knappeTekst inputTekst msg =
 lagMessageKnapp : String -> Msg -> Html Msg
 lagMessageKnapp knappeTekst msg =
     Knapp.knapp msg knappeTekst
-        |> Knapp.withClass Knapp.SpråknivåKnapp
+        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
         |> Knapp.toHtml
 
 

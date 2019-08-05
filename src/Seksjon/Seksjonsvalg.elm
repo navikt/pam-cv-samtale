@@ -12,7 +12,7 @@ module Seksjon.Seksjonsvalg exposing
 -- MODEL --
 
 import Browser.Dom as Dom
-import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
 import FrontendModuler.Select as Select
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -201,36 +201,20 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
+                                [ div []
                                     [ Knapp.knapp (GåTilSeksjon "Fagbrev/Svennebrev") "Fagbrev/Svennebrev"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Mesterbrev") "Mesterbrev"
+                                    , Knapp.knapp (GåTilSeksjon "Mesterbrev") "Mesterbrev"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Autorisasjon") "Autorisasjon"
+                                    , Knapp.knapp (GåTilSeksjon "Autorisasjon") "Autorisasjon"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Sertifisering") "Sertifisering"
+                                    , Knapp.knapp (GåTilSeksjon "Sertifisering") "Sertifisering"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
+                                    , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]
@@ -242,29 +226,21 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
+                                [ div []
+                                    -- TODO: enable når implementert
                                     [ Knapp.knapp (GåTilSeksjon "Annen erfaring") "Annen erfaring"
+                                        |> Knapp.withEnabled Disabled
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Kurs") "Kurs"
+                                    , Knapp.knapp (GåTilSeksjon "Kurs") "Kurs"
+                                        |> Knapp.withEnabled Disabled
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Førerkort") "Førerkort"
+                                    , Knapp.knapp (GåTilSeksjon "Førerkort") "Førerkort"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
+                                        |> Knapp.withEnabled Disabled
                                         |> Knapp.toHtml
-                                    ]
-                                ]
-                            , div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
-                                    [ Knapp.knapp (GåTilSeksjon "Nei, gå videre") "Nei, gå videre"
+                                    , Knapp.knapp (GåTilSeksjon "Nei, gå videre") "Nei, gå videre"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     ]

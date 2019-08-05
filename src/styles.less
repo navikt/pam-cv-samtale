@@ -230,6 +230,21 @@ html {
   display: flex;
   justify-content: flex-end;
   margin-top: 0.5rem;
+  .Knapp {
+    margin-top: 0.5rem;
+    min-width: 5rem;
+    margin-right: 1rem;
+  }
+  .Knapp:last-child {
+    margin-right: 0;
+    margin-left: 0;
+  }
+  .Knapp--disabled{
+    margin-top: 0.5rem;
+    min-width: 5rem;
+    margin-right: 1rem;
+    width: 100%
+  }
   .inputrad-innhold {
     display: flex;
     justify-content: flex-end;
@@ -244,35 +259,39 @@ html {
 
     .Knapp {
       margin-top: 0.5rem;
-      //width: auto;
-      margin-left: 1rem;
+      min-width: 5rem;
+      margin-left: 0rem;
+
+
     }
 
-    //.Knapp:not(:first-child) {
-    //  margin-left: 1rem;
-    //}
+
   }
+
+
 
   .månedknapp {
     width: 140px;
   }
 
   .utdanningsnivåknapp {
-    width: 320px;
+    width: 20rem;
   }
 
   .språknivåknapp {
-    min-width: 320px;
+    min-width: 100%;
   }
 
   .leggetilutdannelseknapp {
-    width: 320px
+    width: 23rem
   }
 
 }
 
 
-
+.avslutt-knapp {
+  text-decoration: none;
+}
 .typeahead {
   position: relative;
   ul {

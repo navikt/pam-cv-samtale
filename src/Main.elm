@@ -777,7 +777,34 @@ view { model, windowWidth } =
                 viewSuccess successModel
 
             Failure error ->
-                text "error"
+                case error of
+                    Http.BadUrl string ->
+                        div []
+                            [ text ("Fant ingenting her: " ++ string)
+                            , text "Er du sikker på at du leter på riktig sted?"
+                            ]
+
+                    Http.Timeout ->
+                        div []
+                            [ text "Forespørselen tok for lang tid. Det kan være noe feil hos oss."
+                            , text "Forsæk å laste inn siden på nytt eller prøv gjerne igen senere"
+                            ]
+
+                    Http.BadStatus int ->
+                        div []
+                            [ text ("Fikk en " ++ String.fromInt int ++ " feilmelding. Vennligst prøv igjen senere!")
+                            ]
+
+                    Http.BadBody string ->
+                        div []
+                            [ text "Det set ut til at du ikke har godkjent vilkårene på arbeidsplassen.no/cv."
+                            , text "Vennligst gjøre dette før du benytter det av tjenesten."
+                            ]
+
+                    _ ->
+                        div []
+                            [ text "error"
+                            ]
         ]
 
 
