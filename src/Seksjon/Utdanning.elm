@@ -721,7 +721,32 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 ]
 
             else
-                [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn tidligere utdannelser. Har du flere utdannelser du ønsker å ha med på CVen din?" ] ]
+                [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn utdannelser tidligere." ]
+                , Melding.spørsmål
+                    (List.map
+                        (\el ->
+                            if Cv.navarende el |> Maybe.withDefault False then
+                                (Cv.fradato el |> Maybe.withDefault "")
+                                    ++ ": "
+                                    ++ (Cv.studiested el |> Maybe.withDefault "")
+                                    ++ ", "
+                                    ++ " "
+                                    ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+
+                            else
+                                (Cv.fradato el |> Maybe.withDefault "")
+                                    ++ " til "
+                                    ++ (Cv.tildato el |> Maybe.withDefault "")
+                                    ++ ": "
+                                    ++ (Cv.studiested el |> Maybe.withDefault "")
+                                    ++ ", "
+                                    ++ " "
+                                    ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                        )
+                        utdannelseListe
+                    )
+                , Melding.spørsmål [ "Har du flere utdannelser du ønsker å ha med på CVen din?" ]
+                ]
 
         RegistrerNivå ->
             [ Melding.spørsmål
@@ -825,6 +850,10 @@ hentTilDato skjema =
                     |> Maybe.withDefault (Skjema.fraDato skjema)
         in
         "Til: " ++ (dato |> Dato.måned |> Dato.månedTilString) ++ " " ++ (dato |> Dato.år |> String.fromInt)
+
+
+
+-- View --
 
 
 viewBrukerInput : Model -> Html Msg

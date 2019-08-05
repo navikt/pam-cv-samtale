@@ -414,7 +414,7 @@ encode (ValidertArbeidserfaringSkjema skjema) =
                 , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
                 , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
                 , ( "styrkkode", Json.Encode.string skjema.styrkkode )
-                , ( "konseptId", Json.Encode.int skjema.konseptId )
+                , ( "konseptid", Json.Encode.int skjema.konseptId )
                 ]
 
         Nothing ->

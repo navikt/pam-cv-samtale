@@ -6,8 +6,6 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
-import Cv.Sammendrag
-import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
@@ -25,8 +23,10 @@ import Process
 import SamtaleAnimasjon
 import Seksjon.Arbeidserfaring
 import Seksjon.Avslutning
+import Seksjon.Fagdokumentasjon
 import Seksjon.Personalia
 import Seksjon.Sammendrag
+import Seksjon.Seksjonsvalg
 import Seksjon.Sprak
 import Seksjon.Utdanning
 import Svg exposing (path, svg)
@@ -97,6 +97,8 @@ type SamtaleSeksjon
     | UtdanningSeksjon Seksjon.Utdanning.Model
     | ArbeidsErfaringSeksjon Seksjon.Arbeidserfaring.Model
     | SpråkSeksjon Seksjon.Sprak.Model
+    | FagdokumentasjonSeksjon Seksjon.Fagdokumentasjon.Model
+    | SeksjonsvalgSeksjon Seksjon.Seksjonsvalg.Model
     | AvslutningSeksjon Seksjon.Avslutning.Model
     | SammendragSeksjon Seksjon.Sammendrag.Model
 
@@ -132,7 +134,9 @@ type SuccessMsg
     | UtdanningsMsg Seksjon.Utdanning.Msg
     | ArbeidserfaringsMsg Seksjon.Arbeidserfaring.Msg
     | SpråkMsg Seksjon.Sprak.Msg
+    | SeksjonsvalgMsg Seksjon.Seksjonsvalg.Msg
     | SammendragMsg Seksjon.Sammendrag.Msg
+    | FagdokumentasjonMsg Seksjon.Fagdokumentasjon.Msg
     | AvslutningMsg Seksjon.Avslutning.Msg
     | StartÅSkrive
     | FullførMelding
@@ -503,9 +507,9 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Sprak.Ferdig meldingsLogg ->
-                            -- TODO: Gå til mellomlanding
-                            gåTilSammendrag model meldingsLogg
+                            gåTilSeksjonsValg model meldingsLogg
 
+                --gåTilSammendrag model meldingsLogg
                 _ ->
                     ( Success model, Cmd.none )
 
@@ -541,6 +545,79 @@ updateSuccess successMsg model =
 
                         Seksjon.Avslutning.Ferdig nyModel meldingsLogg ->
                             ( Success model, Cmd.none )
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+        SeksjonsvalgMsg msg ->
+            case model.aktivSamtale of
+                SeksjonsvalgSeksjon seksjonsvalgModel ->
+                    case Seksjon.Seksjonsvalg.update msg seksjonsvalgModel of
+                        Seksjon.Seksjonsvalg.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> SeksjonsvalgSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Seksjonsvalg.Ferdig seksjon nyModel meldingsLogg ->
+                            -- TODO: her legger man inn caser for hvor seksjonsvalget skal gå
+                            case seksjon of
+                                "Arbeidserfaring" ->
+                                    gåTilArbeidserfaring model meldingsLogg
+
+                                "Utdanning" ->
+                                    gåTilUtdanning model meldingsLogg
+
+                                "Språk" ->
+                                    gåTilSpråk model meldingsLogg
+
+                                "Nei, gå videre" ->
+                                    gåTilSammendrag model meldingsLogg
+
+                                -- FIXME: ikke implementert
+                                "Fagbrev/Svennebrev" ->
+                                    gåTilFagbrev model meldingsLogg
+
+                                "Mesterbrev" ->
+                                    gåTilMesterbrev model meldingsLogg
+
+                                "Autorisasjon" ->
+                                    gåTilAutorisasjon model meldingsLogg
+
+                                "Sertifisering" ->
+                                    ( Success model, Cmd.none )
+
+                                "Annen erfaring" ->
+                                    ( Success model, Cmd.none )
+
+                                "Kurs" ->
+                                    ( Success model, Cmd.none )
+
+                                "Førerkort" ->
+                                    ( Success model, Cmd.none )
+
+                                _ ->
+                                    ( Success model, Cmd.none )
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+        FagdokumentasjonMsg msg ->
+            case model.aktivSamtale of
+                FagdokumentasjonSeksjon fagdokumentasjonModel ->
+                    case Seksjon.Fagdokumentasjon.update msg fagdokumentasjonModel of
+                        Seksjon.Fagdokumentasjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> FagdokumentasjonSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) cmd
+                            )
+
+                        Seksjon.Fagdokumentasjon.Ferdig fagdokumentasjonListe meldingsLogg ->
+                            gåTilSeksjonsValg model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -592,6 +669,48 @@ gåTilSpråk model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilFagbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilFagbrev model ferdigAnimertMeldingsLogg =
+    let
+        ( fagbrevModel, fagbrevCmd ) =
+            Seksjon.Fagdokumentasjon.initFagbrev ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = FagdokumentasjonSeksjon fagbrevModel
+        }
+    , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) fagbrevCmd
+    )
+
+
+gåTilMesterbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilMesterbrev model ferdigAnimertMeldingsLogg =
+    let
+        ( fagbrevModel, fagbrevCmd ) =
+            Seksjon.Fagdokumentasjon.initMesterbrev ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = FagdokumentasjonSeksjon fagbrevModel
+        }
+    , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) fagbrevCmd
+    )
+
+
+gåTilAutorisasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
+    let
+        ( fagbrevModel, fagbrevCmd ) =
+            Seksjon.Fagdokumentasjon.initAutorisasjon ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = FagdokumentasjonSeksjon fagbrevModel
+        }
+    , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) fagbrevCmd
+    )
+
+
 gåTilSammendrag : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 gåTilSammendrag model ferdigAnimertMeldingsLogg =
     let
@@ -617,6 +736,20 @@ gåTilAvslutning model ferdigAnimertMeldingsLogg =
             | aktivSamtale = AvslutningSeksjon avslutningModel
         }
     , Cmd.map (AvslutningMsg >> SuccessMsg) avslutningCmd
+    )
+
+
+gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
+    let
+        ( seksjonsvalgModel, seksjonsvalgCmd ) =
+            Seksjon.Seksjonsvalg.init ferdigAnimertMeldingsLogg
+    in
+    ( Success
+        { model
+            | aktivSamtale = SeksjonsvalgSeksjon seksjonsvalgModel
+        }
+    , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) seksjonsvalgCmd
     )
 
 
@@ -674,6 +807,12 @@ meldingsLoggFraSeksjon successModel =
 
         SpråkSeksjon model ->
             Seksjon.Sprak.meldingsLogg model
+
+        FagdokumentasjonSeksjon model ->
+            Seksjon.Fagdokumentasjon.meldingsLogg model
+
+        SeksjonsvalgSeksjon model ->
+            Seksjon.Seksjonsvalg.meldingsLogg model
 
         SammendragSeksjon model ->
             Seksjon.Sammendrag.meldingsLogg model
@@ -784,10 +923,20 @@ viewBrukerInput aktivSamtale =
                 |> Seksjon.Arbeidserfaring.viewBrukerInput
                 |> Html.map (ArbeidserfaringsMsg >> SuccessMsg)
 
+        FagdokumentasjonSeksjon fagbrevSeksjon ->
+            fagbrevSeksjon
+                |> Seksjon.Fagdokumentasjon.viewBrukerInput
+                |> Html.map (FagdokumentasjonMsg >> SuccessMsg)
+
         AvslutningSeksjon avslutningSeksjon ->
             avslutningSeksjon
                 |> Seksjon.Avslutning.viewBrukerInput
                 |> Html.map (AvslutningMsg >> SuccessMsg)
+
+        SeksjonsvalgSeksjon seksjonsvalgSeksjon ->
+            seksjonsvalgSeksjon
+                |> Seksjon.Seksjonsvalg.viewBrukerInput
+                |> Html.map (SeksjonsvalgMsg >> SuccessMsg)
 
 
 

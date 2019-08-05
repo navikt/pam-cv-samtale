@@ -247,9 +247,10 @@ samtaleTilMeldingsLogg sammendragSeksjon =
             else
                 [ Melding.spørsmål [ "Nå skal vi skrive et sammendrag." ]
                 , Melding.spørsmål
-                    [ "Jeg ser at du har lagt inn noe allerede."
-                    , "Vil du lese gjennom det og se at alt fremdeles stemmer?"
+                    [ "Du har allerede skrevet dette..."
                     ]
+                , Melding.spørsmål (String.split "\n" sammendrag)
+                , Melding.spørsmål [ "Vil du legge til eller endre på noe?" ]
                 ]
 
         EndreOriginal string ->
