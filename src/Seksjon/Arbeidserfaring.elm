@@ -81,7 +81,7 @@ type SamtaleStatus
 
 
 type Msg
-    = BrukerOppretterNyArbeidserfaring
+    = BrukerOppretterNyArbeidserfaring String
     | BrukerVilRedigereArbeidserfaring String
     | BrukerHarValgtArbeidserfaringÅRedigere ArbeidserfaringSkjema String
     | BrukerHopperOverArbeidserfaring String
@@ -339,11 +339,11 @@ update msg (Model info) =
                     )
                         |> IkkeFerdig
 
-        BrukerOppretterNyArbeidserfaring ->
+        BrukerOppretterNyArbeidserfaring knappeTekst ->
             ( ""
                 |> TypeaheadState.init
                 |> RegistrerYrke
-                |> nesteSamtaleSteg info (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
+                |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
             , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
@@ -537,7 +537,7 @@ update msg (Model info) =
                     ( jobbtittelInfo
                         |> jobbtittelInfoTilBedriftnavnsInfo
                         |> RegistrereBedriftNavn
-                        |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
+                        |> nesteSamtaleSteg info (Melding.svar [ jobbtittelInfo.jobbtittel ])
                     , lagtTilSpørsmålCmd
                     )
                         |> IkkeFerdig
@@ -730,7 +730,9 @@ update msg (Model info) =
         BrukerTrykketTilMånedKnapp måned ->
             case info.aktivSamtale of
                 RegistrereTilMåned tilDatoInfo ->
-                    ( RegistrereTilÅr tilDatoInfo
+                    ( måned
+                        |> setTilMåned tilDatoInfo
+                        |> RegistrereTilÅr
                         |> nesteSamtaleSteg info
                             (Melding.svar
                                 [ måned
@@ -1179,6 +1181,11 @@ setFraMåned fraDatoInfo måned =
     { fraDatoInfo | fraMåned = måned }
 
 
+setTilMåned : TilDatoInfo -> Dato.Måned -> TilDatoInfo
+setTilMåned tilDatoInfo måned =
+    { tilDatoInfo | tilMåned = måned }
+
+
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
@@ -1395,7 +1402,8 @@ viewBrukerInput (Model info) =
                         div [ class "skjema-wrapper" ]
                             [ div [ class "knapperad-wrapper" ]
                                 [ div [ class "inputrad" ]
-                                    [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring"
+                                    [ "Ja, jeg har arbeidserfaring"
+                                        |> Knapp.knapp (BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring")
                                         |> Knapp.toHtml
                                     ]
                                 , div [ class "inputrad" ]
@@ -1409,7 +1417,8 @@ viewBrukerInput (Model info) =
                         div [ class "skjema-wrapper" ]
                             [ div [ class "knapperad-wrapper" ]
                                 [ div [ class "inputrad" ]
-                                    [ Knapp.knapp BrukerOppretterNyArbeidserfaring "Ja, jeg vil legge til mer"
+                                    [ "Ja, jeg vil legge til mer"
+                                        |> Knapp.knapp (BrukerOppretterNyArbeidserfaring "Ja, jeg vil legge til mer")
                                         |> Knapp.toHtml
                                     ]
                                 , div [ class "inputrad" ]
@@ -1627,15 +1636,13 @@ viewBrukerInput (Model info) =
                 RegistrereTilÅr tilDatoInfo ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ label [] [ text "Skriv inn år" ]
-                            , input
-                                [ tilDatoInfo.tilÅr |> value
-                                , BrukerOppdatererTilÅr
-                                    |> onInput
+                            [ tilDatoInfo.tilÅr
+                                |> Input.input { label = "Hvilket år sluttet du der?", msg = BrukerOppdatererTilÅr }
+                                |> Input.toHtml
+                            , div [ class "inputrad" ]
+                                [ BrukerVilGåTilOppsummering
+                                    |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
                                 ]
-                                []
-                            , BrukerVilGåTilOppsummering
-                                |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
                             ]
                         ]
 
@@ -1710,14 +1717,22 @@ viewBrukerInput (Model info) =
                     div [] []
 
                 SpørOmBrukerVilLeggeInnMer ->
-                    div [ class "inputrad" ]
+                    div [ class "skjema-wrapper" ]
                         [ div [ class "inputrad-innhold" ]
-                            [ Knapp.knapp
-                                NyArbeidserfaring
-                                "Ja, legg til en arbeidserfaring"
-                                |> Knapp.toHtml
-                            , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
-                                |> Knapp.toHtml
+                            [ div [ class "inputrad" ]
+                                [ Knapp.knapp
+                                    NyArbeidserfaring
+                                    "Ja, legg til en arbeidserfaring"
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp (BrukerVilRedigereArbeidserfaring "Rediger arbeidserfaring") "Rediger arbeidserfaring"
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 

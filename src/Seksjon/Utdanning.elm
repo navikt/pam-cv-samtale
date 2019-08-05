@@ -792,7 +792,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
 
         VenterPåAnimasjonFørFullføring _ ->
-            [ Melding.spørsmål [ "Hvis du ikke vil legge til utdanning, så går vi videre til arbeidserfaring" ] ]
+            [ Melding.spørsmål [ "Hvis du ikke vil legge til utdanning, så går vi videre." ] ]
 
         _ ->
             []
