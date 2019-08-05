@@ -8,6 +8,7 @@ module Skjema.ArbeidserfaringSkjema exposing
     , bedriftNavn
     , encode
     , fraDato
+    , id
     , jobbTittel
     , lokasjon
     , mapTypeaheadState
@@ -50,6 +51,7 @@ type alias ValidertSkjemaInfo =
     , tilDato : Maybe Dato
     , styrkkode : String
     , konseptId : Int
+    , id : Maybe String
     }
 
 
@@ -69,6 +71,7 @@ type alias SkjemaInfo =
     , tilDato : Maybe Dato
     , styrkkode : String
     , konseptId : Int
+    , id : Maybe String
     }
 
 
@@ -92,6 +95,11 @@ yrkeTypeahead (ArbeidserfaringSkjema info) =
 yrke : ValidertArbeidserfaringSkjema -> Yrke
 yrke (ValidertArbeidserfaringSkjema info) =
     info.yrke
+
+
+id : ValidertArbeidserfaringSkjema -> Maybe String
+id (ValidertArbeidserfaringSkjema info) =
+    info.id
 
 
 jobbTittel : ArbeidserfaringSkjema -> String
@@ -361,6 +369,7 @@ tilArbeidserfaringSkjema (ValidertArbeidserfaringSkjema info) =
         , tilDato = info.tilDato
         , styrkkode = info.styrkkode
         , konseptId = info.konseptId
+        , id = info.id
         }
 
 
@@ -368,19 +377,24 @@ valider : ArbeidserfaringSkjema -> Maybe ValidertArbeidserfaringSkjema
 valider (ArbeidserfaringSkjema info) =
     case info.yrke of
         Yrke yrkefelt ->
-            ValidertArbeidserfaringSkjema
-                { yrke = yrkefelt
-                , jobbTittel = info.jobbTittel
-                , bedriftNavn = info.bedriftNavn
-                , lokasjon = info.lokasjon
-                , arbeidsoppgaver = info.arbeidsoppgaver
-                , fraDato = info.fraDato
-                , naavarende = info.naavarende
-                , tilDato = info.tilDato
-                , styrkkode = info.styrkkode
-                , konseptId = info.konseptId
-                }
-                |> Just
+            if Yrke.label yrkefelt /= "" then
+                ValidertArbeidserfaringSkjema
+                    { yrke = yrkefelt
+                    , jobbTittel = info.jobbTittel
+                    , bedriftNavn = info.bedriftNavn
+                    , lokasjon = info.lokasjon
+                    , arbeidsoppgaver = info.arbeidsoppgaver
+                    , fraDato = info.fraDato
+                    , naavarende = info.naavarende
+                    , tilDato = info.tilDato
+                    , styrkkode = info.styrkkode
+                    , konseptId = info.konseptId
+                    , id = info.id
+                    }
+                    |> Just
+
+            else
+                Nothing
 
         Typeahead typeaheadState ->
             Nothing
