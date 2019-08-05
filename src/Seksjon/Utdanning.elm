@@ -172,7 +172,7 @@ forrigeTilOppsummeringInfo tildatoInfo =
         , fradato = Dato.tilDato (tildatoInfo.forrige.fraÅr ++ "-" ++ (tildatoInfo.forrige.fraMåned |> Dato.månedTilString))
         , tildato =
             if tildatoInfo.forrige.navarende then
-                Just (Dato.tilDato "1999-09-09")
+                Nothing
 
             else
                 Just (Dato.tilDato (tildatoInfo.tilÅr ++ "-" ++ (tildatoInfo.tilMåned |> Dato.månedTilString)))
@@ -817,7 +817,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
 
         VenterPåAnimasjonFørFullføring _ ->
-            [ Melding.spørsmål [ "Da er vi ferdige med din utdanning og fortsetter med arbeidserfaring." ] ]
+            [ Melding.spørsmål [ "Hvis du ikke vil legge til utdanning, så går vi videre." ] ]
 
         _ ->
             []
@@ -1101,7 +1101,7 @@ viewBrukerInput (Model model) =
                     endreSkjema model utdanningsskjema
 
                 LeggTilFlereUtdannelser _ ->
-                    div [ class "skjema-wrapper" ]
+                    div [ class "knapperad-wrapper" ]
                         [ div [ class "inputrad" ]
                             [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
                                 |> Knapp.withClass Knapp.UtdanningsNivåKnapp

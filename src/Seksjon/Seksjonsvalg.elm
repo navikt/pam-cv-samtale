@@ -212,6 +212,7 @@ viewBrukerInput (Model model) =
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     , Knapp.knapp (GåTilSeksjon "Sertifisering") "Sertifisering"
+                                        |> Knapp.withEnabled Disabled
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
                                     , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"

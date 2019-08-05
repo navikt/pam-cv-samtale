@@ -1,6 +1,7 @@
 module Yrke exposing
     ( Yrke
     , decode
+    , fraString
     , konseptId
     , label
     , styrkkode
@@ -20,6 +21,15 @@ type alias YrkeTypeaheadInfo =
     , label : String
     , styrk08 : String
     }
+
+
+fraString : String -> String -> String -> Yrke
+fraString yrk styrk konsept =
+    Yrke
+        { konseptId = Maybe.withDefault 1 (String.toInt konsept)
+        , label = yrk
+        , styrk08 = styrk
+        }
 
 
 label : Yrke -> String

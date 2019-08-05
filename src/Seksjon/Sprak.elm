@@ -622,14 +622,16 @@ viewBrukerInput (Model model) =
                             ]
 
                     else
-                        div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                    |> Knapp.toHtml
+                        div [ class "skjema-wrapper" ]
+                            [ div [ class "skjema" ]
+                                [ div [ class "inputrad" ]
+                                    [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                        |> Knapp.toHtml
+                                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
                             ]
 
