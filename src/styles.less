@@ -224,17 +224,31 @@ html {
 .knapperad-wrapper {
   width: max-content;
   align-self: flex-end;
-
 }
 
 .inputrad {
   display: flex;
   justify-content: flex-end;
   margin-top: 0.5rem;
+  .Knapp {
+    margin-top: 0.5rem;
+    min-width: 5rem;
+    margin-right: 1rem;
+  }
+  .Knapp:last-child {
+    margin-right: 0;
+    margin-left: 0;
+  }
+  .Knapp--disabled{
+    margin-top: 0.5rem;
+    min-width: 5rem;
+    margin-right: 1rem;
+    width: 100%
+  }
   .inputrad-innhold {
     display: flex;
     justify-content: flex-end;
-    //flex-wrap: wrap;
+    flex-wrap: wrap;
     @media (min-width: 768px) {
       width: @meldingBredde;
     }
@@ -245,34 +259,41 @@ html {
 
     .Knapp {
       margin-top: 0.5rem;
-      width: -moz-fit-content;
+      min-width: 5rem;
+      margin-right: 1rem;
+    }
+    .Knapp:last-child {
+      margin-right: 0;
+      margin-left: 0;
     }
 
-    .Knapp:not(:first-child) {
-      margin-left: 1rem;
-    }
+
   }
+
+
 
   .månedknapp {
     width: 140px;
   }
 
   .utdanningsnivåknapp {
-    width: 320px;
+    width: 20rem;
   }
 
   .språknivåknapp {
-    width: 300px;
+    min-width: 100%;
   }
 
   .leggetilutdannelseknapp {
-    width: 380px;
+    width: 23rem
   }
 
 }
 
 
-
+.avslutt-knapp {
+  text-decoration: none;
+}
 .typeahead {
   position: relative;
   ul {

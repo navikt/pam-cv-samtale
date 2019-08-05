@@ -622,12 +622,16 @@ viewBrukerInput (Model model) =
                             ]
 
                     else
-                        div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                    |> Knapp.toHtml
+                        div [ class "skjema-wrapper" ]
+                            [ div [ class "skjema" ]
+                                [ div [ class "inputrad" ]
+                                    [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                        |> Knapp.toHtml
+                                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
                             ]
 
@@ -645,8 +649,10 @@ viewBrukerInput (Model model) =
                     div [ class "inputrad" ]
                         [ div [ class "inputrad-innhold" ]
                             [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -656,14 +662,17 @@ viewBrukerInput (Model model) =
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputrad" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Nybegynner)) "Jeg er nybegynner"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Godt)) ("Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig VeldigGodt)) ("Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -674,14 +683,17 @@ viewBrukerInput (Model model) =
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputrad" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Nybegynner)) "Jeg er nybegynner"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Godt)) ("Jeg snakker godt " ++ String.toLower enkeltSpråk)
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk VeldigGodt)) ("Jeg snakker veldig godt " ++ String.toLower enkeltSpråk)
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -690,22 +702,32 @@ viewBrukerInput (Model model) =
                 VelgNyttSpråk valgtSpråk ->
                     case model.språkKoder of
                         Success list ->
-                            div []
-                                [ div [ class "inputrad" ]
-                                    [ div [ class "inputrad-innhold" ]
-                                        [ Select.select "Språk" ValgtSpråk (( "Velg språk", "Velg språk" ) :: List.map (\el -> ( Sprakkoder.kode el, Sprakkoder.term el )) list) |> Select.toHtml
-                                        ]
-                                    ]
-                                , div [ class "inputrad" ]
-                                    [ Knapp.knapp BrukerHarValgtSpråk "Legg til"
-                                        |> Knapp.withEnabled
-                                            (if valgtSpråk /= Nothing then
-                                                Knapp.Enabled
+                            div [ class "skjema-wrapper" ]
+                                [ div [ class "skjema" ]
+                                    [ div [ class "inputrad" ]
+                                        [ div []
+                                            [ Select.select "Språk"
+                                                ValgtSpråk
+                                                (( "Velg språk", "Velg språk" )
+                                                    :: List.map
+                                                        (\el ->
+                                                            ( Sprakkoder.kode el, Sprakkoder.term el )
+                                                        )
+                                                        list
+                                                )
+                                                |> Select.toHtml
+                                            , Knapp.knapp BrukerHarValgtSpråk "Legg til"
+                                                |> Knapp.withEnabled
+                                                    (if valgtSpråk /= Nothing then
+                                                        Knapp.Enabled
 
-                                             else
-                                                Knapp.Disabled
-                                            )
-                                        |> Knapp.toHtml
+                                                     else
+                                                        Knapp.Disabled
+                                                    )
+                                                |> Knapp.withClass Knapp.SpråknivåKnapp
+                                                |> Knapp.toHtml
+                                            ]
+                                        ]
                                     ]
                                 ]
 

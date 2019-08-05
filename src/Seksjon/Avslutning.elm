@@ -313,7 +313,16 @@ viewBrukerInput (Model model) =
         FerdigAnimert _ ->
             case model.aktivSamtale of
                 AvsluttendeOrd ->
-                    text ""
+                    div []
+                        [ a [ href "https://arbeidsplassen.nav.no/cv", class "avslutt-knapp" ]
+                            [ div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ div [ class "Knapp" ]
+                                        [ text "Avslutt og vis CV-en min" ]
+                                    ]
+                                ]
+                            ]
+                        ]
 
                 VenterPåAnimasjonFørFullføring ->
                     text ""
@@ -327,6 +336,7 @@ viewBrukerInput (Model model) =
                                         "Ja, Cv-en skal være synlig for arbeidsgivere"
                                   in
                                   Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputrad" ]
@@ -335,6 +345,7 @@ viewBrukerInput (Model model) =
                                         "Nei, CV-en skal bare være synlig for meg"
                                   in
                                   Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -354,12 +365,14 @@ viewBrukerInput (Model model) =
                                     "Ja, prøv på nytt"
                               in
                               Knapp.knapp (BrukerVilHentePersonPåNytt hentBruker) hentBruker
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             , let
                                 avslutt =
                                     "Nei, jeg gjør det senere"
                               in
                               Knapp.knapp (BrukerVilAvslutte avslutt) avslutt
+                                |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
                             ]
                         ]

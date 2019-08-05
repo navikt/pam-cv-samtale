@@ -863,13 +863,19 @@ viewBrukerInput (Model model) =
             case model.aktivSamtale of
                 Intro _ ->
                     if List.isEmpty model.utdanningListe then
-                        div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
-                                    |> Knapp.toHtml
-                                , "Jeg har ingen utdanning"
-                                    |> Knapp.knapp (GåTilArbeidserfaring "Jeg har ingen utdanning")
-                                    |> Knapp.toHtml
+                        div [ class "skjema-wrapper" ]
+                            [ div [ class "sjema" ]
+                                [ div [ class "inputrad" ]
+                                    [ div [ class "inputrad-innhold" ]
+                                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
+                                            |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
+                                            |> Knapp.toHtml
+                                        , "Jeg har ingen utdanning"
+                                            |> Knapp.knapp (GåTilArbeidserfaring "Jeg har ingen utdanning")
+                                            |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
+                                            |> Knapp.toHtml
+                                        ]
+                                    ]
                                 ]
                             ]
 
@@ -931,26 +937,24 @@ viewBrukerInput (Model model) =
 
                 RegistrerSkole skoleinfo ->
                     div [ class "skjema-wrapper" ]
-                        [ div [ class "Skjema" ]
+                        [ div [ class "skjema" ]
                             [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "" } |> Input.toHtml
-                            , div [ class "inputrad" ]
-                                [ Knapp.knapp BrukerVilRegistrereSkole "Lagre"
-                                    |> (if skoleinfo.skole /= "" then
-                                            Knapp.withEnabled Knapp.Enabled
+                            , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
+                                |> (if skoleinfo.skole /= "" then
+                                        Knapp.withEnabled Knapp.Enabled
 
-                                        else
-                                            Knapp.withEnabled Knapp.Disabled
-                                       )
-                                    |> Knapp.toHtml
-                                ]
+                                    else
+                                        Knapp.withEnabled Knapp.Disabled
+                                   )
+                                |> Knapp.toHtml
                             ]
                         ]
 
                 RegistrerRetning retningsinfo ->
-                    div [ class "Skjema" ]
-                        [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "" } |> Input.toHtml
-                        , div [ class "inputrad" ]
-                            [ Knapp.knapp BrukerVilRegistrereRetning "Lagre"
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "" } |> Input.toHtml
+                            , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
                                 |> (if retningsinfo.retning /= "" then
                                         Knapp.withEnabled Knapp.Enabled
 
@@ -962,16 +966,18 @@ viewBrukerInput (Model model) =
                         ]
 
                 RegistrerBeskrivelse beskrivelseinfo ->
-                    div [ class "Skjema" ]
-                        [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "" } |> Textarea.toHtml
-                        , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
-                            |> (if beskrivelseinfo.beskrivelse /= "" then
-                                    Knapp.withEnabled Knapp.Enabled
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "" } |> Textarea.toHtml
+                            , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
+                                |> (if beskrivelseinfo.beskrivelse /= "" then
+                                        Knapp.withEnabled Knapp.Enabled
 
-                                else
-                                    Knapp.withEnabled Knapp.Disabled
-                               )
-                            |> Knapp.toHtml
+                                    else
+                                        Knapp.withEnabled Knapp.Disabled
+                                   )
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 RegistrereFraMåned fraDatoInfo ->
@@ -1011,14 +1017,12 @@ viewBrukerInput (Model model) =
                         ]
 
                 RegistrereFraÅr fraDatoInfo ->
-                    div [ class "skjemawrapper" ]
+                    div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ fraDatoInfo.fraÅr
                                 |> Input.input { label = "", msg = OppdaterFraÅr fraDatoInfo }
                                 |> Input.toHtml
-                            ]
-                        , div [ class "inputrad" ]
-                            [ BrukerVilRegistrereNaavarende
+                            , BrukerVilRegistrereNaavarende
                                 |> lagÅrInputKnapp "Lagre" fraDatoInfo.fraÅr
                             ]
                         ]
@@ -1026,11 +1030,13 @@ viewBrukerInput (Model model) =
                 RegistrereNavarende fraDatoInfo ->
                     div []
                         [ div [ class "inputrad" ]
-                            [ BrukerSvarerJaTilNaavarende
-                                |> lagMessageKnapp "Ja"
-                            , fraDatoInfo
-                                |> BrukerSvarerNeiTilNaavarende
-                                |> lagMessageKnapp "Nei"
+                            [ div [ class "inputrad-innhold" ]
+                                [ BrukerSvarerJaTilNaavarende
+                                    |> lagMessageKnapp "Ja"
+                                , fraDatoInfo
+                                    |> BrukerSvarerNeiTilNaavarende
+                                    |> lagMessageKnapp "Nei"
+                                ]
                             ]
                         ]
 
@@ -1071,24 +1077,24 @@ viewBrukerInput (Model model) =
                         ]
 
                 RegistrereTilÅr tilDatoInfo ->
-                    div [ class "skjemawrapper" ]
+                    div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ tilDatoInfo.tilÅr
                                 |> Input.input { label = "", msg = OppdaterTilÅr tilDatoInfo }
                                 |> Input.toHtml
-                            ]
-                        , div [ class "inputrad" ]
-                            [ BrukerVilGåTilOppsummering
+                            , BrukerVilGåTilOppsummering
                                 |> lagÅrInputKnapp "Lagre" tilDatoInfo.tilÅr
                             ]
                         ]
 
                 Oppsummering _ ->
                     div [ class "inputrad" ]
-                        [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
-                            |> Knapp.toHtml
-                        , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
-                            |> Knapp.toHtml
+                        [ div [ class "inputrad-innhold" ]
+                            [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
+                                |> Knapp.toHtml
+                            , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 EndrerOppsummering utdanningsskjema ->
@@ -1098,10 +1104,12 @@ viewBrukerInput (Model model) =
                     div [ class "knapperad-wrapper" ]
                         [ div [ class "inputrad" ]
                             [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
                         , div [ class "inputrad" ]
                             [ Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
+                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
                         ]

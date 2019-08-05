@@ -20,6 +20,7 @@ import Feilmelding
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Select as Select
+import FrontendModuler.Textarea as Textarea
 import FrontendModuler.Typeahead as Typeahead
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -840,38 +841,50 @@ viewBrukerInput (Model model) =
 
                 RegistrerFagbrev typeaheadState ->
                     div [ class "skjema-wrapper" ]
-                        [ viewTypeaheadRegistrerFagbrev typeaheadState
+                        [ div [ class "skjema" ]
+                            [ viewTypeaheadRegistrerFagbrev typeaheadState
+                            ]
                         ]
 
                 RegistrerMesterbrev typeaheadState ->
                     div [ class "skjema-wrapper" ]
-                        [ viewTypeaheadRegistrerMesterbrev typeaheadState
+                        [ div [ class "skjema" ]
+                            [ viewTypeaheadRegistrerMesterbrev typeaheadState
+                            ]
                         ]
 
                 RegistrerAutorisasjon typeaheadState ->
                     div [ class "skjema-wrapper" ]
-                        [ viewTypeaheadRegistrerAutorisasjon typeaheadState
+                        [ div [ class "skjema" ]
+                            [ viewTypeaheadRegistrerAutorisasjon typeaheadState
+                            ]
                         ]
 
                 RegistrerFagbrevBeskrivelse beskrivelseinfo ->
-                    div [ class "Skjema" ]
-                        [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Input.toHtml
-                        , Knapp.knapp BrukerVilRegistrereFagbrevBeskrivelse "Lagre"
-                            |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Textarea.toHtml
+                            , Knapp.knapp BrukerVilRegistrereFagbrevBeskrivelse "Lagre"
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 RegistrerMesterbrevBeskrivelse beskrivelseinfo ->
-                    div [ class "Skjema" ]
-                        [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Input.toHtml
-                        , Knapp.knapp BrukerVilRegistrereMesterbrevBeskrivelse "Lagre"
-                            |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Textarea.toHtml
+                            , Knapp.knapp BrukerVilRegistrereMesterbrevBeskrivelse "Lagre"
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 RegistrerAutorisasjonBeskrivelse beskrivelseinfo ->
-                    div [ class "Skjema" ]
-                        [ beskrivelseinfo.beskrivelse |> Input.input { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Input.toHtml
-                        , Knapp.knapp BrukerVilRegistrereAutorisasjonBeskrivelse "Lagre"
-                            |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Textarea.toHtml
+                            , Knapp.knapp BrukerVilRegistrereAutorisasjonBeskrivelse "Lagre"
+                                |> Knapp.toHtml
+                            ]
                         ]
 
                 LeggTilFlereFagdokumentasjoner string ->

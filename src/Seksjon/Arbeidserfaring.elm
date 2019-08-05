@@ -1404,10 +1404,12 @@ viewBrukerInput (Model info) =
                                 [ div [ class "inputrad" ]
                                     [ "Ja, jeg har arbeidserfaring"
                                         |> Knapp.knapp (BrukerOppretterNyArbeidserfaring "Ja, jeg har arbeidserfaring")
+                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
                                         |> Knapp.toHtml
                                     ]
                                 , div [ class "inputrad" ]
                                     [ Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har ingen arbeidserfaring") "Nei, jeg har ingen arbeidserfaring"
+                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
@@ -1465,19 +1467,25 @@ viewBrukerInput (Model info) =
                         ]
 
                 SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
-                    div [ class "skjmawrapper" ]
-                        [ div [ class "inputrad" ]
-                            [ (jobbtittelInfo
-                                |> BrukerVilEndreJobbtittel
-                                |> Knapp.knapp
-                              )
-                                "Nei, legg til nytt navn"
-                                |> Knapp.toHtml
-                            , (BrukerVilRegistrereBedriftnavn "Ja, det stemmer"
-                                |> Knapp.knapp
-                              )
-                                "Ja, det stemmer"
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputrad" ]
+                                [ div [ class "inputrad-innhold" ]
+                                    [ (jobbtittelInfo
+                                        |> BrukerVilEndreJobbtittel
+                                        |> Knapp.knapp
+                                      )
+                                        "Nei, legg til nytt navn"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
+                                        |> Knapp.toHtml
+                                    , (BrukerVilRegistrereBedriftnavn "Ja, det stemmer"
+                                        |> Knapp.knapp
+                                      )
+                                        "Ja, det stemmer"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
+                                        |> Knapp.toHtml
+                                    ]
+                                ]
                             ]
                         ]
 
@@ -1571,7 +1579,7 @@ viewBrukerInput (Model info) =
                         ]
 
                 RegistrereFraÅr fraDatoInfo ->
-                    div [ class "skjemawrapper" ]
+                    div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ fraDatoInfo.fraÅr
                                 |> Input.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr }
@@ -1908,6 +1916,7 @@ lagÅrInputKnapp knappeTekst inputTekst msg =
 lagMessageKnapp : String -> Msg -> Html Msg
 lagMessageKnapp knappeTekst msg =
     Knapp.knapp msg knappeTekst
+        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
         |> Knapp.toHtml
 
 
