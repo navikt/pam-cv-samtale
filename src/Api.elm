@@ -1,5 +1,6 @@
 module Api exposing
-    ( getAAreg
+    ( deleteArbeidserfaring
+    , getAAreg
     , getAutorisasjonTypeahead
     , getCv
     , getFagbrevTypeahead
@@ -165,6 +166,19 @@ putArbeidserfaring msgConstructor skjema id =
         , url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring/" ++ id
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
         , body = Skjema.ArbeidserfaringSkjema.encode skjema |> jsonBody
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+deleteArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> String -> Cmd msg
+deleteArbeidserfaring msgConstructor id =
+    Http.request
+        { method = "DELETE"
+        , headers = []
+        , url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring/" ++ id
+        , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
+        , body = Http.emptyBody
         , timeout = Nothing
         , tracker = Nothing
         }
