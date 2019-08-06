@@ -817,7 +817,11 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
 
         VenterPåAnimasjonFørFullføring _ ->
-            [ Melding.spørsmål [ "Hvis du ikke vil legge til utdanning, så går vi videre." ] ]
+            [ Melding.spørsmål
+                [ "Da var vi ferdige med utdanningen og går videre!"
+                , "Husk at du kan alltid komme tilbake og legge til flere!"
+                ]
+            ]
 
         _ ->
             []
@@ -1101,16 +1105,18 @@ viewBrukerInput (Model model) =
                     endreSkjema model utdanningsskjema
 
                 LeggTilFlereUtdannelser _ ->
-                    div [ class "knapperad-wrapper" ]
-                        [ div [ class "inputrad" ]
-                            [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
-                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                |> Knapp.toHtml
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
-                                |> Knapp.withClass Knapp.UtdanningsNivåKnapp
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputrad" ]
+                                [ Knapp.knapp BrukerVilRegistrereUtdanning "Legg til flere"
+                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp OriginalOppsummeringBekreftet "Ferdig med å legge til utdannelser"
+                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
