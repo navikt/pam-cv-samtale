@@ -169,13 +169,13 @@ forrigeTilOppsummeringInfo tildatoInfo =
         , studiested = tildatoInfo.forrige.forrige.forrige.forrige.skole
         , utdanningsretning = tildatoInfo.forrige.forrige.forrige.retning
         , beskrivelse = tildatoInfo.forrige.forrige.beskrivelse
-        , fradato = Dato.tilDato (tildatoInfo.forrige.fraÅr ++ "-" ++ (tildatoInfo.forrige.fraMåned |> Dato.månedTilString))
+        , fradato = Dato.fraStringTilDato (tildatoInfo.forrige.fraÅr ++ "-" ++ (tildatoInfo.forrige.fraMåned |> Dato.månedTilString))
         , tildato =
             if tildatoInfo.forrige.navarende then
                 Nothing
 
             else
-                Just (Dato.tilDato (tildatoInfo.tilÅr ++ "-" ++ (tildatoInfo.tilMåned |> Dato.månedTilString)))
+                Just (Dato.fraStringTilDato (tildatoInfo.tilÅr ++ "-" ++ (tildatoInfo.tilMåned |> Dato.månedTilString)))
         , navarende = tildatoInfo.forrige.navarende
         }
 
@@ -725,23 +725,58 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 , Melding.spørsmål
                     (List.map
                         (\el ->
-                            if Cv.navarende el |> Maybe.withDefault False then
-                                (Cv.fradato el |> Maybe.withDefault "")
-                                    ++ ": "
-                                    ++ (Cv.studiested el |> Maybe.withDefault "")
-                                    ++ ", "
-                                    ++ " "
-                                    ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                            case Cv.fradato el of
+                                Just fraDato ->
+                                    case Cv.tildato el of
+                                        Just tilDato ->
+                                            (Cv.studiested el |> Maybe.withDefault "")
+                                                ++ " "
+                                                ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                                                ++ " "
+                                                ++ (fraDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.måned
+                                                        |> Dato.månedTilString
+                                                   )
+                                                ++ " "
+                                                ++ (fraDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.år
+                                                        |> String.fromInt
+                                                   )
+                                                ++ " - "
+                                                ++ (tilDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.måned
+                                                        |> Dato.månedTilString
+                                                   )
+                                                ++ " "
+                                                ++ (tilDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.år
+                                                        |> String.fromInt
+                                                   )
 
-                            else
-                                (Cv.fradato el |> Maybe.withDefault "")
-                                    ++ " til "
-                                    ++ (Cv.tildato el |> Maybe.withDefault "")
-                                    ++ ": "
-                                    ++ (Cv.studiested el |> Maybe.withDefault "")
-                                    ++ ", "
-                                    ++ " "
-                                    ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                                        Nothing ->
+                                            (Cv.studiested el |> Maybe.withDefault "")
+                                                ++ " "
+                                                ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                                                ++ " "
+                                                ++ (fraDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.måned
+                                                        |> Dato.månedTilString
+                                                   )
+                                                ++ " "
+                                                ++ (fraDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.år
+                                                        |> String.fromInt
+                                                   )
+                                                ++ " - Nåværende"
+
+                                Nothing ->
+                                    ""
                         )
                         utdannelseListe
                     )
@@ -1226,7 +1261,9 @@ endreSkjema model utdanningsskjema =
                                 |> Input.toHtml
 
                         Nothing ->
-                            text ""
+                            ""
+                                |> Input.input { label = "År", msg = TilÅrEndret >> SkjemaOppdatert }
+                                |> Input.toHtml
                     ]
             ]
         , case model.aktivSamtale of

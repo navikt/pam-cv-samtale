@@ -267,14 +267,14 @@ tilDatoTilSkjema tilDatoInfo =
         , bedriftNavn = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn
         , lokasjon = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.lokasjon
         , arbeidsoppgaver = tilDatoInfo.tidligereInfo.tidligereInfo.arbeidsoppgaver
-        , fraDato = Dato.tilDato (tilDatoInfo.tidligereInfo.fraÅr ++ "-" ++ (tilDatoInfo.tidligereInfo.fraMåned |> Dato.månedTilString))
+        , fraDato = Dato.fraStringTilDato (tilDatoInfo.tidligereInfo.fraÅr ++ "-" ++ (tilDatoInfo.tidligereInfo.fraMåned |> Dato.månedTilString))
         , naavarende = tilDatoInfo.tidligereInfo.naavarende
         , tilDato =
             if tilDatoInfo.tidligereInfo.naavarende then
                 Nothing
 
             else
-                Just (Dato.tilDato (tilDatoInfo.tilÅr ++ "-" ++ (tilDatoInfo.tilMåned |> Dato.månedTilString)))
+                Just (Dato.fraStringTilDato (tilDatoInfo.tilÅr ++ "-" ++ (tilDatoInfo.tilMåned |> Dato.månedTilString)))
         , styrkkode =
             tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
                 |> Yrke.styrkkode
@@ -1867,7 +1867,7 @@ arbeidserfaringTilSkjema arbeidserfaring =
         , arbeidsoppgaver = Maybe.withDefault "" (Cv.Arbeidserfaring.beskrivelse arbeidserfaring)
         , fraDato =
             Maybe.withDefault "2007-09" (Cv.Arbeidserfaring.fradato arbeidserfaring)
-                |> Dato.tilDato
+                |> Dato.fraStringTilDato
         , naavarende = Cv.Arbeidserfaring.navarende arbeidserfaring
         , tilDato =
             if Cv.Arbeidserfaring.navarende arbeidserfaring then
@@ -1876,7 +1876,7 @@ arbeidserfaringTilSkjema arbeidserfaring =
             else
                 Just
                     (Maybe.withDefault "2007-09" (Cv.Arbeidserfaring.tildato arbeidserfaring)
-                        |> Dato.tilDato
+                        |> Dato.fraStringTilDato
                     )
         , styrkkode =
             Maybe.withDefault "" (Cv.Arbeidserfaring.styrkkode arbeidserfaring)
@@ -2013,7 +2013,7 @@ lagRedigerDatoInput arbeidserfaringSkjema =
                     |> Select.withSelected
                         (arbeidserfaringSkjema
                             |> ArbeidserfaringSkjema.tilDato
-                            |> Maybe.withDefault (ArbeidserfaringSkjema.fraDato arbeidserfaringSkjema)
+                            |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
                             |> Dato.måned
                             |> Dato.månedTilString
                         )
@@ -2080,23 +2080,72 @@ init gammelMeldingsLogg arbeidserfaringsListe =
                             , Melding.spørsmål
                                 (List.map
                                     (\el ->
-                                        if Cv.Arbeidserfaring.navarende el then
-                                            (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                                ++ " ("
-                                                ++ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
-                                                ++ ")"
-                                                ++ " "
-                                                ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
+                                        case Cv.Arbeidserfaring.fradato el of
+                                            Just fraDato ->
+                                                case Cv.Arbeidserfaring.tildato el of
+                                                    Just tilDato ->
+                                                        ((if Cv.Arbeidserfaring.yrkeFritekst el == Nothing then
+                                                            Cv.Arbeidserfaring.yrke el
 
-                                        else
-                                            (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                                ++ " ("
-                                                ++ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
-                                                ++ " til "
-                                                ++ (Cv.Arbeidserfaring.tildato el |> Maybe.withDefault "")
-                                                ++ ")"
-                                                ++ " "
-                                                ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
+                                                          else
+                                                            Cv.Arbeidserfaring.yrkeFritekst el
+                                                         )
+                                                            |> Maybe.withDefault ""
+                                                        )
+                                                            ++ " "
+                                                            ++ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                                                            ++ " "
+                                                            ++ (fraDato
+                                                                    |> Dato.fraStringTilDato
+                                                                    |> Dato.måned
+                                                                    |> Dato.månedTilString
+                                                               )
+                                                            ++ " "
+                                                            ++ (fraDato
+                                                                    |> Dato.fraStringTilDato
+                                                                    |> Dato.år
+                                                                    |> String.fromInt
+                                                               )
+                                                            ++ " - "
+                                                            ++ (tilDato
+                                                                    |> Dato.fraStringTilDato
+                                                                    |> Dato.måned
+                                                                    |> Dato.månedTilString
+                                                               )
+                                                            ++ " "
+                                                            ++ (tilDato
+                                                                    |> Dato.fraStringTilDato
+                                                                    |> Dato.år
+                                                                    |> String.fromInt
+                                                               )
+
+                                                    Nothing ->
+                                                        ((if Cv.Arbeidserfaring.yrkeFritekst el == Nothing then
+                                                            Cv.Arbeidserfaring.yrke el
+
+                                                          else
+                                                            Cv.Arbeidserfaring.yrkeFritekst el
+                                                         )
+                                                            |> Maybe.withDefault ""
+                                                        )
+                                                            ++ " "
+                                                            ++ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                                                            ++ " "
+                                                            ++ (fraDato
+                                                                    |> Dato.fraStringTilDato
+                                                                    |> Dato.måned
+                                                                    |> Dato.månedTilString
+                                                               )
+                                                            ++ " "
+                                                            ++ (fraDato
+                                                                    |> Dato.fraStringTilDato
+                                                                    |> Dato.år
+                                                                    |> String.fromInt
+                                                               )
+                                                            ++ " - Nåværende"
+
+                                            Nothing ->
+                                                ""
                                     )
                                     arbeidserfaringsListe
                                 )
