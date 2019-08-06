@@ -302,10 +302,12 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
             case aktivSamtale of
                 BekreftOriginal personalia ->
                     div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
+                        [ div [ class "" ]
                             [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen stemmer"
+                                |> Knapp.withClass Knapp.MånedKnapp
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, informasjonen stemmer ikke"
+                                |> Knapp.withClass Knapp.MånedKnapp
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -345,9 +347,7 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                                 |> Skjema.Personalia.poststed
                                 |> Input.input { label = "Poststed", msg = PersonaliaSkjemaEndret Skjema.Personalia.Poststed }
                                 |> Input.toHtml
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Knapp.knapp PersonaliaskjemaLagreknappTrykket "Lagre"
+                            , Knapp.knapp PersonaliaskjemaLagreknappTrykket "Lagre"
                                 |> Knapp.toHtml
                             ]
                         ]

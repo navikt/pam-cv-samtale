@@ -314,7 +314,7 @@ viewBrukerInput (Model model) =
             case model.aktivSamtale of
                 AvsluttendeOrd ->
                     div []
-                        [ a [ href "https://arbeidsplassen.nav.no/cv", class "avslutt-knapp" ]
+                        [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
                             [ div [ class "inputrad" ]
                                 [ div [ class "inputrad-innhold" ]
                                     [ div [ class "Knapp" ]
@@ -330,7 +330,7 @@ viewBrukerInput (Model model) =
                 DelMedArbeidsgiver _ ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ let
                                     synligCV =
                                         "Ja, Cv-en skal være synlig for arbeidsgivere"
@@ -339,7 +339,7 @@ viewBrukerInput (Model model) =
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ let
                                     ikkeSynligCV =
                                         "Nei, CV-en skal bare være synlig for meg"
@@ -358,8 +358,8 @@ viewBrukerInput (Model model) =
                     text ""
 
                 HentPersonFeilet ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
+                    div [ class "inputkolonne" ]
+                        [ div [ class "inputkolonne-innhold" ]
                             [ let
                                 hentBruker =
                                     "Ja, prøv på nytt"
@@ -380,7 +380,7 @@ viewBrukerInput (Model model) =
                 LagringSynlighetFeilet ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ let
                                     synligCV =
                                         "Ja, Cv-en skal være synlig for arbeidsgivere"
@@ -388,7 +388,7 @@ viewBrukerInput (Model model) =
                                   Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ let
                                     ikkeSynligCV =
                                         "Nei, CV-en skal bare være synlig for meg"
@@ -396,7 +396,7 @@ viewBrukerInput (Model model) =
                                   Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ let
                                     avslutt =
                                         "Avslutt, jeg gjør det senere"

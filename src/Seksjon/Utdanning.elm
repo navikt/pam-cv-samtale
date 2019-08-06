@@ -7,6 +7,7 @@ import Dato exposing (Dato)
 import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
+import FrontendModuler.InputInt as InputInt
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Select as Select
 import FrontendModuler.Textarea as Textarea
@@ -904,8 +905,8 @@ viewBrukerInput (Model model) =
                     if List.isEmpty model.utdanningListe then
                         div [ class "skjema-wrapper" ]
                             [ div [ class "sjema" ]
-                                [ div [ class "inputrad" ]
-                                    [ div [ class "inputrad-innhold" ]
+                                [ div [ class "inputkolonne" ]
+                                    [ div [ class "inputkolonne-innhold" ]
                                         [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
                                             |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
                                             |> Knapp.toHtml
@@ -919,14 +920,14 @@ viewBrukerInput (Model model) =
                             ]
 
                     else
-                        div [ class "inputrad" ]
+                        div [ class "inputkolonne" ]
                             [ div [ class "knapperad-wrapper" ]
-                                [ div [ class "inputrad" ]
+                                [ div [ class "inputkolonne" ]
                                     [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg vil legge til flere utdannelser"
                                         |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
                                         |> Knapp.toHtml
                                     ]
-                                , div [ class "inputrad" ]
+                                , div [ class "inputkolonne" ]
                                     [ "Nei, jeg er ferdig"
                                         |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg er ferdig")
                                         |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
@@ -937,37 +938,37 @@ viewBrukerInput (Model model) =
 
                 RegistrerNivå ->
                     div [ class "skjema-wrapper" ]
-                        [ div [ class "inputrad" ]
+                        [ div [ class "inputkolonne" ]
                             [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole)
                                 |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
-                        , div [ class "inputrad" ]
+                        , div [ class "inputkolonne" ]
                             [ Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole)
                                 |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
-                        , div [ class "inputrad" ]
+                        , div [ class "inputkolonne" ]
                             [ Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole)
                                 |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
-                        , div [ class "inputrad" ]
+                        , div [ class "inputkolonne" ]
                             [ Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole)
                                 |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
-                        , div [ class "inputrad" ]
+                        , div [ class "inputkolonne" ]
                             [ Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4)
                                 |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
-                        , div [ class "inputrad" ]
+                        , div [ class "inputkolonne" ]
                             [ Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss)
                                 |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
                             ]
-                        , div [ class "inputrad" ]
+                        , div [ class "inputkolonne" ]
                             [ Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd)
                                 |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                 |> Knapp.toHtml
@@ -1021,46 +1022,50 @@ viewBrukerInput (Model model) =
 
                 RegistrereFraMåned fraDatoInfo ->
                     div [ class "skjema-wrapper" ]
-                        [ div [ class "inputrad" ]
-                            [ Dato.Januar
-                                |> lagFraMånedKnapp fraDatoInfo
-                            , Dato.Februar
-                                |> lagFraMånedKnapp fraDatoInfo
-                            , Dato.Mars
-                                |> lagFraMånedKnapp fraDatoInfo
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Dato.April
-                                |> lagFraMånedKnapp fraDatoInfo
-                            , Dato.Mai
-                                |> lagFraMånedKnapp fraDatoInfo
-                            , Dato.Juni
-                                |> lagFraMånedKnapp fraDatoInfo
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Dato.Juli
-                                |> lagFraMånedKnapp fraDatoInfo
-                            , Dato.August
-                                |> lagFraMånedKnapp fraDatoInfo
-                            , Dato.September
-                                |> lagFraMånedKnapp fraDatoInfo
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Dato.Oktober
-                                |> lagFraMånedKnapp fraDatoInfo
-                            , Dato.November
-                                |> lagFraMånedKnapp fraDatoInfo
-                            , Dato.Desember
-                                |> lagFraMånedKnapp fraDatoInfo
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ div [ class "knapperad-wrapper" ]
+                                    [ Dato.Januar
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    , Dato.Februar
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    , Dato.Mars
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    ]
+                                , div [ class "knapperad-wrapper" ]
+                                    [ Dato.April
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    , Dato.Mai
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    , Dato.Juni
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    ]
+                                , div [ class "knapperad-wrapper" ]
+                                    [ Dato.Juli
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    , Dato.August
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    , Dato.September
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    ]
+                                , div [ class "knapperad-wrapper" ]
+                                    [ Dato.Oktober
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    , Dato.November
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    , Dato.Desember
+                                        |> lagFraMånedKnapp fraDatoInfo
+                                    ]
+                                ]
                             ]
                         ]
 
                 RegistrereFraÅr fraDatoInfo ->
                     div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
+                        [ div [ class "skjema-int" ]
                             [ fraDatoInfo.fraÅr
-                                |> Input.input { label = "", msg = OppdaterFraÅr fraDatoInfo }
-                                |> Input.toHtml
+                                |> InputInt.input { label = "", msg = OppdaterFraÅr fraDatoInfo }
+                                |> InputInt.toHtml
                             , BrukerVilRegistrereNaavarende
                                 |> lagÅrInputKnapp "Lagre" fraDatoInfo.fraÅr
                             ]
@@ -1081,58 +1086,64 @@ viewBrukerInput (Model model) =
 
                 RegistrereTilMåned tilDatoInfo ->
                     div [ class "skjema-wrapper" ]
-                        [ div [ class "inputrad" ]
-                            [ Dato.Januar
-                                |> lagTilMånedKnapp tilDatoInfo
-                            , Dato.Februar
-                                |> lagTilMånedKnapp tilDatoInfo
-                            , Dato.Mars
-                                |> lagTilMånedKnapp tilDatoInfo
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Dato.April
-                                |> lagTilMånedKnapp tilDatoInfo
-                            , Dato.Mai
-                                |> lagTilMånedKnapp tilDatoInfo
-                            , Dato.Juni
-                                |> lagTilMånedKnapp tilDatoInfo
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Dato.Juli
-                                |> lagTilMånedKnapp tilDatoInfo
-                            , Dato.August
-                                |> lagTilMånedKnapp tilDatoInfo
-                            , Dato.September
-                                |> lagTilMånedKnapp tilDatoInfo
-                            ]
-                        , div [ class "inputrad" ]
-                            [ Dato.Oktober
-                                |> lagTilMånedKnapp tilDatoInfo
-                            , Dato.November
-                                |> lagTilMånedKnapp tilDatoInfo
-                            , Dato.Desember
-                                |> lagTilMånedKnapp tilDatoInfo
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ div [ class "knapperad-wrapper" ]
+                                    [ Dato.Januar
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    , Dato.Februar
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    , Dato.Mars
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    ]
+                                , div [ class "knapperad-wrapper" ]
+                                    [ Dato.April
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    , Dato.Mai
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    , Dato.Juni
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    ]
+                                , div [ class "knapperad-wrapper" ]
+                                    [ Dato.Juli
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    , Dato.August
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    , Dato.September
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    ]
+                                , div [ class "knapperad-wrapper" ]
+                                    [ Dato.Oktober
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    , Dato.November
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    , Dato.Desember
+                                        |> lagTilMånedKnapp tilDatoInfo
+                                    ]
+                                ]
                             ]
                         ]
 
                 RegistrereTilÅr tilDatoInfo ->
                     div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
+                        [ div [ class "skjema-int" ]
                             [ tilDatoInfo.tilÅr
-                                |> Input.input { label = "", msg = OppdaterTilÅr tilDatoInfo }
-                                |> Input.toHtml
+                                |> InputInt.input { label = "", msg = OppdaterTilÅr tilDatoInfo }
+                                |> InputInt.toHtml
                             , BrukerVilGåTilOppsummering
                                 |> lagÅrInputKnapp "Lagre" tilDatoInfo.tilÅr
                             ]
                         ]
 
                 Oppsummering _ ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
-                            [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
-                                |> Knapp.toHtml
-                            , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputrad" ]
+                                [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
@@ -1142,12 +1153,12 @@ viewBrukerInput (Model model) =
                 LeggTilFlereUtdannelser _ ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til flere"
                                     |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ Knapp.knapp OriginalOppsummeringBekreftet "Nei, jeg er ferdig"
                                     |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                     |> Knapp.toHtml
@@ -1215,7 +1226,7 @@ endreSkjema model utdanningsskjema =
                 |> Input.toHtml
             , utdanningsskjema
                 |> Skjema.navarende
-                |> Checkbox.checkbox "Nåværende:" (SkjemaOppdatert (NavarendeEndret (Skjema.navarende (Skjema.toggleBool utdanningsskjema Skjema.Navarende))))
+                |> Checkbox.checkbox "Nåværende" (SkjemaOppdatert (NavarendeEndret (Skjema.navarende (Skjema.toggleBool utdanningsskjema Skjema.Navarende))))
                 |> Checkbox.toHtml
             , if Skjema.navarende utdanningsskjema == True then
                 text ""
@@ -1266,9 +1277,13 @@ endreSkjema model utdanningsskjema =
             ]
         , case model.aktivSamtale of
             EndrerOppsummering _ ->
-                div [ class "inputrad" ]
-                    [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
-                        |> Knapp.toHtml
+                div [ class "skjema" ]
+                    [ div [ class "skjema-wrapper" ]
+                        [ div [ class "inputkolonne" ]
+                            [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
+                                |> Knapp.toHtml
+                            ]
+                        ]
                     ]
 
             LeggTilUtdanningFeiletIApi _ _ ->
