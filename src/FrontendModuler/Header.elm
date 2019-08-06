@@ -30,9 +30,10 @@ toHtml (Header options) =
 
         -- TODO: Endre til å vise burger-meny på mobil og evt. iPad
         , if options.windowWidth > 410 then
-            div [ class "header-hoyre" ]
-                [ a [ href "/cv" ]
-                    [ text "Avslutt CV-registreringen" ]
+            a [ href "/cv" ]
+                [ div [ class "header-hoyre" ]
+                    [ text "Avslutt CV-registreringen"
+                    ]
                 ]
 
           else

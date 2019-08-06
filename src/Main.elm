@@ -46,6 +46,10 @@ type alias RegistreringsProgresjon =
     }
 
 
+stjerne =
+    "⭐"
+
+
 type Seksjonsstatus
     = IkkeBegynt
     | Begynt
@@ -337,11 +341,13 @@ initialiserSamtale : SamtaleSeksjon
 initialiserSamtale =
     MeldingsLogg.init
         |> MeldingsLogg.leggTilSpørsmål
-            [ Melding.spørsmål [ "Hei" ]
+            [ Melding.spørsmål [ "Hei, jeg er roboten CVert" ]
             , Melding.spørsmål
                 [ "Velkommen til CV-registrering!"
                 , "Det vi skal gjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
-                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifikat og førerkort."
+                ]
+            , Melding.spørsmål
+                [ "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifikat og førerkort."
                 , "Er du klar til å begynne?"
                 ]
             ]
@@ -917,9 +923,14 @@ viewBrukerInput aktivSamtale =
         Introduksjon logg ->
             case MeldingsLogg.ferdigAnimert logg of
                 FerdigAnimert _ ->
-                    div [ class "inputrad" ]
-                        [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
-                            |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
+                                    |> Knapp.withClass Knapp.MånedKnapp
+                                    |> Knapp.toHtml
+                                ]
+                            ]
                         ]
 
                 MeldingerGjenstår ->

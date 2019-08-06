@@ -200,7 +200,7 @@ viewBrukerInput (Model model) =
                 LeggTilAutorisasjoner ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ div []
                                     [ Knapp.knapp (GåTilSeksjon "Fagbrev/Svennebrev") "Fagbrev/Svennebrev"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
@@ -226,7 +226,7 @@ viewBrukerInput (Model model) =
                 LeggTilAnnet ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ div []
                                     -- TODO: enable når implementert
                                     [ Knapp.knapp (GåTilSeksjon "Annen erfaring") "Annen erfaring"

@@ -143,6 +143,13 @@ html {
   }
 }
 
+.skjema-int {
+  display: flex;
+  align-self: flex-end;
+  flex-direction: column;
+  width: 140px;
+
+}
 
 .textarea_stor {
   height: 20rem;
@@ -226,25 +233,32 @@ html {
   align-self: flex-end;
 }
 
+
 .inputrad {
   display: flex;
   justify-content: flex-end;
   margin-top: 0.5rem;
+
   .Knapp {
     margin-top: 0.5rem;
     min-width: 5rem;
     margin-right: 1rem;
   }
+
   .Knapp:last-child {
     margin-right: 0;
     margin-left: 0;
+
+
   }
-  .Knapp--disabled{
+
+  .Knapp--disabled {
     margin-top: 0.5rem;
     min-width: 5rem;
     margin-right: 1rem;
     width: 100%
   }
+
   .inputrad-innhold {
     display: flex;
     justify-content: flex-end;
@@ -262,15 +276,48 @@ html {
       min-width: 5rem;
       margin-right: 1rem;
     }
+
     .Knapp:last-child {
       margin-right: 0;
       margin-left: 0;
     }
+  }
+}
 
-
+.inputkolonne {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-self: flex-end;
+  margin-top: 0.5rem;
+  .Knapp {
+    margin-top: 0.5rem;
+    min-width: 5rem;
+    width: 100%;
   }
 
+  .Knapp--disabled{
+    margin-top: 0.5rem;
+    min-width: 5rem;
+    width: 100%
+  }
+  .inputkolonne-innhold {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    @media (min-width: 768px) {
+      width: @meldingBredde;
+    }
 
+    @media (max-width: 767px) {
+      width: @meldingBreddeMobil;
+    }
+
+    .Knapp {
+      margin-top: 0.5rem;
+      min-width: 5rem;
+    }
+  }
 
   .månedknapp {
     width: 140px;
@@ -287,13 +334,12 @@ html {
   .leggetilutdannelseknapp {
     width: 23rem
   }
-
 }
-
 
 .avslutt-knapp {
   text-decoration: none;
 }
+
 .typeahead {
   position: relative;
   ul {
@@ -324,6 +370,9 @@ html {
     cursor: pointer;
   }
 }
+
+
+
 
 .typeahead-suggestions-hidden {
   display: none;
