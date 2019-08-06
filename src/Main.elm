@@ -923,9 +923,14 @@ viewBrukerInput aktivSamtale =
         Introduksjon logg ->
             case MeldingsLogg.ferdigAnimert logg of
                 FerdigAnimert _ ->
-                    div [ class "inputrad" ]
-                        [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
-                            |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
+                                    |> Knapp.withClass Knapp.MånedKnapp
+                                    |> Knapp.toHtml
+                                ]
+                            ]
                         ]
 
                 MeldingerGjenstår ->

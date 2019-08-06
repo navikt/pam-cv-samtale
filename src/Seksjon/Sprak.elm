@@ -612,8 +612,8 @@ viewBrukerInput (Model model) =
             case model.aktivSamtale of
                 IntroLeggTilNorsk språkListe ->
                     if List.isEmpty språkListe then
-                        div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
+                        div [ class "skjema-wrapper" ]
+                            [ div [ class "skjema" ]
                                 [ Knapp.knapp NorskErMorsmål "Ja"
                                     |> Knapp.toHtml
                                 , Knapp.knapp NorskErIkkeMorsmål "Nei"
@@ -624,12 +624,10 @@ viewBrukerInput (Model model) =
                     else
                         div [ class "skjema-wrapper" ]
                             [ div [ class "skjema" ]
-                                [ div [ class "inputrad" ]
+                                [ div [ class "inputkolonne" ]
                                     [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                         |> Knapp.toHtml
                                     , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                        |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                         |> Knapp.toHtml
                                     ]
                                 ]
@@ -646,31 +644,33 @@ viewBrukerInput (Model model) =
                         ]
 
                 LeggTilFlereSpråk enkeltSpråk språkListe ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
-                            [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
                 LeggTilFerdighetSkriftlig enkeltSpråk ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Nybegynner)) "Jeg er nybegynner"
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Godt)) ("Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn)
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig VeldigGodt)) ("Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn)
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
@@ -681,17 +681,17 @@ viewBrukerInput (Model model) =
                 LeggTilFerdighetMuntlig enkeltSpråk ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Nybegynner)) "Jeg er nybegynner"
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Godt)) ("Jeg snakker godt " ++ String.toLower enkeltSpråk)
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk VeldigGodt)) ("Jeg snakker veldig godt " ++ String.toLower enkeltSpråk)
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
@@ -704,7 +704,7 @@ viewBrukerInput (Model model) =
                         Success list ->
                             div [ class "skjema-wrapper" ]
                                 [ div [ class "skjema" ]
-                                    [ div [ class "inputrad" ]
+                                    [ div [ class "inputkolonne" ]
                                         [ div []
                                             [ Select.select "Språk"
                                                 ValgtSpråk
@@ -732,20 +732,20 @@ viewBrukerInput (Model model) =
                                 ]
 
                         Loading ->
-                            div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
+                            div [ class "inputkolonne" ]
+                                [ div [ class "inputkolonne-innhold" ]
                                     [ text "Loading..." ]
                                 ]
 
                         Failure error ->
-                            div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
+                            div [ class "inputkolonne" ]
+                                [ div [ class "inputkolonne-innhold" ]
                                     [ text "Noe gikk galt..." ]
                                 ]
 
                 LagringFeilet enkeltSpråk error failedSpråkSkjema ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
+                    div [ class "inputkolonne" ]
+                        [ div [ class "inputkolonne-innhold" ]
                             [ Knapp.knapp (SendSkjemaPåNytt failedSpråkSkjema (Model model)) "Ja, prøv på nytt"
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
@@ -760,8 +760,8 @@ viewBrukerInput (Model model) =
                     text ""
 
                 SpråkkodeneFeilet error ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
+                    div [ class "inputkolonne" ]
+                        [ div [ class "inputkolonne-innhold" ]
                             [ Knapp.knapp BrukerVilHenteSpråkPåNytt "Ja, prøv på nytt"
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, avslutt og gå videre"
