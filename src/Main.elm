@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (gåTilAutorisasjon, gåTilSammendrag, gåTilSpråk, main)
 
 import Api
 import Browser
@@ -6,6 +6,9 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
+import Cv.Sammendrag
+import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
@@ -323,7 +326,7 @@ modelFraLoadingState state =
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
-                , aktivSamtale = initialiserSamtale
+                , aktivSamtale = initialiserSamtale state.personalia
                 }
             , Process.sleep 200
                 |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
@@ -333,16 +336,17 @@ modelFraLoadingState state =
             ( Loading (VenterPåResten state), Cmd.none )
 
 
-initialiserSamtale : SamtaleSeksjon
-initialiserSamtale =
+initialiserSamtale : Personalia -> SamtaleSeksjon
+initialiserSamtale personalia =
     MeldingsLogg.init
         |> MeldingsLogg.leggTilSpørsmål
-            [ Melding.spørsmål [ "Hei" ]
+            [ Melding.spørsmål [ "Hei " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten CVert, og jeg kan hjelpe deg med å lage en CV." ]
             , Melding.spørsmål
-                [ "Velkommen til CV-registrering!"
-                , "Det vi skal gjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
-                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifikat og førerkort."
-                , "Er du klar til å begynne?"
+                [ "Det du skal igjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
+                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifisering og førerkort."
+                ]
+            , Melding.spørsmål
+                [ "Er du klar til å begynne?"
                 ]
             ]
         |> Introduksjon
@@ -777,34 +781,7 @@ view { model, windowWidth } =
                 viewSuccess successModel
 
             Failure error ->
-                case error of
-                    Http.BadUrl string ->
-                        div []
-                            [ text ("Fant ingenting her: " ++ string)
-                            , text "Er du sikker på at du leter på riktig sted?"
-                            ]
-
-                    Http.Timeout ->
-                        div []
-                            [ text "Forespørselen tok for lang tid. Det kan være noe feil hos oss."
-                            , text "Forsæk å laste inn siden på nytt eller prøv gjerne igen senere"
-                            ]
-
-                    Http.BadStatus int ->
-                        div []
-                            [ text ("Fikk en " ++ String.fromInt int ++ " feilmelding. Vennligst prøv igjen senere!")
-                            ]
-
-                    Http.BadBody string ->
-                        div []
-                            [ text "Det set ut til at du ikke har godkjent vilkårene på arbeidsplassen.no/cv."
-                            , text "Vennligst gjøre dette før du benytter det av tjenesten."
-                            ]
-
-                    _ ->
-                        div []
-                            [ text "error"
-                            ]
+                text "error"
         ]
 
 
