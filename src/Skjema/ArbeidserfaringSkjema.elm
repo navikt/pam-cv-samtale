@@ -370,12 +370,7 @@ oppdaterTilÅr (ArbeidserfaringSkjema skjema) år måned =
 
         Nothing ->
             ArbeidserfaringSkjema
-                { skjema
-                    | tilDato =
-                        (år ++ "-" ++ måned)
-                            |> Dato.fraStringTilDato
-                            |> Just
-                }
+                skjema
 
 
 nyttValidertSkjema : ValidertSkjemaInfo -> ValidertArbeidserfaringSkjema
