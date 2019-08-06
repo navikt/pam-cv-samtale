@@ -1925,7 +1925,7 @@ lagArbeidserfaringKnapper (Model info) =
                 let
                     text =
                         Maybe.withDefault "" (Cv.Arbeidserfaring.yrke arbErf)
-                            ++ " "
+                            ++ ", "
                             ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbErf)
                 in
                 Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere (arbeidserfaringTilSkjema arbErf) text) text
