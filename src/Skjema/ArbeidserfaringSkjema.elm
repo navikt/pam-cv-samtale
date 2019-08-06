@@ -9,6 +9,7 @@ module Skjema.ArbeidserfaringSkjema exposing
     , encode
     , fraDato
     , id
+    , idValidert
     , jobbTittel
     , lokasjon
     , mapTypeaheadState
@@ -97,8 +98,13 @@ yrke (ValidertArbeidserfaringSkjema info) =
     info.yrke
 
 
-id : ValidertArbeidserfaringSkjema -> Maybe String
-id (ValidertArbeidserfaringSkjema info) =
+idValidert : ValidertArbeidserfaringSkjema -> Maybe String
+idValidert (ValidertArbeidserfaringSkjema info) =
+    info.id
+
+
+id : ArbeidserfaringSkjema -> Maybe String
+id (ArbeidserfaringSkjema info) =
     info.id
 
 
