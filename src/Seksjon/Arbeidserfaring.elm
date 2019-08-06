@@ -116,6 +116,8 @@ type Msg
     | BrukerVelgerYrkeIOppsummering Yrke
     | ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Felt String
     | ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Felt
+    | BrukerTrykkerPåSlettArbeidserfaring
+    | ArbeidserfaringSlettet (Result Http.Error (List Arbeidserfaring))
     | BrukerTrykkerPåLagreArbeidserfaringKnapp String ValidertArbeidserfaringSkjema
     | BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
     | ArbeidserfaringLagret (Result Http.Error (List Arbeidserfaring))
@@ -149,6 +151,8 @@ type Samtale
     | RegistrereTilÅr TilDatoInfo
     | VisOppsummering ValidertArbeidserfaringSkjema
     | RedigerOppsummering ArbeidserfaringSkjema
+    | SletterArbeidserfaring ArbeidserfaringSkjema
+    | FerdigMedÅSletteArbeidserfaring
     | LagreArbeidserfaring ValidertArbeidserfaringSkjema
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
     | SpørOmBrukerVilLeggeInnMer
@@ -923,6 +927,45 @@ update msg (Model info) =
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
 
+        BrukerTrykkerPåSlettArbeidserfaring ->
+            case info.aktivSamtale of
+                RedigerOppsummering skjema ->
+                    ( skjema
+                        |> SletterArbeidserfaring
+                        |> nesteSamtaleSteg info (Melding.svar [ "Slett" ])
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd
+                        , skjema
+                            |> ArbeidserfaringSkjema.id
+                            |> Maybe.withDefault ""
+                            |> Api.deleteArbeidserfaring ArbeidserfaringSlettet
+                        ]
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
+        ArbeidserfaringSlettet result ->
+            case info.aktivSamtale of
+                SletterArbeidserfaring skjema ->
+                    case result of
+                        Ok liste ->
+                            ( FerdigMedÅSletteArbeidserfaring
+                                |> oppdaterSamtalesteg { info | arbeidserfaringListe = liste }
+                            , lagtTilSpørsmålCmd
+                            )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            ( Model info, Cmd.none )
+                                |> IkkeFerdig
+
+                _ ->
+                    ( Model info, Cmd.none )
+                        |> IkkeFerdig
+
         BrukerTrykkerPåLagreArbeidserfaringKnapp brukerSvar validertSkjema ->
             case info.aktivSamtale of
                 RedigerOppsummering skjema ->
@@ -1147,6 +1190,15 @@ oppdaterSamtalesteg modelInfo samtaleSeksjon =
                             |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
                 }
 
+        FerdigMedÅSletteArbeidserfaring ->
+            Model
+                { modelInfo
+                    | aktivSamtale = samtaleSeksjon
+                    , seksjonsMeldingsLogg =
+                        modelInfo.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                }
+
         _ ->
             Model
                 { modelInfo
@@ -1328,6 +1380,14 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         LagringFeilet error arbeidserfaringSkjema ->
             []
 
+        SletterArbeidserfaring arbeidserfaringSkjema ->
+            [ Melding.spørsmål [ "Sletter arbeidserfaring..." ] ]
+
+        FerdigMedÅSletteArbeidserfaring ->
+            [ Melding.spørsmål [ "Arbeidserfaring slettet!" ]
+            , Melding.spørsmål [ "Vil du legge til flere?" ]
+            ]
+
         SpørOmBrukerVilLeggeInnMer ->
             [ Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ] ]
 
@@ -1437,9 +1497,14 @@ viewBrukerInput (Model info) =
                 VelgEnArbeidserfaringÅRedigere ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            (lagArbeidserfaringKnapper
-                                (Model info)
-                                |> List.map (\msg -> div [ class "inputrad" ] [ msg ])
+                            (Model info
+                                |> lagArbeidserfaringKnapper
+                                |> List.map
+                                    (\msg ->
+                                        div [ class "inputrad" ]
+                                            [ msg
+                                            ]
+                                    )
                             )
                         ]
 
@@ -1715,6 +1780,11 @@ viewBrukerInput (Model info) =
                                             |> Knapp.withEnabled Knapp.Disabled
                                             |> Knapp.toHtml
                                 ]
+                            , div [ class "inputrad" ]
+                                [ "Slett"
+                                    |> Knapp.knapp BrukerTrykkerPåSlettArbeidserfaring
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
@@ -1723,6 +1793,33 @@ viewBrukerInput (Model info) =
 
                 LagringFeilet error arbeidserfaringSkjema ->
                     div [] []
+
+                SletterArbeidserfaring arbeidserfaringSkjema ->
+                    div [] []
+
+                FerdigMedÅSletteArbeidserfaring ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ div [ class "inputrad" ]
+                                [ Knapp.knapp
+                                    NyArbeidserfaring
+                                    "Ja, legg til en arbeidserfaring"
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
+                                    |> Knapp.toHtml
+                                ]
+                            , if List.isEmpty info.arbeidserfaringListe then
+                                div [] []
+
+                              else
+                                div [ class "inputrad" ]
+                                    [ Knapp.knapp (BrukerVilRedigereArbeidserfaring "Rediger arbeidserfaring") "Rediger arbeidserfaring"
+                                        |> Knapp.toHtml
+                                    ]
+                            ]
+                        ]
 
                 SpørOmBrukerVilLeggeInnMer ->
                     div [ class "skjema-wrapper" ]
@@ -1836,7 +1933,7 @@ lagArbeidserfaringKnapper (Model info) =
                 let
                     text =
                         Maybe.withDefault "" (Cv.Arbeidserfaring.yrke arbErf)
-                            ++ " "
+                            ++ ", "
                             ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbErf)
                 in
                 Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere (arbeidserfaringTilSkjema arbErf) text) text
@@ -2043,7 +2140,7 @@ lagRedigerDatoInput arbeidserfaringSkjema =
 
 postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
 postEllerPutArbeidserfaring msgConstructor skjema =
-    case ArbeidserfaringSkjema.id skjema of
+    case ArbeidserfaringSkjema.idValidert skjema of
         Just id ->
             Api.putArbeidserfaring msgConstructor skjema id
 
