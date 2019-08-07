@@ -614,10 +614,12 @@ viewBrukerInput (Model model) =
                     if List.isEmpty språkListe then
                         div [ class "skjema-wrapper" ]
                             [ div [ class "skjema" ]
-                                [ Knapp.knapp NorskErMorsmål "Ja"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp NorskErIkkeMorsmål "Nei"
-                                    |> Knapp.toHtml
+                                [ div [ class "inputrad" ]
+                                    [ Knapp.knapp NorskErMorsmål "Ja"
+                                        |> Knapp.toHtml
+                                    , Knapp.knapp NorskErIkkeMorsmål "Nei"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
                             ]
 

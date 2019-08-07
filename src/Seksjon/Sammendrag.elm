@@ -265,7 +265,7 @@ samtaleTilMeldingsLogg sammendragSeksjon =
             ]
 
         VenterPåAnimasjonFørFullføring ->
-            [ Melding.spørsmål [ "Kjempebra! Nå er vi ferdige med det vanskelige!" ] ]
+            [ Melding.spørsmål [ "Kjempebra! Nå er vi ferdige med det vanskeligste 😊" ] ]
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model

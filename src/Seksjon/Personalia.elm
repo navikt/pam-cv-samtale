@@ -72,8 +72,8 @@ update msg (Model model) =
                 { model
                     | seksjonsMeldingsLogg =
                         model.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Bekreft" ])
-                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Så bra! Da ruller vi videre!" ] ]
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, informasjonen stemmer" ])
+                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Så bra! Nå kan arbeidsgivere kontakte deg uten problemer" ], Melding.spørsmål [ "Da kan vi gå videre til selve utfyllingen av CV-en." ] ]
                     , aktivSamtale = VenterPåAnimasjonFørFullføring model.personalia
                 }
             , lagtTilSpørsmålCmd
@@ -84,7 +84,7 @@ update msg (Model model) =
             ( model.personalia
                 |> Skjema.Personalia.init
                 |> EndreOriginal
-                |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
+                |> nesteSamtaleSteg model (Melding.svar [ "Nei, informasjonen stemmer ikke" ])
             , lagtTilSpørsmålCmd
             )
                 |> IkkeFerdig
@@ -251,7 +251,7 @@ samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
-            [ Melding.spørsmål [ "Da setter vi i gang :)" ]
+            [ Melding.spørsmål [ "Da setter vi i gang 😊" ]
             , Melding.spørsmål
                 [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
                 , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
@@ -269,6 +269,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                     ++ " "
                     ++ (Personalia.postnummer personalia |> Maybe.withDefault "-")
                 ]
+            , Melding.spørsmål [ "Er kontaktinformasjonen riktig?" ]
             ]
 
         EndreOriginal personaliaSkjema ->
@@ -300,14 +301,14 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
         FerdigAnimert _ ->
             case aktivSamtale of
                 BekreftOriginal personalia ->
-                    div [ class "inputrad" ]
-                        [ div [ class "" ]
-                            [ Knapp.knapp BrukerVilEndreOriginalPersonalia "Endre"
-                                |> Knapp.withClass Knapp.MånedKnapp
-                                |> Knapp.toHtml
-                            , Knapp.knapp OriginalPersonaliaBekreftet "Bekreft"
-                                |> Knapp.withClass Knapp.MånedKnapp
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen stemmer"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, informasjonen stemmer ikke"
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
