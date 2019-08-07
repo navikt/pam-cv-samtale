@@ -90,7 +90,7 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep 1000
+                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
                     |> Task.perform (\_ -> FullførMelding)
                 ]
             )
@@ -277,15 +277,15 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
 
         UnderOppfølging ->
             [ Melding.spørsmål [ "Siden du er under oppfølging fra NAV, så vil CV-en din være synlig for arbeidsgivere og NAV-veiledere." ]
-            , Melding.spørsmål [ "Bra innsats! Alt du har skrevet her er lagret i CV-en din." ]
+            , Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har skrevet her er lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Lykke til med jobbjakten! :)" ]
+            , Melding.spørsmål [ "Lykke til med jobbjakten! ☺️" ]
             ]
 
         AvsluttendeOrd ->
-            [ Melding.spørsmål [ "Bra innsats! Alt du har skrevet her er lagret i CV-en din." ]
+            [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har skrevet her er lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Lykke til med jobbjakten! :)" ]
+            , Melding.spørsmål [ "Lykke til med jobbjakten! ☺️" ]
             ]
 
         HentPersonFeilet ->
@@ -314,9 +314,9 @@ viewBrukerInput (Model model) =
             case model.aktivSamtale of
                 AvsluttendeOrd ->
                     div []
-                        [ a [ href "https://arbeidsplassen.nav.no/cv", class "avslutt-knapp" ]
-                            [ div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
+                        [ div [ class "inputrad" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
                                     [ div [ class "Knapp" ]
                                         [ text "Avslutt og vis CV-en min" ]
                                     ]
@@ -330,7 +330,7 @@ viewBrukerInput (Model model) =
                 DelMedArbeidsgiver _ ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ let
                                     synligCV =
                                         "Ja, Cv-en skal være synlig for arbeidsgivere"
@@ -339,7 +339,7 @@ viewBrukerInput (Model model) =
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ let
                                     ikkeSynligCV =
                                         "Nei, CV-en skal bare være synlig for meg"
@@ -358,8 +358,8 @@ viewBrukerInput (Model model) =
                     text ""
 
                 HentPersonFeilet ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
+                    div [ class "inputkolonne" ]
+                        [ div [ class "inputkolonne-innhold" ]
                             [ let
                                 hentBruker =
                                     "Ja, prøv på nytt"
@@ -380,7 +380,7 @@ viewBrukerInput (Model model) =
                 LagringSynlighetFeilet ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputrad" ]
+                            [ div [ class "inputkolonne" ]
                                 [ let
                                     synligCV =
                                         "Ja, Cv-en skal være synlig for arbeidsgivere"
@@ -388,7 +388,7 @@ viewBrukerInput (Model model) =
                                   Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ let
                                     ikkeSynligCV =
                                         "Nei, CV-en skal bare være synlig for meg"
@@ -396,7 +396,7 @@ viewBrukerInput (Model model) =
                                   Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
                                     |> Knapp.toHtml
                                 ]
-                            , div [ class "inputrad" ]
+                            , div [ class "inputkolonne" ]
                                 [ let
                                     avslutt =
                                         "Avslutt, jeg gjør det senere"

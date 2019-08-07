@@ -662,7 +662,7 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep 1000
+                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
                     |> Task.perform (\_ -> FullførMelding)
                 ]
             )
@@ -809,8 +809,8 @@ viewBrukerInput (Model model) =
             case model.aktivSamtale of
                 Intro _ ->
                     if List.isEmpty model.fagdokumentasjonListe then
-                        div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
+                        div [ class "inputkolonne" ]
+                            [ div [ class "inputkolonne-innhold" ]
                                 [ Knapp.knapp BrukerVilRegistrereFagdokumentasjon "Jeg vil registrere fagbrev eller lignende"
                                     |> Knapp.toHtml
                                 , "Jeg har ingen utdanning"
@@ -820,8 +820,8 @@ viewBrukerInput (Model model) =
                             ]
 
                     else
-                        div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
+                        div [ class "inputkolonne" ]
+                            [ div [ class "inputkolonne-innhold" ]
                                 [ Knapp.knapp BrukerVilRegistrereFagdokumentasjon "Jeg vil legge til flere fagbrev etc"
                                     |> Knapp.toHtml
                                 , "Jeg er ferdig med å legge til utdannelser"
@@ -831,7 +831,7 @@ viewBrukerInput (Model model) =
                             ]
 
                 RegistrerType ->
-                    div [ class "inputrad" ]
+                    div [ class "inputkolonne" ]
                         [ div [ class "Utdanningsnivå" ]
                             [ Knapp.knapp BrukerVilRegistrereFagbrev "Fagbrev/Svennebrev" |> Knapp.toHtml
                             , Knapp.knapp BrukerVilRegistrereMesterbrev "Mesterbrev" |> Knapp.toHtml
@@ -888,8 +888,8 @@ viewBrukerInput (Model model) =
                         ]
 
                 LeggTilFlereFagdokumentasjoner string ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
+                    div [ class "inputkolonne" ]
+                        [ div [ class "inputkolonne-innhold" ]
                             [ Knapp.knapp BrukerVilRegistrereFagdokumentasjon "Legg til flere"
                                 |> Knapp.toHtml
                             , "Har ingen flere fagbrev å legge til"

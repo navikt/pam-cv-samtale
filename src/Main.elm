@@ -6,6 +6,9 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
+import Cv.Sammendrag
+import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
@@ -44,6 +47,10 @@ type alias RegistreringsProgresjon =
     , personalia : Seksjonsstatus
     , utdanning : Seksjonsstatus
     }
+
+
+stjerne =
+    "⭐"
 
 
 type Seksjonsstatus
@@ -323,7 +330,7 @@ modelFraLoadingState state =
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
-                , aktivSamtale = initialiserSamtale
+                , aktivSamtale = initialiserSamtale state.personalia
                 }
             , Process.sleep 200
                 |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
@@ -333,16 +340,17 @@ modelFraLoadingState state =
             ( Loading (VenterPåResten state), Cmd.none )
 
 
-initialiserSamtale : SamtaleSeksjon
-initialiserSamtale =
+initialiserSamtale : Personalia -> SamtaleSeksjon
+initialiserSamtale personalia =
     MeldingsLogg.init
         |> MeldingsLogg.leggTilSpørsmål
-            [ Melding.spørsmål [ "Hei" ]
+            [ Melding.spørsmål [ "Hei " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten CVert, og jeg kan hjelpe deg med å lage en CV." ]
             , Melding.spørsmål
-                [ "Velkommen til CV-registrering!"
-                , "Det vi skal gjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
-                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifikat og førerkort."
-                , "Er du klar til å begynne?"
+                [ "Det du skal igjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
+                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifisering og førerkort."
+                ]
+            , Melding.spørsmål
+                [ "Er du klar til å begynne?"
                 ]
             ]
         |> Introduksjon
@@ -460,7 +468,8 @@ updateSuccess successMsg model =
                         |> Success
                     , Cmd.batch
                         [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
-                        , Process.sleep 1000
+                        , Process.sleep (MeldingsLogg.nesteMeldingToString meldingsLogg * 1000.0)
+                            --1000
                             |> Task.perform (\_ -> SuccessMsg FullførMelding)
                         ]
                     )
@@ -917,9 +926,14 @@ viewBrukerInput aktivSamtale =
         Introduksjon logg ->
             case MeldingsLogg.ferdigAnimert logg of
                 FerdigAnimert _ ->
-                    div [ class "inputrad" ]
-                        [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
-                            |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
+                                    |> Knapp.withClass Knapp.MånedKnapp
+                                    |> Knapp.toHtml
+                                ]
+                            ]
                         ]
 
                 MeldingerGjenstår ->

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="50px" height="50px" viewBox="0 0 50 50" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 55.2 (78181) - https://sketchapp.com -->
+    <title>robot copy</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <circle id="path-1" cx="25" cy="25" r="25"></circle>
+    </defs>
+    <g id="CV" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="CV-med-knapper-og-input-felt-språk" transform="translate(-301.000000, -173.000000)">
+            <g id="Snakkeboble/-4.-Kontaktinfo-feedback" transform="translate(301.000000, 173.000000)">
+                <g id="robot">
+                    <g id="veileder/spotlight">
+                        <mask id="mask-2" fill="white">
+                            <use xlink:href="#path-1"></use>
+                        </mask>
+                        <use id="Spotlight" fill="#40C1AC" xlink:href="#path-1"></use>
+                        <rect id="Rectangle" stroke="#062140" stroke-width="2" fill="#E6F4EF" mask="url(#mask-2)" x="10.375" y="37.71875" width="28.46875" height="15.1875" rx="7.59375"></rect>
+                        <g id="Group-2" mask="url(#mask-2)">
+                            <g transform="translate(7.812500, 6.250000)">
+                                <rect id="Rectangle" stroke="#062140" stroke-width="2" fill="#E6F4EF" fill-rule="evenodd" x="4.125" y="8.8125" width="25.34375" height="19.09375" rx="7"></rect>
+                                <rect id="Rectangle" stroke="#062140" stroke-width="2" fill="#E6F4EF" fill-rule="evenodd" x="1" y="15.84375" width="2.6875" height="5.03125" rx="1.34375"></rect>
+                                <rect id="Rectangle-Copy" stroke="#062140" stroke-width="2" fill="#E6F4EF" fill-rule="evenodd" x="29.90625" y="15.84375" width="2.6875" height="5.03125" rx="1.34375"></rect>
+                                <circle id="Oval" stroke="none" fill="#062140" fill-rule="evenodd" cx="11.71875" cy="16.40625" r="1.5625"></circle>
+                                <circle id="Oval-Copy" stroke="none" fill="#062140" fill-rule="evenodd" cx="21.875" cy="16.40625" r="1.5625"></circle>
+                                <path d="M14.0625,21.1833106 C14.8704105,22.4851255 15.7818688,23.136033 16.796875,23.136033 C17.8118812,23.136033 18.7233395,22.4851255 19.53125,21.1833106" id="Path-3" stroke="#062140" stroke-width="2" fill="none" stroke-linecap="round"></path>
+                                <circle id="Oval" stroke="none" fill="#062140" fill-rule="evenodd" cx="16.40625" cy="2.34375" r="2.34375"></circle>
+                                <path d="M16.40625,3.90625 L16.40625,7.8125" id="Line-2" stroke="#062140" stroke-width="2" fill="none" stroke-linecap="square"></path>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -9,6 +9,7 @@ module MeldingsLogg exposing
     , leggTilSpørsmål
     , leggTilSvar
     , meldinger
+    , nesteMeldingToString
     , skriveStatus
     , startÅSkrive
     , tilMeldingsLogg
@@ -53,6 +54,35 @@ init =
 meldinger : MeldingsLogg -> List Melding
 meldinger (MeldingsLogg { meldingsLogg }) =
     meldingsLogg
+
+
+nesteMeldingToString : MeldingsLogg -> Float
+nesteMeldingToString (MeldingsLogg { ikkeVist }) =
+    case ikkeVist of
+        Ingen ->
+            1.0
+
+        SkriverEnMelding melding list ->
+            let
+                venteTid =
+                    String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 1.0
+            in
+            if venteTid > 3.0 then
+                3.0
+
+            else
+                venteTid
+
+        LeserMelding melding list ->
+            let
+                venteTid =
+                    String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 1.0
+            in
+            if venteTid > 3.0 then
+                3.0
+
+            else
+                venteTid
 
 
 skriveStatus : MeldingsLogg -> SkriveStatus

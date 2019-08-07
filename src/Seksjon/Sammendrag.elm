@@ -151,7 +151,7 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep 1000
+                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
                     |> Task.perform (\_ -> FullførMelding)
                 ]
             )
@@ -265,7 +265,7 @@ samtaleTilMeldingsLogg sammendragSeksjon =
             ]
 
         VenterPåAnimasjonFørFullføring ->
-            [ Melding.spørsmål [ "Kjempebra! Nå er vi ferdige med det vanskelige!" ] ]
+            [ Melding.spørsmål [ "Kjempebra! Nå er vi ferdige med det vanskeligste 😊" ] ]
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -298,20 +298,22 @@ viewBrukerInput (Model model) =
         FerdigAnimert ferdigAnimertMeldingsLogg ->
             case model.aktivSamtale of
                 BekreftOriginal sammendrag ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
-                            [ Knapp.knapp (BrukerVilEndreSammendrag sammendrag)
-                                (if sammendrag == "" then
-                                    "Jeg vil legge til sammendrag"
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ Knapp.knapp (BrukerVilEndreSammendrag sammendrag)
+                                    (if sammendrag == "" then
+                                        "Jeg vil legge til sammendrag"
 
-                                 else
-                                    "Ja, jeg vil se over"
-                                )
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
+                                     else
+                                        "Ja, jeg vil se over"
+                                    )
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                    |> Knapp.withClass Knapp.SpråknivåKnapp
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
@@ -330,8 +332,8 @@ viewBrukerInput (Model model) =
                     text ""
 
                 LagringFeilet error sammendrag ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
+                    div [ class "inputkolonne" ]
+                        [ div [ class "inputkolonne-innhold" ]
                             [ Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Prøv på nytt"
                                 |> Knapp.withClass Knapp.SpråknivåKnapp
                                 |> Knapp.toHtml
