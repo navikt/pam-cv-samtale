@@ -6,6 +6,9 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
+import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
+import Cv.Sammendrag
+import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
@@ -327,7 +330,7 @@ modelFraLoadingState state =
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
-                , aktivSamtale = initialiserSamtale
+                , aktivSamtale = initialiserSamtale state.personalia
                 }
             , Process.sleep 200
                 |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
@@ -337,18 +340,17 @@ modelFraLoadingState state =
             ( Loading (VenterPåResten state), Cmd.none )
 
 
-initialiserSamtale : SamtaleSeksjon
-initialiserSamtale =
+initialiserSamtale : Personalia -> SamtaleSeksjon
+initialiserSamtale personalia =
     MeldingsLogg.init
         |> MeldingsLogg.leggTilSpørsmål
-            [ Melding.spørsmål [ "Hei, jeg er roboten CVert" ]
+            [ Melding.spørsmål [ "Hei " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten CVert, og jeg kan hjelpe deg med å lage en CV." ]
             , Melding.spørsmål
-                [ "Velkommen til CV-registrering!"
-                , "Det vi skal gjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
+                [ "Det du skal igjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
+                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifisering og førerkort."
                 ]
             , Melding.spørsmål
-                [ "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifikat og førerkort."
-                , "Er du klar til å begynne?"
+                [ "Er du klar til å begynne?"
                 ]
             ]
         |> Introduksjon

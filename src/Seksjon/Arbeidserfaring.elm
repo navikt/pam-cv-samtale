@@ -1071,7 +1071,7 @@ update msg (Model info) =
                     |> IkkeFerdig
 
             else
-                ( VenterPåAnimasjonFørFullføring "Kjempebra jobba! :) Nå kan en arbeidsgiver se om du har den erfaringen de leter etter."
+                ( VenterPåAnimasjonFørFullføring "Kjempebra jobba! 👍 Nå kan en arbeidsgiver se om du har den erfaringen de leter etter."
                     |> nesteSamtaleSteg info
                         (Melding.svar [ knappeTekst ])
                 , lagtTilSpørsmålCmd
@@ -1294,7 +1294,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
 
         RegistrerYrke yrkeInfo ->
             [ Melding.spørsmål
-                [ "Nå skal du legge inn en og en av arbeidserfaringene dine. Da setter vi igang :)"
+                [ "Nå skal du legge inn en og en av arbeidserfaringene dine. Da setter vi igang 😊"
                 ]
             , Melding.spørsmål
                 [ "Først må du velge et yrke. Begynn og skriv og velg fra forslagene som kommer opp."
@@ -1399,7 +1399,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ string ] ]
 
         HeltFerdig ->
-            [ Melding.spørsmål [ "Kjempebra jobba! :) Nå kan en arbeidsgiver se om du har den erfaringen de leter etter. " ] ]
+            [ Melding.spørsmål [ "Kjempebra jobba!😊 Nå kan en arbeidsgiver se om du har den erfaringen de leter etter. " ] ]
 
         HeltFerdigUtenArbeidsErfaring ->
             [ Melding.spørsmål [ "Det var synd! Du kan alltid komme tilbake og legge til om du kommer på noe!" ] ]
