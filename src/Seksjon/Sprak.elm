@@ -408,7 +408,7 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep 1000
+                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
                     |> Task.perform (\_ -> FullførMelding)
                 ]
             )
@@ -614,10 +614,12 @@ viewBrukerInput (Model model) =
                     if List.isEmpty språkListe then
                         div [ class "skjema-wrapper" ]
                             [ div [ class "skjema" ]
-                                [ Knapp.knapp NorskErMorsmål "Ja"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp NorskErIkkeMorsmål "Nei"
-                                    |> Knapp.toHtml
+                                [ div [ class "inputrad" ]
+                                    [ Knapp.knapp NorskErMorsmål "Ja"
+                                        |> Knapp.toHtml
+                                    , Knapp.knapp NorskErIkkeMorsmål "Nei"
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
                             ]
 

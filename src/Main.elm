@@ -468,7 +468,8 @@ updateSuccess successMsg model =
                         |> Success
                     , Cmd.batch
                         [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
-                        , Process.sleep 1000
+                        , Process.sleep (MeldingsLogg.nesteMeldingToString meldingsLogg * 1000.0)
+                            --1000
                             |> Task.perform (\_ -> SuccessMsg FullførMelding)
                         ]
                     )

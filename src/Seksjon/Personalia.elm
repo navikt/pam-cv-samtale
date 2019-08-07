@@ -166,7 +166,7 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep 1000
+                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
                     |> Task.perform (\_ -> FullførMelding)
                 ]
             )
@@ -301,14 +301,14 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
         FerdigAnimert _ ->
             case aktivSamtale of
                 BekreftOriginal personalia ->
-                    div [ class "inputrad" ]
-                        [ div [ class "" ]
-                            [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen stemmer"
-                                |> Knapp.withClass Knapp.MånedKnapp
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, informasjonen stemmer ikke"
-                                |> Knapp.withClass Knapp.MånedKnapp
-                                |> Knapp.toHtml
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen stemmer"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, informasjonen stemmer ikke"
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 

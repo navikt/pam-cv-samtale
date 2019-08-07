@@ -536,7 +536,7 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep 1000
+                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
                     |> Task.perform (\_ -> FullførMelding)
                 ]
             )
@@ -904,17 +904,13 @@ viewBrukerInput (Model model) =
                 Intro _ ->
                     if List.isEmpty model.utdanningListe then
                         div [ class "skjema-wrapper" ]
-                            [ div [ class "sjema" ]
+                            [ div [ class "knapperad-wrapper" ]
                                 [ div [ class "inputkolonne" ]
-                                    [ div [ class "inputkolonne-innhold" ]
-                                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
-                                            |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                            |> Knapp.toHtml
-                                        , "Jeg har ingen utdanning"
-                                            |> Knapp.knapp (GåTilArbeidserfaring "Jeg har ingen utdanning")
-                                            |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                            |> Knapp.toHtml
-                                        ]
+                                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
+                                        |> Knapp.toHtml
+                                    , "Jeg har ingen utdanning"
+                                        |> Knapp.knapp (GåTilArbeidserfaring "Jeg har ingen utdanning")
+                                        |> Knapp.toHtml
                                     ]
                                 ]
                             ]
