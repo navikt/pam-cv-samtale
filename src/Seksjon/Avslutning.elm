@@ -314,9 +314,9 @@ viewBrukerInput (Model model) =
             case model.aktivSamtale of
                 AvsluttendeOrd ->
                     div []
-                        [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
-                            [ div [ class "inputrad" ]
-                                [ div [ class "inputrad-innhold" ]
+                        [ div [ class "inputrad" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
                                     [ div [ class "Knapp" ]
                                         [ text "Avslutt og vis CV-en min" ]
                                     ]
