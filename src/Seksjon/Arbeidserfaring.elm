@@ -1972,7 +1972,7 @@ arbeidserfaringTilSkjema arbeidserfaring =
 
             else
                 Just
-                    (Maybe.withDefault "2007-09" (Cv.Arbeidserfaring.tildato arbeidserfaring)
+                    (Maybe.withDefault "1970-01" (Cv.Arbeidserfaring.tildato arbeidserfaring)
                         |> Dato.fraStringTilDato
                     )
         , styrkkode =
@@ -2045,6 +2045,24 @@ lagTilMånedKnapp tilDatoInfo måned =
         |> Knapp.toHtml
 
 
+lagÅrInput : ArbeidserfaringSkjema.Felt -> String -> Html Msg
+lagÅrInput felt inputTekst =
+    let
+        inputfield =
+            inputTekst
+                |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret felt }
+                |> Input.withClass Input.År
+    in
+    if not (Dato.validerÅr inputTekst) then
+        inputfield
+            |> Input.withFeilmelding "Vennligst skriv inn et gyldig årstall"
+            |> Input.toHtml
+
+    else
+        inputfield
+            |> Input.toHtml
+
+
 lagRedigerDatoInput : ArbeidserfaringSkjema -> Html Msg
 lagRedigerDatoInput arbeidserfaringSkjema =
     div []
@@ -2076,8 +2094,10 @@ lagRedigerDatoInput arbeidserfaringSkjema =
                     else
                         string
                )
-            |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.FraÅr }
-            |> Input.toHtml
+            |> lagÅrInput ArbeidserfaringSkjema.FraÅr
+
+        -- |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.FraÅr }
+        -- |> Input.toHtml
         , input
             [ type_ "checkbox"
             , arbeidserfaringSkjema
@@ -2127,13 +2147,22 @@ lagRedigerDatoInput arbeidserfaringSkjema =
                                     else
                                         string
                                )
-                            |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.TilÅr }
-                            |> Input.toHtml
+                            |> lagÅrInput ArbeidserfaringSkjema.TilÅr
 
                     Nothing ->
-                        ""
-                            |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.TilÅr }
-                            |> Input.toHtml
+                        arbeidserfaringSkjema
+                            |> ArbeidserfaringSkjema.tilDato
+                            |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
+                            |> Dato.år
+                            |> String.fromInt
+                            |> (\string ->
+                                    if string == "0" then
+                                        ""
+
+                                    else
+                                        string
+                               )
+                            |> lagÅrInput ArbeidserfaringSkjema.TilÅr
                 ]
         ]
 

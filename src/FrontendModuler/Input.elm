@@ -1,8 +1,10 @@
 module FrontendModuler.Input exposing
-    ( Input
+    ( Class(..)
+    , Input
     , InputOptions
     , input
     , toHtml
+    , withClass
     , withFeilmelding
     )
 
@@ -16,11 +18,16 @@ type Input msg
     = Input (Options msg)
 
 
+type Class
+    = År
+
+
 type alias Options msg =
     { msg : String -> msg
     , label : String
     , innhold : String
     , feilmelding : Maybe String
+    , class : Maybe Class
     }
 
 
@@ -37,6 +44,7 @@ input { msg, label } innhold =
         , label = label
         , innhold = innhold
         , feilmelding = Nothing
+        , class = Nothing
         }
 
 
@@ -45,27 +53,65 @@ withFeilmelding feilmelding (Input options) =
     Input { options | feilmelding = Just feilmelding }
 
 
+withClass : Class -> Input msg -> Input msg
+withClass class (Input options) =
+    Input { options | class = Just class }
+
+
 toHtml : Input msg -> Html msg
 toHtml (Input options) =
-    div [ class "skjemaelement" ]
-        [ label
-            --- TODO: htmlFor={inputId}
-            [ class "skjemaelement__label" ]
-            [ text options.label ]
-        , Html.input
-            [ type_ "text"
-            , value options.innhold
-            , classList [ ( "skjemaelement__input", True ), ( "input--fullbredde", True ), ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing ) ]
-            , onInput options.msg
-            ]
-            []
-        , case options.feilmelding of
-            Just feilmelding ->
-                div [ role "alert", ariaLive "assertive" ]
-                    [ div [ class "skjemaelement__feilmelding" ]
-                        [ text feilmelding ]
+    case options.class of
+        Nothing ->
+            div [ class "skjemaelement" ]
+                [ label
+                    --- TODO: htmlFor={inputId}
+                    [ class "skjemaelement__label" ]
+                    [ text options.label ]
+                , Html.input
+                    [ type_ "text"
+                    , value options.innhold
+                    , classList [ ( "skjemaelement__input", True ), ( "input--fullbredde", True ), ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing ) ]
+                    , onInput options.msg
                     ]
+                    []
+                , case options.feilmelding of
+                    Just feilmelding ->
+                        div [ role "alert", ariaLive "assertive" ]
+                            [ div [ class "skjemaelement__feilmelding" ]
+                                [ text feilmelding ]
+                            ]
 
-            Nothing ->
-                text ""
-        ]
+                    Nothing ->
+                        text ""
+                ]
+
+        Just År ->
+            div [ class "skjemaelement" ]
+                [ label
+                    --- TODO: htmlFor={inputId}
+                    [ class "skjemaelement__label" ]
+                    [ text options.label ]
+                , Html.input
+                    [ type_ "text"
+                    , value options.innhold
+                    , classList
+                        [ ( "skjemaelement__input", True )
+                        , ( "input--fullbredde", True )
+                        , ( "skjemaelement__input--harFeil"
+                          , options.feilmelding /= Nothing
+                          )
+                        , ( "år", True )
+                        ]
+                    , onInput options.msg
+                    ]
+                    []
+                , case options.feilmelding of
+                    Just feilmelding ->
+                        div [ role "alert", ariaLive "assertive" ]
+                            [ div [ class "skjemaelement__feilmelding" ]
+                                [ text feilmelding ]
+                            ]
+
+                    Nothing ->
+                        text ""
+                ]
