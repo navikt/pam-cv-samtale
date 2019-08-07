@@ -65,7 +65,7 @@ nesteMeldingToString (MeldingsLogg { ikkeVist }) =
         SkriverEnMelding melding list ->
             let
                 venteTid =
-                    String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 0.0
+                    String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 1.0
             in
             if venteTid > 3.0 then
                 3.0
@@ -76,7 +76,7 @@ nesteMeldingToString (MeldingsLogg { ikkeVist }) =
         LeserMelding melding list ->
             let
                 venteTid =
-                    String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 0.0
+                    String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 1.0
             in
             if venteTid > 3.0 then
                 3.0

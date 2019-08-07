@@ -869,17 +869,13 @@ viewBrukerInput (Model model) =
                 Intro _ ->
                     if List.isEmpty model.utdanningListe then
                         div [ class "skjema-wrapper" ]
-                            [ div [ class "sjema" ]
+                            [ div [ class "knapperad-wrapper" ]
                                 [ div [ class "inputkolonne" ]
-                                    [ div [ class "inputkolonne-innhold" ]
-                                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
-                                            |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                            |> Knapp.toHtml
-                                        , "Jeg har ingen utdanning"
-                                            |> Knapp.knapp (GåTilArbeidserfaring "Jeg har ingen utdanning")
-                                            |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                            |> Knapp.toHtml
-                                        ]
+                                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Jeg vil registrere utdanning"
+                                        |> Knapp.toHtml
+                                    , "Jeg har ingen utdanning"
+                                        |> Knapp.knapp (GåTilArbeidserfaring "Jeg har ingen utdanning")
+                                        |> Knapp.toHtml
                                     ]
                                 ]
                             ]
