@@ -1579,12 +1579,12 @@ utdanningTilSkjema utdanning =
             utdanning
                 |> Cv.fradato
                 |> Maybe.withDefault "1970-01"
-                |> Dato.tilDato
+                |> Dato.fraStringTilDato
         , tildato =
             utdanning
                 |> Cv.tildato
                 |> Maybe.withDefault "1970-01"
-                |> Dato.tilDato
+                |> Dato.fraStringTilDato
                 |> Just
         , beskrivelse =
             utdanning
