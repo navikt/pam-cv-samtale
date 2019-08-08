@@ -41,41 +41,6 @@ toHtml (Header options) =
         ]
 
 
-robotLogo : Html msg
-robotLogo =
-    svg [ Svg.Attributes.width "50px", Svg.Attributes.height "50px", viewBox "0 0 50 50" ]
-        [ desc [] [ text "Created with Sketch." ]
-        , defs []
-            [ circle [ id "path-1", cx "25", cy "25", r "25" ] [] ]
-        , g [ id "CV", stroke "none", strokeWidth "1", fill "none", fillRule "evenodd" ]
-            [ g [ id "CV-med-knapper-og-input-felt-språk", transform "translate(-301.000000, -173.000000)" ]
-                [ g [ id "Snakkeboble/-4.-Kontaktinfo-feedback", transform "translate(301.000000, 173.000000)" ]
-                    [ g [ id "robot" ]
-                        [ g [ id "veileder/spotlight" ]
-                            [ Svg.mask [ id "mask-2", fill "white" ]
-                                [ use [] [] ]
-                            , use [ id "Spotlight", fill "#40C1AC" ] []
-                            , rect [ id "Rectangle", stroke "#062140", strokeWidth "2", fill "#E6F4EF", mask "url(#mask-2)", x "10.375", y "37.71875", Svg.Attributes.width "28.46875", Svg.Attributes.height "15.1875", rx "7.59375" ] []
-                            , g [ id "Group-2", mask "url(#mask-2)" ]
-                                [ g [ transform "translate(7.812500, 6.250000)" ]
-                                    [ rect [ id "Rectangle", stroke "#062140", strokeWidth "2", fill "#E6F4EF", fillRule "evenodd", x "4.125", y "8.8125", Svg.Attributes.width "25.34375", Svg.Attributes.height "19.09375", rx "7" ] []
-                                    , rect [ id "Rectangle", stroke "#062140", strokeWidth "2", fill "#E6F4EF", fillRule "evenodd", x "1", y "15.84375", Svg.Attributes.width "2.6875", Svg.Attributes.height "5.03125", rx "1.34375" ] []
-                                    , rect [ id "Rectangle-Copy", stroke "#062140", strokeWidth "2", fill "#E6F4EF", fillRule "evenodd", x "29.90625", y "15.84375", Svg.Attributes.width "2.6875", Svg.Attributes.height "5.03125", rx "1.34375" ] []
-                                    , circle [ id "Oval", stroke "none", fill "#062140", fillRule "evenodd", cx "11.71875", cy "16.40625", r "1.5625" ] []
-                                    , circle [ id "Oval-Copy", stroke "none", fill "#062140", fillRule "evenodd", cx "21.875", cy "16.40625", r "1.5625" ] []
-                                    , Svg.path [ d "M14.0625,21.1833106 C14.8704105,22.4851255 15.7818688,23.136033 16.796875,23.136033 C17.8118812,23.136033 18.7233395,22.4851255 19.53125,21.1833106", id "Path-3", stroke "#062140", strokeWidth "2", fill "none", strokeLinecap "round" ] []
-                                    , circle [ id "Oval", stroke "none", fill "#062140", fillRule "evenodd", cx "16.40625", cy "2.34375", r "2.34375" ] []
-                                    , Svg.path [ d "M16.40625,3.90625 L16.40625,7.8125", id "Line-2", stroke "#062140", strokeWidth "2", fill "none", strokeLinecap "square" ] []
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ]
-
-
 arbeidsplassenLogo : Html msg
 arbeidsplassenLogo =
     svg [ viewBox "0 0 190 40" ]

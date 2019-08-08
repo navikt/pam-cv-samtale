@@ -27,6 +27,7 @@ import Html exposing (Attribute, Html, button, div, input, label, option, select
 import Html.Attributes exposing (checked, class, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (Error)
+import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
@@ -2141,6 +2142,35 @@ postEllerPutArbeidserfaring msgConstructor skjema =
             Api.postArbeidserfaring msgConstructor skjema
 
 
+arbeidserfaringToString : List Arbeidserfaring -> List String
+arbeidserfaringToString arbeidserfaringsListe =
+    List.map
+        (\el ->
+            if List.elemIndex el arbeidserfaringsListe == Just (List.length arbeidserfaringsListe - 1) then
+                [ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
+                    ++ " - "
+                    ++ (Cv.Arbeidserfaring.tildato el |> Maybe.withDefault "nåværende")
+                ]
+                    ++ [ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                            ++ " "
+                            ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
+                       ]
+
+            else
+                [ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
+                    ++ " - "
+                    ++ (Cv.Arbeidserfaring.tildato el |> Maybe.withDefault "nåværende")
+                ]
+                    ++ [ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                            ++ " "
+                            ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
+                       ]
+                    ++ [ "\u{00A0}" ]
+        )
+        arbeidserfaringsListe
+        |> List.concat
+
+
 logFeilmelding : Http.Error -> String -> Cmd Msg
 logFeilmelding error operasjon =
     Feilmelding.feilmelding operasjon error
@@ -2163,33 +2193,9 @@ init gammelMeldingsLogg arbeidserfaringsListe =
 
                     else
                         MeldingsLogg.leggTilSpørsmål
-                            [ Melding.spørsmål
-                                [ "Nå skal vi legge til arbeidserfaringen din."
-                                ]
+                            [ Melding.spørsmål [ "Nå skal vi legge til arbeidserfaringen din." ]
                             , Melding.spørsmål [ "Jeg ser at du har lagt til noe allerede." ]
-                            , Melding.spørsmål
-                                (List.map
-                                    (\el ->
-                                        if Cv.Arbeidserfaring.navarende el then
-                                            (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                                ++ " ("
-                                                ++ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
-                                                ++ ")"
-                                                ++ " "
-                                                ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
-
-                                        else
-                                            (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                                ++ " ("
-                                                ++ (Cv.Arbeidserfaring.fradato el |> Maybe.withDefault "")
-                                                ++ " til "
-                                                ++ (Cv.Arbeidserfaring.tildato el |> Maybe.withDefault "")
-                                                ++ ")"
-                                                ++ " "
-                                                ++ (Cv.Arbeidserfaring.yrke el |> Maybe.withDefault (Cv.Arbeidserfaring.yrkeFritekst el |> Maybe.withDefault ""))
-                                    )
-                                    arbeidserfaringsListe
-                                )
+                            , Melding.spørsmål (arbeidserfaringToString arbeidserfaringsListe)
                             , Melding.spørsmål [ "Vil du legge til mer?" ]
                             ]
                    )

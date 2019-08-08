@@ -12,6 +12,7 @@ import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.RobotLogo as RobotLogo
 import FrontendModuler.Spinner as Spinner
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -884,7 +885,9 @@ viewMeldingsLogg meldingsLogg =
 viewMelding : Melding -> Html Msg
 viewMelding melding =
     div [ class ("meldingsrad " ++ meldingsClass melding) ]
-        [ div [ class "melding" ]
+        [ div [ class "robot", ariaLabel "\u{00A0}" ]
+            [ RobotLogo.robotLogo ]
+        , div [ class "melding" ]
             [ Melding.innhold melding
                 |> List.map (\elem -> p [] [ text elem ])
                 |> div []
