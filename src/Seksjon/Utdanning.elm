@@ -14,7 +14,7 @@ import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Http
+import Http exposing (Error)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
@@ -40,6 +40,7 @@ type alias ModelInfo =
 
 type Samtale
     = Intro (List Utdanning)
+    | VelgEnUtdanningÅRedigere
     | RegistrerNivå
     | RegistrerSkole SkoleInfo
     | RegistrerRetning RetningInfo
@@ -178,6 +179,7 @@ forrigeTilOppsummeringInfo tildatoInfo =
             else
                 Just (Dato.tilDato (tildatoInfo.tilÅr ++ "-" ++ (tildatoInfo.tilMåned |> Dato.månedTilString)))
         , navarende = tildatoInfo.forrige.navarende
+        , id = Nothing
         }
 
 
@@ -187,6 +189,8 @@ forrigeTilOppsummeringInfo tildatoInfo =
 
 type Msg
     = BrukerVilRegistrereUtdanning
+    | BrukerVilRedigereUtdanning String
+    | BrukerHarValgtUtdanningÅRedigere Skjema.UtdanningSkjema String
     | GåTilArbeidserfaring String
     | BekreftAlleredeRegistrert
     | BrukerVilRegistrereNivå Nivå
@@ -257,6 +261,21 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilRedigereUtdanning knappeTekst ->
+            ( VelgEnUtdanningÅRedigere
+                |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
+
+        BrukerHarValgtUtdanningÅRedigere skjema knappeTekst ->
+            ( skjema
+                |> EndrerOppsummering
+                |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd
+            )
+                |> IkkeFerdig
 
         GåTilArbeidserfaring knappeTekst ->
             case model.aktivSamtale of
@@ -476,7 +495,10 @@ update msg (Model model) =
         OriginalOppsummeringBekreftet ->
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig
+                        ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema)
+                        , Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ]
+                        )
 
                 LeggTilFlereUtdannelser ferdigskjema ->
                     ( VenterPåAnimasjonFørFullføring model.utdanningListe
@@ -491,10 +513,16 @@ update msg (Model model) =
         OppsummeringSkjemaLagreknappTrykket ->
             case model.aktivSamtale of
                 EndrerOppsummering ferdigskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema), Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig
+                        ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema)
+                        , Cmd.batch [ postEllerPutUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ]
+                        )
 
                 LeggTilUtdanningFeiletIApi _ feiletskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret feiletskjema), Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi feiletskjema, lagtTilSpørsmålCmd ] )
+                    IkkeFerdig
+                        ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret feiletskjema)
+                        , Cmd.batch [ postEllerPutUtdanning UtdanningSendtTilApi feiletskjema, lagtTilSpørsmålCmd ]
+                        )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -547,7 +575,19 @@ update msg (Model model) =
                 |> MeldingsLogg.fullførMelding
                 |> updateEtterFullførtMelding model
 
-        _ ->
+        BekreftAlleredeRegistrert ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        OppsummeringEndret felt string ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        OppsummeringBoolEndret felt ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        ViewportSatt result ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        ErrorLogget result ->
             IkkeFerdig ( Model model, Cmd.none )
 
 
@@ -749,6 +789,9 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 , Melding.spørsmål [ "Vil du legge inn flere utdannelser?" ]
                 ]
 
+        VelgEnUtdanningÅRedigere ->
+            [ Melding.spørsmål [ "Hvilken registrerte utdanning ønsker du å registrere?" ] ]
+
         RegistrerNivå ->
             [ Melding.spørsmål [ "Her kommer et lite tips. Hvis du skal legge inn bachelorgraden din, velg høyere utdanning 1-4 år. Har du en mastergrad? Velg høyere utdanning 4 år +." ]
             , Melding.spørsmål
@@ -859,7 +902,10 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 ]
             ]
 
-        _ ->
+        OppsummeringLagret utdanningSkjema ->
+            []
+
+        AvsluttSeksjon utdanningSkjema ->
             []
 
 
@@ -929,8 +975,28 @@ viewBrukerInput (Model model) =
                                         |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
                                         |> Knapp.toHtml
                                     ]
+                                , div [ class "inputkolonne" ]
+                                    [ "Jeg vil redigere det jeg har lagt inn"
+                                        |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
+                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
+                                        |> Knapp.toHtml
+                                    ]
                                 ]
                             ]
+
+                VelgEnUtdanningÅRedigere ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "knapperad-wrapper" ]
+                            (Model model
+                                |> lagUrdanningKnapper
+                                |> List.map
+                                    (\msg ->
+                                        div [ class "inputkolonne" ]
+                                            [ msg
+                                            ]
+                                    )
+                            )
+                        ]
 
                 RegistrerNivå ->
                     div [ class "skjema-wrapper" ]
@@ -1159,14 +1225,26 @@ viewBrukerInput (Model model) =
                                     |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                     |> Knapp.toHtml
                                 ]
+                            , div [ class "inputkolonne" ]
+                                [ "Jeg vil redigere det jeg har lagt inn"
+                                    |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
+                                    |> Knapp.withClass Knapp.UtdanningsNivåKnapp
+                                    |> Knapp.toHtml
+                                ]
                             ]
                         ]
 
                 LeggTilUtdanningFeiletIApi _ utdanningSkjema ->
                     endreSkjema model utdanningSkjema
 
-                _ ->
-                    text ""
+                OppsummeringLagret utdanningSkjema ->
+                    div [] []
+
+                VenterPåAnimasjonFørFullføring list ->
+                    div [] []
+
+                AvsluttSeksjon utdanningSkjema ->
+                    div [] []
 
         MeldingerGjenstår ->
             text ""
@@ -1341,6 +1419,86 @@ lagTilMånedKnapp tilDatoInfo måned =
         |> Knapp.toHtml
 
 
+lagUrdanningKnapper : Model -> List (Html Msg)
+lagUrdanningKnapper (Model info) =
+    info.utdanningListe
+        |> List.map
+            (\utdanning ->
+                let
+                    text =
+                        Maybe.withDefault "" (Cv.utdanningsretning utdanning)
+                            ++ ", "
+                            ++ Maybe.withDefault "" (Cv.studiested utdanning)
+                in
+                Knapp.knapp (BrukerHarValgtUtdanningÅRedigere (utdanningTilSkjema utdanning) text) text
+                    |> Knapp.toHtml
+            )
+
+
+utdanningTilSkjema : Cv.Utdanning -> Skjema.UtdanningSkjema
+utdanningTilSkjema utdanning =
+    {--
+    { id : String
+        , studiested : Maybe String
+        , utdanningsretning : Maybe String
+        , fradato : Maybe String
+        , tildato : Maybe String
+        , beskrivelse : Maybe String
+        , navarende : Maybe Bool ----Maybe bool? ref Dtoen
+        , nuskode : Nivå
+        , yrkesskole : Yrkesskole
+        , harAutorisasjon : Bool -- Egentlig maybe?
+        }
+        
+        UtdanningSkjemaInfo =
+            { studiested : String
+            , utdanningsretning : String
+            , fradato : Dato
+            , tildato : Maybe Dato
+            , beskrivelse : String
+            , navarende : Bool
+            , nuskode : Nivå
+            }
+
+        --}
+    Skjema.UtdanningSkjema
+        { studiested =
+            utdanning
+                |> Cv.studiested
+                |> Maybe.withDefault ""
+        , utdanningsretning =
+            utdanning
+                |> Cv.utdanningsretning
+                |> Maybe.withDefault ""
+        , fradato =
+            utdanning
+                |> Cv.fradato
+                |> Maybe.withDefault "1970-01"
+                |> Dato.tilDato
+        , tildato =
+            utdanning
+                |> Cv.tildato
+                |> Maybe.withDefault "1970-01"
+                |> Dato.tilDato
+                |> Just
+        , beskrivelse =
+            utdanning
+                |> Cv.beskrivelse
+                |> Maybe.withDefault ""
+        , navarende =
+            utdanning
+                |> Cv.navarende
+                |> Maybe.withDefault False
+        , nuskode =
+            utdanning
+                |> Cv.nuskode
+        , id =
+            utdanning
+                |> Cv.id
+                |> Just
+        }
+
+
 selectNivåListe : List ( String, String )
 selectNivåListe =
     [ ( "Grunnskole", "Grunnskole" )
@@ -1351,6 +1509,16 @@ selectNivåListe =
     , ( "HøyereUtdanning4pluss", "Høyere Utdanning (mer enn 4 år)" )
     , ( "Phd", "PhD" )
     ]
+
+
+postEllerPutUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.UtdanningSkjema -> Cmd msg
+postEllerPutUtdanning msgConstructor skjema =
+    case Skjema.id skjema of
+        Just id ->
+            Api.putUtdanning msgConstructor skjema id
+
+        Nothing ->
+            Api.postUtdanning msgConstructor skjema
 
 
 init : FerdigAnimertMeldingsLogg -> List Utdanning -> ( Model, Cmd Msg )
