@@ -335,27 +335,8 @@ oppdaterFelt felt (UtdanningSkjema info) ( str, bol, nivå ) =
 
 encode : UtdanningSkjema -> Json.Encode.Value
 encode (UtdanningSkjema info) =
-    case info.tildato of
-        Just dato ->
-            Json.Encode.object
-                [ ( "studiested", Json.Encode.string info.studiested )
-                , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
-                , ( "beskrivelse", Json.Encode.string info.beskrivelse )
-                , ( "fradato"
-                  , info.fradato
-                        |> Dato.tilStringForBackend
-                        |> Json.Encode.string
-                  )
-                , ( "tildato"
-                  , dato
-                        |> Dato.tilStringForBackend
-                        |> Json.Encode.string
-                  )
-                , ( "navarende", Json.Encode.bool info.navarende )
-                , ( "nuskode", encodeNuskode info.nuskode )
-                ]
-
-        Nothing ->
+    case info.navarende of
+        True ->
             Json.Encode.object
                 [ ( "studiested", Json.Encode.string info.studiested )
                 , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
@@ -365,6 +346,37 @@ encode (UtdanningSkjema info) =
                 , ( "navarende", Json.Encode.bool info.navarende )
                 , ( "nuskode", encodeNuskode info.nuskode )
                 ]
+
+        False ->
+            case info.tildato of
+                Just dato ->
+                    Json.Encode.object
+                        [ ( "studiested", Json.Encode.string info.studiested )
+                        , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
+                        , ( "beskrivelse", Json.Encode.string info.beskrivelse )
+                        , ( "fradato"
+                          , info.fradato
+                                |> Dato.tilStringForBackend
+                                |> Json.Encode.string
+                          )
+                        , ( "tildato"
+                          , dato
+                                |> Dato.tilStringForBackend
+                                |> Json.Encode.string
+                          )
+                        , ( "navarende", Json.Encode.bool info.navarende )
+                        , ( "nuskode", encodeNuskode info.nuskode )
+                        ]
+
+                Nothing ->
+                    Json.Encode.object
+                        [ ( "studiested", Json.Encode.string info.studiested )
+                        , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
+                        , ( "beskrivelse", Json.Encode.string info.beskrivelse )
+                        , ( "fradato", Json.Encode.string (info.fradato |> Dato.tilStringForBackend) )
+                        , ( "navarende", Json.Encode.bool info.navarende )
+                        , ( "nuskode", encodeNuskode info.nuskode )
+                        ]
 
 
 encodeNuskode : Nivå -> Json.Encode.Value
