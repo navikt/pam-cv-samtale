@@ -907,6 +907,26 @@ update msg (Model info) =
                     )
                         |> IkkeFerdig
 
+                RegistrereFraÅr fraDatoInfo ->
+                    ( Model
+                        { info
+                            | aktivSamtale =
+                                RegistrereFraÅr { fraDatoInfo | fraÅr = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                RegistrereTilÅr tildDatoInfo ->
+                    ( Model
+                        { info
+                            | aktivSamtale =
+                                RegistrereTilÅr { tildDatoInfo | tilÅr = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
                 _ ->
                     ( Model info, Cmd.none )
                         |> IkkeFerdig
@@ -1641,8 +1661,7 @@ viewBrukerInput (Model info) =
                         [ div [ class "skjema-int" ]
                             [ div [ class "inputkolonne" ]
                                 [ fraDatoInfo.fraÅr
-                                    |> InputInt.input { label = "Hvilket år begynte du der?", msg = BrukerOppdatererFraÅr }
-                                    |> InputInt.toHtml
+                                    |> lagÅrInput ArbeidserfaringSkjema.FraÅr
                                 , BrukerVilRegistrereNaavarende
                                     |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
                                 ]
@@ -1707,8 +1726,7 @@ viewBrukerInput (Model info) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema-int" ]
                             [ tilDatoInfo.tilÅr
-                                |> InputInt.input { label = "Hvilket år sluttet du der?", msg = BrukerOppdatererTilÅr }
-                                |> InputInt.toHtml
+                                |> lagÅrInput ArbeidserfaringSkjema.TilÅr
                             , div [ class "inputkolonne" ]
                                 [ BrukerVilGåTilOppsummering
                                     |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
