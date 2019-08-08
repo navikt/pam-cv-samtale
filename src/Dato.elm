@@ -1,4 +1,4 @@
-module Dato exposing (Dato, Måned(..), måned, månedTilString, setMåned, setÅr, stringTilMåned, tilDato, tilString, tilStringForBackend, validerÅr, år)
+module Dato exposing (Dato, Måned(..), fraStringTilDato, måned, månedTilString, setMåned, setÅr, stringTilMåned, tilString, tilStringForBackend, validerÅr, år)
 
 
 type Dato
@@ -166,8 +166,12 @@ stringTilMåned string =
             Januar
 
 
-tilDato : String -> Dato
-tilDato string =
+
+-- Tar en string av typen 2006-09
+
+
+fraStringTilDato : String -> Dato
+fraStringTilDato string =
     case String.split "-" string of
         aar :: maaned :: [] ->
             case String.toInt aar of
@@ -220,7 +224,7 @@ månedTilNummerMåned maaned =
             "07"
 
         August ->
-            "05"
+            "08"
 
         September ->
             "09"
