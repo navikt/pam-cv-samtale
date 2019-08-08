@@ -171,13 +171,13 @@ forrigeTilOppsummeringInfo tildatoInfo =
         , studiested = tildatoInfo.forrige.forrige.forrige.forrige.skole
         , utdanningsretning = tildatoInfo.forrige.forrige.forrige.retning
         , beskrivelse = tildatoInfo.forrige.forrige.beskrivelse
-        , fradato = Dato.tilDato (tildatoInfo.forrige.fraÅr ++ "-" ++ (tildatoInfo.forrige.fraMåned |> Dato.månedTilString))
+        , fradato = Dato.fraStringTilDato (tildatoInfo.forrige.fraÅr ++ "-" ++ (tildatoInfo.forrige.fraMåned |> Dato.månedTilString))
         , tildato =
             if tildatoInfo.forrige.navarende then
                 Nothing
 
             else
-                Just (Dato.tilDato (tildatoInfo.tilÅr ++ "-" ++ (tildatoInfo.tilMåned |> Dato.månedTilString)))
+                Just (Dato.fraStringTilDato (tildatoInfo.tilÅr ++ "-" ++ (tildatoInfo.tilMåned |> Dato.månedTilString)))
         , navarende = tildatoInfo.forrige.navarende
         , id = Nothing
         }
@@ -202,12 +202,12 @@ type Msg
     | OppdaterBeskrivelse String
     | BrukerVilRegistrereFraMåned FradatoInfo
     | BrukerTrykketFraMånedKnapp FradatoInfo
-    | OppdaterFraÅr FradatoInfo String
+    | OppdaterFraÅr String
     | BrukerVilRegistrereNaavarende
     | BrukerSvarerJaTilNaavarende
     | BrukerSvarerNeiTilNaavarende FradatoInfo
     | BrukerTrykketTilMånedKnapp TildatoInfo
-    | OppdaterTilÅr TildatoInfo String
+    | OppdaterTilÅr String
     | BrukerVilGåTilOppsummering
     | BrukerVilEndreOppsummering
     | OriginalOppsummeringBekreftet
@@ -366,15 +366,33 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        OppdaterFraÅr fraDatoInfo string ->
-            ( Model
-                { model
-                    | aktivSamtale =
-                        RegistrereFraÅr { fraDatoInfo | fraÅr = string }
-                }
-            , Cmd.none
-            )
-                |> IkkeFerdig
+        OppdaterFraÅr string ->
+            case model.aktivSamtale of
+                RegistrereFraÅr fraDatoInfo ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                RegistrereFraÅr { fraDatoInfo | fraÅr = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                EndrerOppsummering skjema ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                skjema
+                                    |> Skjema.oppdaterFraÅr string
+                                    |> EndrerOppsummering
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
 
         BrukerVilRegistrereNaavarende ->
             case model.aktivSamtale of
@@ -427,15 +445,33 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        OppdaterTilÅr tilDatoInfo string ->
-            ( Model
-                { model
-                    | aktivSamtale =
-                        RegistrereTilÅr { tilDatoInfo | tilÅr = string }
-                }
-            , Cmd.none
-            )
-                |> IkkeFerdig
+        OppdaterTilÅr string ->
+            case model.aktivSamtale of
+                RegistrereTilÅr tilDatoInfo ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                RegistrereTilÅr { tilDatoInfo | tilÅr = string }
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                EndrerOppsummering skjema ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                skjema
+                                    |> Skjema.oppdaterTilÅr string
+                                    |> EndrerOppsummering
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
 
         BrukerVilGåTilOppsummering ->
             case model.aktivSamtale of
@@ -766,23 +802,58 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 , Melding.spørsmål
                     (List.map
                         (\el ->
-                            if Cv.navarende el |> Maybe.withDefault False then
-                                (Cv.fradato el |> Maybe.withDefault "")
-                                    ++ ": "
-                                    ++ (Cv.studiested el |> Maybe.withDefault "")
-                                    ++ ", "
-                                    ++ " "
-                                    ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                            case Cv.fradato el of
+                                Just fraDato ->
+                                    case Cv.tildato el of
+                                        Just tilDato ->
+                                            (Cv.studiested el |> Maybe.withDefault "")
+                                                ++ " "
+                                                ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                                                ++ " "
+                                                ++ (fraDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.måned
+                                                        |> Dato.månedTilString
+                                                   )
+                                                ++ " "
+                                                ++ (fraDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.år
+                                                        |> String.fromInt
+                                                   )
+                                                ++ " - "
+                                                ++ (tilDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.måned
+                                                        |> Dato.månedTilString
+                                                   )
+                                                ++ " "
+                                                ++ (tilDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.år
+                                                        |> String.fromInt
+                                                   )
 
-                            else
-                                (Cv.fradato el |> Maybe.withDefault "")
-                                    ++ " til "
-                                    ++ (Cv.tildato el |> Maybe.withDefault "")
-                                    ++ ": "
-                                    ++ (Cv.studiested el |> Maybe.withDefault "")
-                                    ++ ", "
-                                    ++ " "
-                                    ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                                        Nothing ->
+                                            (Cv.studiested el |> Maybe.withDefault "")
+                                                ++ " "
+                                                ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                                                ++ " "
+                                                ++ (fraDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.måned
+                                                        |> Dato.månedTilString
+                                                   )
+                                                ++ " "
+                                                ++ (fraDato
+                                                        |> Dato.fraStringTilDato
+                                                        |> Dato.år
+                                                        |> String.fromInt
+                                                   )
+                                                ++ " - Nåværende"
+
+                                Nothing ->
+                                    ""
                         )
                         utdannelseListe
                     )
@@ -1126,8 +1197,7 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema-int" ]
                             [ fraDatoInfo.fraÅr
-                                |> InputInt.input { label = "", msg = OppdaterFraÅr fraDatoInfo }
-                                |> InputInt.toHtml
+                                |> lagÅrInputField (OppdaterFraÅr "")
                             , BrukerVilRegistrereNaavarende
                                 |> lagÅrInputKnapp "Lagre" fraDatoInfo.fraÅr
                             ]
@@ -1190,8 +1260,7 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema-int" ]
                             [ tilDatoInfo.tilÅr
-                                |> InputInt.input { label = "", msg = OppdaterTilÅr tilDatoInfo }
-                                |> InputInt.toHtml
+                                |> lagÅrInputField (OppdaterTilÅr "")
                             , BrukerVilGåTilOppsummering
                                 |> lagÅrInputKnapp "Lagre" tilDatoInfo.tilÅr
                             ]
@@ -1296,8 +1365,7 @@ endreSkjema model utdanningsskjema =
                         else
                             string
                    )
-                |> Input.input { label = "År", msg = FraÅrEndret >> SkjemaOppdatert }
-                |> Input.toHtml
+                |> lagÅrInputField (OppdaterFraÅr "")
             , utdanningsskjema
                 |> Skjema.navarende
                 |> Checkbox.checkbox "Nåværende" (SkjemaOppdatert (NavarendeEndret (Skjema.navarende (Skjema.toggleBool utdanningsskjema Skjema.Navarende))))
@@ -1342,11 +1410,11 @@ endreSkjema model utdanningsskjema =
                                         else
                                             string
                                    )
-                                |> Input.input { label = "År", msg = TilÅrEndret >> SkjemaOppdatert }
-                                |> Input.toHtml
+                                |> lagÅrInputField (OppdaterTilÅr "")
 
                         Nothing ->
-                            text ""
+                            ""
+                                |> lagÅrInputField (OppdaterTilÅr "")
                     ]
             ]
         , case model.aktivSamtale of
@@ -1383,6 +1451,43 @@ lagÅrInputKnapp knappeTekst inputTekst msg =
                 Knapp.withEnabled Knapp.Disabled
            )
         |> Knapp.toHtml
+
+
+lagÅrInputField : Msg -> String -> Html Msg
+lagÅrInputField msg inputTekst =
+    case msg of
+        OppdaterFraÅr string ->
+            let
+                inputfield =
+                    inputTekst
+                        |> Input.input { label = "År", msg = OppdaterFraÅr }
+            in
+            if not (Dato.validerÅr inputTekst) && inputTekst /= "" then
+                inputfield
+                    |> Input.withFeilmelding "Vennligst skriv inn et gyldig årstall"
+                    |> Input.toHtml
+
+            else
+                inputfield
+                    |> Input.toHtml
+
+        OppdaterTilÅr string ->
+            let
+                inputfield =
+                    inputTekst
+                        |> Input.input { label = "År", msg = OppdaterTilÅr }
+            in
+            if not (Dato.validerÅr inputTekst) && inputTekst /= "" then
+                inputfield
+                    |> Input.withFeilmelding "Vennligst skriv inn et gyldig årstall"
+                    |> Input.toHtml
+
+            else
+                inputfield
+                    |> Input.toHtml
+
+        _ ->
+            div [] []
 
 
 lagMessageKnapp : String -> Msg -> Html Msg

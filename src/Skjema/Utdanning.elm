@@ -155,7 +155,18 @@ oppdaterBeskrivelse beskr (UtdanningSkjema skjema) =
 
 oppdaterNavarende : Bool -> UtdanningSkjema -> UtdanningSkjema
 oppdaterNavarende bool (UtdanningSkjema skjema) =
-    UtdanningSkjema { skjema | navarende = bool }
+    if skjema.navarende == True then
+        UtdanningSkjema
+            { skjema
+                | tildato =
+                    tilDato (UtdanningSkjema skjema)
+                        |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
+                        |> Just
+                , navarende = bool
+            }
+
+    else
+        UtdanningSkjema { skjema | navarende = bool }
 
 
 oppdaterFraMåned : String -> UtdanningSkjema -> UtdanningSkjema
@@ -222,7 +233,8 @@ oppdaterTilÅr string (UtdanningSkjema skjema) =
                 }
 
         Nothing ->
-            UtdanningSkjema skjema
+            UtdanningSkjema
+                skjema
 
 
 
@@ -349,6 +361,7 @@ encode (UtdanningSkjema info) =
                 , ( "utdanningsretning", Json.Encode.string info.utdanningsretning )
                 , ( "beskrivelse", Json.Encode.string info.beskrivelse )
                 , ( "fradato", Json.Encode.string (info.fradato |> Dato.tilStringForBackend) )
+                , ( "tildato", Json.Encode.null )
                 , ( "navarende", Json.Encode.bool info.navarende )
                 , ( "nuskode", encodeNuskode info.nuskode )
                 ]
