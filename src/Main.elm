@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Api
+import Array
 import Browser
 import Browser.Dom as Dom
 import Browser.Events
@@ -19,6 +20,7 @@ import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabel)
 import Html.Events exposing (..)
 import Http
+import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Person exposing (Person)
@@ -878,15 +880,36 @@ viewMeldingsLogg : MeldingsLogg -> Html Msg
 viewMeldingsLogg meldingsLogg =
     meldingsLogg
         |> MeldingsLogg.meldinger
-        |> List.map viewMelding
+        |> List.map (viewMelding meldingsLogg)
         |> div []
 
 
-viewMelding : Melding -> Html Msg
-viewMelding melding =
+leggIgjenCVertIMeldingsloggen : MeldingsLogg -> Melding -> Bool
+leggIgjenCVertIMeldingsloggen meldingsLogg melding =
+    List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg)
+        == Just (List.length (MeldingsLogg.meldinger meldingsLogg) - 1)
+        && (MeldingsLogg.skriveStatus meldingsLogg /= MeldingsLogg.Skriver)
+        || (Melding.meldingsType melding
+                == Melding.Spørsmål
+                && Melding.meldingsType
+                    (Maybe.withDefault (Melding.spørsmål [])
+                        (List.getAt
+                            ((List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg) |> Maybe.withDefault 2) + 1)
+                            (MeldingsLogg.meldinger meldingsLogg)
+                        )
+                    )
+                == Melding.Svar
+           )
+
+
+viewMelding : MeldingsLogg -> Melding -> Html Msg
+viewMelding meldingsLogg melding =
     div [ class ("meldingsrad " ++ meldingsClass melding) ]
-        [ div [ class "robot", ariaLabel "\u{00A0}" ]
-            [ RobotLogo.robotLogo ]
+        [ if leggIgjenCVertIMeldingsloggen meldingsLogg melding then
+            div [ class "robot" ] [ RobotLogo.robotLogo ]
+
+          else
+            div [ class "robot" ] []
         , div [ class "melding" ]
             [ Melding.innhold melding
                 |> List.map (\elem -> p [] [ text elem ])
@@ -910,7 +933,8 @@ viewSkriveStatus meldingsLogg =
     case MeldingsLogg.skriveStatus meldingsLogg of
         MeldingsLogg.Skriver ->
             div [ class "meldingsrad sporsmal" ]
-                [ div [ class "melding" ]
+                [ div [ class "robot" ] [ RobotLogo.robotLogo ]
+                , div [ class "melding" ]
                     [ div [ class "skriver-melding" ]
                         [ div [ class "bounce bounce1" ] []
                         , div [ class "bounce bounce2" ] []

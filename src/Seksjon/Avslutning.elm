@@ -279,13 +279,13 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
             [ Melding.spørsmål [ "Siden du er under oppfølging fra NAV, så vil CV-en din være synlig for arbeidsgivere og NAV-veiledere." ]
             , Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har skrevet her er lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Lykke til med jobbjakten! ☺️" ]
+            , Melding.spørsmål [ "Lykke til med jobbjakten! 😊" ]
             ]
 
         AvsluttendeOrd ->
             [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har skrevet her er lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Lykke til med jobbjakten! ☺️" ]
+            , Melding.spørsmål [ "Lykke til med jobbjakten! 😊" ]
             ]
 
         HentPersonFeilet ->
