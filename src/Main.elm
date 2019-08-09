@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Api
+import Array
 import Browser
 import Browser.Dom as Dom
 import Browser.Events
@@ -883,14 +884,28 @@ viewMeldingsLogg meldingsLogg =
         |> div []
 
 
+leggIgjenCVertIMeldingsloggen : MeldingsLogg -> Melding -> Bool
+leggIgjenCVertIMeldingsloggen meldingsLogg melding =
+    List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg)
+        == Just (List.length (MeldingsLogg.meldinger meldingsLogg) - 1)
+        && (MeldingsLogg.skriveStatus meldingsLogg /= MeldingsLogg.Skriver)
+        || (Melding.meldingsType melding
+                == Melding.Spørsmål
+                && Melding.meldingsType
+                    (Maybe.withDefault (Melding.spørsmål [])
+                        (List.getAt
+                            ((List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg) |> Maybe.withDefault 2) + 1)
+                            (MeldingsLogg.meldinger meldingsLogg)
+                        )
+                    )
+                == Melding.Svar
+           )
+
+
 viewMelding : MeldingsLogg -> Melding -> Html Msg
 viewMelding meldingsLogg melding =
     div [ class ("meldingsrad " ++ meldingsClass melding) ]
-        [ if
-            List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg)
-                == Just (List.length (MeldingsLogg.meldinger meldingsLogg) - 1)
-                && (MeldingsLogg.skriveStatus meldingsLogg /= MeldingsLogg.Skriver)
-          then
+        [ if leggIgjenCVertIMeldingsloggen meldingsLogg melding then
             div [ class "robot" ] [ RobotLogo.robotLogo ]
 
           else
