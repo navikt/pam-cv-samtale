@@ -21,6 +21,7 @@ module Api exposing
     , putArbeidserfaring
     , putPersonalia
     , putSammendrag
+    , putUtdanning
     )
 
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
@@ -197,7 +198,23 @@ postUtdanning msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/utdanning"
         , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
-        , body = Skjema.Utdanning.encode skjema "id" (Skjema.Utdanning.nuskode skjema) |> jsonBody
+        , body = Skjema.Utdanning.encode skjema |> jsonBody
+        }
+
+
+putUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.UtdanningSkjema -> String -> Cmd msg
+putUtdanning msgConstructor skjema id =
+    Http.request
+        { method = "PUT"
+        , headers = []
+        , url = "/cv-samtale/api/rest/cv/utdanning/" ++ id
+        , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
+        , body =
+            skjema
+                |> Skjema.Utdanning.encode
+                |> jsonBody
+        , timeout = Nothing
+        , tracker = Nothing
         }
 
 
