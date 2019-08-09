@@ -186,7 +186,7 @@ update msg extendedModel =
             ( extendedModel, Navigation.load urlString )
 
         UrlRequestChanged (Browser.Internal url) ->
-            ( extendedModel, Navigation.pushUrl extendedModel.navigationKey (Url.toString url) )
+            ( extendedModel, Navigation.load (Url.toString url) )
 
         ViewportHentet viewport ->
             ( { model = extendedModel.model
