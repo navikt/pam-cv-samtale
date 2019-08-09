@@ -27,6 +27,7 @@ import Html exposing (Attribute, Html, button, div, input, label, option, select
 import Html.Attributes exposing (checked, class, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (Error)
+import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
@@ -2188,6 +2189,95 @@ postEllerPutArbeidserfaring msgConstructor skjema =
             Api.postArbeidserfaring msgConstructor skjema
 
 
+arbeidserfaringToString : List Arbeidserfaring -> List String
+arbeidserfaringToString arbeidserfaringsListe =
+    List.map
+        (\el ->
+            case Cv.Arbeidserfaring.fradato el of
+                Just fraDato ->
+                    case Cv.Arbeidserfaring.tildato el of
+                        Just tilDato ->
+                            [ (fraDato
+                                |> Dato.fraStringTilDato
+                                |> Dato.måned
+                                |> Dato.månedTilString
+                              )
+                                ++ " "
+                                ++ (fraDato
+                                        |> Dato.fraStringTilDato
+                                        |> Dato.år
+                                        |> String.fromInt
+                                   )
+                                ++ " - "
+                                ++ (tilDato
+                                        |> Dato.fraStringTilDato
+                                        |> Dato.måned
+                                        |> Dato.månedTilString
+                                   )
+                                ++ " "
+                                ++ (tilDato
+                                        |> Dato.fraStringTilDato
+                                        |> Dato.år
+                                        |> String.fromInt
+                                   )
+                            ]
+                                ++ [ ((if Cv.Arbeidserfaring.yrkeFritekst el == Nothing then
+                                        Cv.Arbeidserfaring.yrke el
+
+                                       else
+                                        Cv.Arbeidserfaring.yrkeFritekst el
+                                      )
+                                        |> Maybe.withDefault ""
+                                     )
+                                        ++ " hos "
+                                        ++ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                                   ]
+                                ++ (if List.elemIndex el arbeidserfaringsListe == Just (List.length arbeidserfaringsListe - 1) then
+                                        [ "" ]
+
+                                    else
+                                        [ "\u{00A0}" ]
+                                   )
+
+                        Nothing ->
+                            [ (fraDato
+                                |> Dato.fraStringTilDato
+                                |> Dato.måned
+                                |> Dato.månedTilString
+                              )
+                                ++ " "
+                                ++ (fraDato
+                                        |> Dato.fraStringTilDato
+                                        |> Dato.år
+                                        |> String.fromInt
+                                   )
+                                ++ " - Nåværende"
+                            ]
+                                ++ [ ((if Cv.Arbeidserfaring.yrkeFritekst el == Nothing then
+                                        Cv.Arbeidserfaring.yrke el
+
+                                       else
+                                        Cv.Arbeidserfaring.yrkeFritekst el
+                                      )
+                                        |> Maybe.withDefault ""
+                                     )
+                                        ++ " hos "
+                                        ++ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
+                                   ]
+                                ++ (if List.elemIndex el arbeidserfaringsListe == Just (List.length arbeidserfaringsListe - 1) then
+                                        [ "" ]
+
+                                    else
+                                        [ "\u{00A0}" ]
+                                   )
+
+                Nothing ->
+                    [ "" ]
+        )
+        arbeidserfaringsListe
+        |> List.concat
+
+
 logFeilmelding : Http.Error -> String -> Cmd Msg
 logFeilmelding error operasjon =
     Feilmelding.feilmelding operasjon error
@@ -2210,82 +2300,9 @@ init gammelMeldingsLogg arbeidserfaringsListe =
 
                     else
                         MeldingsLogg.leggTilSpørsmål
-                            [ Melding.spørsmål
-                                [ "Nå skal vi legge til arbeidserfaringen din."
-                                ]
+                            [ Melding.spørsmål [ "Nå skal vi legge til arbeidserfaringen din." ]
                             , Melding.spørsmål [ "Jeg ser at du har lagt til noe allerede." ]
-                            , Melding.spørsmål
-                                (List.map
-                                    (\el ->
-                                        case Cv.Arbeidserfaring.fradato el of
-                                            Just fraDato ->
-                                                case Cv.Arbeidserfaring.tildato el of
-                                                    Just tilDato ->
-                                                        ((if Cv.Arbeidserfaring.yrkeFritekst el == Nothing then
-                                                            Cv.Arbeidserfaring.yrke el
-
-                                                          else
-                                                            Cv.Arbeidserfaring.yrkeFritekst el
-                                                         )
-                                                            |> Maybe.withDefault ""
-                                                        )
-                                                            ++ " "
-                                                            ++ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                                            ++ " "
-                                                            ++ (fraDato
-                                                                    |> Dato.fraStringTilDato
-                                                                    |> Dato.måned
-                                                                    |> Dato.månedTilString
-                                                               )
-                                                            ++ " "
-                                                            ++ (fraDato
-                                                                    |> Dato.fraStringTilDato
-                                                                    |> Dato.år
-                                                                    |> String.fromInt
-                                                               )
-                                                            ++ " - "
-                                                            ++ (tilDato
-                                                                    |> Dato.fraStringTilDato
-                                                                    |> Dato.måned
-                                                                    |> Dato.månedTilString
-                                                               )
-                                                            ++ " "
-                                                            ++ (tilDato
-                                                                    |> Dato.fraStringTilDato
-                                                                    |> Dato.år
-                                                                    |> String.fromInt
-                                                               )
-
-                                                    Nothing ->
-                                                        ((if Cv.Arbeidserfaring.yrkeFritekst el == Nothing then
-                                                            Cv.Arbeidserfaring.yrke el
-
-                                                          else
-                                                            Cv.Arbeidserfaring.yrkeFritekst el
-                                                         )
-                                                            |> Maybe.withDefault ""
-                                                        )
-                                                            ++ " "
-                                                            ++ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                                            ++ " "
-                                                            ++ (fraDato
-                                                                    |> Dato.fraStringTilDato
-                                                                    |> Dato.måned
-                                                                    |> Dato.månedTilString
-                                                               )
-                                                            ++ " "
-                                                            ++ (fraDato
-                                                                    |> Dato.fraStringTilDato
-                                                                    |> Dato.år
-                                                                    |> String.fromInt
-                                                               )
-                                                            ++ " - Nåværende"
-
-                                            Nothing ->
-                                                ""
-                                    )
-                                    arbeidserfaringsListe
-                                )
+                            , Melding.spørsmål (arbeidserfaringToString arbeidserfaringsListe)
                             , Melding.spørsmål [ "Vil du legge til mer?" ]
                             ]
                    )

@@ -58,31 +58,31 @@ meldinger (MeldingsLogg { meldingsLogg }) =
 
 nesteMeldingToString : MeldingsLogg -> Float
 nesteMeldingToString (MeldingsLogg { ikkeVist }) =
-    case ikkeVist of
-        Ingen ->
-            1.0
+    0.0
 
-        SkriverEnMelding melding list ->
-            let
-                venteTid =
-                    String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 1.0
-            in
-            if venteTid > 3.0 then
-                3.0
 
-            else
-                venteTid
 
-        LeserMelding melding list ->
-            let
-                venteTid =
-                    String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 1.0
-            in
-            if venteTid > 3.0 then
-                3.0
-
-            else
-                venteTid
+--case ikkeVist of
+--    Ingen ->
+--        1.0
+--    SkriverEnMelding melding list ->
+--        let
+--            venteTid =
+--                String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 1.0
+--        in
+--        if venteTid > 3.0 then
+--            3.0
+--        else
+--            venteTid
+--    LeserMelding melding list ->
+--        let
+--            venteTid =
+--                String.toFloat (String.fromInt (List.length (Melding.innhold melding))) |> Maybe.withDefault 1.0
+--        in
+--        if venteTid > 3.0 then
+--            3.0
+--        else
+--            venteTid
 
 
 skriveStatus : MeldingsLogg -> SkriveStatus
