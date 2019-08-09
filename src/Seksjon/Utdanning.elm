@@ -15,6 +15,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http exposing (Error)
+import List.Extra as List
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
@@ -788,6 +789,81 @@ oppdaterSamtaleSteg model samtaleSeksjon =
         }
 
 
+utdanningslisteTilString : List Utdanning -> List String
+utdanningslisteTilString utdannelseListe =
+    List.map
+        (\el ->
+            case Cv.fradato el of
+                Just fraDato ->
+                    case Cv.tildato el of
+                        Just tilDato ->
+                            [ (fraDato
+                                |> Dato.fraStringTilDato
+                                |> Dato.måned
+                                |> Dato.månedTilString
+                              )
+                                ++ " "
+                                ++ (fraDato
+                                        |> Dato.fraStringTilDato
+                                        |> Dato.år
+                                        |> String.fromInt
+                                   )
+                                ++ " - "
+                                ++ (tilDato
+                                        |> Dato.fraStringTilDato
+                                        |> Dato.måned
+                                        |> Dato.månedTilString
+                                   )
+                                ++ " "
+                                ++ (tilDato
+                                        |> Dato.fraStringTilDato
+                                        |> Dato.år
+                                        |> String.fromInt
+                                   )
+                            ]
+                                ++ [ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                                        ++ " ved  "
+                                        ++ (Cv.studiested el |> Maybe.withDefault "")
+                                   ]
+                                ++ (if List.elemIndex el utdannelseListe == Just (List.length utdannelseListe - 1) then
+                                        [ "" ]
+
+                                    else
+                                        [ "\u{00A0}" ]
+                                   )
+
+                        Nothing ->
+                            [ (fraDato
+                                |> Dato.fraStringTilDato
+                                |> Dato.måned
+                                |> Dato.månedTilString
+                              )
+                                ++ " "
+                                ++ (fraDato
+                                        |> Dato.fraStringTilDato
+                                        |> Dato.år
+                                        |> String.fromInt
+                                   )
+                                ++ " - Nåværende"
+                            ]
+                                ++ [ (Cv.utdanningsretning el |> Maybe.withDefault "")
+                                        ++ " ved  "
+                                        ++ (Cv.studiested el |> Maybe.withDefault "")
+                                   ]
+                                ++ (if List.elemIndex el utdannelseListe == Just (List.length utdannelseListe - 1) then
+                                        [ "" ]
+
+                                    else
+                                        [ "\u{00A0}" ]
+                                   )
+
+                Nothing ->
+                    [ "" ]
+        )
+        utdannelseListe
+        |> List.concat
+
+
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg utdanningSeksjon =
     case utdanningSeksjon of
@@ -799,64 +875,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
             else
                 [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn disse utdannelsene: " ]
-                , Melding.spørsmål
-                    (List.map
-                        (\el ->
-                            case Cv.fradato el of
-                                Just fraDato ->
-                                    case Cv.tildato el of
-                                        Just tilDato ->
-                                            (Cv.studiested el |> Maybe.withDefault "")
-                                                ++ " "
-                                                ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
-                                                ++ " "
-                                                ++ (fraDato
-                                                        |> Dato.fraStringTilDato
-                                                        |> Dato.måned
-                                                        |> Dato.månedTilString
-                                                   )
-                                                ++ " "
-                                                ++ (fraDato
-                                                        |> Dato.fraStringTilDato
-                                                        |> Dato.år
-                                                        |> String.fromInt
-                                                   )
-                                                ++ " - "
-                                                ++ (tilDato
-                                                        |> Dato.fraStringTilDato
-                                                        |> Dato.måned
-                                                        |> Dato.månedTilString
-                                                   )
-                                                ++ " "
-                                                ++ (tilDato
-                                                        |> Dato.fraStringTilDato
-                                                        |> Dato.år
-                                                        |> String.fromInt
-                                                   )
-
-                                        Nothing ->
-                                            (Cv.studiested el |> Maybe.withDefault "")
-                                                ++ " "
-                                                ++ (Cv.utdanningsretning el |> Maybe.withDefault "")
-                                                ++ " "
-                                                ++ (fraDato
-                                                        |> Dato.fraStringTilDato
-                                                        |> Dato.måned
-                                                        |> Dato.månedTilString
-                                                   )
-                                                ++ " "
-                                                ++ (fraDato
-                                                        |> Dato.fraStringTilDato
-                                                        |> Dato.år
-                                                        |> String.fromInt
-                                                   )
-                                                ++ " - Nåværende"
-
-                                Nothing ->
-                                    ""
-                        )
-                        utdannelseListe
-                    )
+                , Melding.spørsmål (utdanningslisteTilString utdannelseListe)
                 , Melding.spørsmål [ "Vil du legge inn flere utdannelser?" ]
                 ]
 

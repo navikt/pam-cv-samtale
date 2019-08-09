@@ -249,7 +249,7 @@ samtaleTilMeldingsLogg sammendragSeksjon =
                 , Melding.spørsmål
                     [ "Du har allerede skrevet dette..."
                     ]
-                , Melding.spørsmål (String.split "\n" sammendrag)
+                , Melding.spørsmål (List.intersperse "\u{00A0}" (String.split "\n" sammendrag))
                 , Melding.spørsmål [ "Vil du legge til eller endre på noe?" ]
                 ]
 
