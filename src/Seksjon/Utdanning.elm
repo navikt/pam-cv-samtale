@@ -52,6 +52,8 @@ type Samtale
     | RegistrereTilÅr TildatoInfo
     | Oppsummering Skjema.UtdanningSkjema
     | EndrerOppsummering Skjema.UtdanningSkjema
+    | SletterUtdanning Skjema.UtdanningSkjema
+    | FerdigMedÅSletteUtdanning
     | OppsummeringLagret Skjema.UtdanningSkjema
     | LeggTilFlereUtdannelser Skjema.UtdanningSkjema
     | LeggTilUtdanningFeiletIApi Http.Error Skjema.UtdanningSkjema
@@ -215,6 +217,8 @@ type Msg
     | OppsummeringBoolEndret Skjema.Felt
     | OppsummeringSkjemaLagreknappTrykket
     | SkjemaOppdatert SkjemaEndring
+    | BrukerTrykketPåSlettUtdanning
+    | UtdanningSlettet (Result Http.Error (List Utdanning))
     | UtdanningSendtTilApi (Result Http.Error (List Utdanning))
     | AvbrytLagringOgTaMegTilIntro
     | ViewportSatt (Result Dom.Error ())
@@ -528,6 +532,42 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        BrukerTrykketPåSlettUtdanning ->
+            case model.aktivSamtale of
+                EndrerOppsummering skjema ->
+                    ( skjema
+                        |> SletterUtdanning
+                        |> nesteSamtaleSteg model (Melding.svar [ "Slett" ])
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd
+                        , skjema
+                            |> Skjema.id
+                            |> Maybe.withDefault ""
+                            |> Api.deleteUtdanning UtdanningSlettet
+                        ]
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        UtdanningSlettet result ->
+            case model.aktivSamtale of
+                SletterUtdanning skjema ->
+                    case result of
+                        Ok liste ->
+                            ( FerdigMedÅSletteUtdanning
+                                |> oppdaterSamtaleSteg { model | utdanningListe = liste }
+                            , lagtTilSpørsmålCmd
+                            )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         OriginalOppsummeringBekreftet ->
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
@@ -782,10 +822,21 @@ nesteSamtaleStegUtenMelding model samtaleSeksjon =
 
 oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
 oppdaterSamtaleSteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-        }
+    case model.aktivSamtale of
+        FerdigMedÅSletteUtdanning ->
+            Model
+                { model
+                    | aktivSamtale = samtaleSeksjon
+                    , seksjonsMeldingsLogg =
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                }
+
+        _ ->
+            Model
+                { model
+                    | aktivSamtale = samtaleSeksjon
+                }
 
 
 samtaleTilMeldingsLogg : Samtale -> List Melding
@@ -966,6 +1017,14 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
         LeggTilUtdanningFeiletIApi _ _ ->
             [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
+
+        SletterUtdanning utdanningSkjema ->
+            [ Melding.spørsmål [ "Sletter utdanning..." ] ]
+
+        FerdigMedÅSletteUtdanning ->
+            [ Melding.spørsmål [ "Utdanning slettet!" ]
+            , Melding.spørsmål [ "Vil du legge til flere?" ]
+            ]
 
         VenterPåAnimasjonFørFullføring _ ->
             [ Melding.spørsmål
@@ -1303,6 +1362,33 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
+                SletterUtdanning utdanningSkjema ->
+                    div [] []
+
+                FerdigMedÅSletteUtdanning ->
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "inputrad-innhold" ]
+                            [ div [ class "inputrad" ]
+                                [ Knapp.knapp
+                                    BrukerVilRegistrereUtdanning
+                                    "Ja, legg til en utdanning"
+                                    |> Knapp.toHtml
+                                ]
+                            , div [ class "inputrad" ]
+                                [ Knapp.knapp (GåTilArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
+                                    |> Knapp.toHtml
+                                ]
+                            , if List.isEmpty model.utdanningListe then
+                                div [] []
+
+                              else
+                                div [ class "inputrad" ]
+                                    [ Knapp.knapp (BrukerVilRedigereUtdanning "Rediger utdanning") "Rediger utdanning"
+                                        |> Knapp.toHtml
+                                    ]
+                            ]
+                        ]
+
                 LeggTilUtdanningFeiletIApi _ utdanningSkjema ->
                     endreSkjema model utdanningSkjema
 
@@ -1423,6 +1509,8 @@ endreSkjema model utdanningsskjema =
                     [ div [ class "skjema-wrapper" ]
                         [ div [ class "inputkolonne" ]
                             [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerTrykketPåSlettUtdanning "Slett"
                                 |> Knapp.toHtml
                             ]
                         ]

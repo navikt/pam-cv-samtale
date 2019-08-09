@@ -1,5 +1,6 @@
 module Api exposing
     ( deleteArbeidserfaring
+    , deleteUtdanning
     , getAAreg
     , getAutorisasjonTypeahead
     , getCv
@@ -213,6 +214,19 @@ putUtdanning msgConstructor skjema id =
             skjema
                 |> Skjema.Utdanning.encode
                 |> jsonBody
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+deleteUtdanning : (Result Error (List Utdanning) -> msg) -> String -> Cmd msg
+deleteUtdanning msgConstructor id =
+    Http.request
+        { method = "DELETE"
+        , headers = []
+        , url = "/cv-samtale/api/rest/cv/utdanning/" ++ id
+        , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
+        , body = Http.emptyBody
         , timeout = Nothing
         , tracker = Nothing
         }
