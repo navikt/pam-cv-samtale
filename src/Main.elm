@@ -19,6 +19,7 @@ import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabel)
 import Html.Events exposing (..)
 import Http
+import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Person exposing (Person)
@@ -878,15 +879,22 @@ viewMeldingsLogg : MeldingsLogg -> Html Msg
 viewMeldingsLogg meldingsLogg =
     meldingsLogg
         |> MeldingsLogg.meldinger
-        |> List.map viewMelding
+        |> List.map (viewMelding meldingsLogg)
         |> div []
 
 
-viewMelding : Melding -> Html Msg
-viewMelding melding =
+viewMelding : MeldingsLogg -> Melding -> Html Msg
+viewMelding meldingsLogg melding =
     div [ class ("meldingsrad " ++ meldingsClass melding) ]
-        [ div [ class "robot", ariaLabel "\u{00A0}" ]
-            [ RobotLogo.robotLogo ]
+        [ if
+            List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg)
+                == Just (List.length (MeldingsLogg.meldinger meldingsLogg) - 1)
+                && (MeldingsLogg.skriveStatus meldingsLogg /= MeldingsLogg.Skriver)
+          then
+            div [ class "robot" ] [ RobotLogo.robotLogo ]
+
+          else
+            div [ class "robot" ] []
         , div [ class "melding" ]
             [ Melding.innhold melding
                 |> List.map (\elem -> p [] [ text elem ])
@@ -910,7 +918,8 @@ viewSkriveStatus meldingsLogg =
     case MeldingsLogg.skriveStatus meldingsLogg of
         MeldingsLogg.Skriver ->
             div [ class "meldingsrad sporsmal" ]
-                [ div [ class "melding" ]
+                [ div [ class "robot" ] [ RobotLogo.robotLogo ]
+                , div [ class "melding" ]
                     [ div [ class "skriver-melding" ]
                         [ div [ class "bounce bounce1" ] []
                         , div [ class "bounce bounce2" ] []
