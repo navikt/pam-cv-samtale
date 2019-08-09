@@ -1052,24 +1052,23 @@ viewBrukerInput (Model model) =
                             ]
 
                     else
-                        div [ class "inputkolonne" ]
-                            [ div [ class "knapperad-wrapper" ]
+                        div [ class "skjema-wrapper" ]
+                            [ div [ class "skjema" ]
                                 [ div [ class "inputkolonne" ]
-                                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg vil legge til flere utdannelser"
-                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                        |> Knapp.toHtml
-                                    ]
-                                , div [ class "inputkolonne" ]
-                                    [ "Nei, jeg er ferdig"
-                                        |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg er ferdig")
-                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                        |> Knapp.toHtml
-                                    ]
-                                , div [ class "inputkolonne" ]
-                                    [ "Jeg vil redigere det jeg har lagt inn"
-                                        |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
-                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                        |> Knapp.toHtml
+                                    [ div []
+                                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg vil legge til flere utdannelser"
+                                            |> Knapp.toHtml
+                                        ]
+                                    , div []
+                                        [ "Nei, jeg er ferdig"
+                                            |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg er ferdig")
+                                            |> Knapp.toHtml
+                                        ]
+                                    , div []
+                                        [ "Jeg vil redigere det jeg har lagt inn"
+                                            |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
+                                            |> Knapp.toHtml
+                                        ]
                                     ]
                                 ]
                             ]
