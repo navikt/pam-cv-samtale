@@ -325,7 +325,16 @@ viewBrukerInput (Model model) =
                         ]
 
                 VenterPåAnimasjonFørFullføring ->
-                    text ""
+                    div []
+                        [ div [ class "inputrad" ]
+                            [ div [ class "inputrad-innhold" ]
+                                [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
+                                    [ div [ class "Knapp" ]
+                                        [ text "Avslutt og vis CV-en min" ]
+                                    ]
+                                ]
+                            ]
+                        ]
 
                 DelMedArbeidsgiver _ ->
                     div [ class "skjema-wrapper" ]
