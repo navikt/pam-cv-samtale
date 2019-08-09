@@ -861,7 +861,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 ]
 
         VelgEnUtdanningÅRedigere ->
-            [ Melding.spørsmål [ "Hvilken registrerte utdanning ønsker du å registrere?" ] ]
+            [ Melding.spørsmål [ "Hvilken registrerte utdanning ønsker du å redigere?" ] ]
 
         RegistrerNivå ->
             [ Melding.spørsmål [ "Her kommer et lite tips. Hvis du skal legge inn bachelorgraden din, velg høyere utdanning 1-4 år. Har du en mastergrad? Velg høyere utdanning 4 år +." ]
