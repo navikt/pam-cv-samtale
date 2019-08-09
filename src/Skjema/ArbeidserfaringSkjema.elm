@@ -187,8 +187,12 @@ oppdaterStringFelt skjema felt string =
                 |> oppdaterTilMåned skjema
 
         TilÅr ->
-            string
-                |> oppdaterTilÅr skjema
+            skjema
+                |> tilDato
+                |> Maybe.withDefault (Dato.fraStringTilDato (string ++ "-" ++ "01"))
+                |> Dato.måned
+                |> Dato.månedTilString
+                |> oppdaterTilÅr skjema string
 
         _ ->
             skjema
@@ -198,11 +202,12 @@ toggleBool : ArbeidserfaringSkjema -> Felt -> ArbeidserfaringSkjema
 toggleBool (ArbeidserfaringSkjema skjema) felt =
     case felt of
         Naavarende ->
-            let
-                nyVerdi =
-                    skjema.naavarende
-            in
-            ArbeidserfaringSkjema { skjema | naavarende = not nyVerdi }
+            case naavarende (ArbeidserfaringSkjema skjema) of
+                True ->
+                    oppdaterNaavarende False (ArbeidserfaringSkjema skjema)
+
+                False ->
+                    oppdaterNaavarende True (ArbeidserfaringSkjema skjema)
 
         _ ->
             ArbeidserfaringSkjema skjema
@@ -210,6 +215,22 @@ toggleBool (ArbeidserfaringSkjema skjema) felt =
 
 
 --- OPPDATER FELT ETTER NAVN ---
+
+
+oppdaterNaavarende : Bool -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+oppdaterNaavarende bool (ArbeidserfaringSkjema skjema) =
+    if skjema.naavarende == True then
+        ArbeidserfaringSkjema
+            { skjema
+                | tilDato =
+                    tilDato (ArbeidserfaringSkjema skjema)
+                        |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
+                        |> Just
+                , naavarende = bool
+            }
+
+    else
+        ArbeidserfaringSkjema { skjema | naavarende = bool }
 
 
 oppdaterNavarendeFelt : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
@@ -339,14 +360,14 @@ oppdaterTilMåned (ArbeidserfaringSkjema skjema) string =
             ArbeidserfaringSkjema skjema
 
 
-oppdaterTilÅr : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterTilÅr (ArbeidserfaringSkjema skjema) string =
+oppdaterTilÅr : ArbeidserfaringSkjema -> String -> String -> ArbeidserfaringSkjema
+oppdaterTilÅr (ArbeidserfaringSkjema skjema) år måned =
     case skjema.tilDato of
         Just dato ->
             ArbeidserfaringSkjema
                 { skjema
                     | tilDato =
-                        string
+                        år
                             |> String.toInt
                             |> Maybe.withDefault 0
                             |> Dato.setÅr dato
@@ -354,7 +375,8 @@ oppdaterTilÅr (ArbeidserfaringSkjema skjema) string =
                 }
 
         Nothing ->
-            ArbeidserfaringSkjema skjema
+            ArbeidserfaringSkjema
+                skjema
 
 
 nyttValidertSkjema : ValidertSkjemaInfo -> ValidertArbeidserfaringSkjema
@@ -408,14 +430,14 @@ valider (ArbeidserfaringSkjema info) =
 
 encode : ValidertArbeidserfaringSkjema -> Json.Encode.Value
 encode (ValidertArbeidserfaringSkjema skjema) =
-    case skjema.tilDato of
-        Just tilArbeidsDato ->
+    case skjema.naavarende of
+        True ->
             Json.Encode.object
                 [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
                 , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
                 , ( "sted", Json.Encode.string skjema.lokasjon )
                 , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
-                , ( "tildato", Json.Encode.string (tilArbeidsDato |> Dato.tilStringForBackend) )
+                , ( "tildato", Json.Encode.null )
                 , ( "navarende", Json.Encode.bool skjema.naavarende )
                 , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
                 , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
@@ -423,15 +445,31 @@ encode (ValidertArbeidserfaringSkjema skjema) =
                 , ( "konseptid", Json.Encode.int skjema.konseptId )
                 ]
 
-        Nothing ->
-            Json.Encode.object
-                [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
-                , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
-                , ( "sted", Json.Encode.string skjema.lokasjon )
-                , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
-                , ( "navarende", Json.Encode.bool skjema.naavarende )
-                , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
-                , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
-                , ( "styrkkode", Json.Encode.string skjema.styrkkode )
-                , ( "konseptid", Json.Encode.int skjema.konseptId )
-                ]
+        False ->
+            case skjema.tilDato of
+                Just tildato ->
+                    Json.Encode.object
+                        [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
+                        , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
+                        , ( "sted", Json.Encode.string skjema.lokasjon )
+                        , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
+                        , ( "tildato", Json.Encode.string (Dato.tilStringForBackend tildato) )
+                        , ( "navarende", Json.Encode.bool skjema.naavarende )
+                        , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
+                        , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
+                        , ( "styrkkode", Json.Encode.string skjema.styrkkode )
+                        , ( "konseptid", Json.Encode.int skjema.konseptId )
+                        ]
+
+                Nothing ->
+                    Json.Encode.object
+                        [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
+                        , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
+                        , ( "sted", Json.Encode.string skjema.lokasjon )
+                        , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
+                        , ( "navarende", Json.Encode.bool skjema.naavarende )
+                        , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
+                        , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
+                        , ( "styrkkode", Json.Encode.string skjema.styrkkode )
+                        , ( "konseptid", Json.Encode.int skjema.konseptId )
+                        ]
