@@ -1342,6 +1342,7 @@ endreSkjema model utdanningsskjema =
     div [ class "skjema-wrapper" ]
         [ div [ class "skjema" ]
             [ Select.select "Nivå: " (NivåEndret >> SkjemaOppdatert) selectNivåListe
+                |> Select.withSelected (utdanningsskjema |> Skjema.nuskode |> tilNivåKey)
                 |> Select.toHtml
             , utdanningsskjema
                 |> Skjema.studiested
@@ -1572,7 +1573,7 @@ utdanningTilSkjema utdanning =
         , yrkesskole : Yrkesskole
         , harAutorisasjon : Bool -- Egentlig maybe?
         }
-        
+
         UtdanningSkjemaInfo =
             { studiested : String
             , utdanningsretning : String
@@ -1624,14 +1625,39 @@ utdanningTilSkjema utdanning =
 
 selectNivåListe : List ( String, String )
 selectNivåListe =
-    [ ( "Grunnskole", "Grunnskole" )
-    , ( "VideregåendeYrkesskole", "Videregående/Yrkesskole" )
-    , ( "Fagskole", "Fagskole" )
-    , ( "Folkehøyskole", "Folkehøyskole" )
-    , ( "HøyereUtdanning1til4", "Høyere Utdanning (1-4 år)" )
-    , ( "HøyereUtdanning4pluss", "Høyere Utdanning (mer enn 4 år)" )
-    , ( "Phd", "PhD" )
+    [ ( tilNivåKey Grunnskole, "Grunnskole" )
+    , ( tilNivåKey VideregåendeYrkesskole, "Videregående/Yrkesskole" )
+    , ( tilNivåKey Fagskole, "Fagskole" )
+    , ( tilNivåKey Folkehøyskole, "Folkehøyskole" )
+    , ( tilNivåKey HøyereUtdanning1til4, "Høyere Utdanning (1-4 år)" )
+    , ( tilNivåKey HøyereUtdanning4pluss, "Høyere Utdanning (mer enn 4 år)" )
+    , ( tilNivåKey Phd, "PhD" )
     ]
+
+
+tilNivåKey : Nivå -> String
+tilNivåKey nivå =
+    case nivå of
+        Grunnskole ->
+            "Grunnskole"
+
+        VideregåendeYrkesskole ->
+            "VideregåendeYrkesskole"
+
+        Fagskole ->
+            "Fagskole"
+
+        Folkehøyskole ->
+            "Folkehøyskole"
+
+        HøyereUtdanning1til4 ->
+            "HøyereUtdanning1til4"
+
+        HøyereUtdanning4pluss ->
+            "HøyereUtdanning4pluss"
+
+        Phd ->
+            "Phd"
 
 
 postEllerPutUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.UtdanningSkjema -> Cmd msg
