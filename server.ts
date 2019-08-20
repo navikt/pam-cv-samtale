@@ -44,7 +44,7 @@ const getCookie = (name: string, cookie: string) => {
 };
 
 server.get('/cv-samtale/login', (req, res) => {
-    res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?redirect=https://${req.hostname}/cv-samtale`);
+    res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}/cv-samtale`);
 });
 
 server.post('/cv-samtale/log', express.json(), (req, res) => {
