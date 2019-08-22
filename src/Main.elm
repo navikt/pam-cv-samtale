@@ -898,12 +898,12 @@ viewMeldingsgruppe meldingsGruppe =
         SpørsmålGruppe meldingsGruppeMeldinger ->
             meldingsGruppeMeldinger
                 |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "sporsmal")
-                |> div []
+                |> div [ class "meldingsgruppe" ]
 
         SvarGruppe meldingsGruppeMeldinger ->
             meldingsGruppeMeldinger
                 |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "svar")
-                |> div []
+                |> div [ class "meldingsgruppe" ]
 
 
 
