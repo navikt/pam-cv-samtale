@@ -250,7 +250,7 @@ update msg (Model model) =
 
                     else
                         IkkeFerdig
-                            ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil legge til flere utdannelser" ]) RegistrerNivå
+                            ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til en utdanning" ]) RegistrerNivå
                             , lagtTilSpørsmålCmd
                             )
 
@@ -865,7 +865,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             else
                 [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn disse utdannelsene: " ]
                 , Melding.spørsmål (utdanningslisteTilString utdannelseListe)
-                , Melding.spørsmål [ "Vil du legge inn flere utdannelser?" ]
+                , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
                 ]
 
         VelgEnUtdanningÅRedigere ->
@@ -968,7 +968,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
         LeggTilFlereUtdannelser _ ->
             [ Melding.spørsmål [ "Så bra! Nå har du lagt inn en ny utdanning 👍" ]
-            , Melding.spørsmål [ "Vil du legge inn flere utdanninger?" ]
+            , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
             ]
 
         LeggTilUtdanningFeiletIApi _ _ ->
@@ -1044,7 +1044,7 @@ viewBrukerInput (Model model) =
                             [ div [ class "skjema" ]
                                 [ div [ class "inputkolonne" ]
                                     [ div []
-                                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg vil legge til flere utdannelser"
+                                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                                             |> Knapp.toHtml
                                         ]
                                     , div []
