@@ -1,14 +1,17 @@
 module MeldingsLogg exposing
     ( FerdigAnimertMeldingsLogg
     , FerdigAnimertStatus(..)
+    , MeldingsGruppe(..)
     , MeldingsLogg
+    , MeldingsPlassering(..)
     , SkriveStatus(..)
     , ferdigAnimert
     , fullførMelding
     , init
     , leggTilSpørsmål
     , leggTilSvar
-    , meldinger
+    , mapMeldingsGruppe
+    , mapMeldingsGruppeMeldinger
     , nesteMeldingToString
     , skriveStatus
     , startÅSkrive
@@ -18,18 +21,29 @@ module MeldingsLogg exposing
 import Melding exposing (Melding)
 
 
+type FerdigAnimertMeldingsLogg
+    = FerdigAnimertMeldingsLogg (Maybe MeldingsGruppeIntern) (List MeldingsGruppeIntern)
+
+
 type MeldingsLogg
     = MeldingsLogg MeldigsLoggInfo
 
 
-type FerdigAnimertMeldingsLogg
-    = FerdigAnimertMeldingsLogg (List Melding)
-
-
 type alias MeldigsLoggInfo =
-    { meldingsLogg : List Melding
+    { sisteMeldingsGruppe : Maybe MeldingsGruppeIntern
+    , meldingsLogg : List MeldingsGruppeIntern
     , ikkeVist : UskrevneMeldinger
     }
+
+
+type MeldingsGruppeIntern
+    = SpørsmålGruppe_ (List Melding)
+    | SvarGruppe_ (List Melding)
+
+
+type MeldingsGruppe
+    = SpørsmålGruppe MeldingsGruppeMeldinger
+    | SvarGruppe MeldingsGruppeMeldinger
 
 
 type UskrevneMeldinger
@@ -46,14 +60,102 @@ type SkriveStatus
 init : MeldingsLogg
 init =
     MeldingsLogg
-        { meldingsLogg = []
+        { sisteMeldingsGruppe = Nothing
+        , meldingsLogg = []
         , ikkeVist = Ingen
         }
 
 
-meldinger : MeldingsLogg -> List Melding
-meldinger (MeldingsLogg { meldingsLogg }) =
-    meldingsLogg
+
+--
+--meldinger : MeldingsLogg -> List Melding
+--meldinger (MeldingsLogg { meldingsLogg }) =
+--    List.concatMap meldingerFraMeldingsGruppe meldingsLogg
+--
+--
+--meldingerFraMeldingsGruppe : MeldingsGruppe -> List Melding
+--meldingerFraMeldingsGruppe meldingsGruppe =
+--    case meldingsGruppe of
+--        SpørsmålGruppe list ->
+--            MeldingsGruppeMeldingerlist
+--
+--        SvarGruppe list ->
+--            list
+
+
+type MeldingsPlassering
+    = SisteSpørsmålIMeldingsgruppe
+    | IkkeSisteSpørsmål
+
+
+type MeldingsGruppePlassering
+    = SisteSpørsmålsgruppe
+    | AnnenGruppe
+
+
+mapMeldingsGruppe : (MeldingsGruppe -> a) -> MeldingsLogg -> List a
+mapMeldingsGruppe function ((MeldingsLogg { meldingsLogg, sisteMeldingsGruppe }) as meldingsLogg_) =
+    sisteMeldingsGruppe
+        |> Maybe.map (fraMeldingsGruppeIntern SisteSpørsmålsgruppe (skriveStatus meldingsLogg_) >> List.singleton)
+        |> Maybe.withDefault []
+        |> List.append (List.map (fraMeldingsGruppeIntern AnnenGruppe (skriveStatus meldingsLogg_)) meldingsLogg)
+        |> List.map function
+
+
+fraMeldingsGruppeIntern : MeldingsGruppePlassering -> SkriveStatus -> MeldingsGruppeIntern -> MeldingsGruppe
+fraMeldingsGruppeIntern meldingsGruppePlassering skriver meldingsGruppeIntern =
+    case meldingsGruppeIntern of
+        SpørsmålGruppe_ list ->
+            case ( meldingsGruppePlassering, skriver ) of
+                ( SisteSpørsmålsgruppe, Skriver ) ->
+                    { meldingsLogg = list
+                    , sisteMelding = Nothing
+                    }
+                        |> MeldingsGruppeMeldinger
+                        |> SpørsmålGruppe
+
+                _ ->
+                    list
+                        |> tilMeldingsGruppeMeldinger
+                        |> SpørsmålGruppe
+
+        SvarGruppe_ list ->
+            { meldingsLogg = list
+            , sisteMelding = Nothing
+            }
+                |> MeldingsGruppeMeldinger
+                |> SvarGruppe
+
+
+tilMeldingsGruppeMeldinger : List Melding -> MeldingsGruppeMeldinger
+tilMeldingsGruppeMeldinger list =
+    case List.reverse list of
+        last :: rest ->
+            { meldingsLogg = List.reverse rest
+            , sisteMelding = Just last
+            }
+                |> MeldingsGruppeMeldinger
+
+        [] ->
+            { meldingsLogg = []
+            , sisteMelding = Nothing
+            }
+                |> MeldingsGruppeMeldinger
+
+
+type MeldingsGruppeMeldinger
+    = MeldingsGruppeMeldinger
+        { meldingsLogg : List Melding
+        , sisteMelding : Maybe Melding
+        }
+
+
+mapMeldingsGruppeMeldinger : (MeldingsPlassering -> Melding -> a) -> MeldingsGruppeMeldinger -> List a
+mapMeldingsGruppeMeldinger function (MeldingsGruppeMeldinger { meldingsLogg, sisteMelding }) =
+    sisteMelding
+        |> Maybe.map (function SisteSpørsmålIMeldingsgruppe >> List.singleton)
+        |> Maybe.withDefault []
+        |> List.append (List.map (function IkkeSisteSpørsmål) meldingsLogg)
 
 
 nesteMeldingToString : MeldingsLogg -> Float
@@ -122,7 +224,19 @@ leggTilSpørsmål nyeMeldinger (MeldingsLogg info) =
 
 leggTilSvar : Melding -> MeldingsLogg -> MeldingsLogg
 leggTilSvar nyMelding (MeldingsLogg info) =
-    MeldingsLogg { info | meldingsLogg = info.meldingsLogg ++ [ nyMelding ] }
+    case info.sisteMeldingsGruppe of
+        Just (SpørsmålGruppe_ meldingsgruppe) ->
+            MeldingsLogg
+                { info
+                    | meldingsLogg = info.meldingsLogg ++ [ SpørsmålGruppe_ meldingsgruppe ]
+                    , sisteMeldingsGruppe = Just (SvarGruppe_ [ nyMelding ])
+                }
+
+        Just (SvarGruppe_ meldingsgruppe) ->
+            MeldingsLogg { info | sisteMeldingsGruppe = Just (SvarGruppe_ (meldingsgruppe ++ [ nyMelding ])) }
+
+        Nothing ->
+            MeldingsLogg { info | sisteMeldingsGruppe = Just (SvarGruppe_ [ nyMelding ]) }
 
 
 startÅSkrive : MeldingsLogg -> MeldingsLogg
@@ -144,34 +258,42 @@ startÅSkrive (MeldingsLogg info) =
 
 fullførMelding : MeldingsLogg -> MeldingsLogg
 fullførMelding (MeldingsLogg info) =
-    MeldingsLogg
-        { info
-            | meldingsLogg =
-                case info.ikkeVist of
-                    Ingen ->
-                        info.meldingsLogg
+    case info.ikkeVist of
+        Ingen ->
+            MeldingsLogg info
 
-                    SkriverEnMelding melding _ ->
-                        info.meldingsLogg ++ [ melding ]
+        SkriverEnMelding melding list ->
+            case info.sisteMeldingsGruppe of
+                Just (SpørsmålGruppe_ meldingsgruppe) ->
+                    MeldingsLogg
+                        { info
+                            | sisteMeldingsGruppe = Just (SpørsmålGruppe_ (meldingsgruppe ++ [ melding ]))
+                            , ikkeVist = ikkeVistEtterFullførtMelding list
+                        }
 
-                    LeserMelding _ _ ->
-                        info.meldingsLogg
-            , ikkeVist =
-                case info.ikkeVist of
-                    Ingen ->
-                        Ingen
+                Just (SvarGruppe_ meldingsgruppe) ->
+                    MeldingsLogg
+                        { info
+                            | meldingsLogg = info.meldingsLogg ++ [ SvarGruppe_ meldingsgruppe ]
+                            , sisteMeldingsGruppe = Just (SpørsmålGruppe_ [ melding ])
+                            , ikkeVist = ikkeVistEtterFullførtMelding list
+                        }
 
-                    SkriverEnMelding _ list ->
-                        case list of
-                            first :: rest ->
-                                LeserMelding first rest
+                Nothing ->
+                    MeldingsLogg { info | sisteMeldingsGruppe = Just (SpørsmålGruppe_ [ melding ]), ikkeVist = ikkeVistEtterFullførtMelding list }
 
-                            [] ->
-                                Ingen
+        LeserMelding melding list ->
+            MeldingsLogg info
 
-                    LeserMelding melding list ->
-                        LeserMelding melding list
-        }
+
+ikkeVistEtterFullførtMelding : List Melding -> UskrevneMeldinger
+ikkeVistEtterFullførtMelding list =
+    case list of
+        first :: rest ->
+            LeserMelding first rest
+
+        [] ->
+            Ingen
 
 
 type FerdigAnimertStatus
@@ -183,7 +305,7 @@ ferdigAnimert : MeldingsLogg -> FerdigAnimertStatus
 ferdigAnimert (MeldingsLogg info) =
     case info.ikkeVist of
         Ingen ->
-            FerdigAnimert (FerdigAnimertMeldingsLogg info.meldingsLogg)
+            FerdigAnimert (FerdigAnimertMeldingsLogg info.sisteMeldingsGruppe info.meldingsLogg)
 
         SkriverEnMelding melding list ->
             MeldingerGjenstår
@@ -193,8 +315,9 @@ ferdigAnimert (MeldingsLogg info) =
 
 
 tilMeldingsLogg : FerdigAnimertMeldingsLogg -> MeldingsLogg
-tilMeldingsLogg (FerdigAnimertMeldingsLogg meldingslogg) =
+tilMeldingsLogg (FerdigAnimertMeldingsLogg sisteMeldingsGruppe meldingslogg) =
     MeldingsLogg
         { meldingsLogg = meldingslogg
+        , sisteMeldingsGruppe = sisteMeldingsGruppe
         , ikkeVist = Ingen
         }

@@ -22,7 +22,7 @@ import Html.Events exposing (..)
 import Http
 import List.Extra as List
 import Melding exposing (Melding)
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppe(..), MeldingsLogg, MeldingsPlassering(..), SkriveStatus(..))
 import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Process
@@ -876,40 +876,84 @@ viewSuccess successModel =
         ]
 
 
+
+--viewMeldingsLogg2 : MeldingsLogg -> Html Msg
+--viewMeldingsLogg2 meldingsLogg =
+--    meldingsLogg
+--        |> MeldingsLogg.meldinger
+--        |> List.map (viewMelding2 meldingsLogg)
+--        |> div []
+
+
 viewMeldingsLogg : MeldingsLogg -> Html Msg
 viewMeldingsLogg meldingsLogg =
     meldingsLogg
-        |> MeldingsLogg.meldinger
-        |> List.map (viewMelding meldingsLogg)
+        |> MeldingsLogg.mapMeldingsGruppe viewMeldingsgruppe
         |> div []
 
 
-leggIgjenCVertIMeldingsloggen : MeldingsLogg -> Melding -> Bool
-leggIgjenCVertIMeldingsloggen meldingsLogg melding =
-    List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg)
-        == Just (List.length (MeldingsLogg.meldinger meldingsLogg) - 1)
-        && (MeldingsLogg.skriveStatus meldingsLogg /= MeldingsLogg.Skriver)
-        || (Melding.meldingsType melding
-                == Melding.Spørsmål
-                && Melding.meldingsType
-                    (Maybe.withDefault (Melding.spørsmål [])
-                        (List.getAt
-                            ((List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg) |> Maybe.withDefault 2) + 1)
-                            (MeldingsLogg.meldinger meldingsLogg)
-                        )
-                    )
-                == Melding.Svar
-           )
+viewMeldingsgruppe : MeldingsGruppe -> Html msg
+viewMeldingsgruppe meldingsGruppe =
+    case meldingsGruppe of
+        SpørsmålGruppe meldingsGruppeMeldinger ->
+            meldingsGruppeMeldinger
+                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "sporsmal")
+                |> div []
+
+        SvarGruppe meldingsGruppeMeldinger ->
+            meldingsGruppeMeldinger
+                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "svar")
+                |> div []
 
 
-viewMelding : MeldingsLogg -> Melding -> Html Msg
-viewMelding meldingsLogg melding =
-    div [ class ("meldingsrad " ++ meldingsClass melding) ]
-        [ if leggIgjenCVertIMeldingsloggen meldingsLogg melding then
-            div [ class "robot" ] [ RobotLogo.robotLogo ]
 
-          else
-            div [ class "robot" ] []
+--leggIgjenCVertIMeldingsloggen : MeldingsLogg -> Melding -> Bool
+--leggIgjenCVertIMeldingsloggen meldingsLogg melding =
+--    List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg)
+--        == Just (List.length (MeldingsLogg.meldinger meldingsLogg) - 1)
+--        && (MeldingsLogg.skriveStatus meldingsLogg /= MeldingsLogg.Skriver)
+--        || (Melding.meldingsType melding
+--                == Melding.Spørsmål
+--                && Melding.meldingsType
+--                    (Maybe.withDefault (Melding.spørsmål [])
+--                        (List.getAt
+--                            ((List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg) |> Maybe.withDefault 2) + 1)
+--                            (MeldingsLogg.meldinger meldingsLogg)
+--                        )
+--                    )
+--                == Melding.Svar
+--           )
+--        |> Debug.log "VisRobot"
+--viewMelding2 : MeldingsLogg -> Melding -> Html Msg
+--viewMelding2 meldingsLogg melding =
+--    div [ class ("meldingsrad " ++ meldingsClass melding) ]
+--        [ if leggIgjenCVertIMeldingsloggen meldingsLogg melding then
+--            div [ class "robot" ] [ RobotLogo.robotLogo ]
+--
+--          else
+--            div [ class "robot" ] []
+--        , div [ class "melding" ]
+--            [ Melding.innhold melding
+--                |> List.map (\elem -> p [] [ text elem ])
+--                |> div []
+--            ]
+--        ]
+
+
+type RobotVisning
+    = VisRobot
+    | IkkeVisRobot
+
+
+viewMelding : String -> MeldingsPlassering -> Melding -> Html msg
+viewMelding meldingsTypeClass plassering melding =
+    div [ class ("meldingsrad " ++ meldingsTypeClass) ]
+        [ case plassering of
+            SisteSpørsmålIMeldingsgruppe ->
+                div [ class "robot" ] [ RobotLogo.robotLogo ]
+
+            IkkeSisteSpørsmål ->
+                div [ class "robot" ] []
         , div [ class "melding" ]
             [ Melding.innhold melding
                 |> List.map (\elem -> p [] [ text elem ])
@@ -918,14 +962,16 @@ viewMelding meldingsLogg melding =
         ]
 
 
-meldingsClass : Melding -> String
-meldingsClass melding =
-    case Melding.meldingsType melding of
-        Melding.Spørsmål ->
-            "sporsmal"
 
-        Melding.Svar ->
-            "svar"
+--
+--meldingsClass : Melding -> String
+--meldingsClass melding =
+--    case Melding.meldingsType melding of
+--        Melding.Spørsmål ->
+--            "sporsmal"
+--
+--        Melding.Svar ->
+--            "svar"
 
 
 viewSkriveStatus : MeldingsLogg -> Html msg
