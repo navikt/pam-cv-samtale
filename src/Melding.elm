@@ -1,4 +1,4 @@
-module Melding exposing (Melding, innhold, spørsmål, svar)
+module Melding exposing (Melding, innhold, spørsmål, svar, tomLinje)
 
 
 type Melding
@@ -18,3 +18,8 @@ svar list =
 innhold : Melding -> List String
 innhold (Melding list) =
     list
+
+
+tomLinje : String
+tomLinje =
+    "\u{00A0}"
