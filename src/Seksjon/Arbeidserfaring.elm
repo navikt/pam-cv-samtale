@@ -992,7 +992,7 @@ update msg (Model model) =
                     ( validertSkjema
                         |> LagreArbeidserfaring
                         |> nesteSamtaleSteg model
-                            (Melding.svar [ brukerSvar ])
+                            (Melding.svar (validertSkjemaTilSetninger validertSkjema))
                     , Cmd.batch
                         [ validertSkjema
                             |> postEllerPutArbeidserfaring ArbeidserfaringLagret
@@ -1001,8 +1001,8 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                VisOppsummering skjema ->
-                    ( skjema
+                VisOppsummering _ ->
+                    ( validertSkjema
                         |> LagreArbeidserfaring
                         |> nesteSamtaleSteg model
                             (Melding.svar [ brukerSvar ])
@@ -1092,7 +1092,7 @@ update msg (Model model) =
                     |> IkkeFerdig
 
             else
-                ( VenterPåAnimasjonFørFullføring "Kjempebra jobba! 👍 Nå kan en arbeidsgiver se om du har den erfaringen de leter etter."
+                ( VenterPåAnimasjonFørFullføring "Bra innsats! 😊 Nå kan arbeidsgivere finne deg hvis du har den erfaringen de ser etter."
                     |> nesteSamtaleSteg model
                         (Melding.svar [ knappeTekst ])
                 , lagtTilSpørsmålCmd model.debugStatus
@@ -1347,7 +1347,16 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Hvilket år begynte du i jobben?" ] ]
 
         RegistrereNaavarende periodeInfo ->
-            [ Melding.spørsmål [ "Jobber du fremdeles i " ++ periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn ++ "?" ] ]
+            let
+                yrkestittel =
+                    case periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel of
+                        "" ->
+                            Yrke.label periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
+
+                        jobbtittel ->
+                            jobbtittel
+            in
+            [ Melding.spørsmål [ "Jobber du fremdeles som «" ++ yrkestittel ++ "» i " ++ periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn ++ "?" ] ]
 
         RegistrereTilMåned periodeInfo ->
             [ Melding.spørsmål [ "Hvilken måned sluttet du i jobben?" ] ]
@@ -1357,43 +1366,18 @@ samtaleTilMeldingsLogg personaliaSeksjon =
 
         VisOppsummering validertSkjema ->
             [ Melding.spørsmål
-                [ hentFraDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                    ++ " - "
-                    ++ (if ArbeidserfaringSkjema.naavarende (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema) == True then
-                            "nåværende"
-
-                        else
-                            hentTilDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                       )
-                , Melding.tomLinje
-                , "Stilling/Yrke: " ++ hentStilling validertSkjema
-                , "Bedriftnavn: " ++ ArbeidserfaringSkjema.bedriftNavn (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Sted: " ++ ArbeidserfaringSkjema.lokasjon (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , Melding.tomLinje
-                , "Arbeidsoppgaver: "
-                , ArbeidserfaringSkjema.arbeidsoppgaver (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
+                (validertSkjemaTilSetninger validertSkjema
+                    ++ [ Melding.tomLinje
+                       , "Er informasjonen riktig?"
+                       ]
+                )
             ]
 
         RedigerOppsummering skjema ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
         LagreArbeidserfaring validertSkjema ->
-            [ Melding.spørsmål [ "Flott! Da har du lagret en arbeidserfaring" ]
-            , Melding.spørsmål
-                [ "Stilling/Yrke " ++ hentStilling validertSkjema
-                , "Bedriftnavn: " ++ ArbeidserfaringSkjema.bedriftNavn (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Sted: " ++ ArbeidserfaringSkjema.lokasjon (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Arbeidsoppgaver: " ++ ArbeidserfaringSkjema.arbeidsoppgaver (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Fra: " ++ hentFraDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , if ArbeidserfaringSkjema.naavarende (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema) == True then
-                    "Nåværende jobb"
-
-                  else
-                    hentTilDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                ]
+            [ Melding.spørsmål [ "Flott! Da har du lagt inn en arbeidserfaring." ]
             , Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ]
             ]
 
@@ -1418,10 +1402,30 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ string ] ]
 
         HeltFerdig ->
-            [ Melding.spørsmål [ "Kjempebra jobba!😊 Nå kan en arbeidsgiver se om du har den erfaringen de leter etter. " ] ]
+            [ Melding.spørsmål [ "Bra innsats! 😊 Nå kan arbeidsgivere finne deg hvis du har den erfaringen de ser etter." ] ]
 
         HeltFerdigUtenArbeidsErfaring ->
             [ Melding.spørsmål [ "Det var synd! Du kan alltid komme tilbake og legge til om du kommer på noe!" ] ]
+
+
+validertSkjemaTilSetninger : ValidertArbeidserfaringSkjema -> List String
+validertSkjemaTilSetninger validertSkjema =
+    [ hentFraDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+        ++ " - "
+        ++ (if ArbeidserfaringSkjema.naavarende (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema) == True then
+                "nåværende"
+
+            else
+                hentTilDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+           )
+    , Melding.tomLinje
+    , "Stilling/Yrke: " ++ hentStilling validertSkjema
+    , "Bedriftnavn: " ++ ArbeidserfaringSkjema.bedriftNavn (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+    , "Sted: " ++ ArbeidserfaringSkjema.lokasjon (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+    , Melding.tomLinje
+    , "Arbeidsoppgaver: "
+    , ArbeidserfaringSkjema.arbeidsoppgaver (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+    ]
 
 
 hentStilling : ValidertArbeidserfaringSkjema -> String
@@ -1786,12 +1790,12 @@ viewBrukerInput (Model info) =
                             , div [ class "inputrad" ]
                                 [ case ArbeidserfaringSkjema.valider skjema of
                                     Just validertSkjema ->
-                                        "Utfør endringene"
-                                            |> Knapp.knapp (BrukerTrykkerPåLagreArbeidserfaringKnapp "Utfør endringene" validertSkjema)
+                                        "Lagre endringer"
+                                            |> Knapp.knapp (BrukerTrykkerPåLagreArbeidserfaringKnapp "Lagre endringer" validertSkjema)
                                             |> Knapp.toHtml
 
                                     Nothing ->
-                                        "Utfør endringene"
+                                        "Lagre endringer"
                                             |> Knapp.knapp BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
                                             |> Knapp.withEnabled Knapp.Disabled
                                             |> Knapp.toHtml
