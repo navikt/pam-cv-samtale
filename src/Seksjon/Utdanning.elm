@@ -882,7 +882,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         Intro utdannelseListe ->
             if List.isEmpty utdannelseListe then
                 [ Melding.spørsmål
-                    [ "Har du utdanning du vil legge inn på CV-en din? Hm???" ]
+                    [ "Har du utdanning du vil legge inn på CV-en din?" ]
                 ]
 
             else
