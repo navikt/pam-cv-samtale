@@ -568,45 +568,33 @@ updateSuccess successMsg model =
                             , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) cmd
                             )
 
-                        Seksjon.Seksjonsvalg.Ferdig seksjon nyModel meldingsLogg ->
+                        Seksjon.Seksjonsvalg.Ferdig seksjon meldingsLogg ->
                             -- TODO: her legger man inn caser for hvor seksjonsvalget skal gå
                             case seksjon of
-                                "Arbeidserfaring" ->
-                                    gåTilArbeidserfaring model meldingsLogg
-
-                                "Utdanning" ->
-                                    gåTilUtdanning model meldingsLogg
-
-                                "Språk" ->
-                                    gåTilSpråk model meldingsLogg
-
-                                "Nei, gå videre" ->
-                                    gåTilSammendrag model meldingsLogg
-
                                 -- FIXME: ikke implementert
-                                "Fagbrev/Svennebrev" ->
+                                Seksjon.Seksjonsvalg.FagbrevSvennebrevSeksjon ->
                                     gåTilFagbrev model meldingsLogg
 
-                                "Mesterbrev" ->
+                                Seksjon.Seksjonsvalg.MesterbrevSeksjon ->
                                     gåTilMesterbrev model meldingsLogg
 
-                                "Autorisasjon" ->
+                                Seksjon.Seksjonsvalg.AutorisasjonSeksjon ->
                                     gåTilAutorisasjon model meldingsLogg
 
-                                "Sertifisering" ->
+                                Seksjon.Seksjonsvalg.SertifiseringSeksjon ->
                                     ( Success model, Cmd.none )
 
-                                "Annen erfaring" ->
+                                Seksjon.Seksjonsvalg.AnnenErfaringSeksjon ->
                                     ( Success model, Cmd.none )
 
-                                "Kurs" ->
+                                Seksjon.Seksjonsvalg.KursSeksjon ->
                                     ( Success model, Cmd.none )
 
-                                "Førerkort" ->
+                                Seksjon.Seksjonsvalg.FørerkortSeksjon ->
                                     ( Success model, Cmd.none )
 
-                                _ ->
-                                    ( Success model, Cmd.none )
+                                Seksjon.Seksjonsvalg.IngenAvSeksjonene ->
+                                    gåTilSammendrag model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
