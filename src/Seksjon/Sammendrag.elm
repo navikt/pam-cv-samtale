@@ -122,7 +122,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 EndreOriginal _ ->
-                    ( nesteSamtaleSteg model (Melding.svar [ "Gå videre" ]) (LagrerEndring sammendrag)
+                    ( nesteSamtaleSteg model (Melding.svar [ sammendrag ]) (LagrerEndring sammendrag)
                     , Cmd.batch
                         [ lagtTilSpørsmålCmd model.debugStatus
                         , leggSammendragTilAPI sammendrag
@@ -169,7 +169,17 @@ update msg (Model model) =
                 LagrerEndring sammendrag ->
                     case result of
                         Ok value ->
-                            fullførSeksjonHvisMeldingsloggErFerdig { model | sammendrag = Cv.Sammendrag.sammendrag value } (Cv.Sammendrag.sammendrag value)
+                            ( Model
+                                { model
+                                    | sammendrag = Cv.Sammendrag.sammendrag value
+                                    , aktivSamtale = VenterPåAnimasjonFørFullføring
+                                    , seksjonsMeldingsLogg =
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med det vanskeligste 😊" ] ]
+                                }
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
                         Err error ->
                             ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre!" ]) (LagringFeilet error sammendrag)
