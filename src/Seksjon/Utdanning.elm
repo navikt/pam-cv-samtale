@@ -825,12 +825,6 @@ utdanningslisteTilString utdannelseListe =
                                         ++ " ved  "
                                         ++ (Cv.studiested el |> Maybe.withDefault "")
                                    ]
-                                ++ (if List.elemIndex el utdannelseListe == Just (List.length utdannelseListe - 1) then
-                                        [ "" ]
-
-                                    else
-                                        [ "\u{00A0}" ]
-                                   )
 
                         Nothing ->
                             [ (fraDato
@@ -850,17 +844,12 @@ utdanningslisteTilString utdannelseListe =
                                         ++ " ved  "
                                         ++ (Cv.studiested el |> Maybe.withDefault "")
                                    ]
-                                ++ (if List.elemIndex el utdannelseListe == Just (List.length utdannelseListe - 1) then
-                                        [ "" ]
-
-                                    else
-                                        [ "\u{00A0}" ]
-                                   )
 
                 Nothing ->
-                    [ "" ]
+                    []
         )
         utdannelseListe
+        |> List.intersperse [ "\u{00A0}" ]
         |> List.concat
 
 

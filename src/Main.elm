@@ -1,15 +1,11 @@
 module Main exposing (main)
 
 import Api
-import Array
 import Browser
 import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
-import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
-import Cv.Sammendrag
-import Cv.Utdanning as Utdanning exposing (Utdanning)
 import Feilmelding
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
@@ -17,12 +13,9 @@ import FrontendModuler.RobotLogo as RobotLogo
 import FrontendModuler.Spinner as Spinner
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Attributes.Aria exposing (ariaLabel)
-import Html.Events exposing (..)
 import Http
-import List.Extra as List
 import Melding exposing (Melding)
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppe(..), MeldingsLogg, MeldingsPlassering(..), SkriveStatus(..))
 import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Process
@@ -35,8 +28,6 @@ import Seksjon.Sammendrag
 import Seksjon.Seksjonsvalg
 import Seksjon.Sprak
 import Seksjon.Utdanning
-import Svg exposing (path, svg)
-import Svg.Attributes exposing (d, fill, viewBox)
 import Task
 import Url
 
@@ -50,10 +41,6 @@ type alias RegistreringsProgresjon =
     , personalia : Seksjonsstatus
     , utdanning : Seksjonsstatus
     }
-
-
-stjerne =
-    "⭐"
 
 
 type Seksjonsstatus
@@ -521,7 +508,6 @@ updateSuccess successMsg model =
                         Seksjon.Sprak.Ferdig meldingsLogg ->
                             gåTilSeksjonsValg model meldingsLogg
 
-                --gåTilSammendrag model meldingsLogg
                 _ ->
                     ( Success model, Cmd.none )
 
@@ -879,53 +865,39 @@ viewSuccess successModel =
 viewMeldingsLogg : MeldingsLogg -> Html Msg
 viewMeldingsLogg meldingsLogg =
     meldingsLogg
-        |> MeldingsLogg.meldinger
-        |> List.map (viewMelding meldingsLogg)
+        |> MeldingsLogg.mapMeldingsGruppe viewMeldingsgruppe
         |> div []
 
 
-leggIgjenCVertIMeldingsloggen : MeldingsLogg -> Melding -> Bool
-leggIgjenCVertIMeldingsloggen meldingsLogg melding =
-    List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg)
-        == Just (List.length (MeldingsLogg.meldinger meldingsLogg) - 1)
-        && (MeldingsLogg.skriveStatus meldingsLogg /= MeldingsLogg.Skriver)
-        || (Melding.meldingsType melding
-                == Melding.Spørsmål
-                && Melding.meldingsType
-                    (Maybe.withDefault (Melding.spørsmål [])
-                        (List.getAt
-                            ((List.elemIndex melding (MeldingsLogg.meldinger meldingsLogg) |> Maybe.withDefault 2) + 1)
-                            (MeldingsLogg.meldinger meldingsLogg)
-                        )
-                    )
-                == Melding.Svar
-           )
+viewMeldingsgruppe : MeldingsGruppe -> Html msg
+viewMeldingsgruppe meldingsGruppe =
+    case meldingsGruppe of
+        SpørsmålGruppe meldingsGruppeMeldinger ->
+            meldingsGruppeMeldinger
+                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "sporsmal")
+                |> div [ class "meldingsgruppe" ]
+
+        SvarGruppe meldingsGruppeMeldinger ->
+            meldingsGruppeMeldinger
+                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "svar")
+                |> div [ class "meldingsgruppe" ]
 
 
-viewMelding : MeldingsLogg -> Melding -> Html Msg
-viewMelding meldingsLogg melding =
-    div [ class ("meldingsrad " ++ meldingsClass melding) ]
-        [ if leggIgjenCVertIMeldingsloggen meldingsLogg melding then
-            div [ class "robot" ] [ RobotLogo.robotLogo ]
+viewMelding : String -> MeldingsPlassering -> Melding -> Html msg
+viewMelding meldingsTypeClass plassering melding =
+    div [ class ("meldingsrad " ++ meldingsTypeClass) ]
+        [ case plassering of
+            SisteSpørsmålIMeldingsgruppe ->
+                div [ class "robot" ] [ RobotLogo.robotLogo ]
 
-          else
-            div [ class "robot" ] []
+            IkkeSisteSpørsmål ->
+                div [ class "robot" ] []
         , div [ class "melding" ]
             [ Melding.innhold melding
                 |> List.map (\elem -> p [] [ text elem ])
                 |> div []
             ]
         ]
-
-
-meldingsClass : Melding -> String
-meldingsClass melding =
-    case Melding.meldingsType melding of
-        Melding.Spørsmål ->
-            "sporsmal"
-
-        Melding.Svar ->
-            "svar"
 
 
 viewSkriveStatus : MeldingsLogg -> Html msg
