@@ -1,6 +1,6 @@
 module Seksjon.Avslutning exposing
-    ( Model(..)
-    , Msg(..)
+    ( Model
+    , Msg
     , SamtaleStatus(..)
     , init
     , meldingsLogg
@@ -13,6 +13,7 @@ module Seksjon.Avslutning exposing
 import Api
 import Browser.Dom as Dom
 import Cv.Cv exposing (Cv)
+import DebugStatus exposing (DebugStatus)
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -36,6 +37,7 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , cv : Cv
     , personalia : Personalia
+    , debugStatus : DebugStatus
     }
 
 
@@ -90,8 +92,10 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> Task.perform (\_ -> FullførMelding)
+                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
+                    |> DebugStatus.meldingsTimeout model.debugStatus
+                    |> Process.sleep
+                    |> Task.perform (always FullførMelding)
                 ]
             )
                 |> IkkeFerdig
@@ -106,25 +110,25 @@ update msg (Model model) =
                 Ok value ->
                     if Person.underOppfolging value then
                         ( nesteSamtaleStegUtenMelding model UnderOppfølging
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
                             |> IkkeFerdig
 
                     else if Person.cvSynligForArbeidsgiver value then
                         ( nesteSamtaleStegUtenMelding model (DelMedArbeidsgiver True)
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
                             |> IkkeFerdig
 
                     else
                         ( nesteSamtaleStegUtenMelding model (DelMedArbeidsgiver False)
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
                             |> IkkeFerdig
 
                 Err error ->
                     ( nesteSamtaleStegUtenMelding model HentPersonFeilet
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -136,7 +140,7 @@ update msg (Model model) =
                             |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
                 }
             , Cmd.batch
-                [ lagtTilSpørsmålCmd
+                [ lagtTilSpørsmålCmd model.debugStatus
                 , Api.postSynlighet SynlighetPostet True
                 ]
             )
@@ -150,7 +154,7 @@ update msg (Model model) =
                             |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
                 }
             , Cmd.batch
-                [ lagtTilSpørsmålCmd
+                [ lagtTilSpørsmålCmd model.debugStatus
                 , Api.postSynlighet SynlighetPostet False
                 ]
             )
@@ -159,11 +163,11 @@ update msg (Model model) =
         SynlighetPostet result ->
             case result of
                 Ok value ->
-                    ( nesteSamtaleStegUtenMelding model AvsluttendeOrd, lagtTilSpørsmålCmd ) |> IkkeFerdig
+                    ( nesteSamtaleStegUtenMelding model AvsluttendeOrd, lagtTilSpørsmålCmd model.debugStatus ) |> IkkeFerdig
 
                 Err error ->
                     ( nesteSamtaleStegUtenMelding model LagringSynlighetFeilet
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -175,7 +179,7 @@ update msg (Model model) =
                             |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
                 }
             , Cmd.batch
-                [ lagtTilSpørsmålCmd
+                [ lagtTilSpørsmålCmd model.debugStatus
                 , hentSynlighet
                 ]
             )
@@ -183,9 +187,7 @@ update msg (Model model) =
 
         BrukerVilAvslutte knappeTekst ->
             ( nesteSamtaleSteg model (Melding.svar [ knappeTekst ]) AvsluttendeOrd
-            , Cmd.batch
-                [ lagtTilSpørsmålCmd
-                ]
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -237,17 +239,19 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     | seksjonsMeldingsLogg =
                         nyMeldingsLogg
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
 
-lagtTilSpørsmålCmd : Cmd Msg
-lagtTilSpørsmålCmd =
+lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
+lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
         [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , Process.sleep 200
-            |> Task.perform (\_ -> StartÅSkrive)
+        , 200
+            |> DebugStatus.meldingsTimeout debugStatus
+            |> Process.sleep
+            |> Task.perform (always StartÅSkrive)
         ]
 
 
@@ -429,8 +433,8 @@ hentSynlighet =
     Api.getPerson PersonHentet
 
 
-init : Personalia -> Cv -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-init personalia cv gammelMeldingsLogg =
+init : DebugStatus -> Personalia -> Cv -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+init debugStatus personalia cv gammelMeldingsLogg =
     let
         aktivSamtale =
             Intro
@@ -441,9 +445,10 @@ init personalia cv gammelMeldingsLogg =
         , aktivSamtale = aktivSamtale
         , personalia = personalia
         , cv = cv
+        , debugStatus = debugStatus
         }
     , Cmd.batch
-        [ lagtTilSpørsmålCmd
+        [ lagtTilSpørsmålCmd debugStatus
         , hentSynlighet
         ]
     )

@@ -1,7 +1,6 @@
 module Seksjon.Seksjonsvalg exposing
-    ( Model(..)
-    , Msg(..)
-    , Samtale(..)
+    ( Model
+    , Msg
     , SamtaleStatus(..)
     , init
     , meldingsLogg
@@ -12,6 +11,7 @@ module Seksjon.Seksjonsvalg exposing
 -- MODEL --
 
 import Browser.Dom as Dom
+import DebugStatus exposing (DebugStatus)
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
 import FrontendModuler.Select as Select
 import Html exposing (..)
@@ -32,6 +32,7 @@ type Model
 type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
+    , debugStatus : DebugStatus
     }
 
 
@@ -78,8 +79,10 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> Task.perform (\_ -> FullførMelding)
+                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
+                    |> DebugStatus.meldingsTimeout model.debugStatus
+                    |> Process.sleep
+                    |> Task.perform (always FullførMelding)
                 ]
             )
                 |> IkkeFerdig
@@ -99,7 +102,7 @@ update msg (Model model) =
 
         BrukerVilGåTilNesteDel knappeTekst ->
             ( nesteSamtaleSteg model (Melding.svar [ knappeTekst ]) LeggTilAnnet
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -151,17 +154,19 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     | seksjonsMeldingsLogg =
                         nyMeldingsLogg
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
 
-lagtTilSpørsmålCmd : Cmd Msg
-lagtTilSpørsmålCmd =
+lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
+lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
         [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , Process.sleep 200
-            |> Task.perform (\_ -> StartÅSkrive)
+        , 200
+            |> DebugStatus.meldingsTimeout debugStatus
+            |> Process.sleep
+            |> Task.perform (always StartÅSkrive)
         ]
 
 
@@ -180,7 +185,7 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
             [ Melding.spørsmål [ "Det er viktig å få med deg alt du kan på CV-en." ]
             , Melding.spørsmål [ "Har du jobbet som frivillig eller hatt verv? Legg til annen erfaring." ]
             , Melding.spørsmål [ "Har du tatt norskprøve? Legg til kurs." ]
-            , Melding.spørsmål [ "Hva med førerkort? Husk å leegge det inn i CV-en din. Mange arbeidsgivere ser etter jobbsøkere som kan kjøre." ]
+            , Melding.spørsmål [ "Hva med førerkort? Husk å legge det inn i CV-en din. Mange arbeidsgivere ser etter jobbsøkere som kan kjøre." ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
@@ -257,8 +262,8 @@ viewBrukerInput (Model model) =
 -- INIT --
 
 
-init : FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-init gammelMeldingsLogg =
+init : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+init debugStatus gammelMeldingsLogg =
     let
         aktivSamtale =
             LeggTilAutorisasjoner
@@ -267,8 +272,7 @@ init gammelMeldingsLogg =
         { seksjonsMeldingsLogg =
             MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
+        , debugStatus = debugStatus
         }
-    , Cmd.batch
-        [ lagtTilSpørsmålCmd
-        ]
+    , lagtTilSpørsmålCmd debugStatus
     )

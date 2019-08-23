@@ -1,9 +1,18 @@
-module Seksjon.Utdanning exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
+module Seksjon.Utdanning exposing
+    ( Model
+    , Msg
+    , SamtaleStatus(..)
+    , init
+    , meldingsLogg
+    , update
+    , viewBrukerInput
+    )
 
 import Api
 import Browser.Dom as Dom
 import Cv.Utdanning as Cv exposing (Nivå(..), Utdanning)
 import Dato exposing (Dato)
+import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
@@ -36,6 +45,7 @@ type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
     , utdanningListe : List Utdanning
+    , debugStatus : DebugStatus
     }
 
 
@@ -245,19 +255,19 @@ update msg (Model model) =
                     if List.isEmpty utdanningListe then
                         IkkeFerdig
                             ( nesteSamtaleSteg model (Melding.svar [ "Ja, jeg har utdannning" ]) RegistrerNivå
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                     else
                         IkkeFerdig
                             ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil legge til flere utdannelser" ]) RegistrerNivå
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                 LeggTilFlereUtdannelser _ ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til flere" ]) RegistrerNivå
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
 
                 _ ->
@@ -266,7 +276,7 @@ update msg (Model model) =
         BrukerVilRedigereUtdanning knappeTekst ->
             ( VelgEnUtdanningÅRedigere
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -274,7 +284,7 @@ update msg (Model model) =
             ( skjema
                 |> EndrerOppsummering
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -284,7 +294,7 @@ update msg (Model model) =
                     ( model.utdanningListe
                         |> VenterPåAnimasjonFørFullføring
                         |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -292,7 +302,7 @@ update msg (Model model) =
                     ( model.utdanningListe
                         |> VenterPåAnimasjonFørFullføring
                         |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -300,7 +310,7 @@ update msg (Model model) =
                     ( model.utdanningListe
                         |> VenterPåAnimasjonFørFullføring
                         |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -309,7 +319,7 @@ update msg (Model model) =
                 RegistrerNivå ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ nivåToString nivå ]) (RegistrerSkole (forrigeTilSkoleInfo nivå))
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
 
                 _ ->
@@ -320,7 +330,7 @@ update msg (Model model) =
                 RegistrerSkole skoleinfo ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ skoleinfo.skole ]) (RegistrerRetning (forrigeTilRetningInfo skoleinfo))
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
 
                 _ ->
@@ -331,7 +341,7 @@ update msg (Model model) =
                 RegistrerRetning retninginfo ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ retninginfo.retning ]) (RegistrerBeskrivelse (forrigeTilBeskrivelseInfo retninginfo))
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
 
                 _ ->
@@ -342,7 +352,7 @@ update msg (Model model) =
                 RegistrerBeskrivelse beskrivelseinfo ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ beskrivelseinfo.beskrivelse ]) (RegistrereFraMåned (forrigeTilFradatoInfo beskrivelseinfo))
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
 
                 _ ->
@@ -351,7 +361,7 @@ update msg (Model model) =
         BrukerVilRegistrereFraMåned fraDatoInfo ->
             ( RegistrereFraMåned fraDatoInfo
                 |> nesteSamtaleSteg model (Melding.svar [ fraDatoInfo.forrige.beskrivelse ])
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -363,7 +373,7 @@ update msg (Model model) =
                             |> Dato.månedTilString
                         ]
                     )
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -400,7 +410,7 @@ update msg (Model model) =
                 RegistrereFraÅr datoInfo ->
                     ( RegistrereNavarende datoInfo
                         |> nesteSamtaleSteg model (Melding.svar [ datoInfo.fraÅr ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -417,7 +427,7 @@ update msg (Model model) =
                         |> forrigeTilOppsummeringInfo
                         |> Oppsummering
                         |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -430,7 +440,7 @@ update msg (Model model) =
                 |> forrigeTilTildatoInfo
                 |> RegistrereTilMåned
                 |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -442,7 +452,7 @@ update msg (Model model) =
                             |> Dato.månedTilString
                         ]
                     )
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -481,7 +491,7 @@ update msg (Model model) =
                         |> forrigeTilOppsummeringInfo
                         |> Oppsummering
                         |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -492,7 +502,7 @@ update msg (Model model) =
         BrukerVilEndreOppsummering ->
             case model.aktivSamtale of
                 Oppsummering utdanningskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil endre" ]) (EndrerOppsummering utdanningskjema), lagtTilSpørsmålCmd )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil endre" ]) (EndrerOppsummering utdanningskjema), lagtTilSpørsmålCmd model.debugStatus )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -534,13 +544,16 @@ update msg (Model model) =
                 Oppsummering ferdigskjema ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema)
-                        , Cmd.batch [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ]
+                        , Cmd.batch
+                            [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            ]
                         )
 
                 LeggTilFlereUtdannelser ferdigskjema ->
                     ( VenterPåAnimasjonFørFullføring model.utdanningListe
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg er ferdig." ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -552,13 +565,19 @@ update msg (Model model) =
                 EndrerOppsummering ferdigskjema ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema)
-                        , Cmd.batch [ postEllerPutUtdanning UtdanningSendtTilApi ferdigskjema, lagtTilSpørsmålCmd ]
+                        , Cmd.batch
+                            [ postEllerPutUtdanning UtdanningSendtTilApi ferdigskjema
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            ]
                         )
 
                 LeggTilUtdanningFeiletIApi _ feiletskjema ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret feiletskjema)
-                        , Cmd.batch [ postEllerPutUtdanning UtdanningSendtTilApi feiletskjema, lagtTilSpørsmålCmd ]
+                        , Cmd.batch
+                            [ postEllerPutUtdanning UtdanningSendtTilApi feiletskjema
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            ]
                         )
 
                 _ ->
@@ -569,7 +588,7 @@ update msg (Model model) =
                 OppsummeringLagret skjema ->
                     case result of
                         Ok value ->
-                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } (LeggTilFlereUtdannelser skjema), lagtTilSpørsmålCmd )
+                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } (LeggTilFlereUtdannelser skjema), lagtTilSpørsmålCmd model.debugStatus )
                                 |> IkkeFerdig
 
                         Err error ->
@@ -579,7 +598,7 @@ update msg (Model model) =
                 Oppsummering skjema ->
                     case result of
                         Ok value ->
-                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } (LeggTilFlereUtdannelser skjema), lagtTilSpørsmålCmd )
+                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } (LeggTilFlereUtdannelser skjema), lagtTilSpørsmålCmd model.debugStatus )
                                 |> IkkeFerdig
 
                         Err error ->
@@ -590,7 +609,7 @@ update msg (Model model) =
                     IkkeFerdig ( Model model, Cmd.none )
 
         AvbrytLagringOgTaMegTilIntro ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Avbryt lagring" ]) (Intro model.utdanningListe), lagtTilSpørsmålCmd )
+            ( nesteSamtaleSteg model (Melding.svar [ "Avbryt lagring" ]) (Intro model.utdanningListe), lagtTilSpørsmålCmd model.debugStatus )
                 |> IkkeFerdig
 
         StartÅSkrive ->
@@ -601,8 +620,10 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> Task.perform (\_ -> FullførMelding)
+                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
+                    |> DebugStatus.meldingsTimeout model.debugStatus
+                    |> Process.sleep
+                    |> Task.perform (always FullførMelding)
                 ]
             )
                 |> IkkeFerdig
@@ -652,7 +673,7 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     | seksjonsMeldingsLogg =
                         nyMeldingsLogg
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -668,12 +689,14 @@ fullførSeksjonHvisMeldingsloggErFerdig modelInfo utdanningListe =
                 |> IkkeFerdig
 
 
-lagtTilSpørsmålCmd : Cmd Msg
-lagtTilSpørsmålCmd =
+lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
+lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
         [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , Process.sleep 200
-            |> Task.perform (\_ -> StartÅSkrive)
+        , 200
+            |> DebugStatus.meldingsTimeout debugStatus
+            |> Process.sleep
+            |> Task.perform (always StartÅSkrive)
         ]
 
 
@@ -859,7 +882,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         Intro utdannelseListe ->
             if List.isEmpty utdannelseListe then
                 [ Melding.spørsmål
-                    [ "Har du utdanning du vil legge inn på CV-en din?" ]
+                    [ "Har du utdanning du vil legge inn på CV-en din? Hm???" ]
                 ]
 
             else
@@ -1659,8 +1682,8 @@ postEllerPutUtdanning msgConstructor skjema =
             Api.postUtdanning msgConstructor skjema
 
 
-init : FerdigAnimertMeldingsLogg -> List Utdanning -> ( Model, Cmd Msg )
-init gammelMeldingsLogg utdanningListe =
+init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Utdanning -> ( Model, Cmd Msg )
+init debugStatus gammelMeldingsLogg utdanningListe =
     let
         aktivSamtale =
             Intro utdanningListe
@@ -1672,6 +1695,7 @@ init gammelMeldingsLogg utdanningListe =
                 (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , utdanningListe = utdanningListe
+        , debugStatus = debugStatus
         }
-    , Cmd.batch [ lagtTilSpørsmålCmd ]
+    , lagtTilSpørsmålCmd debugStatus
     )
