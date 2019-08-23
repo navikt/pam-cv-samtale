@@ -66,23 +66,6 @@ init =
         }
 
 
-
---
---meldinger : MeldingsLogg -> List Melding
---meldinger (MeldingsLogg { meldingsLogg }) =
---    List.concatMap meldingerFraMeldingsGruppe meldingsLogg
---
---
---meldingerFraMeldingsGruppe : MeldingsGruppe -> List Melding
---meldingerFraMeldingsGruppe meldingsGruppe =
---    case meldingsGruppe of
---        SpørsmålGruppe list ->
---            MeldingsGruppeMeldingerlist
---
---        SvarGruppe list ->
---            list
-
-
 type MeldingsPlassering
     = SisteSpørsmålIMeldingsgruppe
     | IkkeSisteSpørsmål
@@ -307,10 +290,10 @@ ferdigAnimert (MeldingsLogg info) =
         Ingen ->
             FerdigAnimert (FerdigAnimertMeldingsLogg info.sisteMeldingsGruppe info.meldingsLogg)
 
-        SkriverEnMelding melding list ->
+        SkriverEnMelding _ _ ->
             MeldingerGjenstår
 
-        LeserMelding melding list ->
+        LeserMelding _ _ ->
             MeldingerGjenstår
 
 
