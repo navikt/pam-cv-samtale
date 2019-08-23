@@ -11,6 +11,7 @@ module Seksjon.Sammendrag exposing
 import Api
 import Browser.Dom as Dom
 import Cv.Sammendrag exposing (Sammendrag)
+import DebugStatus exposing (DebugStatus)
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
@@ -35,6 +36,7 @@ type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
     , sammendrag : String
+    , debugStatus : DebugStatus
     }
 
 
@@ -84,7 +86,7 @@ update msg (Model model) =
                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Flott! Da er vi nesten ferdige!" ] ]
                     , aktivSamtale = VenterPåAnimasjonFørFullføring
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -98,15 +100,13 @@ update msg (Model model) =
                      else
                         Melding.svar [ "Ja, jeg vil se over" ]
                     )
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
         SammendragEndret nyttSammendrag ->
             ( oppdaterSamtaleSteg { model | sammendrag = nyttSammendrag } (EndreOriginal nyttSammendrag)
-            , Cmd.batch
-                [ lagtTilSpørsmålCmd
-                ]
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -115,7 +115,7 @@ update msg (Model model) =
                 LagringFeilet error feiletSammendrag ->
                     ( nesteSamtaleSteg model (Melding.svar [ "Prøv på nytt" ]) (LagrerEndring feiletSammendrag)
                     , Cmd.batch
-                        [ lagtTilSpørsmålCmd
+                        [ lagtTilSpørsmålCmd model.debugStatus
                         , leggSammendragTilAPI sammendrag
                         ]
                     )
@@ -124,7 +124,7 @@ update msg (Model model) =
                 EndreOriginal _ ->
                     ( nesteSamtaleSteg model (Melding.svar [ "Lagre og gå videre" ]) (LagrerEndring sammendrag)
                     , Cmd.batch
-                        [ lagtTilSpørsmålCmd
+                        [ lagtTilSpørsmålCmd model.debugStatus
                         , leggSammendragTilAPI sammendrag
                         ]
                     )
@@ -135,7 +135,7 @@ update msg (Model model) =
 
         BrukerVilAvslutteSeksjonen ->
             ( nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ]) VenterPåAnimasjonFørFullføring
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -151,8 +151,10 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> Task.perform (\_ -> FullførMelding)
+                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
+                    |> DebugStatus.meldingsTimeout model.debugStatus
+                    |> Process.sleep
+                    |> Task.perform (always FullførMelding)
                 ]
             )
                 |> IkkeFerdig
@@ -171,7 +173,7 @@ update msg (Model model) =
 
                         Err error ->
                             ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre!" ]) (LagringFeilet error sammendrag)
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
@@ -208,7 +210,7 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     | seksjonsMeldingsLogg =
                         nyMeldingsLogg
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -224,12 +226,14 @@ fullførSeksjonHvisMeldingsloggErFerdig modelInfo sammendrag =
                 |> IkkeFerdig
 
 
-lagtTilSpørsmålCmd : Cmd Msg
-lagtTilSpørsmålCmd =
+lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
+lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
         [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , Process.sleep 200
-            |> Task.perform (\_ -> StartÅSkrive)
+        , 200
+            |> DebugStatus.meldingsTimeout debugStatus
+            |> Process.sleep
+            |> Task.perform (always StartÅSkrive)
         ]
 
 
@@ -354,8 +358,8 @@ viewBrukerInput (Model model) =
 -- INIT --
 
 
-init : FerdigAnimertMeldingsLogg -> Maybe Sammendrag -> ( Model, Cmd Msg )
-init gammelMeldingsLogg sammendrag =
+init : DebugStatus -> FerdigAnimertMeldingsLogg -> Maybe Sammendrag -> ( Model, Cmd Msg )
+init debugStatus gammelMeldingsLogg sammendrag =
     let
         sammendragToString =
             case sammendrag of
@@ -373,6 +377,7 @@ init gammelMeldingsLogg sammendrag =
             MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , sammendrag = sammendragToString
+        , debugStatus = debugStatus
         }
-    , lagtTilSpørsmålCmd
+    , lagtTilSpørsmålCmd debugStatus
     )

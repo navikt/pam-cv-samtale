@@ -1,12 +1,8 @@
 module Seksjon.Arbeidserfaring exposing
-    ( FraDatoInfo
-    , Model
+    ( Model
     , Msg
-    , Oppsummering
     , SamtaleStatus(..)
-    , TilDatoInfo
     , init
-    , lagtTilSpørsmålCmd
     , meldingsLogg
     , update
     , viewBrukerInput
@@ -16,6 +12,7 @@ import Api
 import Browser.Dom as Dom
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
 import Dato exposing (Dato)
+import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Input as Input
 import FrontendModuler.InputInt as InputInt
@@ -35,7 +32,7 @@ import SamtaleAnimasjon
 import Skjema.ArbeidserfaringSkjema as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, TypeaheadFelt(..), ValidertArbeidserfaringSkjema)
 import Task
 import TypeaheadState exposing (TypeaheadState)
-import Yrke exposing (Yrke(..))
+import Yrke exposing (Yrke)
 
 
 
@@ -50,6 +47,7 @@ type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , arbeidserfaringListe : List Arbeidserfaring
     , aktivSamtale : Samtale
+    , debugStatus : DebugStatus
     }
 
 
@@ -292,36 +290,35 @@ tilDatoTilSkjema tilDatoInfo =
 
 
 update : Msg -> Model -> SamtaleStatus
-update msg (Model info) =
+update msg (Model model) =
     case msg of
         BrukerHopperOverArbeidserfaring knappeTekst ->
             ( VenterPåAnimasjonFørFullføring "Ok, da går vi videre. Du kan alltid komme tilbake og legge til om du kommer på noe!"
-                |> nesteSamtaleSteg info
-                    (Melding.svar [ knappeTekst ])
-            , lagtTilSpørsmålCmd
+                |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
         BrukerVilRedigereArbeidserfaring knappeTekst ->
             ( VelgEnArbeidserfaringÅRedigere
-                |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-            , lagtTilSpørsmålCmd
+                |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
         BrukerHarValgtArbeidserfaringÅRedigere skjema knappeTekst ->
             ( skjema
                 |> RedigerOppsummering
-                |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-            , lagtTilSpørsmålCmd
+                |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
         HentAAregArbeidserfaring ->
             ( Model
-                { info
+                { model
                     | seksjonsMeldingsLogg =
-                        info.seksjonsMeldingsLogg
+                        model.seksjonsMeldingsLogg
                             |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
                     , aktivSamtale = HenterFraAareg
                 }
@@ -332,7 +329,7 @@ update msg (Model info) =
         HentetAAregArbeidserfaring result ->
             case result of
                 Ok arbeidserfaringFraAAreg ->
-                    ( info
+                    ( model
                         |> visAaregResultat arbeidserfaringFraAAreg
                     , Cmd.none
                     )
@@ -340,7 +337,7 @@ update msg (Model info) =
 
                 Err error ->
                     ( IkkeHentetFraAAreg
-                        |> nesteSamtaleSteg info (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
                     , logFeilmelding error "Hente fra Aareg"
                     )
                         |> IkkeFerdig
@@ -349,16 +346,16 @@ update msg (Model info) =
             ( ""
                 |> TypeaheadState.init
                 |> RegistrerYrke
-                |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-            , lagtTilSpørsmålCmd
+                |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
         BrukerOppdatererYrke string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrerYrke typeaheadState ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 typeaheadState
                                     |> TypeaheadState.updateValue string
@@ -366,14 +363,14 @@ update msg (Model info) =
                         }
                     , Cmd.batch
                         [ Api.getYrkeTypeahead HentetYrkeTypeahead string
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
                         |> IkkeFerdig
 
                 StartNyArbeidserfaring typeaheadState ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 typeaheadState
                                     |> TypeaheadState.updateValue string
@@ -381,30 +378,30 @@ update msg (Model info) =
                         }
                     , Cmd.batch
                         [ Api.getYrkeTypeahead HentetYrkeTypeahead string
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, lagtTilSpørsmålCmd )
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
         HentetYrkeTypeahead result ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrerYrke typeaheadState ->
                     case result of
                         Ok suggestions ->
                             ( typeaheadState
                                 |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> RegistrerYrke
-                                |> oppdaterSamtalesteg info
-                            , lagtTilSpørsmålCmd
+                                |> oppdaterSamtalesteg model
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model info, logFeilmelding error "Hente Yrketypeahed" )
+                            ( Model model, logFeilmelding error "Hente Yrketypeahed" )
                                 |> IkkeFerdig
 
                 RedigerOppsummering skjema ->
@@ -413,24 +410,24 @@ update msg (Model info) =
                             ( TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> ArbeidserfaringSkjema.mapTypeaheadState skjema
                                 |> RedigerOppsummering
-                                |> oppdaterSamtalesteg info
+                                |> oppdaterSamtalesteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model info, logFeilmelding error "Hente Yrketypeahed" )
+                            ( Model model, logFeilmelding error "Hente Yrketypeahed" )
                                 |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerHovrerOverTypeaheadSuggestion yrkeTypeahead ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrerYrke typeaheadState ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 typeaheadState
                                     |> TypeaheadState.updateActive yrkeTypeahead
@@ -441,16 +438,16 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerTrykkerTypeaheadTast operation ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrerYrke typeaheadState ->
                     case operation of
                         Typeahead.ArrowUp ->
                             ( Model
-                                { info
+                                { model
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.arrowUp
@@ -462,7 +459,7 @@ update msg (Model info) =
 
                         Typeahead.ArrowDown ->
                             ( Model
-                                { info
+                                { model
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.arrowDown
@@ -475,11 +472,11 @@ update msg (Model info) =
                         Typeahead.Enter ->
                             case TypeaheadState.getActive typeaheadState of
                                 Just active ->
-                                    brukerVelgerYrke info active
+                                    brukerVelgerYrke model active
 
                                 Nothing ->
                                     ( Model
-                                        { info
+                                        { model
                                             | aktivSamtale = RegistrerYrke typeaheadState
                                         }
                                     , Cmd.none
@@ -488,7 +485,7 @@ update msg (Model info) =
 
                         Typeahead.MouseLeaveSuggestions ->
                             ( Model
-                                { info
+                                { model
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.removeActive
@@ -499,34 +496,34 @@ update msg (Model info) =
                                 |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVelgerYrke yrkesTypeahead ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrerYrke _ ->
-                    brukerVelgerYrke info yrkesTypeahead
+                    brukerVelgerYrke model yrkesTypeahead
 
                 RedigerOppsummering skjema ->
-                    ( Model info, lagtTilSpørsmålCmd )
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, lagtTilSpørsmålCmd )
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
         BrukerVilEndreJobbtittel jobbtittelInfo ->
             ( EndreJobbtittel jobbtittelInfo
-                |> nesteSamtaleSteg info (Melding.svar [ "Nei, legg til et nytt navn" ])
-            , lagtTilSpørsmålCmd
+                |> nesteSamtaleSteg model (Melding.svar [ "Nei, legg til et nytt navn" ])
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
         BrukerOppdatererJobbtittelFelt string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 EndreJobbtittel jobbtittelInfo ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale = EndreJobbtittel { jobbtittelInfo | jobbtittel = string }
                         }
                     , Cmd.none
@@ -534,17 +531,17 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVilRegistrereBedriftnavn knappeTekst ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 EndreJobbtittel jobbtittelInfo ->
                     ( jobbtittelInfo
                         |> jobbtittelInfoTilBedriftnavnsInfo
                         |> RegistrereBedriftNavn
-                        |> nesteSamtaleSteg info (Melding.svar [ jobbtittelInfo.jobbtittel ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ jobbtittelInfo.jobbtittel ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -552,20 +549,20 @@ update msg (Model info) =
                     ( jobbtittelInfo
                         |> jobbtittelInfoTilBedriftnavnsInfo
                         |> RegistrereBedriftNavn
-                        |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, lagtTilSpørsmålCmd )
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
         BrukerOppdatererBedriftnavn string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereBedriftNavn beriftnavnsInfo ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale = RegistrereBedriftNavn { beriftnavnsInfo | bedriftNavn = string }
                         }
                     , Cmd.none
@@ -573,29 +570,29 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVilRegistrereSted ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereBedriftNavn bedriftnavnInfo ->
                     ( bedriftnavnInfo
                         |> bedriftnavnsInfoTilLokasjonInfo
                         |> RegistrereSted
-                        |> nesteSamtaleSteg info (Melding.svar [ bedriftnavnInfo.bedriftNavn ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ bedriftnavnInfo.bedriftNavn ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerOppdatererSted string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereSted stedInfo ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale = RegistrereSted { stedInfo | lokasjon = string }
                         }
                     , Cmd.none
@@ -603,29 +600,29 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVilRegistrereArbeidsoppgaver ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereSted stedInfo ->
                     ( stedInfo
                         |> stedInfoTilArbeidsoppgaverInfo
                         |> RegistrereArbeidsoppgaver
-                        |> nesteSamtaleSteg info (Melding.svar [ stedInfo.lokasjon ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ stedInfo.lokasjon ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerOppdatererArbeidsoppgaver string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 RegistrereArbeidsoppgaver { arbeidsoppgaverInfo | arbeidsoppgaver = string }
                         }
@@ -634,49 +631,49 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVilRegistrereFraMåned ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereArbeidsoppgaver arbeidsOppgaveInfo ->
                     ( arbeidsOppgaveInfo
                         |> arbeidsoppgaverInfoTilfraDatoInfo
                         |> RegistrereFraMåned
-                        |> nesteSamtaleSteg info (Melding.svar [ arbeidsOppgaveInfo.arbeidsoppgaver ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ arbeidsOppgaveInfo.arbeidsoppgaver ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerTrykketFraMånedKnapp måned ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereFraMåned fraDatoInfo ->
                     ( måned
                         |> setFraMåned fraDatoInfo
                         |> RegistrereFraÅr
-                        |> nesteSamtaleSteg info
+                        |> nesteSamtaleSteg model
                             (Melding.svar
                                 [ måned
                                     |> Dato.månedTilString
                                 ]
                             )
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerOppdatererFraÅr string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereFraÅr fraDatoInfo ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 RegistrereFraÅr { fraDatoInfo | fraÅr = string }
                         }
@@ -685,126 +682,126 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVilRegistrereNaavarende ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereFraÅr datoInfo ->
                     ( RegistrereNaavarende datoInfo
-                        |> nesteSamtaleSteg info (Melding.svar [ datoInfo.fraÅr ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ datoInfo.fraÅr ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerSvarerJaTilNaavarende knappeTekst ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereNaavarende datoInfo ->
                     ( datoInfo
                         |> fraDatoInfoTilTilDatoInfo
                         |> setNaavarendeTilTrue
                         |> tilDatoTilSkjema
                         |> VisOppsummering
-                        |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerSvarerNeiTilNaavarende knappeTekst ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereNaavarende fraDatoInfo ->
                     ( fraDatoInfo
                         |> fraDatoInfoTilTilDatoInfo
                         |> RegistrereTilMåned
-                        |> nesteSamtaleSteg info (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerTrykketTilMånedKnapp måned ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereTilMåned tilDatoInfo ->
                     ( måned
                         |> setTilMåned tilDatoInfo
                         |> RegistrereTilÅr
-                        |> nesteSamtaleSteg info
+                        |> nesteSamtaleSteg model
                             (Melding.svar
                                 [ måned
                                     |> Dato.månedTilString
                                 ]
                             )
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerOppdatererTilÅr string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereTilÅr tilDatoInfo ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 RegistrereTilÅr { tilDatoInfo | tilÅr = string }
                         }
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVilGåTilOppsummering ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RegistrereTilÅr tilDatoInfo ->
                     ( tilDatoInfo
                         |> tilDatoTilSkjema
                         |> VisOppsummering
-                        |> nesteSamtaleSteg info (Melding.svar [ tilDatoInfo.tilÅr ])
-                    , lagtTilSpørsmålCmd
+                        |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVilRedigereOppsummering knappeTekst ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 VisOppsummering skjema ->
                     ( skjema
                         |> ArbeidserfaringSkjema.tilArbeidserfaringSkjema
                         |> RedigerOppsummering
-                        |> nesteSamtaleSteg info
+                        |> nesteSamtaleSteg model
                             (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         YrkeRedigeringsfeltEndret string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RedigerOppsummering skjema ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 ArbeidserfaringSkjema.oppdaterYrkeFelt skjema string
                                     |> RedigerOppsummering
@@ -814,16 +811,16 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerTrykkerTypeaheadTastIOppsummering operation ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RedigerOppsummering skjema ->
                     case operation of
                         Typeahead.ArrowUp ->
                             ( Model
-                                { info
+                                { model
                                     | aktivSamtale =
                                         TypeaheadState.arrowUp
                                             |> ArbeidserfaringSkjema.mapTypeaheadState skjema
@@ -835,7 +832,7 @@ update msg (Model info) =
 
                         Typeahead.ArrowDown ->
                             ( Model
-                                { info
+                                { model
                                     | aktivSamtale =
                                         TypeaheadState.arrowDown
                                             |> ArbeidserfaringSkjema.mapTypeaheadState skjema
@@ -847,7 +844,7 @@ update msg (Model info) =
 
                         Typeahead.Enter ->
                             ( Model
-                                { info
+                                { model
                                     | aktivSamtale =
                                         skjema
                                             |> ArbeidserfaringSkjema.velgAktivYrkeITypeahead
@@ -859,7 +856,7 @@ update msg (Model info) =
 
                         Typeahead.MouseLeaveSuggestions ->
                             ( Model
-                                { info
+                                { model
                                     | aktivSamtale =
                                         TypeaheadState.removeActive
                                             |> ArbeidserfaringSkjema.mapTypeaheadState skjema
@@ -870,18 +867,18 @@ update msg (Model info) =
                                 |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerHovrerOverTypeaheadSuggestionIOppsummering yrke ->
-            ( Model info, Cmd.none )
+            ( Model model, Cmd.none )
                 |> IkkeFerdig
 
         BrukerVelgerYrkeIOppsummering yrke ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RedigerOppsummering skjema ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 skjema
                                     |> ArbeidserfaringSkjema.setYrkeFeltTilYrke yrke
@@ -892,14 +889,14 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         ArbeidserfaringStringSkjemaEndret felt string ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RedigerOppsummering arbeidserfaringSkjema ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 ArbeidserfaringSkjema.oppdaterStringFelt arbeidserfaringSkjema felt string
                                     |> RedigerOppsummering
@@ -910,7 +907,7 @@ update msg (Model info) =
 
                 RegistrereFraÅr fraDatoInfo ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 RegistrereFraÅr { fraDatoInfo | fraÅr = string }
                         }
@@ -920,7 +917,7 @@ update msg (Model info) =
 
                 RegistrereTilÅr tildDatoInfo ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 RegistrereTilÅr { tildDatoInfo | tilÅr = string }
                         }
@@ -929,14 +926,14 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         ArbeidserfaringBoolSkjemaEndret felt ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RedigerOppsummering arbeidserfaringSkjema ->
                     ( Model
-                        { info
+                        { model
                             | aktivSamtale =
                                 ArbeidserfaringSkjema.toggleBool arbeidserfaringSkjema felt
                                     |> RedigerOppsummering
@@ -946,17 +943,17 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerTrykkerPåSlettArbeidserfaring ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RedigerOppsummering skjema ->
                     ( skjema
                         |> SletterArbeidserfaring
-                        |> nesteSamtaleSteg info (Melding.svar [ "Slett" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Slett" ])
                     , Cmd.batch
-                        [ lagtTilSpørsmålCmd
+                        [ lagtTilSpørsmålCmd model.debugStatus
                         , skjema
                             |> ArbeidserfaringSkjema.id
                             |> Maybe.withDefault ""
@@ -966,39 +963,39 @@ update msg (Model info) =
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         ArbeidserfaringSlettet result ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 SletterArbeidserfaring skjema ->
                     case result of
                         Ok liste ->
                             ( FerdigMedÅSletteArbeidserfaring
-                                |> oppdaterSamtalesteg { info | arbeidserfaringListe = liste }
-                            , lagtTilSpørsmålCmd
+                                |> oppdaterSamtalesteg { model | arbeidserfaringListe = liste }
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model info, Cmd.none )
+                            ( Model model, Cmd.none )
                                 |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerTrykkerPåLagreArbeidserfaringKnapp brukerSvar validertSkjema ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 RedigerOppsummering skjema ->
                     ( validertSkjema
                         |> LagreArbeidserfaring
-                        |> nesteSamtaleSteg info
+                        |> nesteSamtaleSteg model
                             (Melding.svar [ brukerSvar ])
                     , Cmd.batch
                         [ validertSkjema
                             |> postEllerPutArbeidserfaring ArbeidserfaringLagret
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
                         |> IkkeFerdig
@@ -1006,106 +1003,108 @@ update msg (Model info) =
                 VisOppsummering skjema ->
                     ( skjema
                         |> LagreArbeidserfaring
-                        |> nesteSamtaleSteg info
+                        |> nesteSamtaleSteg model
                             (Melding.svar [ brukerSvar ])
                     , Cmd.batch
                         [ validertSkjema
                             |> postEllerPutArbeidserfaring ArbeidserfaringLagret
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke ->
-            ( Model info, Cmd.none )
+            ( Model model, Cmd.none )
                 |> IkkeFerdig
 
         ArbeidserfaringLagret result ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 LagreArbeidserfaring arbeidserfaringSkjema ->
                     case result of
                         Ok arbeidserfaringer ->
                             ( SpørOmBrukerVilLeggeInnMer
-                                |> oppdaterSamtalesteg { info | arbeidserfaringListe = arbeidserfaringer }
+                                |> oppdaterSamtalesteg { model | arbeidserfaringListe = arbeidserfaringer }
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         Err error ->
                             ( LagringFeilet error arbeidserfaringSkjema
-                                |> nesteSamtaleSteg info (Melding.spørsmål [ "Noe gikk galt med lagringen" ])
+                                |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt med lagringen" ])
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                 _ ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         NyArbeidserfaring ->
             ( ""
                 |> TypeaheadState.init
                 |> StartNyArbeidserfaring
-                |> nesteSamtaleSteg info (Melding.svar [ "Ja, legg til en arbeidserfaring" ])
-            , lagtTilSpørsmålCmd
+                |> nesteSamtaleSteg model (Melding.svar [ "Ja, legg til en arbeidserfaring" ])
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
         StartÅSkrive ->
             ( Model
-                { info
+                { model
                     | seksjonsMeldingsLogg =
-                        MeldingsLogg.startÅSkrive info.seksjonsMeldingsLogg
+                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep (MeldingsLogg.nesteMeldingToString info.seksjonsMeldingsLogg * 1000.0)
-                    |> Task.perform (\_ -> FullFørMelding)
+                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
+                    |> DebugStatus.meldingsTimeout model.debugStatus
+                    |> Process.sleep
+                    |> Task.perform (always FullFørMelding)
                 ]
             )
                 |> IkkeFerdig
 
         FullFørMelding ->
-            info.seksjonsMeldingsLogg
+            model.seksjonsMeldingsLogg
                 |> MeldingsLogg.fullførMelding
-                |> updateEtterFullførtMelding info
+                |> updateEtterFullførtMelding model
 
         ErrorLogget result ->
-            ( Model info, Cmd.none )
+            ( Model model, Cmd.none )
                 |> IkkeFerdig
 
         ViewportSatt result ->
-            ( Model info, Cmd.none )
+            ( Model model, Cmd.none )
                 |> IkkeFerdig
 
         FerdigMedArbeidserfaring knappeTekst ->
-            if List.isEmpty info.arbeidserfaringListe then
+            if List.isEmpty model.arbeidserfaringListe then
                 ( VenterPåAnimasjonFørFullføring "Ok, da går vi videre. Du kan alltid komme tilbake og legge til om du kommer på noe!"
-                    |> nesteSamtaleSteg info
+                    |> nesteSamtaleSteg model
                         (Melding.svar [ knappeTekst ])
-                , lagtTilSpørsmålCmd
+                , lagtTilSpørsmålCmd model.debugStatus
                 )
                     |> IkkeFerdig
 
             else
                 ( VenterPåAnimasjonFørFullføring "Kjempebra jobba! 👍 Nå kan en arbeidsgiver se om du har den erfaringen de leter etter."
-                    |> nesteSamtaleSteg info
+                    |> nesteSamtaleSteg model
                         (Melding.svar [ knappeTekst ])
-                , lagtTilSpørsmålCmd
+                , lagtTilSpørsmålCmd model.debugStatus
                 )
                     |> IkkeFerdig
 
         GåTilNesteSeksjon ->
-            case MeldingsLogg.ferdigAnimert info.seksjonsMeldingsLogg of
+            case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
                 FerdigAnimert ferdigAnimertMeldingsLogg ->
                     Ferdig ferdigAnimertMeldingsLogg
 
                 MeldingerGjenstår ->
-                    ( Model info, Cmd.none )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
 
@@ -1131,7 +1130,7 @@ updateEtterFullførtMelding info nyMeldingsLogg =
                 { info
                     | seksjonsMeldingsLogg = nyMeldingsLogg
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd info.debugStatus
             )
                 |> IkkeFerdig
 
@@ -1147,12 +1146,14 @@ fullførSeksjonHvisMeldingsloggErFerdig modelInfo =
                 |> IkkeFerdig
 
 
-lagtTilSpørsmålCmd : Cmd Msg
-lagtTilSpørsmålCmd =
+lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
+lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
         [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , Process.sleep 200
-            |> Task.perform (\_ -> StartÅSkrive)
+        , 200
+            |> DebugStatus.meldingsTimeout debugStatus
+            |> Process.sleep
+            |> Task.perform (always StartÅSkrive)
         ]
 
 
@@ -1162,7 +1163,7 @@ brukerVelgerYrke info yrkesTypeahead =
         |> yrkeInfoTilJobbtittelInfo
         |> SpørOmBrukerVilEndreJobbtittel
         |> nesteSamtaleSteg info (Melding.svar [ Yrke.label yrkesTypeahead ])
-    , lagtTilSpørsmålCmd
+    , lagtTilSpørsmålCmd info.debugStatus
     )
         |> IkkeFerdig
 
@@ -2285,8 +2286,8 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-init : FerdigAnimertMeldingsLogg -> List Arbeidserfaring -> ( Model, Cmd Msg )
-init gammelMeldingsLogg arbeidserfaringsListe =
+init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Arbeidserfaring -> ( Model, Cmd Msg )
+init debugStatus gammelMeldingsLogg arbeidserfaringsListe =
     ( Model
         { seksjonsMeldingsLogg =
             gammelMeldingsLogg
@@ -2308,6 +2309,7 @@ init gammelMeldingsLogg arbeidserfaringsListe =
                    )
         , arbeidserfaringListe = arbeidserfaringsListe
         , aktivSamtale = Intro
+        , debugStatus = debugStatus
         }
-    , lagtTilSpørsmålCmd
+    , lagtTilSpørsmålCmd debugStatus
     )

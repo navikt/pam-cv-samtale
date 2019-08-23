@@ -1,13 +1,10 @@
 module Seksjon.Fagdokumentasjon exposing
     ( Model
-    , ModelInfo
     , Msg
     , SamtaleStatus(..)
-    , init
     , initAutorisasjon
     , initFagbrev
     , initMesterbrev
-    , lagtTilSpørsmålCmd
     , meldingsLogg
     , update
     , viewBrukerInput
@@ -16,6 +13,7 @@ module Seksjon.Fagdokumentasjon exposing
 import Api
 import Browser.Dom as Dom
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
+import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
@@ -44,6 +42,7 @@ type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
     , fagdokumentasjonListe : List Fagdokumentasjon
+    , debugStatus : DebugStatus
     }
 
 
@@ -122,19 +121,19 @@ update msg (Model model) =
                     if List.isEmpty fagdokumentasjonListe then
                         IkkeFerdig
                             ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil registrere fagbrev etc" ]) RegistrerType
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                     else
                         IkkeFerdig
                             ( nesteSamtaleSteg model (Melding.svar [ "Jeg har enda flere fagbrev etc jeg ønsker å legge til " ]) RegistrerType
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                 LeggTilFlereFagdokumentasjoner _ ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ "Legg til flere" ]) RegistrerType
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         )
 
                 _ ->
@@ -146,7 +145,7 @@ update msg (Model model) =
                     ( model.fagdokumentasjonListe
                         |> VenterPåAnimasjonFørFullføring
                         |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -154,7 +153,7 @@ update msg (Model model) =
                     ( model.fagdokumentasjonListe
                         |> VenterPåAnimasjonFørFullføring
                         |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -167,7 +166,7 @@ update msg (Model model) =
                 |> TypeaheadState.init
                 |> RegistrerFagbrev
                 |> nesteSamtaleSteg model (Melding.svar [ "Registrer Fagbrev/Svennebrev" ])
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -176,7 +175,7 @@ update msg (Model model) =
                 |> TypeaheadState.init
                 |> RegistrerMesterbrev
                 |> nesteSamtaleSteg model (Melding.svar [ "Registrer Mesterbrev/Svennebrev" ])
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -185,7 +184,7 @@ update msg (Model model) =
                 |> TypeaheadState.init
                 |> RegistrerAutorisasjon
                 |> nesteSamtaleSteg model (Melding.svar [ "Registrer en Autorisasjon" ])
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -201,7 +200,7 @@ update msg (Model model) =
                         }
                     , Cmd.batch
                         [ Api.getFagbrevTypeahead HentetTypeahead string
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
                         |> IkkeFerdig
@@ -216,7 +215,7 @@ update msg (Model model) =
                         }
                     , Cmd.batch
                         [ Api.getMesterbrevTypeahead HentetTypeahead string
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
                         |> IkkeFerdig
@@ -231,7 +230,7 @@ update msg (Model model) =
                         }
                     , Cmd.batch
                         [ Api.getAutorisasjonTypeahead HentetTypeahead string
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
                         |> IkkeFerdig
@@ -248,7 +247,7 @@ update msg (Model model) =
                                 |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> RegistrerFagbrev
                                 |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
@@ -263,7 +262,7 @@ update msg (Model model) =
                                 |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> RegistrerMesterbrev
                                 |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
@@ -278,7 +277,7 @@ update msg (Model model) =
                                 |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> RegistrerAutorisasjon
                                 |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
@@ -366,7 +365,7 @@ update msg (Model model) =
                                         |> forrigetilBeskrivelseInfo
                                         |> RegistrerFagbrevBeskrivelse
                                         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label active ])
-                                    , lagtTilSpørsmålCmd
+                                    , lagtTilSpørsmålCmd model.debugStatus
                                     )
                                         |> IkkeFerdig
 
@@ -424,7 +423,7 @@ update msg (Model model) =
                                         |> forrigetilBeskrivelseInfo
                                         |> RegistrerMesterbrevBeskrivelse
                                         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label active ])
-                                    , lagtTilSpørsmålCmd
+                                    , lagtTilSpørsmålCmd model.debugStatus
                                     )
                                         |> IkkeFerdig
 
@@ -482,7 +481,7 @@ update msg (Model model) =
                                         |> forrigetilBeskrivelseInfo
                                         |> RegistrerAutorisasjonBeskrivelse
                                         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label active ])
-                                    , lagtTilSpørsmålCmd
+                                    , lagtTilSpørsmålCmd model.debugStatus
                                     )
                                         |> IkkeFerdig
 
@@ -518,7 +517,7 @@ update msg (Model model) =
                         |> forrigetilBeskrivelseInfo
                         |> RegistrerFagbrevBeskrivelse
                         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label typeahead ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -527,7 +526,7 @@ update msg (Model model) =
                         |> forrigetilBeskrivelseInfo
                         |> RegistrerMesterbrevBeskrivelse
                         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label typeahead ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -536,12 +535,12 @@ update msg (Model model) =
                         |> forrigetilBeskrivelseInfo
                         |> RegistrerAutorisasjonBeskrivelse
                         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label typeahead ])
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model model, lagtTilSpørsmålCmd )
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
         BrukerVilRegistrereFagbrevBeskrivelse ->
@@ -555,7 +554,7 @@ update msg (Model model) =
                         ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) FagdokumentasjonLagret
                         , Cmd.batch
                             [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             ]
                         )
 
@@ -573,7 +572,7 @@ update msg (Model model) =
                         ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) FagdokumentasjonLagret
                         , Cmd.batch
                             [ Api.postFagdokumentasjon AutorisasjonSendtTilApi skjema
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             ]
                         )
 
@@ -591,7 +590,7 @@ update msg (Model model) =
                         ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) FagdokumentasjonLagret
                         , Cmd.batch
                             [ Api.postFagdokumentasjon MesterbrevSendtTilApi skjema
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             ]
                         )
 
@@ -628,7 +627,7 @@ update msg (Model model) =
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -639,7 +638,7 @@ update msg (Model model) =
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -650,7 +649,7 @@ update msg (Model model) =
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
-                    , lagtTilSpørsmålCmd
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -662,8 +661,10 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> Task.perform (\_ -> FullførMelding)
+                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
+                    |> DebugStatus.meldingsTimeout model.debugStatus
+                    |> Process.sleep
+                    |> Task.perform (always FullførMelding)
                 ]
             )
                 |> IkkeFerdig
@@ -701,7 +702,7 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     | seksjonsMeldingsLogg =
                         nyMeldingsLogg
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -717,12 +718,14 @@ fullførSeksjonHvisMeldingsloggErFerdig modelInfo fagdokumentasjonListe =
                 |> IkkeFerdig
 
 
-lagtTilSpørsmålCmd : Cmd Msg
-lagtTilSpørsmålCmd =
+lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
+lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
         [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , Process.sleep 200
-            |> Task.perform (\_ -> StartÅSkrive)
+        , 200
+            |> DebugStatus.meldingsTimeout debugStatus
+            |> Process.sleep
+            |> Task.perform (always StartÅSkrive)
         ]
 
 
@@ -955,24 +958,8 @@ typeaheadStateSuggestionsTilViewSuggestion typeaheadState =
 -- INIT --
 
 
-init : FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-init gammelMeldingsLogg fagdokumentasjonListe =
-    let
-        aktivSamtale =
-            Intro fagdokumentasjonListe
-    in
-    ( Model
-        { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
-        , aktivSamtale = aktivSamtale
-        , fagdokumentasjonListe = fagdokumentasjonListe
-        }
-    , lagtTilSpørsmålCmd
-    )
-
-
-initFagbrev : FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-initFagbrev gammelMeldingsLogg fagdokumentasjonListe =
+initFagbrev : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initFagbrev debugStatus gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
             ""
@@ -984,13 +971,14 @@ initFagbrev gammelMeldingsLogg fagdokumentasjonListe =
             MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , fagdokumentasjonListe = fagdokumentasjonListe
+        , debugStatus = debugStatus
         }
-    , lagtTilSpørsmålCmd
+    , lagtTilSpørsmålCmd debugStatus
     )
 
 
-initMesterbrev : FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-initMesterbrev gammelMeldingsLogg fagdokumentasjonListe =
+initMesterbrev : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initMesterbrev debugStatus gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
             ""
@@ -1002,13 +990,14 @@ initMesterbrev gammelMeldingsLogg fagdokumentasjonListe =
             MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , fagdokumentasjonListe = fagdokumentasjonListe
+        , debugStatus = debugStatus
         }
-    , lagtTilSpørsmålCmd
+    , lagtTilSpørsmålCmd debugStatus
     )
 
 
-initAutorisasjon : FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-initAutorisasjon gammelMeldingsLogg fagdokumentasjonListe =
+initAutorisasjon : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initAutorisasjon debugStatus gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
             ""
@@ -1020,6 +1009,7 @@ initAutorisasjon gammelMeldingsLogg fagdokumentasjonListe =
             MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , fagdokumentasjonListe = fagdokumentasjonListe
+        , debugStatus = debugStatus
         }
-    , lagtTilSpørsmålCmd
+    , lagtTilSpørsmålCmd debugStatus
     )
