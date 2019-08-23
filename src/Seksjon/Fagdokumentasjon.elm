@@ -774,8 +774,8 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             ]
 
         RegistrerFagbrev _ ->
-            [ Melding.spørsmål
-                [ "Hvilken type fagbrev var det? Begynn å skriv, så skal jeg komme med noen forslag til forskjellige fagbrev jeg kjenner til. Velg det som passer best :)" ]
+            [ Melding.spørsmål [ "Hva er navnet på fagbrevet/svennebrevet ditt?" ]
+            , Melding.spørsmål [ "Begynn å skrive inn fagbrevet/svennebrevet ditt. Velg et av forslagene fra listen som kommer opp." ]
             ]
 
         RegistrerMesterbrev _ ->
@@ -789,7 +789,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             ]
 
         RegistrerFagbrevBeskrivelse _ ->
-            [ Melding.spørsmål [ " Beskriv fagbrevet og hva du lærte" ] ]
+            [ Melding.spørsmål [ "Hva lærte du?" ] ]
 
         RegistrerMesterbrevBeskrivelse _ ->
             [ Melding.spørsmål [ " Beskriv mesterbrevet og hva du lærte" ] ]
@@ -866,8 +866,10 @@ viewBrukerInput (Model model) =
                 RegistrerFagbrevBeskrivelse beskrivelseinfo ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Textarea.toHtml
-                            , Knapp.knapp BrukerVilRegistrereFagbrevBeskrivelse "Lagre"
+                            [ beskrivelseinfo.beskrivelse
+                                |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
+                                |> Textarea.toHtml
+                            , Knapp.knapp BrukerVilRegistrereFagbrevBeskrivelse "Gå videre"
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -912,7 +914,7 @@ viewTypeaheadRegistrerFagbrev : TypeaheadState Konsept -> Html Msg
 viewTypeaheadRegistrerFagbrev typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Fagbrev/Svennebrev", onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
+        |> Typeahead.typeahead { label = "Fagbrev/svennebrev", onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
         |> Typeahead.toHtml
 

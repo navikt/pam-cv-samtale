@@ -872,7 +872,7 @@ utdanningslisteTilString utdannelseListe =
                     []
         )
         utdannelseListe
-        |> List.intersperse [ "\u{00A0}" ]
+        |> List.intersperse [ Melding.tomLinje ]
         |> List.concat
 
 

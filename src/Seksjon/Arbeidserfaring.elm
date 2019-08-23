@@ -2233,7 +2233,7 @@ arbeidserfaringToString arbeidserfaringsListe =
                                         [ "" ]
 
                                     else
-                                        [ "\u{00A0}" ]
+                                        [ Melding.tomLinje ]
                                    )
 
                         Nothing ->
@@ -2265,7 +2265,7 @@ arbeidserfaringToString arbeidserfaringsListe =
                                         [ "" ]
 
                                     else
-                                        [ "\u{00A0}" ]
+                                        [ Melding.tomLinje ]
                                    )
 
                 Nothing ->
