@@ -2,6 +2,7 @@ module Seksjon.Seksjonsvalg exposing
     ( Model
     , Msg
     , SamtaleStatus(..)
+    , Seksjonsvalg(..)
     , init
     , meldingsLogg
     , update
@@ -36,15 +37,26 @@ type alias ModelInfo =
     }
 
 
+type Seksjonsvalg
+    = FagbrevSvennebrevSeksjon
+    | MesterbrevSeksjon
+    | AutorisasjonSeksjon
+    | SertifiseringSeksjon
+    | AnnenErfaringSeksjon
+    | KursSeksjon
+    | FørerkortSeksjon
+    | IngenAvSeksjonene
+
+
 type Samtale
     = LeggTilAutorisasjoner
     | LeggTilAnnet
-    | VenterPåAnimasjonFørFullføring
+    | VenterPåAnimasjonFørFullføring Seksjonsvalg
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig String Model FerdigAnimertMeldingsLogg
+    | Ferdig Seksjonsvalg FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -60,7 +72,7 @@ type Msg
     = StartÅSkrive
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
-    | GåTilSeksjon String
+    | SeksjonValgt Seksjonsvalg
     | BrukerVilGåTilNesteDel String
 
 
@@ -92,12 +104,12 @@ update msg (Model model) =
                 |> MeldingsLogg.fullførMelding
                 |> updateEtterFullførtMelding model
 
-        GåTilSeksjon seksjon ->
+        SeksjonValgt seksjon ->
             fullførSeksjonHvisMeldingsloggErFerdig seksjon
                 { model
                     | seksjonsMeldingsLogg =
                         model.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSvar (Melding.svar [ seksjon ])
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ seksjonsvalgTilString seksjon ])
                 }
 
         BrukerVilGåTilNesteDel knappeTekst ->
@@ -119,14 +131,14 @@ nesteSamtaleSteg model melding samtaleSeksjon =
         }
 
 
-fullførSeksjonHvisMeldingsloggErFerdig : String -> ModelInfo -> SamtaleStatus
+fullførSeksjonHvisMeldingsloggErFerdig : Seksjonsvalg -> ModelInfo -> SamtaleStatus
 fullførSeksjonHvisMeldingsloggErFerdig seksjon modelInfo =
     case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
         FerdigAnimert ferdigAnimertMeldingsLogg ->
-            Ferdig seksjon (Model modelInfo) ferdigAnimertMeldingsLogg
+            Ferdig seksjon ferdigAnimertMeldingsLogg
 
         MeldingerGjenstår ->
-            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring }, Cmd.none )
+            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring seksjon }, Cmd.none )
                 |> IkkeFerdig
 
 
@@ -135,8 +147,8 @@ updateEtterFullførtMelding model nyMeldingsLogg =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring ->
-                    Ferdig "" (Model model) ferdigAnimertSamtale
+                VenterPåAnimasjonFørFullføring seksjon ->
+                    Ferdig seksjon ferdigAnimertSamtale
 
                 _ ->
                     ( Model
@@ -173,17 +185,17 @@ lagtTilSpørsmålCmd debugStatus =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg avslutningsSeksjon =
     case avslutningsSeksjon of
-        VenterPåAnimasjonFørFullføring ->
+        VenterPåAnimasjonFørFullføring _ ->
             []
 
         LeggTilAutorisasjoner ->
-            [ Melding.spørsmål [ "Nå begynner CV-en din å ta form. Er det ner mer du trenger å legge inn?" ]
+            [ Melding.spørsmål [ "Nå begynner CV-en din å ta form. Er det noe mer du kan legge inn?" ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
         LeggTilAnnet ->
-            [ Melding.spørsmål [ "Det er viktig å få med deg alt du kan på CV-en." ]
-            , Melding.spørsmål [ "Har du jobbet som frivillig eller hatt verv? Legg til annen erfaring." ]
+            [ Melding.spørsmål [ "Det er viktig å få med alt du kan på CV-en." ]
+            , Melding.spørsmål [ "Har du jobbet som frivillig eller har hatt verv? Legg til annen erfaring." ]
             , Melding.spørsmål [ "Har du tatt norskprøve? Legg til kurs." ]
             , Melding.spørsmål [ "Hva med førerkort? Husk å legge det inn i CV-en din. Mange arbeidsgivere ser etter jobbsøkere som kan kjøre." ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
@@ -199,7 +211,7 @@ viewBrukerInput (Model model) =
     case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         FerdigAnimert _ ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring ->
+                VenterPåAnimasjonFørFullføring _ ->
                     text ""
 
                 LeggTilAutorisasjoner ->
@@ -207,19 +219,10 @@ viewBrukerInput (Model model) =
                         [ div [ class "skjema" ]
                             [ div [ class "inputkolonne" ]
                                 [ div []
-                                    [ Knapp.knapp (GåTilSeksjon "Fagbrev/Svennebrev") "Fagbrev/Svennebrev"
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp (GåTilSeksjon "Mesterbrev") "Mesterbrev"
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp (GåTilSeksjon "Autorisasjon") "Autorisasjon"
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp (GåTilSeksjon "Sertifisering") "Sertifisering"
-                                        |> Knapp.withEnabled Disabled
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
+                                    [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
+                                    , seksjonsvalgKnapp MesterbrevSeksjon
+                                    , seksjonsvalgKnapp AutorisasjonSeksjon
+                                    , seksjonsvalgKnapp SertifiseringSeksjon
                                     , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
                                         |> Knapp.withClass Knapp.SpråknivåKnapp
                                         |> Knapp.toHtml
@@ -233,22 +236,10 @@ viewBrukerInput (Model model) =
                         [ div [ class "skjema" ]
                             [ div [ class "inputkolonne" ]
                                 [ div []
-                                    -- TODO: enable når implementert
-                                    [ Knapp.knapp (GåTilSeksjon "Annen erfaring") "Annen erfaring"
-                                        |> Knapp.withEnabled Disabled
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp (GåTilSeksjon "Kurs") "Kurs"
-                                        |> Knapp.withEnabled Disabled
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp (GåTilSeksjon "Førerkort") "Førerkort"
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.withEnabled Disabled
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp (GåTilSeksjon "Nei, gå videre") "Nei, gå videre"
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
+                                    [ seksjonsvalgKnapp AnnenErfaringSeksjon
+                                    , seksjonsvalgKnapp KursSeksjon
+                                    , seksjonsvalgKnapp FørerkortSeksjon
+                                    , seksjonsvalgKnapp IngenAvSeksjonene
                                     ]
                                 ]
                             ]
@@ -256,6 +247,74 @@ viewBrukerInput (Model model) =
 
         MeldingerGjenstår ->
             text ""
+
+
+seksjonsvalgKnapp : Seksjonsvalg -> Html Msg
+seksjonsvalgKnapp seksjonsvalg =
+    seksjonsvalg
+        |> seksjonsvalgTilString
+        |> Knapp.knapp (SeksjonValgt seksjonsvalg)
+        |> Knapp.withEnabled (seksjonsvalgDisabled seksjonsvalg)
+        |> Knapp.withClass Knapp.SpråknivåKnapp
+        |> Knapp.toHtml
+
+
+seksjonsvalgDisabled : Seksjonsvalg -> Enabled
+seksjonsvalgDisabled seksjonsvalg =
+    -- TODO: enable når implementert
+    -- TODO: Slett denne når alle er implementert
+    case seksjonsvalg of
+        FagbrevSvennebrevSeksjon ->
+            Enabled
+
+        MesterbrevSeksjon ->
+            Enabled
+
+        AutorisasjonSeksjon ->
+            Enabled
+
+        SertifiseringSeksjon ->
+            Disabled
+
+        AnnenErfaringSeksjon ->
+            Disabled
+
+        KursSeksjon ->
+            Disabled
+
+        FørerkortSeksjon ->
+            Disabled
+
+        IngenAvSeksjonene ->
+            Enabled
+
+
+seksjonsvalgTilString : Seksjonsvalg -> String
+seksjonsvalgTilString seksjonsvalg =
+    case seksjonsvalg of
+        FagbrevSvennebrevSeksjon ->
+            "Fagbrev/Svennebrev"
+
+        MesterbrevSeksjon ->
+            "Mesterbrev"
+
+        AutorisasjonSeksjon ->
+            "Autorisasjon"
+
+        SertifiseringSeksjon ->
+            "Sertifisering"
+
+        AnnenErfaringSeksjon ->
+            "Annen erfaring"
+
+        KursSeksjon ->
+            "Kurs"
+
+        FørerkortSeksjon ->
+            "Førerkort"
+
+        IngenAvSeksjonene ->
+            "Nei, gå videre"
 
 
 

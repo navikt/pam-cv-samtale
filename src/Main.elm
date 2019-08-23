@@ -343,14 +343,10 @@ initialiserSamtale : Personalia -> SamtaleSeksjon
 initialiserSamtale personalia =
     MeldingsLogg.init
         |> MeldingsLogg.leggTilSpørsmål
-            [ Melding.spørsmål [ "Hei " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten CVert, og jeg kan hjelpe deg med å lage en CV." ]
-            , Melding.spørsmål
-                [ "Det du skal igjennom nå er utdanning, arbeidserfaring, språk og sammendrag."
-                , "Etter det kan du velge å legge til blant annet kurs, sertifisering, fagbrev, sertifisering og førerkort."
-                ]
-            , Melding.spørsmål
-                [ "Er du klar til å begynne?"
-                ]
+            [ Melding.spørsmål [ "Hei " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten Cvert, og jeg kan hjelpe deg med å lage en CV." ]
+            , Melding.spørsmål [ "Først skal du legge inn utdanning, arbeidserfaring, språk og sammendrag. Etter det kan du legge til kurs, fagbrev, sertifisering og førerkort." ]
+            , Melding.spørsmål [ "Husk at du ikke skal legge inn noe om helse, religion eller politiske oppfatning." ]
+            , Melding.spørsmål [ "Er du klar til å begynne?" ]
             ]
         |> Introduksjon
 
@@ -572,45 +568,33 @@ updateSuccess successMsg model =
                             , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) cmd
                             )
 
-                        Seksjon.Seksjonsvalg.Ferdig seksjon nyModel meldingsLogg ->
+                        Seksjon.Seksjonsvalg.Ferdig seksjon meldingsLogg ->
                             -- TODO: her legger man inn caser for hvor seksjonsvalget skal gå
                             case seksjon of
-                                "Arbeidserfaring" ->
-                                    gåTilArbeidserfaring model meldingsLogg
-
-                                "Utdanning" ->
-                                    gåTilUtdanning model meldingsLogg
-
-                                "Språk" ->
-                                    gåTilSpråk model meldingsLogg
-
-                                "Nei, gå videre" ->
-                                    gåTilSammendrag model meldingsLogg
-
                                 -- FIXME: ikke implementert
-                                "Fagbrev/Svennebrev" ->
+                                Seksjon.Seksjonsvalg.FagbrevSvennebrevSeksjon ->
                                     gåTilFagbrev model meldingsLogg
 
-                                "Mesterbrev" ->
+                                Seksjon.Seksjonsvalg.MesterbrevSeksjon ->
                                     gåTilMesterbrev model meldingsLogg
 
-                                "Autorisasjon" ->
+                                Seksjon.Seksjonsvalg.AutorisasjonSeksjon ->
                                     gåTilAutorisasjon model meldingsLogg
 
-                                "Sertifisering" ->
+                                Seksjon.Seksjonsvalg.SertifiseringSeksjon ->
                                     ( Success model, Cmd.none )
 
-                                "Annen erfaring" ->
+                                Seksjon.Seksjonsvalg.AnnenErfaringSeksjon ->
                                     ( Success model, Cmd.none )
 
-                                "Kurs" ->
+                                Seksjon.Seksjonsvalg.KursSeksjon ->
                                     ( Success model, Cmd.none )
 
-                                "Førerkort" ->
+                                Seksjon.Seksjonsvalg.FørerkortSeksjon ->
                                     ( Success model, Cmd.none )
 
-                                _ ->
-                                    ( Success model, Cmd.none )
+                                Seksjon.Seksjonsvalg.IngenAvSeksjonene ->
+                                    gåTilSammendrag model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )

@@ -260,13 +260,13 @@ update msg (Model model) =
 
                     else
                         IkkeFerdig
-                            ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil legge til flere utdannelser" ]) RegistrerNivå
+                            ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til en utdanning" ]) RegistrerNivå
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                 LeggTilFlereUtdannelser _ ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til flere" ]) RegistrerNivå
+                        ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til en utdanning" ]) RegistrerNivå
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
 
@@ -426,7 +426,7 @@ update msg (Model model) =
                         |> setNavarendeTilTrue
                         |> forrigeTilOppsummeringInfo
                         |> Oppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg går på studiet" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -439,7 +439,7 @@ update msg (Model model) =
             ( fraDatoInfo
                 |> forrigeTilTildatoInfo
                 |> RegistrereTilMåned
-                |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
+                |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg er ferdig" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -502,7 +502,7 @@ update msg (Model model) =
         BrukerVilEndreOppsummering ->
             case model.aktivSamtale of
                 Oppsummering utdanningskjema ->
-                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Jeg vil endre" ]) (EndrerOppsummering utdanningskjema), lagtTilSpørsmålCmd model.debugStatus )
+                    IkkeFerdig ( nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ]) (EndrerOppsummering utdanningskjema), lagtTilSpørsmålCmd model.debugStatus )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -543,7 +543,7 @@ update msg (Model model) =
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (OppsummeringLagret ferdigskjema)
+                        ( nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ]) (OppsummeringLagret ferdigskjema)
                         , Cmd.batch
                             [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema
                             , lagtTilSpørsmålCmd model.debugStatus
@@ -872,7 +872,7 @@ utdanningslisteTilString utdannelseListe =
                     []
         )
         utdannelseListe
-        |> List.intersperse [ "\u{00A0}" ]
+        |> List.intersperse [ Melding.tomLinje ]
         |> List.concat
 
 
@@ -881,23 +881,23 @@ samtaleTilMeldingsLogg utdanningSeksjon =
     case utdanningSeksjon of
         Intro utdannelseListe ->
             if List.isEmpty utdannelseListe then
-                [ Melding.spørsmål
-                    [ "Har du utdanning du vil legge inn på CV-en din?" ]
+                [ Melding.spørsmål [ "Har du utdanning du vil legge inn i CV-en din?" ]
+                , Melding.spørsmål [ "Husk at du kan legge inn grunnskole og videregående." ]
                 ]
 
             else
                 [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn disse utdannelsene: " ]
                 , Melding.spørsmål (utdanningslisteTilString utdannelseListe)
-                , Melding.spørsmål [ "Vil du legge inn flere utdannelser?" ]
+                , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
                 ]
 
         VelgEnUtdanningÅRedigere ->
             [ Melding.spørsmål [ "Hvilken registrerte utdanning ønsker du å redigere?" ] ]
 
         RegistrerNivå ->
-            [ Melding.spørsmål [ "Her kommer et lite tips. Hvis du skal legge inn bachelorgraden din, velg høyere utdanning 1-4 år. Har du en mastergrad? Velg høyere utdanning 4 år +." ]
-            , Melding.spørsmål
-                [ "Hvilket nivå er det på den utdanningen du skal legge inn?" ]
+            [ Melding.spørsmål [ "Legg inn én utdanning av gangen." ]
+            , Melding.spørsmål [ "Her kommer et lite tips. Hvis du har en bachelorgrad, velg høyere utdanning 1-4 år. Har du en mastergrad, velg høyere utdanning 4+ år." ]
+            , Melding.spørsmål [ "Hvilket nivå er det på utdanningen du skal legge inn?" ]
             ]
 
         RegistrerSkole skoleinfo ->
@@ -906,37 +906,37 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                     [ Melding.spørsmål
                         [ "Merk at du kan legge til fagbrev/svennebrev eller mesterbrev mot slutten av samtalen, om du har det" ]
                     , Melding.spørsmål
-                        [ "Hvilken skole gikk du på? " ]
+                        [ "Hvilken skole gikk du på?" ]
                     , Melding.spørsmål
-                        [ "Det kan for eksempel være Fagskolen i Østfold " ]
+                        [ "For eksempel Fagskolen i Østfold" ]
                     ]
 
                 VideregåendeYrkesskole ->
                     [ Melding.spørsmål
-                        [ "Hvilken skole gikk du på? " ]
+                        [ "Hvilken skole gikk du på?" ]
                     , Melding.spørsmål
-                        [ "Det kan for eksempel være Drammen Videregående Skole " ]
+                        [ "For eksempel Drammen videregående skole" ]
                     ]
 
                 Grunnskole ->
                     [ Melding.spørsmål
-                        [ "Hvilken grunnskole gikk du på? " ]
+                        [ "Hvilken grunnskole gikk du på?" ]
                     , Melding.spørsmål
-                        [ "Det kan for eksempel være Huseby Skole " ]
+                        [ "For eksempel Huseby skole" ]
                     ]
 
                 Folkehøyskole ->
                     [ Melding.spørsmål
-                        [ "Hvilken folkehøyskole gikk du på? " ]
+                        [ "Hvilken folkehøgskole gikk du på?" ]
                     , Melding.spørsmål
-                        [ "Det kan for eksempel være Nordfjordeid Folkehøgskule " ]
+                        [ "For eksempel Nordfjordeid folkehøgskule" ]
                     ]
 
                 _ ->
                     [ Melding.spørsmål
-                        [ "Hvilken skole gikk du på? " ]
+                        [ "Hvilken skole gikk du på?" ]
                     , Melding.spørsmål
-                        [ "Det kan for eksempel være Universitet i Oslo " ]
+                        [ "For eksempel Universitet i Oslo" ]
                     ]
 
         RegistrerRetning _ ->
@@ -946,24 +946,23 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
         RegistrerBeskrivelse _ ->
             [ Melding.spørsmål
-                [ " Fortell arbeidsgiver om utdanningen du tok. Hva lærte du? Fordypte du deg i noen fag?" ]
+                [ "Fortell om utdanningen du tok, hva lærte du? Har du fordypning i noen fag? Skriv om det." ]
             ]
 
         RegistrereFraMåned _ ->
-            [ Melding.spørsmål
-                [ "Hvilken måned begynte du utdannelsen din? " ]
-            , Melding.spørsmål [ "De fleste studier i Norge begynner i august" ]
+            [ Melding.spørsmål [ "Hvilken måned begynte du på utdanningen din?" ]
+            , Melding.spørsmål [ "De fleste studiene i Norge begynner i august." ]
             ]
 
         RegistrereFraÅr _ ->
-            [ Melding.spørsmål [ "Hvilket år begynte du utdannelsen din?" ] ]
+            [ Melding.spørsmål [ "Hvilket år begynte du på utdanningen din?" ] ]
 
         RegistrereNavarende _ ->
-            [ Melding.spørsmål [ "Er dette et pågående studie?" ] ]
+            [ Melding.spørsmål [ "Går du fremdeles på studiet?" ] ]
 
         RegistrereTilMåned _ ->
-            [ Melding.spørsmål [ "Hvilken måned ble du ferdig med utdannelsen?" ]
-            , Melding.spørsmål [ "De fleste studier er ferdig i juni" ]
+            [ Melding.spørsmål [ "Hvilken måned fullførte du utdanningen din?" ]
+            , Melding.spørsmål [ "De fleste studier i Norge er ferdig i juni." ]
             ]
 
         RegistrereTilÅr _ ->
@@ -981,18 +980,18 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
                   else
                     hentTilDato utdanningsskjema
+                , Melding.tomLinje
+                , "Er informasjonen riktig?"
                 ]
-            , Melding.spørsmål [ "Er informasjonen du la inn riktig?" ]
             ]
 
         EndrerOppsummering _ ->
-            [ Melding.spørsmål
-                [ "Ok! Vennligst skriv inn riktig informasjon i feltene under: " ]
+            [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ]
             ]
 
         LeggTilFlereUtdannelser _ ->
-            [ Melding.spørsmål [ "Flott. Nå har du lagt inn en utdanning 👍" ]
-            , Melding.spørsmål [ "Vil du legge inn flere utdanninger?" ]
+            [ Melding.spørsmål [ "Så bra! Nå har du lagt inn en ny utdanning 👍" ]
+            , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
             ]
 
         LeggTilUtdanningFeiletIApi _ _ ->
@@ -1056,8 +1055,8 @@ viewBrukerInput (Model model) =
                                 [ div [ class "inputkolonne" ]
                                     [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
                                         |> Knapp.toHtml
-                                    , "Jeg har ingen utdanning"
-                                        |> Knapp.knapp (GåTilArbeidserfaring "Jeg har ingen utdanning")
+                                    , "Nei, jeg har ikke utdanning"
+                                        |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg har ikke utdanning")
                                         |> Knapp.toHtml
                                     ]
                                 ]
@@ -1068,7 +1067,7 @@ viewBrukerInput (Model model) =
                             [ div [ class "skjema" ]
                                 [ div [ class "inputkolonne" ]
                                     [ div []
-                                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg vil legge til flere utdannelser"
+                                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                                             |> Knapp.toHtml
                                         ]
                                     , div []
@@ -1141,8 +1140,10 @@ viewBrukerInput (Model model) =
                 RegistrerSkole skoleinfo ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ skoleinfo.skole |> Input.input { msg = OppdaterSkole, label = "" } |> Input.toHtml
-                            , Knapp.knapp BrukerVilRegistrereSkole "Lagre"
+                            [ skoleinfo.skole
+                                |> Input.input { msg = OppdaterSkole, label = "Skole/studiested" }
+                                |> Input.toHtml
+                            , Knapp.knapp BrukerVilRegistrereSkole "Gå videre"
                                 |> (if skoleinfo.skole /= "" then
                                         Knapp.withEnabled Knapp.Enabled
 
@@ -1156,8 +1157,10 @@ viewBrukerInput (Model model) =
                 RegistrerRetning retningsinfo ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ retningsinfo.retning |> Input.input { msg = OppdaterRetning, label = "" } |> Input.toHtml
-                            , Knapp.knapp BrukerVilRegistrereRetning "Lagre"
+                            [ retningsinfo.retning
+                                |> Input.input { msg = OppdaterRetning, label = "Grad og utdanningsretning" }
+                                |> Input.toHtml
+                            , Knapp.knapp BrukerVilRegistrereRetning "Gå videre"
                                 |> (if retningsinfo.retning /= "" then
                                         Knapp.withEnabled Knapp.Enabled
 
@@ -1171,8 +1174,10 @@ viewBrukerInput (Model model) =
                 RegistrerBeskrivelse beskrivelseinfo ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "" } |> Textarea.toHtml
-                            , Knapp.knapp BrukerVilRegistrereBeskrivelse "Lagre"
+                            [ beskrivelseinfo.beskrivelse
+                                |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
+                                |> Textarea.toHtml
+                            , Knapp.knapp BrukerVilRegistrereBeskrivelse "Gå videre"
                                 |> (if beskrivelseinfo.beskrivelse /= "" then
                                         Knapp.withEnabled Knapp.Enabled
 
@@ -1229,7 +1234,7 @@ viewBrukerInput (Model model) =
                             [ fraDatoInfo.fraÅr
                                 |> lagÅrInputField (OppdaterFraÅr "")
                             , BrukerVilRegistrereNaavarende
-                                |> lagÅrInputKnapp "Lagre" fraDatoInfo.fraÅr
+                                |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
                             ]
                         ]
 
@@ -1238,10 +1243,10 @@ viewBrukerInput (Model model) =
                         [ div [ class "inputrad" ]
                             [ div [ class "inputrad-innhold" ]
                                 [ BrukerSvarerJaTilNaavarende
-                                    |> lagMessageKnapp "Ja"
+                                    |> lagMessageKnapp "Ja, jeg går på studiet"
                                 , fraDatoInfo
                                     |> BrukerSvarerNeiTilNaavarende
-                                    |> lagMessageKnapp "Nei"
+                                    |> lagMessageKnapp "Nei, jeg er ferdig"
                                 ]
                             ]
                         ]
@@ -1292,7 +1297,7 @@ viewBrukerInput (Model model) =
                             [ tilDatoInfo.tilÅr
                                 |> lagÅrInputField (OppdaterTilÅr "")
                             , BrukerVilGåTilOppsummering
-                                |> lagÅrInputKnapp "Lagre" tilDatoInfo.tilÅr
+                                |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
                             ]
                         ]
 
@@ -1300,9 +1305,9 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputrad" ]
-                                [ Knapp.knapp BrukerVilEndreOppsummering "Endre"
+                                [ Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
                                     |> Knapp.toHtml
-                                , Knapp.knapp OriginalOppsummeringBekreftet "Bekreft"
+                                , Knapp.knapp OriginalOppsummeringBekreftet "Ja, informasjonen er riktig"
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -1315,7 +1320,7 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til flere"
+                                [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                                     |> Knapp.withClass Knapp.UtdanningsNivåKnapp
                                     |> Knapp.toHtml
                                 ]
@@ -1353,22 +1358,22 @@ endreSkjema : ModelInfo -> Skjema.UtdanningSkjema -> Html Msg
 endreSkjema model utdanningsskjema =
     div [ class "skjema-wrapper" ]
         [ div [ class "skjema" ]
-            [ Select.select "Nivå: " (NivåEndret >> SkjemaOppdatert) selectNivåListe
+            [ Select.select "Utdanningsnivå" (NivåEndret >> SkjemaOppdatert) selectNivåListe
                 |> Select.withSelected (utdanningsskjema |> Skjema.nuskode |> tilNivåKey)
                 |> Select.toHtml
             , utdanningsskjema
                 |> Skjema.studiested
-                |> Input.input { label = "Studiested", msg = SkoleEndret >> SkjemaOppdatert }
+                |> Input.input { label = "Skole/studiested", msg = SkoleEndret >> SkjemaOppdatert }
                 |> Input.toHtml
             , utdanningsskjema
                 |> Skjema.utdanningsretning
-                |> Input.input { label = "Retning", msg = RetningEndret >> SkjemaOppdatert }
+                |> Input.input { label = "Grad og utdanningsretning", msg = RetningEndret >> SkjemaOppdatert }
                 |> Input.toHtml
             , utdanningsskjema
                 |> Skjema.beskrivelse
-                |> Input.input { label = "Beskrivelse", msg = BeskrivelseEndret >> SkjemaOppdatert }
+                |> Input.input { label = "Beskriv utdanningen", msg = BeskrivelseEndret >> SkjemaOppdatert }
                 |> Input.toHtml
-            , Select.select "Måned"
+            , Select.select "Måned utdanningen startet"
                 (FraMånedEndret >> SkjemaOppdatert)
                 [ ( "Januar", "Januar" )
                 , ( "Februar", "Februar" )
@@ -1406,7 +1411,7 @@ endreSkjema model utdanningsskjema =
 
               else
                 div []
-                    [ Select.select "Måned"
+                    [ Select.select "Måned utdanningen sluttet"
                         (TilMånedEndret >> SkjemaOppdatert)
                         [ ( "Januar", "Januar" )
                         , ( "Februar", "Februar" )
@@ -1453,7 +1458,7 @@ endreSkjema model utdanningsskjema =
                 div [ class "skjema" ]
                     [ div [ class "skjema-wrapper" ]
                         [ div [ class "inputkolonne" ]
-                            [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre"
+                            [ Knapp.knapp OppsummeringSkjemaLagreknappTrykket "Lagre endringer"
                                 |> Knapp.toHtml
                             ]
                         ]

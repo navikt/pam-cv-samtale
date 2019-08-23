@@ -122,7 +122,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 EndreOriginal _ ->
-                    ( nesteSamtaleSteg model (Melding.svar [ "Lagre og gå videre" ]) (LagrerEndring sammendrag)
+                    ( nesteSamtaleSteg model (Melding.svar [ "Gå videre" ]) (LagrerEndring sammendrag)
                     , Cmd.batch
                         [ lagtTilSpørsmålCmd model.debugStatus
                         , leggSammendragTilAPI sammendrag
@@ -242,18 +242,14 @@ samtaleTilMeldingsLogg sammendragSeksjon =
     case sammendragSeksjon of
         BekreftOriginal sammendrag ->
             if sammendrag == "" then
-                [ Melding.spørsmål
-                    [ "Nå skal du skrive et sammendag."
-                    , "Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper."
-                    ]
-                ]
+                [ Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ] ]
 
             else
                 [ Melding.spørsmål [ "Nå skal vi skrive et sammendrag." ]
                 , Melding.spørsmål
                     [ "Du har allerede skrevet dette..."
                     ]
-                , Melding.spørsmål (List.intersperse "\u{00A0}" (String.split "\n" sammendrag))
+                , Melding.spørsmål (List.intersperse Melding.tomLinje (String.split "\n" sammendrag))
                 , Melding.spørsmål [ "Vil du legge til eller endre på noe?" ]
                 ]
 
@@ -327,7 +323,7 @@ viewBrukerInput (Model model) =
                             [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
                                 |> Textarea.withTextAreaClass "textarea_stor"
                                 |> Textarea.toHtml
-                            , Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Lagre og gå videre"
+                            , Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Gå videre"
                                 |> Knapp.toHtml
                             ]
                         ]

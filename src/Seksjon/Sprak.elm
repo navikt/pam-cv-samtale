@@ -22,11 +22,12 @@ import Html.Events exposing (..)
 import Http
 import List.Extra as List
 import Melding exposing (Melding(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
 import Skjema.Sprak as SpråkSkjema exposing (SpråkSkjema)
 import Sprakkoder exposing (Sprakkoder)
+import String.Extra as String
 import Task
 
 
@@ -477,38 +478,25 @@ hentSpråkkoder =
     Api.getSpråkkoder SpråkkoderHentet
 
 
-listOppSpråkFraSpråkliste : SpråkListe -> String
-listOppSpråkFraSpråkliste språkListe =
-    String.concat
-        (List.map
-            (\el ->
-                if List.elemIndex el språkListe == Just 0 then
-                    Spraakferdighet.sprak el |> Maybe.withDefault ""
-
-                else if List.elemIndex el språkListe == Just (List.length språkListe - 1) then
-                    String.concat [ " og ", String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "") ]
-
-                else
-                    String.concat [ ", ", String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "") ]
-            )
-            språkListe
-        )
-
-
-samtaleTilMeldingsLogg : Samtale -> List Melding
-samtaleTilMeldingsLogg språkSeksjon =
+samtaleTilMeldingsLogg : ModelInfo -> Samtale -> List Melding
+samtaleTilMeldingsLogg model språkSeksjon =
     case språkSeksjon of
         IntroLeggTilNorsk språkListe ->
             if List.isEmpty språkListe then
-                [ Melding.spørsmål [ "Nå skal vi legge inn språk." ]
+                [ Melding.spørsmål [ "Nå skal du legge inn språk." ]
                 , Melding.spørsmål [ "La oss begynne med norsk. Er norsk førstespråket (morsmålet) ditt?" ]
                 ]
 
             else
-                [ Melding.spørsmål [ "Nå skal vi legge til språk." ]
+                [ Melding.spørsmål [ "Nå skal du legge inn språk." ]
                 , Melding.spørsmål
                     [ "Jeg ser at du har lagt inn disse språkene allerede:"
-                    , listOppSpråkFraSpråkliste språkListe
+                    , språkListe
+                        |> List.filterMap Spraakferdighet.sprak
+                        |> List.map String.toLower
+                        |> listeTilSetning
+                        |> String.toSentenceCase
+                        |> (\setning -> setning ++ ".")
                     ]
                 , Melding.spørsmål [ "Vil du legge til flere?" ]
                 ]
@@ -517,11 +505,18 @@ samtaleTilMeldingsLogg språkSeksjon =
             [ Melding.spørsmål [ "Hva med engelsk? Kan du det?" ]
             ]
 
-        LeggTilFlereSpråk enkeltSpråk model ->
+        LeggTilFlereSpråk enkeltSpråk _ ->
             [ Melding.spørsmål
-                [ "Supert! Da har jeg lagt til " ++ String.toLower enkeltSpråk.språkNavn ++ "."
-                , duHarNåLagtInnTilString enkeltSpråk model
-                , "Kan du flere språk?"
+                [ "Supert! Da har du lagt inn "
+                    ++ (model.språk
+                            |> List.filterMap Spraakferdighet.sprak
+                            |> List.map String.toLower
+                            |> listeTilSetning
+                       )
+                    ++ "."
+                ]
+            , Melding.spørsmål
+                [ "Kan du flere språk?"
                 ]
             ]
 
@@ -547,7 +542,7 @@ samtaleTilMeldingsLogg språkSeksjon =
             [ Melding.spørsmål [ "Oops! Noe gikk galt...", "Vil du prøve på nytt eller avslutte og gå videre?", "Prøv gjerne igjen senere." ] ]
 
         VenterPåAnimasjonFørFullføring ->
-            [ Melding.spørsmål [ "Da var vi ferdige med språkdelen." ] ]
+            []
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -558,7 +553,7 @@ nesteSamtaleSteg model melding samtaleSeksjon =
             , seksjonsMeldingsLogg =
                 model.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSvar melding
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg model samtaleSeksjon)
         }
 
 
@@ -569,27 +564,21 @@ nesteSamtaleStegUtenMelding model samtaleSeksjon =
             | aktivSamtale = samtaleSeksjon
             , seksjonsMeldingsLogg =
                 model.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg model samtaleSeksjon)
         }
 
 
-duHarNåLagtInnTilString : EnkeltSpråk -> Model -> String
-duHarNåLagtInnTilString enkeltSpråk model =
-    "Du har nå lagt inn "
-        ++ String.concat
-            (List.map
-                (\el ->
-                    String.toLower (Spraakferdighet.sprak el |> Maybe.withDefault "")
-                        ++ (if List.elemIndex el (innlagteSpråk model) == Just (List.length (innlagteSpråk model) - 1) then
-                                " "
+listeTilSetning : List String -> String
+listeTilSetning list =
+    case List.reverse list of
+        [] ->
+            ""
 
-                            else
-                                ", "
-                           )
-                )
-                (innlagteSpråk model)
-                ++ [ "og ", String.toLower enkeltSpråk.språkNavn ]
-            )
+        siste :: [] ->
+            siste
+
+        siste :: resten ->
+            (List.reverse resten |> String.join ", ") ++ " og " ++ siste
 
 
 
@@ -778,14 +767,19 @@ init debugStatus gammelMeldingsLogg språkFerdighet =
     let
         aktivSamtale =
             IntroLeggTilNorsk språkFerdighet
+
+        modelInfo =
+            { seksjonsMeldingsLogg = MeldingsLogg.tilMeldingsLogg gammelMeldingsLogg
+            , aktivSamtale = aktivSamtale
+            , språk = språkFerdighet
+            , språkKoder = Loading
+            , debugStatus = debugStatus
+            }
     in
     ( Model
-        { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
-        , aktivSamtale = aktivSamtale
-        , språk = språkFerdighet
-        , språkKoder = Loading
-        , debugStatus = debugStatus
+        { modelInfo
+            | seksjonsMeldingsLogg =
+                MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg modelInfo aktivSamtale) modelInfo.seksjonsMeldingsLogg
         }
     , Cmd.batch
         [ lagtTilSpørsmålCmd debugStatus

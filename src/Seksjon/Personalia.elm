@@ -82,8 +82,11 @@ update msg (Model model) =
                 { model
                     | seksjonsMeldingsLogg =
                         model.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, informasjonen stemmer" ])
-                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Så bra! Nå kan arbeidsgivere kontakte deg uten problemer" ], Melding.spørsmål [ "Da kan vi gå videre til selve utfyllingen av CV-en." ] ]
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, informasjonen er riktig" ])
+                            |> MeldingsLogg.leggTilSpørsmål
+                                [ Melding.spørsmål [ "Så bra! 😊 Nå kan arbeidsgivere kontakte deg." ]
+                                , Melding.spørsmål [ "Da kan vi gå videre til utfylling av CV-en." ]
+                                ]
                     , aktivSamtale = VenterPåAnimasjonFørFullføring model.personalia
                 }
             , lagtTilSpørsmålCmd model.debugStatus
@@ -94,7 +97,7 @@ update msg (Model model) =
             ( model.personalia
                 |> Skjema.Personalia.init
                 |> EndreOriginal
-                |> nesteSamtaleSteg model (Melding.svar [ "Nei, informasjonen stemmer ikke" ])
+                |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -120,10 +123,9 @@ update msg (Model model) =
                         |> LagrerEndring
                         |> nesteSamtaleSteg model
                             (Melding.svar
-                                [ "Fornavn: " ++ Skjema.Personalia.fornavn skjema
-                                , "Etternavn: " ++ Skjema.Personalia.etternavn skjema
+                                [ "Navn: " ++ Skjema.Personalia.fornavn skjema ++ " " ++ Skjema.Personalia.etternavn skjema
                                 , "Fødselsdato " ++ Skjema.Personalia.fodselsdato skjema
-                                , "Epost: " ++ Skjema.Personalia.epost skjema
+                                , "E-post: " ++ Skjema.Personalia.epost skjema
                                 , "Telefonnummer: " ++ Skjema.Personalia.telefon skjema
                                 , "Adresse: "
                                     ++ Skjema.Personalia.gateadresse skjema
@@ -267,15 +269,11 @@ samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
             [ Melding.spørsmål [ "Da setter vi i gang 😊" ]
+            , Melding.spørsmål [ "Jeg har hentet inn kontaktinformasjonen din, den vises på CV-en. Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg." ]
             , Melding.spørsmål
-                [ "Jeg har hentet inn kontaktinformasjonen din. Den vil vises på CV-en."
-                , "Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg. "
-                ]
-            , Melding.spørsmål
-                [ "Fornavn: " ++ (Personalia.fornavn personalia |> Maybe.withDefault "-")
-                , "Etternavn: " ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
+                [ "Navn: " ++ (Personalia.fornavn personalia |> Maybe.withDefault "-") ++ " " ++ (Personalia.etternavn personalia |> Maybe.withDefault "-")
                 , "Fødselsdato: " ++ (Personalia.fodselsdato personalia |> Maybe.withDefault "-")
-                , "Epost: " ++ (Personalia.epost personalia |> Maybe.withDefault "-")
+                , "E-post: " ++ (Personalia.epost personalia |> Maybe.withDefault "-")
                 , "Telefonnummer: " ++ (Personalia.telefon personalia |> Maybe.withDefault "-")
                 , "Adresse: "
                     ++ (Personalia.gateadresse personalia |> Maybe.withDefault "-")
@@ -283,8 +281,9 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                     ++ (Personalia.poststed personalia |> Maybe.withDefault "-")
                     ++ " "
                     ++ (Personalia.postnummer personalia |> Maybe.withDefault "-")
+                , Melding.tomLinje
+                , "Er kontaktinformasjonen riktig?"
                 ]
-            , Melding.spørsmål [ "Er kontaktinformasjonen riktig?" ]
             ]
 
         EndreOriginal personaliaSkjema ->
@@ -319,9 +318,9 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen stemmer"
+                                [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen er riktig"
                                     |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, informasjonen stemmer ikke"
+                                , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, jeg vil endre"
                                     |> Knapp.toHtml
                                 ]
                             ]
@@ -344,7 +343,7 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                                 |> Input.toHtml
                             , personaliaSkjema
                                 |> Skjema.Personalia.epost
-                                |> Input.input { label = "Epost", msg = PersonaliaSkjemaEndret Skjema.Personalia.Epost }
+                                |> Input.input { label = "E-post", msg = PersonaliaSkjemaEndret Skjema.Personalia.Epost }
                                 |> Input.toHtml
                             , personaliaSkjema
                                 |> Skjema.Personalia.telefon
@@ -362,7 +361,7 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                                 |> Skjema.Personalia.poststed
                                 |> Input.input { label = "Poststed", msg = PersonaliaSkjemaEndret Skjema.Personalia.Poststed }
                                 |> Input.toHtml
-                            , Knapp.knapp PersonaliaskjemaLagreknappTrykket "Lagre"
+                            , Knapp.knapp PersonaliaskjemaLagreknappTrykket "Lagre endringer"
                                 |> Knapp.toHtml
                             ]
                         ]

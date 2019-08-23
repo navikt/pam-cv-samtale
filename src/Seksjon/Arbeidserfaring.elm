@@ -14,6 +14,7 @@ import Cv.Arbeidserfaring exposing (Arbeidserfaring)
 import Dato exposing (Dato)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
+import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
 import FrontendModuler.InputInt as InputInt
 import FrontendModuler.Knapp as Knapp
@@ -991,7 +992,7 @@ update msg (Model model) =
                     ( validertSkjema
                         |> LagreArbeidserfaring
                         |> nesteSamtaleSteg model
-                            (Melding.svar [ brukerSvar ])
+                            (Melding.svar (validertSkjemaTilSetninger validertSkjema))
                     , Cmd.batch
                         [ validertSkjema
                             |> postEllerPutArbeidserfaring ArbeidserfaringLagret
@@ -1000,8 +1001,8 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                VisOppsummering skjema ->
-                    ( skjema
+                VisOppsummering _ ->
+                    ( validertSkjema
                         |> LagreArbeidserfaring
                         |> nesteSamtaleSteg model
                             (Melding.svar [ brukerSvar ])
@@ -1091,7 +1092,7 @@ update msg (Model model) =
                     |> IkkeFerdig
 
             else
-                ( VenterPåAnimasjonFørFullføring "Kjempebra jobba! 👍 Nå kan en arbeidsgiver se om du har den erfaringen de leter etter."
+                ( VenterPåAnimasjonFørFullføring "Bra innsats! 😊 Nå kan arbeidsgivere finne deg hvis du har den erfaringen de ser etter."
                     |> nesteSamtaleSteg model
                         (Melding.svar [ knappeTekst ])
                 , lagtTilSpørsmålCmd model.debugStatus
@@ -1315,16 +1316,9 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "" ] ]
 
         RegistrerYrke yrkeInfo ->
-            [ Melding.spørsmål
-                [ "Nå skal du legge inn en og en av arbeidserfaringene dine. Da setter vi igang 😊"
-                ]
-            , Melding.spørsmål
-                [ "Først må du velge et yrke. Begynn og skriv og velg fra forslagene som kommer opp."
-                , "Grunnen til at du må velge et av forslagene er fordi arbeidsgiverene skal kunne finne deg i søket sitt."
-                ]
-            , Melding.spørsmål
-                [ "Hvis du ikke finner yrket ditt, velg det nærmeste. Hvis yrket du velger ikke stemmer helt, kan du endre navnet etterpå"
-                ]
+            [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
+            , Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
+            , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
             ]
 
         SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
@@ -1338,16 +1332,13 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             []
 
         RegistrereBedriftNavn beriftnavnsInfo ->
-            [ Melding.spørsmål [ "Hva er navnet på bedriften du jobbet i?" ] ]
+            [ Melding.spørsmål [ "Hvilken bedrift jobber eller jobbet du i?" ] ]
 
         RegistrereSted lokasjonInfo ->
             [ Melding.spørsmål [ "Hvor holder bedriften til?" ] ]
 
         RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
-            [ Melding.spørsmål
-                [ "Fortell arbeidsgivere hvilke arbeidsoppgaver du har hatt, hva du har lært og hva som var rollen din."
-                ]
-            ]
+            [ Melding.spørsmål [ "Fortell om hvilke arbeidsoppgaver du har hatt, hva du har lært og hva som var rollen din." ] ]
 
         RegistrereFraMåned periodeInfo ->
             [ Melding.spørsmål [ "Hvilken måned begynte du i jobben?" ] ]
@@ -1356,7 +1347,16 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Hvilket år begynte du i jobben?" ] ]
 
         RegistrereNaavarende periodeInfo ->
-            [ Melding.spørsmål [ "Jobber du fremdeles her?" ] ]
+            let
+                yrkestittel =
+                    case periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel of
+                        "" ->
+                            Yrke.label periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
+
+                        jobbtittel ->
+                            jobbtittel
+            in
+            [ Melding.spørsmål [ "Jobber du fremdeles som «" ++ yrkestittel ++ "» i " ++ periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn ++ "?" ] ]
 
         RegistrereTilMåned periodeInfo ->
             [ Melding.spørsmål [ "Hvilken måned sluttet du i jobben?" ] ]
@@ -1366,37 +1366,18 @@ samtaleTilMeldingsLogg personaliaSeksjon =
 
         VisOppsummering validertSkjema ->
             [ Melding.spørsmål
-                [ "Er informasjonen du la inn riktig?"
-                , "Stilling/Yrke: " ++ hentStilling validertSkjema
-                , "Bedriftnavn: " ++ ArbeidserfaringSkjema.bedriftNavn (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Sted: " ++ ArbeidserfaringSkjema.lokasjon (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Arbeidsoppgaver: " ++ ArbeidserfaringSkjema.arbeidsoppgaver (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Fra: " ++ hentFraDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , if ArbeidserfaringSkjema.naavarende (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema) == True then
-                    "Nåværende jobb"
-
-                  else
-                    hentTilDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                ]
+                (validertSkjemaTilSetninger validertSkjema
+                    ++ [ Melding.tomLinje
+                       , "Er informasjonen riktig?"
+                       ]
+                )
             ]
 
         RedigerOppsummering skjema ->
-            [ Melding.spørsmål [ "Rediger de feltene du ønsker. Husk å sjekke at alle feltene er riktige før du går videre!" ] ]
+            [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
         LagreArbeidserfaring validertSkjema ->
-            [ Melding.spørsmål [ "Flott! Da har du lagret en arbeidserfaring" ]
-            , Melding.spørsmål
-                [ "Stilling/Yrke " ++ hentStilling validertSkjema
-                , "Bedriftnavn: " ++ ArbeidserfaringSkjema.bedriftNavn (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Sted: " ++ ArbeidserfaringSkjema.lokasjon (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Arbeidsoppgaver: " ++ ArbeidserfaringSkjema.arbeidsoppgaver (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , "Fra: " ++ hentFraDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                , if ArbeidserfaringSkjema.naavarende (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema) == True then
-                    "Nåværende jobb"
-
-                  else
-                    hentTilDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-                ]
+            [ Melding.spørsmål [ "Flott! Da har du lagt inn en arbeidserfaring." ]
             , Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ]
             ]
 
@@ -1421,10 +1402,30 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ string ] ]
 
         HeltFerdig ->
-            [ Melding.spørsmål [ "Kjempebra jobba!😊 Nå kan en arbeidsgiver se om du har den erfaringen de leter etter. " ] ]
+            [ Melding.spørsmål [ "Bra innsats! 😊 Nå kan arbeidsgivere finne deg hvis du har den erfaringen de ser etter." ] ]
 
         HeltFerdigUtenArbeidsErfaring ->
             [ Melding.spørsmål [ "Det var synd! Du kan alltid komme tilbake og legge til om du kommer på noe!" ] ]
+
+
+validertSkjemaTilSetninger : ValidertArbeidserfaringSkjema -> List String
+validertSkjemaTilSetninger validertSkjema =
+    [ hentFraDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+        ++ " - "
+        ++ (if ArbeidserfaringSkjema.naavarende (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema) == True then
+                "nåværende"
+
+            else
+                hentTilDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+           )
+    , Melding.tomLinje
+    , "Stilling/Yrke: " ++ hentStilling validertSkjema
+    , "Bedriftnavn: " ++ ArbeidserfaringSkjema.bedriftNavn (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+    , "Sted: " ++ ArbeidserfaringSkjema.lokasjon (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+    , Melding.tomLinje
+    , "Arbeidsoppgaver: "
+    , ArbeidserfaringSkjema.arbeidsoppgaver (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+    ]
 
 
 hentStilling : ValidertArbeidserfaringSkjema -> String
@@ -1468,7 +1469,7 @@ hentTilDato skjema =
                     |> ArbeidserfaringSkjema.tilDato
                     |> Maybe.withDefault (ArbeidserfaringSkjema.fraDato skjema)
         in
-        "Til: " ++ (dato |> Dato.måned |> Dato.månedTilString) ++ " " ++ (dato |> Dato.år |> String.fromInt)
+        (dato |> Dato.måned |> Dato.månedTilString |> String.toLower) ++ " " ++ (dato |> Dato.år |> String.fromInt)
 
 
 
@@ -1491,7 +1492,7 @@ viewBrukerInput (Model info) =
                                         |> Knapp.toHtml
                                     ]
                                 , div [ class "inputkolonne" ]
-                                    [ Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har ingen arbeidserfaring") "Nei, jeg har ingen arbeidserfaring"
+                                    [ Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har ikke arbeidserfaring") "Nei, jeg har ikke arbeidserfaring"
                                         |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
                                         |> Knapp.toHtml
                                     ]
@@ -1578,7 +1579,7 @@ viewBrukerInput (Model info) =
                         [ div [ class "skjema" ]
                             [ jobbtittelInfo.jobbtittel
                                 |> Input.input
-                                    { label = "Stilling/yrke som vil vises i CV", msg = BrukerOppdatererJobbtittelFelt }
+                                    { label = "Stilling/yrke som vil vises i CV-en", msg = BrukerOppdatererJobbtittelFelt }
                                 |> Input.toHtml
                             , BrukerVilRegistrereBedriftnavn "Gå videre"
                                 |> lagTekstInputKnapp "Gå videre" jobbtittelInfo.jobbtittel
@@ -1611,7 +1612,7 @@ viewBrukerInput (Model info) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ arbeidsoppgaverInfo.arbeidsoppgaver
-                                |> Textarea.textarea { label = "Hvilke arbeidsoppgaver hadde du?", msg = BrukerOppdatererArbeidsoppgaver }
+                                |> Textarea.textarea { label = "Arbeidsoppgaver", msg = BrukerOppdatererArbeidsoppgaver }
                                 |> Textarea.toHtml
                             , BrukerVilRegistrereFraMåned
                                 |> lagTekstInputKnapp "Gå videre" arbeidsoppgaverInfo.arbeidsoppgaver
@@ -1753,10 +1754,10 @@ viewBrukerInput (Model info) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ case ArbeidserfaringSkjema.yrkeTypeahead skjema of
-                                Yrke yrkeTypeahead ->
-                                    yrkeTypeahead
+                                Yrke yrke ->
+                                    yrke
                                         |> Yrke.label
-                                        |> Input.input { label = "Yrke", msg = YrkeRedigeringsfeltEndret }
+                                        |> Input.input { label = "Stilling/yrke", msg = YrkeRedigeringsfeltEndret }
                                         |> Input.toHtml
 
                                 Typeahead typeaheadState ->
@@ -1774,27 +1775,27 @@ viewBrukerInput (Model info) =
                                     |> Input.toHtml
                             , skjema
                                 |> ArbeidserfaringSkjema.bedriftNavn
-                                |> Input.input { label = "Bedriftnavn", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.BedriftNavn }
+                                |> Input.input { label = "Bedriftens navn", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.BedriftNavn }
                                 |> Input.toHtml
                             , skjema
                                 |> ArbeidserfaringSkjema.lokasjon
-                                |> Input.input { label = "Sted", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Lokasjon }
+                                |> Input.input { label = "Sted/land", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Lokasjon }
                                 |> Input.toHtml
                             , skjema
                                 |> ArbeidserfaringSkjema.arbeidsoppgaver
-                                |> Input.input { label = "Arbeidsoppgaver", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Arbeidsoppgaver }
-                                |> Input.toHtml
+                                |> Textarea.textarea { label = "Arbeidsoppgaver", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Arbeidsoppgaver }
+                                |> Textarea.toHtml
                             , skjema
                                 |> lagRedigerDatoInput
                             , div [ class "inputrad" ]
                                 [ case ArbeidserfaringSkjema.valider skjema of
                                     Just validertSkjema ->
-                                        "Utfør endringene"
-                                            |> Knapp.knapp (BrukerTrykkerPåLagreArbeidserfaringKnapp "Utfør endringene" validertSkjema)
+                                        "Lagre endringer"
+                                            |> Knapp.knapp (BrukerTrykkerPåLagreArbeidserfaringKnapp "Lagre endringer" validertSkjema)
                                             |> Knapp.toHtml
 
                                     Nothing ->
-                                        "Utfør endringene"
+                                        "Lagre endringer"
                                             |> Knapp.knapp BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
                                             |> Knapp.withEnabled Knapp.Disabled
                                             |> Knapp.toHtml
@@ -1886,7 +1887,7 @@ viewTypeaheadRegistrerYrke : TypeaheadState Yrke -> Html Msg
 viewTypeaheadRegistrerYrke typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Yrke", onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
+        |> Typeahead.typeahead { label = "Hvilken stilling/yrke har du?", onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke typeaheadState)
         |> Typeahead.toHtml
 
@@ -1914,7 +1915,7 @@ viewTypeaheadOppsummering : TypeaheadState Yrke -> Html Msg
 viewTypeaheadOppsummering typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Yrke", onInput = YrkeRedigeringsfeltEndret, onTypeaheadChange = BrukerTrykkerTypeaheadTastIOppsummering }
+        |> Typeahead.typeahead { label = "Stilling/yrke", onInput = YrkeRedigeringsfeltEndret, onTypeaheadChange = BrukerTrykkerTypeaheadTastIOppsummering }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionOppsummering typeaheadState)
         |> Typeahead.toHtml
 
@@ -2111,15 +2112,10 @@ lagRedigerDatoInput arbeidserfaringSkjema =
 
         -- |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.FraÅr }
         -- |> Input.toHtml
-        , input
-            [ type_ "checkbox"
-            , arbeidserfaringSkjema
-                |> ArbeidserfaringSkjema.naavarende
-                |> checked
-            , ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Naavarende
-                |> onClick
-            ]
-            [ text "Nåværende jobb" ]
+        , arbeidserfaringSkjema
+            |> ArbeidserfaringSkjema.naavarende
+            |> Checkbox.checkbox "Nåværende" (ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Naavarende)
+            |> Checkbox.toHtml
         , if ArbeidserfaringSkjema.naavarende arbeidserfaringSkjema then
             text ""
 
@@ -2237,7 +2233,7 @@ arbeidserfaringToString arbeidserfaringsListe =
                                         [ "" ]
 
                                     else
-                                        [ "\u{00A0}" ]
+                                        [ Melding.tomLinje ]
                                    )
 
                         Nothing ->
@@ -2269,7 +2265,7 @@ arbeidserfaringToString arbeidserfaringsListe =
                                         [ "" ]
 
                                     else
-                                        [ "\u{00A0}" ]
+                                        [ Melding.tomLinje ]
                                    )
 
                 Nothing ->
