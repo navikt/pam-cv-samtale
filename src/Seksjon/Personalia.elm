@@ -1,7 +1,16 @@
-module Seksjon.Personalia exposing (Model, Msg, SamtaleStatus(..), init, meldingsLogg, update, viewBrukerInput)
+module Seksjon.Personalia exposing
+    ( Model
+    , Msg
+    , SamtaleStatus(..)
+    , init
+    , meldingsLogg
+    , update
+    , viewBrukerInput
+    )
 
 import Api
 import Browser.Dom as Dom
+import DebugStatus exposing (DebugStatus)
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
@@ -28,6 +37,7 @@ type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
     , personalia : Personalia
+    , debugStatus : DebugStatus
     }
 
 
@@ -79,7 +89,7 @@ update msg (Model model) =
                                 ]
                     , aktivSamtale = VenterPåAnimasjonFørFullføring model.personalia
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -88,7 +98,7 @@ update msg (Model model) =
                 |> Skjema.Personalia.init
                 |> EndreOriginal
                 |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -129,7 +139,7 @@ update msg (Model model) =
                         [ model.personalia
                             |> Personalia.id
                             |> Api.putPersonalia PersonaliaOppdatert skjema
-                        , lagtTilSpørsmålCmd
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
                         |> IkkeFerdig
@@ -148,7 +158,7 @@ update msg (Model model) =
                         Err error ->
                             ( LagringFeilet error skjema
                                 |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ])
-                            , lagtTilSpørsmålCmd
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
@@ -168,8 +178,11 @@ update msg (Model model) =
                 }
             , Cmd.batch
                 [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , Process.sleep (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> Task.perform (\_ -> FullførMelding)
+                , MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg
+                    * 1000.0
+                    |> DebugStatus.meldingsTimeout model.debugStatus
+                    |> Process.sleep
+                    |> Task.perform (always FullførMelding)
                 ]
             )
                 |> IkkeFerdig
@@ -204,7 +217,7 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     | seksjonsMeldingsLogg =
                         nyMeldingsLogg
                 }
-            , lagtTilSpørsmålCmd
+            , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
@@ -220,12 +233,14 @@ fullførSeksjonHvisMeldingsloggErFerdig modelInfo personalia =
                 |> IkkeFerdig
 
 
-lagtTilSpørsmålCmd : Cmd Msg
-lagtTilSpørsmålCmd =
+lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
+lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
         [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , Process.sleep 200
-            |> Task.perform (\_ -> StartÅSkrive)
+        , 200
+            |> DebugStatus.meldingsTimeout debugStatus
+            |> Process.sleep
+            |> Task.perform (always StartÅSkrive)
         ]
 
 
@@ -368,8 +383,8 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
 --- INIT ---
 
 
-init : Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
-init personalia gammelMeldingsLogg =
+init : DebugStatus -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
+init debugStatus personalia gammelMeldingsLogg =
     let
         aktivSamtale =
             BekreftOriginal personalia
@@ -381,6 +396,7 @@ init personalia gammelMeldingsLogg =
                 gammelMeldingsLogg
         , aktivSamtale = aktivSamtale
         , personalia = personalia
+        , debugStatus = debugStatus
         }
-    , lagtTilSpørsmålCmd
+    , lagtTilSpørsmålCmd debugStatus
     )

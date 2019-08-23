@@ -6,6 +6,7 @@ import Browser.Dom as Dom
 import Browser.Events
 import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
+import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
@@ -56,6 +57,7 @@ type Seksjonsstatus
 type alias ExtendedModel =
     { model : Model
     , navigationKey : Navigation.Key
+    , debugStatus : DebugStatus
     , windowWidth : Int
     }
 
@@ -85,6 +87,7 @@ type alias SuccessModel =
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
     , aktivSamtale : SamtaleSeksjon
+    , debugStatus : DebugStatus
     }
 
 
@@ -143,7 +146,7 @@ update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
 update msg extendedModel =
     case msg of
         LoadingMsg loadingModel ->
-            updateLoading extendedModel.navigationKey loadingModel extendedModel.model
+            updateLoading extendedModel.debugStatus extendedModel.navigationKey loadingModel extendedModel.model
                 |> mapTilExtendedModel extendedModel
 
         SuccessMsg successMsg ->
@@ -161,6 +164,7 @@ update msg extendedModel =
         WindowResized windowWidth _ ->
             ( { model = extendedModel.model
               , navigationKey = extendedModel.navigationKey
+              , debugStatus = extendedModel.debugStatus
               , windowWidth = windowWidth
               }
             , Cmd.none
@@ -178,6 +182,7 @@ update msg extendedModel =
         ViewportHentet viewport ->
             ( { model = extendedModel.model
               , navigationKey = extendedModel.navigationKey
+              , debugStatus = extendedModel.debugStatus
               , windowWidth = round viewport.scene.width
               }
             , Cmd.none
@@ -188,6 +193,7 @@ mapTilExtendedModel : ExtendedModel -> ( Model, Cmd Msg ) -> ( ExtendedModel, Cm
 mapTilExtendedModel extendedModel ( model, cmd ) =
     ( { model = model
       , windowWidth = extendedModel.windowWidth
+      , debugStatus = extendedModel.debugStatus
       , navigationKey = extendedModel.navigationKey
       }
     , cmd
@@ -198,8 +204,8 @@ mapTilExtendedModel extendedModel ( model, cmd ) =
 --- Loading ---
 
 
-updateLoading : Navigation.Key -> LoadingMsg -> Model -> ( Model, Cmd Msg )
-updateLoading navigationKey msg model =
+updateLoading : DebugStatus -> Navigation.Key -> LoadingMsg -> Model -> ( Model, Cmd Msg )
+updateLoading debugStatus navigationKey msg model =
     case msg of
         PersonHentet result ->
             case result of
@@ -259,7 +265,7 @@ updateLoading navigationKey msg model =
                 Loading (VenterPåResten state) ->
                     case result of
                         Ok cv ->
-                            modelFraLoadingState { state | cv = Just cv }
+                            modelFraLoadingState debugStatus { state | cv = Just cv }
 
                         Err error ->
                             case error of
@@ -279,7 +285,7 @@ updateLoading navigationKey msg model =
                 Loading (VenterPåResten state) ->
                     case result of
                         Ok cv ->
-                            modelFraLoadingState { state | cv = Just cv }
+                            modelFraLoadingState debugStatus { state | cv = Just cv }
 
                         Err error ->
                             ( Failure error
@@ -312,8 +318,8 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-modelFraLoadingState : LoadingState -> ( Model, Cmd Msg )
-modelFraLoadingState state =
+modelFraLoadingState : DebugStatus -> LoadingState -> ( Model, Cmd Msg )
+modelFraLoadingState debugStatus state =
     case ( state.cv, state.registreringsProgresjon ) of
         ( Just cv, Just registreringsProgresjon ) ->
             ( Success
@@ -321,9 +327,12 @@ modelFraLoadingState state =
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
                 , aktivSamtale = initialiserSamtale state.personalia
+                , debugStatus = debugStatus
                 }
-            , Process.sleep 200
-                |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
+            , 200
+                |> DebugStatus.meldingsTimeout debugStatus
+                |> Process.sleep
+                |> Task.perform (always (SuccessMsg StartÅSkrive))
             )
 
         _ ->
@@ -375,7 +384,7 @@ updateSuccess successMsg model =
                         ( personaliaModel, personaliaCmd ) =
                             meldingsLogg
                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
-                                |> Seksjon.Personalia.init model.personalia
+                                |> Seksjon.Personalia.init model.debugStatus model.personalia
                     in
                     ( personaliaModel
                         |> PersonaliaSeksjon
@@ -454,9 +463,11 @@ updateSuccess successMsg model =
                         |> Success
                     , Cmd.batch
                         [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
-                        , Process.sleep (MeldingsLogg.nesteMeldingToString meldingsLogg * 1000.0)
-                            --1000
-                            |> Task.perform (\_ -> SuccessMsg FullførMelding)
+                        , MeldingsLogg.nesteMeldingToString meldingsLogg
+                            * 1000.0
+                            |> DebugStatus.meldingsTimeout model.debugStatus
+                            |> Process.sleep
+                            |> Task.perform (always (SuccessMsg FullførMelding))
                         ]
                     )
 
@@ -481,8 +492,10 @@ updateSuccess successMsg model =
                                 Cmd.none
 
                             MeldingerGjenstår ->
-                                Process.sleep 200
-                                    |> Task.perform (\_ -> SuccessMsg StartÅSkrive)
+                                200
+                                    |> DebugStatus.meldingsTimeout model.debugStatus
+                                    |> Process.sleep
+                                    |> Task.perform (always (SuccessMsg StartÅSkrive))
                         ]
                     )
 
@@ -628,7 +641,7 @@ gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cm
 gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
     let
         ( arbeidsModell, arbeidsCmd ) =
-            Seksjon.Arbeidserfaring.init ferdigAnimertMeldingsLogg (Cv.arbeidserfaring model.cv)
+            Seksjon.Arbeidserfaring.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.arbeidserfaring model.cv)
     in
     ( Success { model | aktivSamtale = ArbeidsErfaringSeksjon arbeidsModell }
     , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) arbeidsCmd
@@ -639,7 +652,7 @@ gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg 
 gåTilUtdanning model ferdigAnimertMeldingsLogg =
     let
         ( utdanningModel, utdanningCmd ) =
-            Seksjon.Utdanning.init ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
+            Seksjon.Utdanning.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
     in
     ( Success
         { model
@@ -653,7 +666,7 @@ gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 gåTilSpråk model ferdigAnimertMeldingsLogg =
     let
         ( språkModel, språkCmd ) =
-            Seksjon.Sprak.init ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
+            Seksjon.Sprak.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
     in
     ( Success
         { model
@@ -667,7 +680,7 @@ gåTilFagbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 gåTilFagbrev model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
-            Seksjon.Fagdokumentasjon.initFagbrev ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+            Seksjon.Fagdokumentasjon.initFagbrev model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
     in
     ( Success
         { model
@@ -681,7 +694,7 @@ gåTilMesterbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg
 gåTilMesterbrev model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
-            Seksjon.Fagdokumentasjon.initMesterbrev ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+            Seksjon.Fagdokumentasjon.initMesterbrev model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
     in
     ( Success
         { model
@@ -695,7 +708,7 @@ gåTilAutorisasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd M
 gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
-            Seksjon.Fagdokumentasjon.initAutorisasjon ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+            Seksjon.Fagdokumentasjon.initAutorisasjon model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
     in
     ( Success
         { model
@@ -709,7 +722,7 @@ gåTilSammendrag : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg
 gåTilSammendrag model ferdigAnimertMeldingsLogg =
     let
         ( sammendragModel, sammendragCmd ) =
-            Seksjon.Sammendrag.init ferdigAnimertMeldingsLogg (Cv.sammendrag model.cv)
+            Seksjon.Sammendrag.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.sammendrag model.cv)
     in
     ( Success
         { model
@@ -723,7 +736,7 @@ gåTilAvslutning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg
 gåTilAvslutning model ferdigAnimertMeldingsLogg =
     let
         ( avslutningModel, avslutningCmd ) =
-            Seksjon.Avslutning.init model.personalia model.cv ferdigAnimertMeldingsLogg
+            Seksjon.Avslutning.init model.debugStatus model.personalia model.cv ferdigAnimertMeldingsLogg
     in
     ( Success
         { model
@@ -737,7 +750,7 @@ gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd M
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     let
         ( seksjonsvalgModel, seksjonsvalgCmd ) =
-            Seksjon.Seksjonsvalg.init ferdigAnimertMeldingsLogg
+            Seksjon.Seksjonsvalg.init model.debugStatus ferdigAnimertMeldingsLogg
     in
     ( Success
         { model
@@ -991,10 +1004,11 @@ main =
 
 
 init : () -> Url.Url -> Navigation.Key -> ( ExtendedModel, Cmd Msg )
-init _ _ navigationKey =
+init _ url navigationKey =
     ( { model = Loading VenterPåPerson
       , windowWidth = 1000
       , navigationKey = navigationKey
+      , debugStatus = DebugStatus.fromUrl url
       }
     , Cmd.batch
         [ Api.getPerson (PersonHentet >> LoadingMsg)
