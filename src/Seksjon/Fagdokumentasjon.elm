@@ -779,23 +779,23 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             ]
 
         RegistrerMesterbrev _ ->
-            [ Melding.spørsmål
-                [ "Hvilken type mesterbrev var det? Begynn å skriv, så skal jeg komme med noen forslag til forskjellige mesterbrev jeg kjenner til. Velg det som passer best :)" ]
+            [ Melding.spørsmål [ "Hva er navnet på mesterbrevet ditt?" ]
+            , Melding.spørsmål [ "Begynn å skrive inn mesterbrevet ditt. Velg fra listen med forslag som kommer opp." ]
             ]
 
         RegistrerAutorisasjon _ ->
-            [ Melding.spørsmål
-                [ "Hvilken type autorisasjon var det? Begynn å skriv, så skal jeg komme med noen forslag til forskjellige autorisasjoner jeg kjenner til. Velg det som passer best :)" ]
+            [ Melding.spørsmål [ "Hva er navnet på autorisasjonen din?" ]
+            , Melding.spørsmål [ "Begynn å skrive inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
             ]
 
         RegistrerFagbrevBeskrivelse _ ->
             [ Melding.spørsmål [ "Hva lærte du?" ] ]
 
         RegistrerMesterbrevBeskrivelse _ ->
-            [ Melding.spørsmål [ " Beskriv mesterbrevet og hva du lærte" ] ]
+            [ Melding.spørsmål [ "Hva lærte du?" ] ]
 
         RegistrerAutorisasjonBeskrivelse _ ->
-            [ Melding.spørsmål [ " Beskriv autorisasjonen og hva du lærte" ] ]
+            [ Melding.spørsmål [ "Hva lærte du?" ] ]
 
         _ ->
             []
@@ -878,7 +878,7 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Textarea.toHtml
-                            , Knapp.knapp BrukerVilRegistrereMesterbrevBeskrivelse "Lagre"
+                            , Knapp.knapp BrukerVilRegistrereMesterbrevBeskrivelse "Gå videre"
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -887,7 +887,7 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Textarea.toHtml
-                            , Knapp.knapp BrukerVilRegistrereAutorisasjonBeskrivelse "Lagre"
+                            , Knapp.knapp BrukerVilRegistrereAutorisasjonBeskrivelse "Gå videre"
                                 |> Knapp.toHtml
                             ]
                         ]
