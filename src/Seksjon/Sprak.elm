@@ -13,20 +13,18 @@ import Browser.Dom as Dom
 import Cv.Spraakferdighet as Spraakferdighet exposing (Spraakferdighet)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
-import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Select as Select
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (..)
 import Http
 import List.Extra as List
-import Melding exposing (Melding(..))
+import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Sprak as SpråkSkjema exposing (SpråkSkjema)
-import Sprakkoder exposing (Sprakkoder)
+import Skjema.Sprak as SpråkSkjema exposing (Ferdighet(..), SpråkSkjema)
+import SpråkKode exposing (SpråkKode)
 import String.Extra as String
 import Task
 
@@ -42,23 +40,23 @@ type Model
 type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
-    , språk : SpråkListe
+    , språk : List Spraakferdighet
     , språkKoder : RemoteDataSpråkKoder
     , debugStatus : DebugStatus
     }
 
 
 type Samtale
-    = IntroLeggTilNorsk SpråkListe
-    | LagrerNorsk EnkeltSpråk SpråkSkjema
+    = IntroLeggTilNorsk (List Spraakferdighet)
+    | LagrerNorsk SpråkSkjema
     | LeggTilEngelsk
-    | LeggTilFlereSpråk EnkeltSpråk Model
-    | VelgNyttSpråk (Maybe Sprakkoder)
-    | LeggTilFerdighetMuntlig String
+    | LeggTilFlereSpråk
+    | VelgNyttSpråk (Maybe SpråkKode)
+    | LeggTilFerdighetMuntlig SpråkKode
     | LeggTilFerdighetSkriftlig SpråkMedMuntlig
-    | LagrerAndre EnkeltSpråk SpråkSkjema
+    | LagrerAndre SpråkSkjema
     | SpråkkodeneFeilet (Maybe Http.Error)
-    | LagringFeilet EnkeltSpråk Http.Error SpråkSkjema
+    | LagringFeilet SpråkSkjema Http.Error
     | VenterPåAnimasjonFørFullføring
 
 
@@ -69,52 +67,14 @@ type SamtaleStatus
 
 type RemoteDataSpråkKoder
     = Loading
-    | Success (List Sprakkoder)
+    | Success (List SpråkKode)
     | Failure Http.Error
 
 
-type alias SpråkListe =
-    List Spraakferdighet
-
-
 type alias SpråkMedMuntlig =
-    { språkNavn : String
+    { språkNavn : SpråkKode
     , muntlig : Ferdighet
     }
-
-
-type alias EnkeltSpråk =
-    { språkNavn : String
-    , ferdighetMuntlig : Ferdighet
-    , ferdighetSkriftlig : Ferdighet
-    }
-
-
-type Ferdighet
-    = Nybegynner
-    | Godt
-    | VeldigGodt
-    | Morsmål
-
-
-ferdighetTilString : Ferdighet -> String
-ferdighetTilString ferdighet =
-    case ferdighet of
-        Nybegynner ->
-            "NYBEGYNNER"
-
-        Godt ->
-            "GODT"
-
-        VeldigGodt ->
-            "VELDIG_GODT"
-
-        Morsmål ->
-            "FOERSTESPRAAK"
-
-
-norsk =
-    EnkeltSpråk "Norsk" Morsmål Morsmål
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -122,13 +82,8 @@ meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
 
-innlagteSpråk : Model -> SpråkListe
-innlagteSpråk (Model info) =
-    info.språk
 
-
-
--- UPDATE --
+--- UPDATE ---
 
 
 type Msg
@@ -139,15 +94,15 @@ type Msg
     | BrukerKanEngelsk
     | BrukerKanIkkeEngelsk
     | BrukerKanFlereSpråk
-    | MuntligNivå SpråkMedMuntlig
-    | SkriftligNivå EnkeltSpråk
+    | BrukerVelgerMuntligNivå Ferdighet
+    | BrukerVelgerSkriftligNivå Ferdighet
     | BrukerVilLeggeTilSpråk String
     | BrukerVilAvslutteSeksjonen
     | ViewportSatt (Result Dom.Error ())
     | SpråkLagtTil (Result Http.Error (List Spraakferdighet))
     | ErrorLogget (Result Http.Error ())
-    | SpråkkoderHentet (Result Http.Error (List Sprakkoder))
-    | SendSkjemaPåNytt SpråkSkjema Model
+    | SpråkkoderHentet (Result Http.Error (List SpråkKode))
+    | SendSkjemaPåNytt SpråkSkjema
     | BrukerVilHenteSpråkPåNytt
     | StartÅSkrive
     | FullførMelding
@@ -157,79 +112,88 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         NorskErMorsmål ->
-            let
-                skjema =
-                    SpråkSkjema.init "Norsk" "FOERSTESPRAAK" "FOERSTESPRAAK"
-            in
-            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerNorsk norsk skjema)
+            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerNorsk SpråkSkjema.norskMorsmål)
             , Cmd.batch
-                [ leggTilSpråkAPI skjema
+                [ leggTilSpråkAPI SpråkSkjema.norskMorsmål
                 , lagtTilSpørsmålCmd model.debugStatus
                 ]
             )
                 |> IkkeFerdig
 
         NorskErIkkeMorsmål ->
-            ( LeggTilFerdighetMuntlig "Norsk"
+            ( LeggTilFerdighetMuntlig SpråkKode.norsk
                 |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
-        SkriftligNivå enkeltSpråk ->
-            (let
-                skjema =
-                    SpråkSkjema.init enkeltSpråk.språkNavn (ferdighetTilString enkeltSpråk.ferdighetMuntlig) (ferdighetTilString enkeltSpråk.ferdighetSkriftlig)
-             in
-             ( LagrerAndre enkeltSpråk skjema
-                |> nesteSamtaleSteg model
-                    (Melding.svar
-                        [ case enkeltSpråk.ferdighetSkriftlig of
-                            Nybegynner ->
-                                "Jeg er nybegynner"
+        BrukerVelgerSkriftligNivå skriftligNivå ->
+            case model.aktivSamtale of
+                LeggTilFerdighetSkriftlig språkMedMuntlig ->
+                    let
+                        skjema =
+                            SpråkSkjema.init
+                                { språk = språkMedMuntlig.språkNavn
+                                , muntlig = språkMedMuntlig.muntlig
+                                , skriftlig = skriftligNivå
+                                }
+                    in
+                    ( LagrerAndre skjema
+                        |> nesteSamtaleSteg model
+                            (Melding.svar
+                                [ case skriftligNivå of
+                                    Nybegynner ->
+                                        "Jeg er nybegynner"
 
-                            Godt ->
-                                "Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn
+                                    Godt ->
+                                        "Jeg skriver godt " ++ String.toLower (SpråkKode.term språkMedMuntlig.språkNavn)
 
-                            VeldigGodt ->
-                                "Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn
+                                    VeldigGodt ->
+                                        "Jeg skriver veldig godt " ++ String.toLower (SpråkKode.term språkMedMuntlig.språkNavn)
 
-                            _ ->
-                                "Noe gikk galt"
+                                    _ ->
+                                        "Noe gikk galt"
+                                ]
+                            )
+                    , Cmd.batch
+                        [ leggTilSpråkAPI skjema
+                        , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
-             , Cmd.batch
-                [ leggTilSpråkAPI skjema
-                , lagtTilSpørsmålCmd model.debugStatus
-                ]
-             )
-            )
-                |> IkkeFerdig
+                        |> IkkeFerdig
 
-        MuntligNivå språkMedMuntlig ->
-            ( LeggTilFerdighetSkriftlig språkMedMuntlig
-                |> nesteSamtaleSteg model
-                    (Melding.svar
-                        [ case språkMedMuntlig.muntlig of
-                            Nybegynner ->
-                                "Jeg er nybegynner"
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
-                            Godt ->
-                                "Jeg snakker godt " ++ String.toLower språkMedMuntlig.språkNavn
+        BrukerVelgerMuntligNivå muntligNivå ->
+            case model.aktivSamtale of
+                LeggTilFerdighetMuntlig enkeltSpråk ->
+                    ( LeggTilFerdighetSkriftlig { språkNavn = enkeltSpråk, muntlig = muntligNivå }
+                        |> nesteSamtaleSteg model
+                            (Melding.svar
+                                [ case muntligNivå of
+                                    Nybegynner ->
+                                        "Jeg er nybegynner"
 
-                            VeldigGodt ->
-                                "Jeg snakker veldig godt " ++ String.toLower språkMedMuntlig.språkNavn
+                                    Godt ->
+                                        "Jeg snakker godt " ++ String.toLower (SpråkKode.term enkeltSpråk)
 
-                            Morsmål ->
-                                "Dette er mitt morsmål"
-                        ]
+                                    VeldigGodt ->
+                                        "Jeg snakker veldig godt " ++ String.toLower (SpråkKode.term enkeltSpråk)
+
+                                    Morsmål ->
+                                        "Dette er mitt morsmål"
+                                ]
+                            )
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerKanEngelsk ->
-            ( LeggTilFerdighetMuntlig "Engelsk"
+            ( LeggTilFerdighetMuntlig SpråkKode.engelsk
                 |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -242,11 +206,21 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         BrukerVilLeggeTilSpråk språkNavn ->
-            ( LeggTilFerdighetMuntlig språkNavn
-                |> nesteSamtaleSteg model (Melding.svar [ språkNavn ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
+            case model.språkKoder of
+                Success språkKoder ->
+                    case List.find (\element -> SpråkKode.term element == språkNavn) språkKoder of
+                        Just språkKode ->
+                            ( LeggTilFerdighetMuntlig språkKode
+                                |> nesteSamtaleSteg model (Melding.svar [ språkNavn ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerKanFlereSpråk ->
             case model.språkKoder of
@@ -276,20 +250,20 @@ update msg (Model model) =
             case result of
                 Ok value ->
                     case model.aktivSamtale of
-                        LagrerNorsk enkeltSpråk språkSkjema ->
+                        LagrerNorsk enkeltSpråk ->
                             ( nesteSamtaleStegUtenMelding { model | språk = value } LeggTilEngelsk
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
-                        LagrerAndre enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleStegUtenMelding { model | språk = value } (LeggTilFlereSpråk enkeltSpråk (Model model))
+                        LagrerAndre enkeltSpråk ->
+                            ( nesteSamtaleStegUtenMelding { model | språk = value } LeggTilFlereSpråk
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
-                        LagringFeilet enkeltSpråk error språkskjema ->
-                            ( nesteSamtaleSteg { model | språk = value } (Melding.svar [ "Ja, prøv på nytt" ]) (LeggTilFlereSpråk enkeltSpråk (Model model))
+                        LagringFeilet enkeltSpråk error ->
+                            ( nesteSamtaleSteg { model | språk = value } (Melding.svar [ "Ja, prøv på nytt" ]) LeggTilFlereSpråk
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -302,14 +276,14 @@ update msg (Model model) =
 
                 Err error ->
                     case model.aktivSamtale of
-                        LagrerNorsk enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til norsk" ]) (LagringFeilet enkeltSpråk error språkSkjema)
+                        LagrerNorsk enkeltSpråk ->
+                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til norsk" ]) (LagringFeilet enkeltSpråk error)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
-                        LagrerAndre enkeltSpråk språkSkjema ->
-                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til " ++ String.toLower enkeltSpråk.språkNavn ]) (LagringFeilet enkeltSpråk error språkSkjema)
+                        LagrerAndre enkeltSpråk ->
+                            ( nesteSamtaleSteg model (Melding.svar [ "Legg til " ++ String.toLower (SpråkSkjema.språkNavn enkeltSpråk) ]) (LagringFeilet enkeltSpråk error)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -343,7 +317,7 @@ update msg (Model model) =
                     ( Model model, Cmd.none ) |> IkkeFerdig
 
                 Success list ->
-                    ( Model { model | aktivSamtale = VelgNyttSpråk (List.find (\sprakkode -> valgtSpråk == Sprakkoder.kode sprakkode) list) }
+                    ( Model { model | aktivSamtale = VelgNyttSpråk (List.find (\sprakkode -> valgtSpråk == SpråkKode.kode sprakkode) list) }
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -356,8 +330,8 @@ update msg (Model model) =
                 VelgNyttSpråk språkkode ->
                     case språkkode of
                         Just kode ->
-                            ( LeggTilFerdighetMuntlig (Sprakkoder.kode kode)
-                                |> nesteSamtaleSteg model (Melding.svar [ Sprakkoder.kode kode ])
+                            ( LeggTilFerdighetMuntlig kode
+                                |> nesteSamtaleSteg model (Melding.svar [ SpråkKode.kode kode ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -368,8 +342,8 @@ update msg (Model model) =
                 _ ->
                     ( Model model, Cmd.none ) |> IkkeFerdig
 
-        SendSkjemaPåNytt språkSkjema nyModel ->
-            ( nyModel, leggTilSpråkAPI språkSkjema ) |> IkkeFerdig
+        SendSkjemaPåNytt enkeltSpråk ->
+            ( Model model, leggTilSpråkAPI enkeltSpråk ) |> IkkeFerdig
 
         BrukerVilHenteSpråkPåNytt ->
             case model.språkKoder of
@@ -505,7 +479,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
             [ Melding.spørsmål [ "Hva med engelsk? Kan du det?" ]
             ]
 
-        LeggTilFlereSpråk enkeltSpråk _ ->
+        LeggTilFlereSpråk ->
             [ Melding.spørsmål
                 [ "Supert! Da har du lagt inn "
                     ++ (model.språk
@@ -521,21 +495,21 @@ samtaleTilMeldingsLogg model språkSeksjon =
             ]
 
         LeggTilFerdighetSkriftlig enkeltSpråk ->
-            [ Melding.spørsmål [ "Hvor godt skriver du " ++ String.toLower enkeltSpråk.språkNavn ++ "?" ] ]
+            [ Melding.spørsmål [ "Hvor godt skriver du " ++ String.toLower (SpråkKode.term enkeltSpråk.språkNavn) ++ "?" ] ]
 
         LeggTilFerdighetMuntlig enkeltSpråk ->
-            [ Melding.spørsmål [ "Hvor godt snakker du " ++ String.toLower enkeltSpråk ++ "?" ] ]
+            [ Melding.spørsmål [ "Hvor godt snakker du " ++ String.toLower (SpråkKode.term enkeltSpråk) ++ "?" ] ]
 
-        LagringFeilet enkeltSpråk error språkSkjema ->
-            [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre " ++ String.toLower enkeltSpråk.språkNavn ++ ".", "Vil du prøve på nytt?" ] ]
+        LagringFeilet enkeltSpråk error ->
+            [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre " ++ String.toLower (SpråkSkjema.språkNavn enkeltSpråk) ++ ".", "Vil du prøve på nytt?" ] ]
 
         VelgNyttSpråk _ ->
             [ Melding.spørsmål [ "Hvilket språk vil du legge til?" ] ]
 
-        LagrerNorsk enkeltSpråk språkSkjema ->
+        LagrerNorsk enkeltSpråk ->
             []
 
-        LagrerAndre enkeltSpråk språkSkjema ->
+        LagrerAndre enkeltSpråk ->
             []
 
         SpråkkodeneFeilet error ->
@@ -582,7 +556,7 @@ listeTilSetning list =
 
 
 
--- VIEW --
+--- VIEW ---
 
 
 viewBrukerInput : Model -> Html Msg
@@ -625,7 +599,7 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
-                LeggTilFlereSpråk enkeltSpråk språkListe ->
+                LeggTilFlereSpråk ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputkolonne" ]
@@ -643,17 +617,17 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Nybegynner)) "Jeg er nybegynner"
+                                [ Knapp.knapp (BrukerVelgerSkriftligNivå Nybegynner) "Jeg er nybegynner"
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputkolonne" ]
-                                [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig Godt)) ("Jeg skriver godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                [ Knapp.knapp (BrukerVelgerSkriftligNivå Godt) ("Jeg skriver godt " ++ String.toLower (SpråkKode.term enkeltSpråk.språkNavn))
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputkolonne" ]
-                                [ Knapp.knapp (SkriftligNivå (EnkeltSpråk enkeltSpråk.språkNavn enkeltSpråk.muntlig VeldigGodt)) ("Jeg skriver veldig godt " ++ String.toLower enkeltSpråk.språkNavn)
+                                [ Knapp.knapp (BrukerVelgerSkriftligNivå VeldigGodt) ("Jeg skriver veldig godt " ++ String.toLower (SpråkKode.term enkeltSpråk.språkNavn))
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
@@ -664,17 +638,17 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Nybegynner)) "Jeg er nybegynner"
+                                [ Knapp.knapp (BrukerVelgerMuntligNivå Nybegynner) "Jeg er nybegynner"
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputkolonne" ]
-                                [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk Godt)) ("Jeg snakker godt " ++ String.toLower enkeltSpråk)
+                                [ Knapp.knapp (BrukerVelgerMuntligNivå Godt) ("Jeg snakker godt " ++ String.toLower (SpråkKode.term enkeltSpråk))
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
                             , div [ class "inputkolonne" ]
-                                [ Knapp.knapp (MuntligNivå (SpråkMedMuntlig enkeltSpråk VeldigGodt)) ("Jeg snakker veldig godt " ++ String.toLower enkeltSpråk)
+                                [ Knapp.knapp (BrukerVelgerMuntligNivå VeldigGodt) ("Jeg snakker veldig godt " ++ String.toLower (SpråkKode.term enkeltSpråk))
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
                                     |> Knapp.toHtml
                                 ]
@@ -693,7 +667,7 @@ viewBrukerInput (Model model) =
                                                 (( "Velg språk", "Velg språk" )
                                                     :: List.map
                                                         (\el ->
-                                                            ( Sprakkoder.kode el, Sprakkoder.term el )
+                                                            ( SpråkKode.kode el, SpråkKode.term el )
                                                         )
                                                         list
                                                 )
@@ -725,20 +699,20 @@ viewBrukerInput (Model model) =
                                     [ text "Noe gikk galt..." ]
                                 ]
 
-                LagringFeilet enkeltSpråk error failedSpråkSkjema ->
+                LagringFeilet enkeltSpråk error ->
                     div [ class "inputkolonne" ]
                         [ div [ class "inputkolonne-innhold" ]
-                            [ Knapp.knapp (SendSkjemaPåNytt failedSpråkSkjema (Model model)) "Ja, prøv på nytt"
+                            [ Knapp.knapp (SendSkjemaPåNytt enkeltSpråk) "Ja, prøv på nytt"
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
                                 |> Knapp.toHtml
                             ]
                         ]
 
-                LagrerNorsk enkeltSpråk språkSkjema ->
+                LagrerNorsk enkeltSpråk ->
                     text ""
 
-                LagrerAndre enkeltSpråk språkskjema ->
+                LagrerAndre enkeltSpråk ->
                     text ""
 
                 SpråkkodeneFeilet error ->
@@ -759,7 +733,7 @@ viewBrukerInput (Model model) =
 
 
 
--- INIT --
+--- INIT ---
 
 
 init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Spraakferdighet -> ( Model, Cmd Msg )

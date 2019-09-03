@@ -32,8 +32,7 @@ import Cv.Spraakferdighet exposing (Spraakferdighet)
 import Cv.Utdanning exposing (Utdanning)
 import Feilmelding exposing (Feilmelding)
 import Http exposing (..)
-import Json.Decode exposing (Decoder, bool, field, succeed)
-import Json.Decode.Pipeline exposing (required)
+import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
 import Konsept exposing (Konsept)
 import Person exposing (Person)
@@ -43,7 +42,7 @@ import Skjema.Fagdokumentasjon
 import Skjema.Personalia
 import Skjema.Sprak
 import Skjema.Utdanning
-import Sprakkoder exposing (Sprakkoder)
+import SpråkKode exposing (SpråkKode)
 import Yrke as YrkeTypahead exposing (Yrke)
 
 
@@ -108,11 +107,11 @@ postSpråk msgConstructor skjema =
         }
 
 
-getSpråkkoder : (Result Error (List Sprakkoder) -> msg) -> Cmd msg
+getSpråkkoder : (Result Error (List SpråkKode) -> msg) -> Cmd msg
 getSpråkkoder msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/koder/sprak"
-        , expect = expectJson msgConstructor (Json.Decode.list Sprakkoder.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list SpråkKode.decode)
         }
 
 
