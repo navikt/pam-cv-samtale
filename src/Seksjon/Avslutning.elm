@@ -263,7 +263,7 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
 
         Intro ->
             [ Melding.spørsmål
-                [ "I vår løsning kan arbeidsgivere søke opp CV-en din. De kan ta kontakt med deg hvis de har en ledig jobb du kan passe til." ]
+                [ "I denne CV-tjenesten kan arbeidsgivere søke opp CV-en din. Hvis de har en ledig jobb du kan passe til, kan de ta kontakt." ]
             ]
 
         DelMedArbeidsgiver synlig ->
@@ -281,13 +281,13 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
 
         UnderOppfølging ->
             [ Melding.spørsmål [ "Siden du er under oppfølging fra NAV, så vil CV-en din være synlig for arbeidsgivere og NAV-veiledere." ]
-            , Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har skrevet her er lagret i CV-en din." ]
+            , Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
             , Melding.spørsmål [ "Lykke til med jobbjakten! 😊" ]
             ]
 
         AvsluttendeOrd ->
-            [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har skrevet her er lagret i CV-en din." ]
+            [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
             , Melding.spørsmål [ "Lykke til med jobbjakten! 😊" ]
             ]
@@ -337,7 +337,7 @@ viewBrukerInput (Model model) =
                             [ div [ class "inputkolonne" ]
                                 [ let
                                     synligCV =
-                                        "Ja, Cv-en skal være synlig for arbeidsgivere"
+                                        "Ja, CV-en skal være synlig for arbeidsgivere"
                                   in
                                   Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
                                     |> Knapp.withClass Knapp.SpråknivåKnapp
@@ -396,7 +396,7 @@ viewBrukerInput (Model model) =
                             [ div [ class "inputkolonne" ]
                                 [ let
                                     synligCV =
-                                        "Ja, Cv-en skal være synlig for arbeidsgivere"
+                                        "Ja, CV-en skal være synlig for arbeidsgivere"
                                   in
                                   Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
                                     |> Knapp.toHtml
