@@ -343,7 +343,7 @@ initialiserSamtale : Personalia -> SamtaleSeksjon
 initialiserSamtale personalia =
     MeldingsLogg.init
         |> MeldingsLogg.leggTilSpørsmål
-            [ Melding.spørsmål [ "Hei " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten Cvert, og jeg kan hjelpe deg med å lage en CV." ]
+            [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten Cvert, og jeg kan hjelpe deg å lage en CV." ]
             , Melding.spørsmål [ "Først skal du legge inn utdanning, arbeidserfaring, språk og sammendrag. Etter det kan du legge til kurs, fagbrev, sertifisering og førerkort." ]
             , Melding.spørsmål [ "Husk at du ikke skal legge inn noe om helse, religion eller politiske oppfatning." ]
             , Melding.spørsmål [ "Er du klar til å begynne?" ]
