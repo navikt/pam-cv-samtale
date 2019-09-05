@@ -5,6 +5,8 @@ import * as compression from 'compression';
 import * as helmet from 'helmet';
 import * as path from 'path';
 import { RequestOptions } from 'http';
+import { Response } from 'express';
+import { NextFunction } from 'express';
 
 if (!process.env.PAM_CV_API_PROXY_KEY) {
     throw new Error("Miljøvariabel PAM_CV_API_PROXY_KEY er ikke satt");
@@ -70,7 +72,16 @@ server.use(
         }),
         proxyReqPathResolver: (req: any) => (
             req.originalUrl.replace(new RegExp('/cv-samtale/api'), '/pam-cv-api/pam-cv-api')
-        )
+        ),
+        proxyErrorHandler: (err: any, res: Response, next: NextFunction) => {
+            if (err && err.code) {
+                console.log(JSON.stringify({
+                    level: "Error",
+                    message: err.code
+                }));
+            }
+            next(err);
+        }
     })
 );
 

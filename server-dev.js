@@ -26,7 +26,13 @@ server.use(
     proxy('http://localhost:1337', {
         proxyReqPathResolver: req => (
             req.originalUrl.replace(new RegExp('/cv(-samtale)?/api'), '/pam-cv-api')
-        )
+        ),
+        proxyErrorHandler: (err, res, next) => {
+            if (err && err.code) {
+                console.log({ level: "Error", message: err.code});
+            }
+            next(err);
+        }
     })
 );
 

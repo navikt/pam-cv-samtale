@@ -1,7 +1,8 @@
-module Skjema.Sprak exposing (SpråkSkjema(..), encode, init)
+module Skjema.Sprak exposing (Ferdighet(..), SpråkSkjema, SpråkSkjemaInfo, encode, init, norskMorsmål, språkNavn)
 
 import Cv.Spraakferdighet as Spraakferdighet exposing (Spraakferdighet)
 import Json.Encode
+import SpråkKode exposing (SpråkKode)
 
 
 type SpråkSkjema
@@ -9,40 +10,57 @@ type SpråkSkjema
 
 
 type alias SpråkSkjemaInfo =
-    { sprak : String
-    , muntlig : String
-    , skriftlig : String
+    { språk : SpråkKode
+    , muntlig : Ferdighet
+    , skriftlig : Ferdighet
     }
 
 
-språk : SpråkSkjema -> String
-språk (SpråkSkjema info) =
-    info.sprak
+type Ferdighet
+    = Nybegynner
+    | Godt
+    | VeldigGodt
+    | Morsmål
 
 
-muntlig : SpråkSkjema -> String
-muntlig (SpråkSkjema info) =
-    info.muntlig
+ferdighetTilString : Ferdighet -> String
+ferdighetTilString ferdighet =
+    case ferdighet of
+        Nybegynner ->
+            "NYBEGYNNER"
+
+        Godt ->
+            "GODT"
+
+        VeldigGodt ->
+            "VELDIG_GODT"
+
+        Morsmål ->
+            "FOERSTESPRAAK"
 
 
-skriftlig : SpråkSkjema -> String
-skriftlig (SpråkSkjema info) =
-    info.skriftlig
-
-
-init : String -> String -> String -> SpråkSkjema
-init skjemaSpråk skjemaMuntlig skjemaSkriftlig =
+norskMorsmål =
     SpråkSkjema
-        { sprak = skjemaSpråk
-        , muntlig = skjemaMuntlig
-        , skriftlig = skjemaSkriftlig
+        { språk = SpråkKode.norsk
+        , muntlig = Morsmål
+        , skriftlig = Morsmål
         }
+
+
+språkNavn : SpråkSkjema -> String
+språkNavn (SpråkSkjema info) =
+    SpråkKode.term info.språk
+
+
+init : SpråkSkjemaInfo -> SpråkSkjema
+init info =
+    SpråkSkjema info
 
 
 encode : SpråkSkjema -> Json.Encode.Value
 encode (SpråkSkjema info) =
     Json.Encode.object
-        [ ( "sprak", Json.Encode.string info.sprak )
-        , ( "muntlig", Json.Encode.string info.muntlig )
-        , ( "skriftlig", Json.Encode.string info.skriftlig )
+        [ ( "sprak", Json.Encode.string (SpråkKode.term info.språk) )
+        , ( "muntlig", Json.Encode.string (ferdighetTilString info.muntlig) )
+        , ( "skriftlig", Json.Encode.string (ferdighetTilString info.skriftlig) )
         ]

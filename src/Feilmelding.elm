@@ -1,4 +1,4 @@
-module Feilmelding exposing (Feilmelding, encode, feilmelding)
+module Feilmelding exposing (Feilmelding, encode, feilmelding, withRequestBody)
 
 import Http
 import Json.Encode
@@ -9,6 +9,7 @@ type Feilmelding
         { operasjon : String
         , errorType : String
         , message : Maybe String
+        , requestBody : Maybe Json.Encode.Value
         }
 
 
@@ -20,6 +21,7 @@ feilmelding operasjon error =
                 { operasjon = operasjon
                 , errorType = "BadUrl"
                 , message = Just message
+                , requestBody = Nothing
                 }
                 |> Just
 
@@ -28,6 +30,7 @@ feilmelding operasjon error =
                 { operasjon = operasjon
                 , errorType = "Timeout"
                 , message = Nothing
+                , requestBody = Nothing
                 }
                 |> Just
 
@@ -42,6 +45,7 @@ feilmelding operasjon error =
                     statusCode
                         |> String.fromInt
                         |> Just
+                , requestBody = Nothing
                 }
                 |> Just
 
@@ -50,8 +54,14 @@ feilmelding operasjon error =
                 { operasjon = operasjon
                 , errorType = "BadBody"
                 , message = Just message
+                , requestBody = Nothing
                 }
                 |> Just
+
+
+withRequestBody : Json.Encode.Value -> Feilmelding -> Feilmelding
+withRequestBody requestBody (Feilmelding info) =
+    Feilmelding { info | requestBody = Just requestBody }
 
 
 encode : Feilmelding -> Json.Encode.Value
@@ -59,9 +69,20 @@ encode (Feilmelding info) =
     Json.Encode.object
         [ ( "operasjon", Json.Encode.string info.operasjon )
         , ( "errorType", Json.Encode.string info.errorType )
+        , ( "requestBody", Maybe.withDefault Json.Encode.null info.requestBody )
         , ( "message"
-          , info.message
-                |> Maybe.map Json.Encode.string
-                |> Maybe.withDefault Json.Encode.null
+          , Feilmelding info
+                |> beskrivelse
+                |> Json.Encode.string
           )
         ]
+
+
+beskrivelse : Feilmelding -> String
+beskrivelse (Feilmelding info) =
+    case info.message of
+        Just message ->
+            info.errorType ++ " " ++ message ++ " på operasjon \"" ++ info.operasjon ++ "\""
+
+        Nothing ->
+            info.errorType ++ " på operasjon \"" ++ info.operasjon ++ "\""
