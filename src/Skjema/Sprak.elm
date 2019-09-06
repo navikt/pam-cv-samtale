@@ -1,6 +1,13 @@
-module Skjema.Sprak exposing (Ferdighet(..), SpråkSkjema, SpråkSkjemaInfo, encode, init, norskMorsmål, språkNavn)
+module Skjema.Sprak exposing
+    ( Ferdighet(..)
+    , SpråkSkjema
+    , SpråkSkjemaInfo
+    , encode
+    , init
+    , norskFørstespråk
+    , språkNavn
+    )
 
-import Cv.Spraakferdighet as Spraakferdighet exposing (Spraakferdighet)
 import Json.Encode
 import SpråkKode exposing (SpråkKode)
 
@@ -20,7 +27,7 @@ type Ferdighet
     = Nybegynner
     | Godt
     | VeldigGodt
-    | Morsmål
+    | Førstespråk
 
 
 ferdighetTilString : Ferdighet -> String
@@ -35,15 +42,15 @@ ferdighetTilString ferdighet =
         VeldigGodt ->
             "VELDIG_GODT"
 
-        Morsmål ->
+        Førstespråk ->
             "FOERSTESPRAAK"
 
 
-norskMorsmål =
+norskFørstespråk =
     SpråkSkjema
         { språk = SpråkKode.norsk
-        , muntlig = Morsmål
-        , skriftlig = Morsmål
+        , muntlig = Førstespråk
+        , skriftlig = Førstespråk
         }
 
 
@@ -60,7 +67,7 @@ init info =
 encode : SpråkSkjema -> Json.Encode.Value
 encode (SpråkSkjema info) =
     Json.Encode.object
-        [ ( "sprak", Json.Encode.string (SpråkKode.term info.språk) )
+        [ ( "sprak", SpråkKode.encode info.språk )
         , ( "muntlig", Json.Encode.string (ferdighetTilString info.muntlig) )
         , ( "skriftlig", Json.Encode.string (ferdighetTilString info.skriftlig) )
         ]

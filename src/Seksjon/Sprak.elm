@@ -75,7 +75,7 @@ type RemoteDataSpråkKoder
 
 
 type alias SpråkMedMuntlig =
-    { språkNavn : SpråkKode
+    { språk : SpråkKode
     , muntlig : Ferdighet
     }
 
@@ -90,8 +90,8 @@ meldingsLogg (Model model) =
 
 
 type Msg
-    = NorskErMorsmål
-    | NorskErIkkeMorsmål
+    = NorskErFørstespråk
+    | NorskErIkkeFørstespråk
     | BrukerVelgerMuntligNivå Ferdighet
     | BrukerVelgerSkriftligNivå Ferdighet
     | BrukerKanEngelsk
@@ -113,16 +113,16 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        NorskErMorsmål ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerNorsk SpråkSkjema.norskMorsmål)
+        NorskErFørstespråk ->
+            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerNorsk SpråkSkjema.norskFørstespråk)
             , Cmd.batch
-                [ leggTilSpråkAPI SpråkSkjema.norskMorsmål
+                [ leggTilSpråkAPI SpråkSkjema.norskFørstespråk
                 , lagtTilSpørsmålCmd model.debugStatus
                 ]
             )
                 |> IkkeFerdig
 
-        NorskErIkkeMorsmål ->
+        NorskErIkkeFørstespråk ->
             ( LeggTilNorskMuntlig
                 |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
             , lagtTilSpørsmålCmd model.debugStatus
@@ -140,7 +140,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 LeggTilMuntlig språkKode ->
-                    ( LeggTilSkriftlig { språkNavn = språkKode, muntlig = muntligNivå }
+                    ( LeggTilSkriftlig { språk = språkKode, muntlig = muntligNivå }
                         |> nesteSamtaleSteg model
                             (Melding.svar [ muntligNivåTilKnappeTekst språkKode muntligNivå ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -156,14 +156,14 @@ update msg (Model model) =
                     let
                         skjema =
                             SpråkSkjema.init
-                                { språk = språkMedMuntlig.språkNavn
+                                { språk = språkMedMuntlig.språk
                                 , muntlig = språkMedMuntlig.muntlig
                                 , skriftlig = skriftligNivå
                                 }
                     in
                     ( LagrerSpråk skjema
                         |> nesteSamtaleSteg model
-                            (Melding.svar [ skriftligNivåTilKnappeTekst språkMedMuntlig.språkNavn skriftligNivå ])
+                            (Melding.svar [ skriftligNivåTilKnappeTekst språkMedMuntlig.språk skriftligNivå ])
                     , Cmd.batch
                         [ leggTilSpråkAPI skjema
                         , lagtTilSpørsmålCmd model.debugStatus
@@ -388,7 +388,7 @@ muntligNivåTilKnappeTekst språkKode muntligNivå =
         VeldigGodt ->
             "Jeg snakker veldig godt " ++ String.toLower (SpråkKode.term språkKode)
 
-        Morsmål ->
+        Førstespråk ->
             SpråkKode.term språkKode ++ " er førstespråket (morsmålet) mitt"
 
 
@@ -404,7 +404,7 @@ skriftligNivåTilKnappeTekst språkKode skriftligNivå =
         VeldigGodt ->
             "Jeg skriver veldig godt " ++ String.toLower (SpråkKode.term språkKode)
 
-        Morsmål ->
+        Førstespråk ->
             SpråkKode.term språkKode ++ " er førstespråket (morsmålet) mitt"
 
 
@@ -518,7 +518,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
             [ Melding.spørsmål [ "Hvor godt snakker du " ++ String.toLower (SpråkKode.term språkKode) ++ "?" ] ]
 
         LeggTilSkriftlig språkMedMuntlig ->
-            [ Melding.spørsmål [ "Hvor godt skriver du " ++ String.toLower (SpråkKode.term språkMedMuntlig.språkNavn) ++ "?" ] ]
+            [ Melding.spørsmål [ "Hvor godt skriver du " ++ String.toLower (SpråkKode.term språkMedMuntlig.språk) ++ "?" ] ]
 
         LagrerSpråk _ ->
             []
@@ -598,9 +598,9 @@ viewBrukerInput (Model model) =
                         div [ class "skjema-wrapper" ]
                             [ div [ class "skjema" ]
                                 [ div [ class "inputrad" ]
-                                    [ Knapp.knapp NorskErMorsmål "Ja"
+                                    [ Knapp.knapp NorskErFørstespråk "Ja"
                                         |> Knapp.toHtml
-                                    , Knapp.knapp NorskErIkkeMorsmål "Nei"
+                                    , Knapp.knapp NorskErIkkeFørstespråk "Nei"
                                         |> Knapp.toHtml
                                     ]
                                 ]
@@ -706,7 +706,8 @@ viewBrukerInput (Model model) =
                 LeggTilMuntlig språkKode ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ muntligKnapp språkKode Nybegynner ]
+                            [ div [ class "inputkolonne" ] [ muntligKnapp språkKode Førstespråk ]
+                            , div [ class "inputkolonne" ] [ muntligKnapp språkKode Nybegynner ]
                             , div [ class "inputkolonne" ] [ muntligKnapp språkKode Godt ]
                             , div [ class "inputkolonne" ] [ muntligKnapp språkKode VeldigGodt ]
                             ]
@@ -715,9 +716,10 @@ viewBrukerInput (Model model) =
                 LeggTilSkriftlig språkKode ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Nybegynner ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Godt ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn VeldigGodt ]
+                            [ div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Førstespråk ]
+                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Nybegynner ]
+                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Godt ]
+                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk VeldigGodt ]
                             ]
                         ]
 
