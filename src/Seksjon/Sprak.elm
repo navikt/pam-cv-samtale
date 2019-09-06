@@ -706,7 +706,8 @@ viewBrukerInput (Model model) =
                 LeggTilMuntlig språkKode ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ muntligKnapp språkKode Nybegynner ]
+                            [ div [ class "inputkolonne" ] [ muntligKnapp språkKode Morsmål ]
+                            , div [ class "inputkolonne" ] [ muntligKnapp språkKode Nybegynner ]
                             , div [ class "inputkolonne" ] [ muntligKnapp språkKode Godt ]
                             , div [ class "inputkolonne" ] [ muntligKnapp språkKode VeldigGodt ]
                             ]
@@ -715,7 +716,8 @@ viewBrukerInput (Model model) =
                 LeggTilSkriftlig språkKode ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Nybegynner ]
+                            [ div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Morsmål ]
+                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Nybegynner ]
                             , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Godt ]
                             , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn VeldigGodt ]
                             ]
