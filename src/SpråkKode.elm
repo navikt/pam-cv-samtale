@@ -1,7 +1,16 @@
-module SpråkKode exposing (SpråkKode(..), SpråkKodeInfo, decode, engelsk, kode, norsk, term)
+module SpråkKode exposing
+    ( SpråkKode
+    , decode
+    , encode
+    , engelsk
+    , kode
+    , norsk
+    , term
+    )
 
 import Json.Decode exposing (Decoder, map, nullable, string, succeed)
 import Json.Decode.Pipeline exposing (required)
+import Json.Encode
 
 
 type SpråkKode
@@ -55,3 +64,12 @@ decodeBackendData =
     succeed SpråkKodeInfo
         |> required "kode" string
         |> required "term" string
+
+
+
+--- ENCODER ---
+
+
+encode : SpråkKode -> Json.Encode.Value
+encode (SpråkKode info) =
+    Json.Encode.string info.term

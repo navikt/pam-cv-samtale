@@ -75,7 +75,7 @@ type RemoteDataSpråkKoder
 
 
 type alias SpråkMedMuntlig =
-    { språkNavn : SpråkKode
+    { språk : SpråkKode
     , muntlig : Ferdighet
     }
 
@@ -140,7 +140,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 LeggTilMuntlig språkKode ->
-                    ( LeggTilSkriftlig { språkNavn = språkKode, muntlig = muntligNivå }
+                    ( LeggTilSkriftlig { språk = språkKode, muntlig = muntligNivå }
                         |> nesteSamtaleSteg model
                             (Melding.svar [ muntligNivåTilKnappeTekst språkKode muntligNivå ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -156,14 +156,14 @@ update msg (Model model) =
                     let
                         skjema =
                             SpråkSkjema.init
-                                { språk = språkMedMuntlig.språkNavn
+                                { språk = språkMedMuntlig.språk
                                 , muntlig = språkMedMuntlig.muntlig
                                 , skriftlig = skriftligNivå
                                 }
                     in
                     ( LagrerSpråk skjema
                         |> nesteSamtaleSteg model
-                            (Melding.svar [ skriftligNivåTilKnappeTekst språkMedMuntlig.språkNavn skriftligNivå ])
+                            (Melding.svar [ skriftligNivåTilKnappeTekst språkMedMuntlig.språk skriftligNivå ])
                     , Cmd.batch
                         [ leggTilSpråkAPI skjema
                         , lagtTilSpørsmålCmd model.debugStatus
@@ -518,7 +518,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
             [ Melding.spørsmål [ "Hvor godt snakker du " ++ String.toLower (SpråkKode.term språkKode) ++ "?" ] ]
 
         LeggTilSkriftlig språkMedMuntlig ->
-            [ Melding.spørsmål [ "Hvor godt skriver du " ++ String.toLower (SpråkKode.term språkMedMuntlig.språkNavn) ++ "?" ] ]
+            [ Melding.spørsmål [ "Hvor godt skriver du " ++ String.toLower (SpråkKode.term språkMedMuntlig.språk) ++ "?" ] ]
 
         LagrerSpråk _ ->
             []
@@ -716,10 +716,10 @@ viewBrukerInput (Model model) =
                 LeggTilSkriftlig språkKode ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Førstespråk ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Nybegynner ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn Godt ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språkNavn VeldigGodt ]
+                            [ div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Førstespråk ]
+                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Nybegynner ]
+                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Godt ]
+                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk VeldigGodt ]
                             ]
                         ]
 
