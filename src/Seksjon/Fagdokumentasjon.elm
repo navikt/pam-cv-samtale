@@ -622,8 +622,17 @@ update msg (Model model) =
 
         FagbrevSendtTilApi result ->
             case result of
-                Ok value ->
-                    fullførSeksjonHvisMeldingsloggErFerdig { model | seksjonsMeldingsLogg = model.seksjonsMeldingsLogg |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ] } value
+                Ok fagdokumentasjoner ->
+                    ( Model
+                        { model
+                            | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
+                            , seksjonsMeldingsLogg =
+                                model.seksjonsMeldingsLogg
+                                    |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ]
+                        }
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
@@ -636,8 +645,17 @@ update msg (Model model) =
 
         MesterbrevSendtTilApi result ->
             case result of
-                Ok value ->
-                    fullførSeksjonHvisMeldingsloggErFerdig { model | seksjonsMeldingsLogg = model.seksjonsMeldingsLogg |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ] } value
+                Ok fagdokumentasjoner ->
+                    ( Model
+                        { model
+                            | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
+                            , seksjonsMeldingsLogg =
+                                model.seksjonsMeldingsLogg
+                                    |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ]
+                        }
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
@@ -650,8 +668,17 @@ update msg (Model model) =
 
         AutorisasjonSendtTilApi result ->
             case result of
-                Ok value ->
-                    fullførSeksjonHvisMeldingsloggErFerdig { model | seksjonsMeldingsLogg = model.seksjonsMeldingsLogg |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ] } value
+                Ok fagdokumentasjoner ->
+                    ( Model
+                        { model
+                            | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
+                            , seksjonsMeldingsLogg =
+                                model.seksjonsMeldingsLogg
+                                    |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ]
+                        }
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
@@ -713,17 +740,6 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                 }
             , lagtTilSpørsmålCmd model.debugStatus
             )
-                |> IkkeFerdig
-
-
-fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> List Fagdokumentasjon -> SamtaleStatus
-fullførSeksjonHvisMeldingsloggErFerdig modelInfo fagdokumentasjonListe =
-    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
-        FerdigAnimert ferdigAnimertMeldingsLogg ->
-            Ferdig fagdokumentasjonListe ferdigAnimertMeldingsLogg
-
-        MeldingerGjenstår ->
-            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjonListe }, Cmd.none )
                 |> IkkeFerdig
 
 
