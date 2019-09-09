@@ -205,6 +205,9 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
+        ErrorLogget ->
+            IkkeFerdig ( Model model, Cmd.none )
+
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
 nesteSamtaleSteg model melding samtaleSeksjon =
