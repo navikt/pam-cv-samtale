@@ -11,11 +11,13 @@ module Seksjon.Personalia exposing
 import Api
 import Browser.Dom as Dom
 import DebugStatus exposing (DebugStatus)
+import Feilmelding
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http
+import Json.Encode
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Personalia exposing (Personalia)
@@ -72,6 +74,7 @@ type Msg
     | ViewportSatt (Result Dom.Error ())
     | StartÅSkrive
     | FullførMelding
+    | ErrorLogget
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -158,7 +161,16 @@ update msg (Model model) =
                         Err error ->
                             ( LagringFeilet error skjema
                                 |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ])
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                , model.personalia
+                                    |> Personalia.id
+                                    |> Json.Encode.string
+                                    |> Tuple.pair "id"
+                                    |> List.singleton
+                                    |> Json.Encode.object
+                                    |> Api.logErrorWithRequestBody ErrorLogget "Lagre personalia" error
+                                ]
                             )
                                 |> IkkeFerdig
 
@@ -191,6 +203,9 @@ update msg (Model model) =
             model.seksjonsMeldingsLogg
                 |> MeldingsLogg.fullførMelding
                 |> updateEtterFullførtMelding model
+
+        ErrorLogget ->
+            IkkeFerdig ( Model model, Cmd.none )
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus

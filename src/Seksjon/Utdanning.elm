@@ -229,7 +229,7 @@ type Msg
     | UtdanningSendtTilApi (Result Http.Error (List Utdanning))
     | AvbrytLagringOgTaMegTilIntro
     | ViewportSatt (Result Dom.Error ())
-    | ErrorLogget (Result Http.Error ())
+    | ErrorLogget
     | StartÅSkrive
     | FullførMelding
 
@@ -592,7 +592,11 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( nesteSamtaleStegUtenMelding model (LeggTilUtdanningFeiletIApi error skjema), logFeilmelding error "API kall" )
+                            ( nesteSamtaleStegUtenMelding model (LeggTilUtdanningFeiletIApi error skjema)
+                            , skjema
+                                |> Skjema.encode
+                                |> Api.logErrorWithRequestBody ErrorLogget "Lagre utdanning" error
+                            )
                                 |> IkkeFerdig
 
                 Oppsummering skjema ->
@@ -602,7 +606,11 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( nesteSamtaleStegUtenMelding model (LeggTilUtdanningFeiletIApi error skjema), logFeilmelding error "API kall" )
+                            ( nesteSamtaleStegUtenMelding model (LeggTilUtdanningFeiletIApi error skjema)
+                            , skjema
+                                |> Skjema.encode
+                                |> Api.logErrorWithRequestBody ErrorLogget "Lagre utdanning" error
+                            )
                                 |> IkkeFerdig
 
                 _ ->
@@ -645,7 +653,7 @@ update msg (Model model) =
         ViewportSatt result ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        ErrorLogget result ->
+        ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
 
 
@@ -703,7 +711,7 @@ lagtTilSpørsmålCmd debugStatus =
 logFeilmelding : Http.Error -> String -> Cmd Msg
 logFeilmelding error operasjon =
     Feilmelding.feilmelding operasjon error
-        |> Maybe.map (Api.logError ErrorLogget)
+        |> Maybe.map (Api.logError (always ErrorLogget))
         |> Maybe.withDefault Cmd.none
 
 

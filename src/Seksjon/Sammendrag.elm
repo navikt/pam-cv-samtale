@@ -72,6 +72,7 @@ type Msg
     | ViewportSatt (Result Dom.Error ())
     | StartÅSkrive
     | FullførMelding
+    | ErrorLogget
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -183,12 +184,20 @@ update msg (Model model) =
 
                         Err error ->
                             ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre!" ]) (LagringFeilet error sammendrag)
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                , sammendrag
+                                    |> Api.encodeSammendrag
+                                    |> Api.logErrorWithRequestBody ErrorLogget "Lagre sammendrag" error
+                                ]
                             )
                                 |> IkkeFerdig
 
                 _ ->
                     ( Model model, Cmd.none ) |> IkkeFerdig
+
+        ErrorLogget ->
+            IkkeFerdig ( Model model, Cmd.none )
 
 
 leggSammendragTilAPI : String -> Cmd Msg

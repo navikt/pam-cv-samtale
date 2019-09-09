@@ -14,6 +14,7 @@ import Api
 import Browser.Dom as Dom
 import Cv.Cv exposing (Cv)
 import DebugStatus exposing (DebugStatus)
+import Feilmelding
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -75,6 +76,7 @@ type Msg
     | ViewportSatt (Result Dom.Error ())
     | StartÅSkrive
     | FullførMelding
+    | ErrorLogget
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -128,7 +130,13 @@ update msg (Model model) =
 
                 Err error ->
                     ( nesteSamtaleStegUtenMelding model HentPersonFeilet
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd model.debugStatus
+                        , error
+                            |> Feilmelding.feilmelding "Hente person"
+                            |> Maybe.map (Api.logError (always ErrorLogget))
+                            |> Maybe.withDefault Cmd.none
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -167,7 +175,13 @@ update msg (Model model) =
 
                 Err error ->
                     ( nesteSamtaleStegUtenMelding model LagringSynlighetFeilet
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd model.debugStatus
+                        , error
+                            |> Feilmelding.feilmelding "Lagre synlighet"
+                            |> Maybe.map (Api.logError (always ErrorLogget))
+                            |> Maybe.withDefault Cmd.none
+                        ]
                     )
                         |> IkkeFerdig
 

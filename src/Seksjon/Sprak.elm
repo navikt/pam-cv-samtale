@@ -322,7 +322,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 Err error ->
-                    IkkeFerdig ( Model model, logFeilmelding error "Språkkoder hentet" )
+                    IkkeFerdig ( Model model, logFeilmelding error "Hente språkkoder" )
 
         BrukerVilHenteSpråkKoderPåNytt ->
             case model.språkKoder of

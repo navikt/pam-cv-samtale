@@ -627,7 +627,10 @@ update msg (Model model) =
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd model.debugStatus
+                        , logFeilmelding error "Lagre fagbrev"
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -638,7 +641,10 @@ update msg (Model model) =
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd model.debugStatus
+                        , logFeilmelding error "Lagre mesterbrev"
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -649,7 +655,10 @@ update msg (Model model) =
 
                 Err error ->
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd model.debugStatus
+                        , logFeilmelding error "Lagre autorisasjon"
+                        ]
                     )
                         |> IkkeFerdig
 

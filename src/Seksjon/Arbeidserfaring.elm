@@ -128,7 +128,7 @@ type Msg
     | FullFørMelding
     | ViewportSatt (Result Dom.Error ())
     | GåTilNesteSeksjon
-    | ErrorLogget (Result Http.Error ())
+    | ErrorLogget
 
 
 type Samtale
@@ -1036,7 +1036,9 @@ update msg (Model model) =
                         Err error ->
                             ( LagringFeilet error arbeidserfaringSkjema
                                 |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt med lagringen" ])
-                            , Cmd.none
+                            , arbeidserfaringSkjema
+                                |> ArbeidserfaringSkjema.encode
+                                |> Api.logErrorWithRequestBody ErrorLogget "Lagre arbeidserfaring" error
                             )
                                 |> IkkeFerdig
 
@@ -1074,9 +1076,8 @@ update msg (Model model) =
                 |> MeldingsLogg.fullførMelding
                 |> updateEtterFullførtMelding model
 
-        ErrorLogget result ->
-            ( Model model, Cmd.none )
-                |> IkkeFerdig
+        ErrorLogget ->
+            IkkeFerdig ( Model model, Cmd.none )
 
         ViewportSatt result ->
             ( Model model, Cmd.none )
@@ -2278,7 +2279,7 @@ arbeidserfaringToString arbeidserfaringsListe =
 logFeilmelding : Http.Error -> String -> Cmd Msg
 logFeilmelding error operasjon =
     Feilmelding.feilmelding operasjon error
-        |> Maybe.map (Api.logError ErrorLogget)
+        |> Maybe.map (Api.logError (always ErrorLogget))
         |> Maybe.withDefault Cmd.none
 
 

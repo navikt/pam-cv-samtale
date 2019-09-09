@@ -1,5 +1,6 @@
 module Api exposing
     ( deleteArbeidserfaring
+    , encodeSammendrag
     , getAAreg
     , getAutorisasjonTypeahead
     , getCv
@@ -10,6 +11,7 @@ module Api exposing
     , getSpråkkoder
     , getYrkeTypeahead
     , logError
+    , logErrorWithRequestBody
     , postArbeidserfaring
     , postCv
     , postFagdokumentasjon
@@ -120,8 +122,16 @@ putSammendrag msgConstructor sammendrag =
     put
         { url = "/cv-samtale/api/rest/cv/sammendrag"
         , expect = expectJson msgConstructor Sammendrag.decode
-        , body = Json.Encode.object [ ( "sammendrag", Json.Encode.string sammendrag ) ] |> jsonBody
+        , body =
+            sammendrag
+                |> encodeSammendrag
+                |> jsonBody
         }
+
+
+encodeSammendrag : String -> Json.Encode.Value
+encodeSammendrag sammendrag =
+    Json.Encode.object [ ( "sammendrag", Json.Encode.string sammendrag ) ]
 
 
 getCv : (Result Error Cv -> msg) -> Cmd msg
@@ -260,6 +270,14 @@ logError msgConstructor feilmelding =
                 |> Feilmelding.encode
                 |> jsonBody
         }
+
+
+logErrorWithRequestBody : msg -> String -> Http.Error -> Json.Encode.Value -> Cmd msg
+logErrorWithRequestBody msg operation error requestBody =
+    Feilmelding.feilmelding operation error
+        |> Maybe.map (Feilmelding.withRequestBody requestBody)
+        |> Maybe.map (logError (always msg))
+        |> Maybe.withDefault Cmd.none
 
 
 put :
