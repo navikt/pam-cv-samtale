@@ -61,7 +61,12 @@ toHtml (Textarea options) =
         , div [ class "textarea--medMeta__wrapper" ]
             [ Html.textarea
                 [ onInput options.msg
-                , classList [ ( "skjemaelement__input textarea--medMeta", True ), ( options.textAreaClass, True ), ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing ) ]
+                , classList
+                    [ ( "skjemaelement__input textarea--medMeta", True )
+                    , ( options.textAreaClass, True )
+                    , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
+                    , ( "overflow-auto-textbox", True ) -- Klassen er for at man skal kunne legge til overflow auto, som ikke er med i designsystemet
+                    ]
                 , value options.innhold
                 ]
                 []
