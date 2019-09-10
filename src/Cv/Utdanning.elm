@@ -160,25 +160,25 @@ decodeNivå : Maybe String -> Decoder Nivå
 decodeNivå maybeNivå =
     case maybeNivå of
         Just nivå ->
-            if nivå == "2" || String.left 1 nivå == "2" then
+            if String.left 1 nivå == "1" || String.left 1 nivå == "2" then
                 succeed Grunnskole
 
-            else if nivå == "3" || String.left 1 nivå == "3" then
+            else if String.left 1 nivå == "3" then
                 succeed VideregåendeYrkesskole
 
-            else if nivå == "4" || String.left 1 nivå == "4" then
+            else if String.left 1 nivå == "4" then
                 succeed Fagskole
 
-            else if nivå == "5" || String.left 1 nivå == "5" then
+            else if String.left 1 nivå == "5" then
                 succeed Folkehøyskole
 
-            else if nivå == "6" || String.left 1 nivå == "6" then
+            else if String.left 1 nivå == "6" then
                 succeed HøyereUtdanning1til4
 
-            else if nivå == "7" || String.left 1 nivå == "7" then
+            else if String.left 1 nivå == "7" then
                 succeed HøyereUtdanning4pluss
 
-            else if nivå == "8" || String.left 1 nivå == "8" then
+            else if String.left 1 nivå == "8" then
                 succeed Phd
 
             else
