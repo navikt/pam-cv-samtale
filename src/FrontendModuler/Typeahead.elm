@@ -153,6 +153,7 @@ toHtml (Typeahead options) =
             , value options.innhold
             , class "skjemaelement__input input--fullbredde"
             , onKeyUp options.onTypeaheadChange
+            , type_ "text"
             ]
             []
         , if List.isEmpty options.suggestions then

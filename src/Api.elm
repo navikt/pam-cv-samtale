@@ -1,6 +1,5 @@
 module Api exposing
-    ( deleteArbeidserfaring
-    , encodeSammendrag
+    ( encodeSammendrag
     , getAAreg
     , getAutorisasjonTypeahead
     , getCv
@@ -39,7 +38,7 @@ import Json.Encode
 import Konsept exposing (Konsept)
 import Person exposing (Person)
 import Personalia exposing (Personalia)
-import Skjema.ArbeidserfaringSkjema
+import Skjema.Arbeidserfaring
 import Skjema.Fagdokumentasjon
 import Skjema.Personalia
 import Skjema.Sprak
@@ -159,36 +158,23 @@ getAAreg msgConstructor =
         }
 
 
-postArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
+postArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.Arbeidserfaring.ValidertArbeidserfaringSkjema -> Cmd msg
 postArbeidserfaring msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring"
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
-        , body = Skjema.ArbeidserfaringSkjema.encode skjema |> jsonBody
+        , body = Skjema.Arbeidserfaring.encode skjema |> jsonBody
         }
 
 
-putArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> String -> Cmd msg
+putArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.Arbeidserfaring.ValidertArbeidserfaringSkjema -> String -> Cmd msg
 putArbeidserfaring msgConstructor skjema id =
     Http.request
         { method = "PUT"
         , headers = []
         , url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring/" ++ id
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
-        , body = Skjema.ArbeidserfaringSkjema.encode skjema |> jsonBody
-        , timeout = Nothing
-        , tracker = Nothing
-        }
-
-
-deleteArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> String -> Cmd msg
-deleteArbeidserfaring msgConstructor id =
-    Http.request
-        { method = "DELETE"
-        , headers = []
-        , url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring/" ++ id
-        , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
-        , body = Http.emptyBody
+        , body = Skjema.Arbeidserfaring.encode skjema |> jsonBody
         , timeout = Nothing
         , tracker = Nothing
         }

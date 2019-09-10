@@ -16,21 +16,19 @@ import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
-import FrontendModuler.InputInt as InputInt
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Select as Select
 import FrontendModuler.Textarea as Textarea
 import FrontendModuler.Typeahead as Typeahead
-import Html exposing (Attribute, Html, button, div, input, label, option, select, text)
-import Html.Attributes exposing (checked, class, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Attribute, Html, div, text)
+import Html.Attributes exposing (class)
 import Http exposing (Error)
 import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.ArbeidserfaringSkjema as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, TypeaheadFelt(..), ValidertArbeidserfaringSkjema)
+import Skjema.Arbeidserfaring as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, TypeaheadFelt(..), ValidertArbeidserfaringSkjema)
 import Task
 import TypeaheadState exposing (TypeaheadState)
 import Yrke exposing (Yrke)
@@ -50,21 +48,6 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , debugStatus : DebugStatus
     }
-
-
-arbeidserfaringListe : Model -> List Arbeidserfaring
-arbeidserfaringListe (Model info) =
-    info.arbeidserfaringListe
-
-
-aktivSamtale : Model -> Samtale
-aktivSamtale (Model info) =
-    info.aktivSamtale
-
-
-hentAAregArbeidserfaring : Model -> Cmd Msg
-hentAAregArbeidserfaring (Model info) =
-    Api.getAAreg HentetAAregArbeidserfaring
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -117,8 +100,6 @@ type Msg
     | BrukerVelgerYrkeIOppsummering Yrke
     | ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Felt String
     | ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Felt
-    | BrukerTrykkerPåSlettArbeidserfaring
-    | ArbeidserfaringSlettet (Result Http.Error (List Arbeidserfaring))
     | BrukerTrykkerPåLagreArbeidserfaringKnapp String ValidertArbeidserfaringSkjema
     | BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
     | ArbeidserfaringLagret (Result Http.Error (List Arbeidserfaring))
@@ -152,8 +133,6 @@ type Samtale
     | RegistrereTilÅr TilDatoInfo
     | VisOppsummering ValidertArbeidserfaringSkjema
     | RedigerOppsummering ArbeidserfaringSkjema
-    | SletterArbeidserfaring ArbeidserfaringSkjema
-    | FerdigMedÅSletteArbeidserfaring
     | LagreArbeidserfaring ValidertArbeidserfaringSkjema
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
     | SpørOmBrukerVilLeggeInnMer
@@ -161,10 +140,6 @@ type Samtale
     | VenterPåAnimasjonFørFullføring String
     | HeltFerdig
     | HeltFerdigUtenArbeidsErfaring
-
-
-type alias YrkeInfo =
-    { yrke : String }
 
 
 type alias JobbtittelInfo =
@@ -203,20 +178,6 @@ type alias TilDatoInfo =
     { tidligereInfo : FraDatoInfo
     , tilMåned : Dato.Måned
     , tilÅr : String
-    }
-
-
-type alias Oppsummering =
-    { yrke : String
-    , jobbTittel : String
-    , bedriftNavn : String
-    , lokasjon : String
-    , arbeidsoppgaver : String
-    , fraDato : Dato
-    , naavarende : Bool
-    , tilDato : Maybe Dato
-    , styrkkode : String
-    , konseptId : Int
     }
 
 
@@ -505,7 +466,7 @@ update msg (Model model) =
                 RegistrerYrke _ ->
                     brukerVelgerYrke model yrkesTypeahead
 
-                RedigerOppsummering skjema ->
+                RedigerOppsummering _ ->
                     ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
@@ -871,7 +832,7 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerHovrerOverTypeaheadSuggestionIOppsummering yrke ->
+        BrukerHovrerOverTypeaheadSuggestionIOppsummering _ ->
             ( Model model, Cmd.none )
                 |> IkkeFerdig
 
@@ -947,48 +908,9 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerTrykkerPåSlettArbeidserfaring ->
-            case model.aktivSamtale of
-                RedigerOppsummering skjema ->
-                    ( skjema
-                        |> SletterArbeidserfaring
-                        |> nesteSamtaleSteg model (Melding.svar [ "Slett" ])
-                    , Cmd.batch
-                        [ lagtTilSpørsmålCmd model.debugStatus
-                        , skjema
-                            |> ArbeidserfaringSkjema.id
-                            |> Maybe.withDefault ""
-                            |> Api.deleteArbeidserfaring ArbeidserfaringSlettet
-                        ]
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        ArbeidserfaringSlettet result ->
-            case model.aktivSamtale of
-                SletterArbeidserfaring skjema ->
-                    case result of
-                        Ok liste ->
-                            ( FerdigMedÅSletteArbeidserfaring
-                                |> oppdaterSamtalesteg { model | arbeidserfaringListe = liste }
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( Model model, Cmd.none )
-                                |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
         BrukerTrykkerPåLagreArbeidserfaringKnapp brukerSvar validertSkjema ->
             case model.aktivSamtale of
-                RedigerOppsummering skjema ->
+                RedigerOppsummering _ ->
                     ( validertSkjema
                         |> LagreArbeidserfaring
                         |> nesteSamtaleSteg model
@@ -1079,7 +1001,7 @@ update msg (Model model) =
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        ViewportSatt result ->
+        ViewportSatt _ ->
             ( Model model, Cmd.none )
                 |> IkkeFerdig
 
@@ -1183,15 +1105,6 @@ visAaregResultat list info =
             |> oppdaterSamtalesteg info
 
 
-leggTilIArbeidserfaring : List Arbeidserfaring -> ModelInfo -> Samtale -> Model
-leggTilIArbeidserfaring arbeidserfaringFraAareg modelInfo samtaleSeksjon =
-    Model
-        { modelInfo
-            | aktivSamtale = samtaleSeksjon
-            , arbeidserfaringListe = modelInfo.arbeidserfaringListe ++ arbeidserfaringFraAareg
-        }
-
-
 oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
 oppdaterSamtalesteg modelInfo samtaleSeksjon =
     case samtaleSeksjon of
@@ -1210,15 +1123,6 @@ oppdaterSamtalesteg modelInfo samtaleSeksjon =
                 { modelInfo
                     | aktivSamtale = samtaleSeksjon
                     , arbeidserfaringListe = list
-                    , seksjonsMeldingsLogg =
-                        modelInfo.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-                }
-
-        FerdigMedÅSletteArbeidserfaring ->
-            Model
-                { modelInfo
-                    | aktivSamtale = samtaleSeksjon
                     , seksjonsMeldingsLogg =
                         modelInfo.seksjonsMeldingsLogg
                             |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
@@ -1300,7 +1204,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                 ]
             ]
 
-        IngenArbeidserfaringFraAareg liste ->
+        IngenArbeidserfaringFraAareg _ ->
             [ Melding.spørsmål
                 [ "Normalt ville jeg hentet informasjon om arbeidserfaringen dine fra Aa-reg."
                 , "Dessverre ser det ut til at du ikke har noen registrerte jobber der."
@@ -1313,38 +1217,38 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                 ]
             ]
 
-        VisArbeidserfaringFraAareg liste ->
+        VisArbeidserfaringFraAareg _ ->
             [ Melding.spørsmål [ "" ] ]
 
-        RegistrerYrke yrkeInfo ->
+        RegistrerYrke _ ->
             [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
             , Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
             , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
             ]
 
-        SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
+        SpørOmBrukerVilEndreJobbtittel _ ->
             [ Melding.spørsmål
                 [ "Stemte yrket du la inn, eller ønsker du å gi det et nytt navn?"
                 , "Navnet du skriver vil vises på CV-en din"
                 ]
             ]
 
-        EndreJobbtittel jobbtittelInfo ->
+        EndreJobbtittel _ ->
             []
 
-        RegistrereBedriftNavn beriftnavnsInfo ->
+        RegistrereBedriftNavn _ ->
             [ Melding.spørsmål [ "Hvilken bedrift jobber eller jobbet du i?" ] ]
 
-        RegistrereSted lokasjonInfo ->
+        RegistrereSted _ ->
             [ Melding.spørsmål [ "Hvor holder bedriften til?" ] ]
 
-        RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
+        RegistrereArbeidsoppgaver _ ->
             [ Melding.spørsmål [ "Fortell om hvilke arbeidsoppgaver du har hatt, hva du har lært og hva som var rollen din." ] ]
 
-        RegistrereFraMåned periodeInfo ->
+        RegistrereFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du i jobben?" ] ]
 
-        RegistrereFraÅr periodeInfo ->
+        RegistrereFraÅr _ ->
             [ Melding.spørsmål [ "Hvilket år begynte du i jobben?" ] ]
 
         RegistrereNaavarende periodeInfo ->
@@ -1359,10 +1263,10 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             in
             [ Melding.spørsmål [ "Jobber du fremdeles som «" ++ yrkestittel ++ "» i " ++ periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn ++ "?" ] ]
 
-        RegistrereTilMåned periodeInfo ->
+        RegistrereTilMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned sluttet du i jobben?" ] ]
 
-        RegistrereTilÅr periodeInfo ->
+        RegistrereTilÅr _ ->
             [ Melding.spørsmål [ "Hvilket år sluttet du i jobben?" ] ]
 
         VisOppsummering validertSkjema ->
@@ -1374,24 +1278,16 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                 )
             ]
 
-        RedigerOppsummering skjema ->
+        RedigerOppsummering _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
-        LagreArbeidserfaring validertSkjema ->
+        LagreArbeidserfaring _ ->
             [ Melding.spørsmål [ "Flott! Da har du lagt inn en arbeidserfaring." ]
             , Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ]
             ]
 
-        LagringFeilet error arbeidserfaringSkjema ->
+        LagringFeilet _ _ ->
             []
-
-        SletterArbeidserfaring arbeidserfaringSkjema ->
-            [ Melding.spørsmål [ "Sletter arbeidserfaring..." ] ]
-
-        FerdigMedÅSletteArbeidserfaring ->
-            [ Melding.spørsmål [ "Arbeidserfaring slettet!" ]
-            , Melding.spørsmål [ "Vil du legge til flere?" ]
-            ]
 
         SpørOmBrukerVilLeggeInnMer ->
             [ Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ] ]
@@ -1480,7 +1376,7 @@ hentTilDato skjema =
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model info) =
     case MeldingsLogg.ferdigAnimert info.seksjonsMeldingsLogg of
-        MeldingsLogg.FerdigAnimert ferdigAnimertMeldingsLogg ->
+        MeldingsLogg.FerdigAnimert _ ->
             case info.aktivSamtale of
                 Intro ->
                     if List.isEmpty info.arbeidserfaringListe then
@@ -1539,10 +1435,10 @@ viewBrukerInput (Model info) =
                     div []
                         []
 
-                IngenArbeidserfaringFraAareg liste ->
+                IngenArbeidserfaringFraAareg _ ->
                     div [] []
 
-                VisArbeidserfaringFraAareg liste ->
+                VisArbeidserfaringFraAareg _ ->
                     div [] []
 
                 RegistrerYrke typeaheadState ->
@@ -1620,41 +1516,29 @@ viewBrukerInput (Model info) =
                             ]
                         ]
 
-                RegistrereFraMåned fraDatoInfo ->
+                RegistrereFraMåned _ ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputkolonne" ]
                                 [ div [ class "knapperad-wrapper" ]
-                                    [ Dato.Januar
-                                        |> lagFraMånedKnapp fraDatoInfo
-                                    , Dato.Februar
-                                        |> lagFraMånedKnapp fraDatoInfo
-                                    , Dato.Mars
-                                        |> lagFraMånedKnapp fraDatoInfo
+                                    [ lagFraMånedKnapp Dato.Januar
+                                    , lagFraMånedKnapp Dato.Februar
+                                    , lagFraMånedKnapp Dato.Mars
                                     ]
                                 , div [ class "knapperad-wrapper" ]
-                                    [ Dato.April
-                                        |> lagFraMånedKnapp fraDatoInfo
-                                    , Dato.Mai
-                                        |> lagFraMånedKnapp fraDatoInfo
-                                    , Dato.Juni
-                                        |> lagFraMånedKnapp fraDatoInfo
+                                    [ lagFraMånedKnapp Dato.April
+                                    , lagFraMånedKnapp Dato.Mai
+                                    , lagFraMånedKnapp Dato.Juni
                                     ]
                                 , div [ class "knapperad-wrapper" ]
-                                    [ Dato.Juli
-                                        |> lagFraMånedKnapp fraDatoInfo
-                                    , Dato.August
-                                        |> lagFraMånedKnapp fraDatoInfo
-                                    , Dato.September
-                                        |> lagFraMånedKnapp fraDatoInfo
+                                    [ lagFraMånedKnapp Dato.Juli
+                                    , lagFraMånedKnapp Dato.August
+                                    , lagFraMånedKnapp Dato.September
                                     ]
                                 , div [ class "knapperad-wrapper" ]
-                                    [ Dato.Oktober
-                                        |> lagFraMånedKnapp fraDatoInfo
-                                    , Dato.November
-                                        |> lagFraMånedKnapp fraDatoInfo
-                                    , Dato.Desember
-                                        |> lagFraMånedKnapp fraDatoInfo
+                                    [ lagFraMånedKnapp Dato.Oktober
+                                    , lagFraMånedKnapp Dato.November
+                                    , lagFraMånedKnapp Dato.Desember
                                     ]
                                 ]
                             ]
@@ -1672,7 +1556,7 @@ viewBrukerInput (Model info) =
                             ]
                         ]
 
-                RegistrereNaavarende fraDatoInfo ->
+                RegistrereNaavarende _ ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputrad" ]
@@ -1686,41 +1570,29 @@ viewBrukerInput (Model info) =
                             ]
                         ]
 
-                RegistrereTilMåned tilDatoInfo ->
+                RegistrereTilMåned _ ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputkolonne" ]
                                 [ div [ class "knapperad-wrapper" ]
-                                    [ Dato.Januar
-                                        |> lagTilMånedKnapp tilDatoInfo
-                                    , Dato.Februar
-                                        |> lagTilMånedKnapp tilDatoInfo
-                                    , Dato.Mars
-                                        |> lagTilMånedKnapp tilDatoInfo
+                                    [ lagTilMånedKnapp Dato.Januar
+                                    , lagTilMånedKnapp Dato.Februar
+                                    , lagTilMånedKnapp Dato.Mars
                                     ]
                                 , div [ class "knapperad-wrapper" ]
-                                    [ Dato.April
-                                        |> lagTilMånedKnapp tilDatoInfo
-                                    , Dato.Mai
-                                        |> lagTilMånedKnapp tilDatoInfo
-                                    , Dato.Juni
-                                        |> lagTilMånedKnapp tilDatoInfo
+                                    [ lagTilMånedKnapp Dato.April
+                                    , lagTilMånedKnapp Dato.Mai
+                                    , lagTilMånedKnapp Dato.Juni
                                     ]
                                 , div [ class "knapperad-wrapper" ]
-                                    [ Dato.Juli
-                                        |> lagTilMånedKnapp tilDatoInfo
-                                    , Dato.August
-                                        |> lagTilMånedKnapp tilDatoInfo
-                                    , Dato.September
-                                        |> lagTilMånedKnapp tilDatoInfo
+                                    [ lagTilMånedKnapp Dato.Juli
+                                    , lagTilMånedKnapp Dato.August
+                                    , lagTilMånedKnapp Dato.September
                                     ]
                                 , div [ class "knapperad-wrapper" ]
-                                    [ Dato.Oktober
-                                        |> lagTilMånedKnapp tilDatoInfo
-                                    , Dato.November
-                                        |> lagTilMånedKnapp tilDatoInfo
-                                    , Dato.Desember
-                                        |> lagTilMånedKnapp tilDatoInfo
+                                    [ lagTilMånedKnapp Dato.Oktober
+                                    , lagTilMånedKnapp Dato.November
+                                    , lagTilMånedKnapp Dato.Desember
                                     ]
                                 ]
                             ]
@@ -1800,45 +1672,15 @@ viewBrukerInput (Model info) =
                                             |> Knapp.knapp BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
                                             |> Knapp.withEnabled Knapp.Disabled
                                             |> Knapp.toHtml
-                                , "Slett"
-                                    |> Knapp.knapp BrukerTrykkerPåSlettArbeidserfaring
-                                    |> Knapp.toHtml
                                 ]
                             ]
                         ]
 
-                LagreArbeidserfaring arbeidserfaringSkjema ->
+                LagreArbeidserfaring _ ->
                     div [] []
 
-                LagringFeilet error arbeidserfaringSkjema ->
+                LagringFeilet _ _ ->
                     div [] []
-
-                SletterArbeidserfaring arbeidserfaringSkjema ->
-                    div [] []
-
-                FerdigMedÅSletteArbeidserfaring ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "inputrad-innhold" ]
-                            [ div [ class "inputrad" ]
-                                [ Knapp.knapp
-                                    NyArbeidserfaring
-                                    "Ja, legg til en arbeidserfaring"
-                                    |> Knapp.toHtml
-                                ]
-                            , div [ class "inputrad" ]
-                                [ Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
-                                    |> Knapp.toHtml
-                                ]
-                            , if List.isEmpty info.arbeidserfaringListe then
-                                div [] []
-
-                              else
-                                div [ class "inputrad" ]
-                                    [ Knapp.knapp (BrukerVilRedigereArbeidserfaring "Rediger arbeidserfaring") "Rediger arbeidserfaring"
-                                        |> Knapp.toHtml
-                                    ]
-                            ]
-                        ]
 
                 SpørOmBrukerVilLeggeInnMer ->
                     div [ class "skjema-wrapper" ]
@@ -2032,30 +1874,20 @@ lagMessageKnapp knappeTekst msg =
         |> Knapp.toHtml
 
 
-lagFraMånedKnapp : FraDatoInfo -> Dato.Måned -> Html Msg
-lagFraMånedKnapp fraDatoInfo måned =
-    let
-        msg =
-            måned
-                |> BrukerTrykketFraMånedKnapp
-    in
+lagFraMånedKnapp : Dato.Måned -> Html Msg
+lagFraMånedKnapp måned =
     måned
         |> Dato.månedTilString
-        |> Knapp.knapp msg
+        |> Knapp.knapp (BrukerTrykketFraMånedKnapp måned)
         |> Knapp.withClass Knapp.MånedKnapp
         |> Knapp.toHtml
 
 
-lagTilMånedKnapp : TilDatoInfo -> Dato.Måned -> Html Msg
-lagTilMånedKnapp tilDatoInfo måned =
-    let
-        msg =
-            måned
-                |> BrukerTrykketTilMånedKnapp
-    in
+lagTilMånedKnapp : Dato.Måned -> Html Msg
+lagTilMånedKnapp måned =
     måned
         |> Dato.månedTilString
-        |> Knapp.knapp msg
+        |> Knapp.knapp (BrukerTrykketTilMånedKnapp måned)
         |> Knapp.withClass Knapp.MånedKnapp
         |> Knapp.toHtml
 
