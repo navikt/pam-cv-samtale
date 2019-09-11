@@ -3,11 +3,14 @@ module FrontendModuler.Textarea exposing
     , TextareaOptions
     , textarea
     , toHtml
-    , withFeilmelding
+    ,  withFeilmelding
+       --    , withMaxLength
+
+    , withMaybeFeilmelding
     , withTextAreaClass
     )
 
-import Html exposing (Html, div, label, text)
+import Html exposing (Html, div, label, p, text)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLive, role)
 import Html.Events exposing (onInput)
@@ -23,6 +26,7 @@ type alias Options msg =
     , innhold : String
     , textAreaClass : String
     , feilmelding : Maybe String
+    , maxLength : Maybe Int
     }
 
 
@@ -40,6 +44,7 @@ textarea { msg, label } innhold =
         , innhold = innhold
         , textAreaClass = ""
         , feilmelding = Nothing
+        , maxLength = Nothing
         }
 
 
@@ -51,6 +56,17 @@ withTextAreaClass textAreaClass (Textarea options) =
 withFeilmelding : String -> Textarea msg -> Textarea msg
 withFeilmelding feilmelding (Textarea options) =
     Textarea { options | feilmelding = Just feilmelding }
+
+
+withMaybeFeilmelding : Maybe String -> Textarea msg -> Textarea msg
+withMaybeFeilmelding maybeFeilmelding (Textarea options) =
+    Textarea { options | feilmelding = maybeFeilmelding }
+
+
+
+--withMaxLength : Int -> Textarea msg -> Textarea msg
+--withMaxLength maxLength (Textarea options) =
+--    Textarea { options | maxLength = Just maxLength }
 
 
 toHtml : Textarea msg -> Html msg
@@ -70,6 +86,28 @@ toHtml (Textarea options) =
                 , value options.innhold
                 ]
                 []
+            , case options.maxLength of
+                Just maxLength ->
+                    p [ class "textarea--medMeta__teller" ]
+                        [ if String.length options.innhold <= maxLength then
+                            let
+                                tallTekst =
+                                    (maxLength - String.length options.innhold)
+                                        |> String.fromInt
+                            in
+                            text ("Du har " ++ tallTekst ++ " tegn igjen")
+
+                          else
+                            let
+                                tallTekst =
+                                    (String.length options.innhold - maxLength)
+                                        |> String.fromInt
+                            in
+                            text ("Du har " ++ tallTekst ++ " tegn for mye")
+                        ]
+
+                Nothing ->
+                    text ""
             ]
         , case options.feilmelding of
             Just feilmelding ->

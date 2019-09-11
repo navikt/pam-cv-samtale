@@ -1,53 +1,185 @@
-module Skjema.Fagdokumentasjon exposing (FagdokumentasjonSkjema(..), FagdokumentasjonSkjemaInfo, beskrivelse, encode, fagdokumentasjonType, init, konseptid, tittel)
+module Skjema.Fagdokumentasjon exposing
+    ( FagdokumentasjonSkjema
+    , TypeaheadFelt(..)
+    , ValidertFagdokumentasjonSkjema
+    , beskrivelse
+    , beskrivelseFraValidertSkjema
+    , encode
+    , fagdokumentasjonType
+    , init
+    , initValidertSkjema
+    , konsept
+    , konseptFraValidertSkjema
+    , mapTypeaheadState
+    , oppdaterBeskrivelse
+    , oppdaterKonseptFelt
+    , tilSkjema
+    , validertSkjema
+    , velgAktivtKonseptITypeahead
+    , velgKonsept
+    )
 
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import Json.Encode
+import Konsept exposing (Konsept)
+import TypeaheadState exposing (TypeaheadState)
 
 
 type FagdokumentasjonSkjema
-    = FagdokumentasjonSkjema FagdokumentasjonSkjemaInfo
+    = UvalidertSkjema UvalidertSkjemaInfo
 
 
-type alias FagdokumentasjonSkjemaInfo =
+type alias UvalidertSkjemaInfo =
     { fagdokumentasjonType : FagdokumentasjonType
-    , tittel : String
-    , konseptId : String
+    , konsept : TypeaheadFelt
     , beskrivelse : String
     }
 
 
-fagdokumentasjonType : FagdokumentasjonSkjema -> FagdokumentasjonType
-fagdokumentasjonType (FagdokumentasjonSkjema info) =
-    info.fagdokumentasjonType
+type TypeaheadFelt
+    = KonseptIkkeValgt (TypeaheadState Konsept)
+    | KonseptValgt Konsept
 
 
-tittel : FagdokumentasjonSkjema -> String
-tittel (FagdokumentasjonSkjema info) =
-    info.tittel
+type ValidertFagdokumentasjonSkjema
+    = ValidertSkjema ValidertSkjemaInfo
 
 
-konseptid : FagdokumentasjonSkjema -> String
-konseptid (FagdokumentasjonSkjema info) =
-    info.konseptId
+type alias ValidertSkjemaInfo =
+    { fagdokumentasjonType : FagdokumentasjonType
+    , konsept : Konsept
+    , beskrivelse : String
+    }
 
 
 beskrivelse : FagdokumentasjonSkjema -> String
-beskrivelse (FagdokumentasjonSkjema info) =
+beskrivelse (UvalidertSkjema info) =
     info.beskrivelse
+
+
+beskrivelseFraValidertSkjema : ValidertFagdokumentasjonSkjema -> String
+beskrivelseFraValidertSkjema (ValidertSkjema info) =
+    info.beskrivelse
+
+
+konsept : FagdokumentasjonSkjema -> TypeaheadFelt
+konsept (UvalidertSkjema info) =
+    info.konsept
+
+
+konseptFraValidertSkjema : ValidertFagdokumentasjonSkjema -> String
+konseptFraValidertSkjema (ValidertSkjema info) =
+    Konsept.label info.konsept
+
+
+fagdokumentasjonType : FagdokumentasjonSkjema -> FagdokumentasjonType
+fagdokumentasjonType (UvalidertSkjema info) =
+    info.fagdokumentasjonType
+
+
+oppdaterBeskrivelse : String -> FagdokumentasjonSkjema -> FagdokumentasjonSkjema
+oppdaterBeskrivelse beskrivelse_ (UvalidertSkjema info) =
+    UvalidertSkjema { info | beskrivelse = beskrivelse_ }
+
+
+oppdaterKonseptFelt : FagdokumentasjonSkjema -> String -> FagdokumentasjonSkjema
+oppdaterKonseptFelt (UvalidertSkjema info) konseptTekst =
+    case info.konsept of
+        KonseptIkkeValgt typeaheadState ->
+            UvalidertSkjema
+                { info
+                    | konsept =
+                        typeaheadState
+                            |> TypeaheadState.updateValue konseptTekst
+                            |> KonseptIkkeValgt
+                }
+
+        KonseptValgt _ ->
+            UvalidertSkjema
+                { info
+                    | konsept =
+                        TypeaheadState.init konseptTekst
+                            |> KonseptIkkeValgt
+                }
+
+
+mapTypeaheadState : FagdokumentasjonSkjema -> (TypeaheadState Konsept -> TypeaheadState Konsept) -> FagdokumentasjonSkjema
+mapTypeaheadState (UvalidertSkjema info) funksjon =
+    case info.konsept of
+        KonseptValgt _ ->
+            UvalidertSkjema info
+
+        KonseptIkkeValgt typeaheadState ->
+            UvalidertSkjema
+                { info
+                    | konsept =
+                        typeaheadState
+                            |> funksjon
+                            |> KonseptIkkeValgt
+                }
+
+
+velgAktivtKonseptITypeahead : FagdokumentasjonSkjema -> FagdokumentasjonSkjema
+velgAktivtKonseptITypeahead (UvalidertSkjema info) =
+    case info.konsept of
+        KonseptValgt _ ->
+            UvalidertSkjema info
+
+        KonseptIkkeValgt typeaheadState ->
+            case TypeaheadState.getActive typeaheadState of
+                Just active ->
+                    UvalidertSkjema { info | konsept = KonseptValgt active }
+
+                Nothing ->
+                    UvalidertSkjema info
+
+
+velgKonsept : Konsept -> FagdokumentasjonSkjema -> FagdokumentasjonSkjema
+velgKonsept konsept_ (UvalidertSkjema info) =
+    UvalidertSkjema { info | konsept = KonseptValgt konsept_ }
+
+
+validertSkjema : FagdokumentasjonSkjema -> Maybe ValidertFagdokumentasjonSkjema
+validertSkjema (UvalidertSkjema info) =
+    case info.konsept of
+        KonseptIkkeValgt _ ->
+            Nothing
+
+        KonseptValgt konsept_ ->
+            Just
+                (ValidertSkjema
+                    { fagdokumentasjonType = info.fagdokumentasjonType
+                    , konsept = konsept_
+                    , beskrivelse = info.beskrivelse
+                    }
+                )
+
+
+tilSkjema : ValidertFagdokumentasjonSkjema -> FagdokumentasjonSkjema
+tilSkjema (ValidertSkjema info) =
+    UvalidertSkjema
+        { fagdokumentasjonType = info.fagdokumentasjonType
+        , konsept = KonseptValgt info.konsept
+        , beskrivelse = info.beskrivelse
+        }
 
 
 
 -- ENCODE --
 
 
-encode : FagdokumentasjonSkjema -> String -> FagdokumentasjonType -> Json.Encode.Value
-encode (FagdokumentasjonSkjema info) id fagtype =
+encode : ValidertFagdokumentasjonSkjema -> Json.Encode.Value
+encode (ValidertSkjema info) =
     Json.Encode.object
-        [ ( "id", Json.Encode.string id )
-        , ( "tittel", Json.Encode.string info.tittel )
-        , ( "konseptId", Json.Encode.string info.konseptId )
+        [ ( "tittel", Json.Encode.string (Konsept.label info.konsept) )
         , ( "beskrivelse", Json.Encode.string info.beskrivelse )
-        , ( "type", encodeFagdokumentasjonType fagtype )
+        , ( "type", encodeFagdokumentasjonType info.fagdokumentasjonType )
+        , ( "konseptId"
+          , info.konsept
+                |> Konsept.konseptId
+                |> String.fromInt
+                |> Json.Encode.string
+          )
         ]
 
 
@@ -68,11 +200,19 @@ encodeFagdokumentasjonType fagtype =
 --INIT --
 
 
-init : FagdokumentasjonType -> String -> Int -> String -> FagdokumentasjonSkjema
-init skjemaType skjemaTittel skjemaKonseptid skjemaBeskrivelse =
-    FagdokumentasjonSkjema
-        { tittel = skjemaTittel
-        , konseptId = String.fromInt skjemaKonseptid
-        , beskrivelse = skjemaBeskrivelse
+init : FagdokumentasjonType -> Konsept -> String -> FagdokumentasjonSkjema
+init skjemaType konsept_ beskrivelse_ =
+    UvalidertSkjema
+        { konsept = KonseptValgt konsept_
+        , beskrivelse = beskrivelse_
+        , fagdokumentasjonType = skjemaType
+        }
+
+
+initValidertSkjema : FagdokumentasjonType -> Konsept -> String -> ValidertFagdokumentasjonSkjema
+initValidertSkjema skjemaType konsept_ beskrivelse_ =
+    ValidertSkjema
+        { konsept = konsept_
+        , beskrivelse = beskrivelse_
         , fagdokumentasjonType = skjemaType
         }

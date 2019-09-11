@@ -213,12 +213,12 @@ putUtdanning msgConstructor skjema id =
         }
 
 
-postFagdokumentasjon : (Result Error (List Fagdokumentasjon) -> msg) -> Skjema.Fagdokumentasjon.FagdokumentasjonSkjema -> Cmd msg
+postFagdokumentasjon : (Result Error (List Fagdokumentasjon) -> msg) -> Skjema.Fagdokumentasjon.ValidertFagdokumentasjonSkjema -> Cmd msg
 postFagdokumentasjon msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/fagdokumentasjon"
         , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.decode)
-        , body = Skjema.Fagdokumentasjon.encode skjema "id" (Skjema.Fagdokumentasjon.fagdokumentasjonType skjema) |> jsonBody
+        , body = Skjema.Fagdokumentasjon.encode skjema |> jsonBody
         }
 
 
