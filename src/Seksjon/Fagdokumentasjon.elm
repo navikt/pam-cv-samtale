@@ -12,7 +12,7 @@ module Seksjon.Fagdokumentasjon exposing
 
 import Api
 import Browser.Dom as Dom
-import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
+import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Input as Input
@@ -47,12 +47,8 @@ type alias ModelInfo =
 type Samtale
     = Intro (List Fagdokumentasjon)
     | RegistrerType
-    | RegistrerFagbrev FagdokumentasjonType (TypeaheadState Konsept)
-    | RegistrerFagbrevBeskrivelse FagdokumentasjonType BeskrivelseInfo
-    | RegistrerMesterbrev (TypeaheadState Konsept)
-    | RegistrerMesterbrevBeskrivelse BeskrivelseInfo
-    | RegistrerAutorisasjon (TypeaheadState Konsept)
-    | RegistrerAutorisasjonBeskrivelse BeskrivelseInfo
+    | RegistrerKonsept FagdokumentasjonType (TypeaheadState Konsept)
+    | RegistrerBeskrivelse FagdokumentasjonType BeskrivelseInfo
     | Oppsummering ValidertFagdokumentasjonSkjema
     | OppsummeringEtterEndring ValidertFagdokumentasjonSkjema
     | EndrerOppsummering FagdokumentasjonSkjema
@@ -104,16 +100,12 @@ type Msg
     | BrukerVilRegistrereMesterbrev
     | BrukerVilRegistrereAutorisasjon
     | BrukerVilRegistrereFagbrevBeskrivelse
-    | BrukerVilRegistrereMesterbrevBeskrivelse
-    | BrukerVilRegistrereAutorisasjonBeskrivelse
     | OppdaterFagdokumentasjonBeskrivelse String
     | BrukerVilLagreIOppsummeringen
     | BrukerVilEndreOppsummeringen
     | BrukerLagrerSkjema ValidertFagdokumentasjonSkjema
     | BrukerVilLagrerUvalidertSkjema
     | FagbrevSendtTilApi (Result Http.Error (List Fagdokumentasjon))
-    | MesterbrevSendtTilApi (Result Http.Error (List Fagdokumentasjon))
-    | AutorisasjonSendtTilApi (Result Http.Error (List Fagdokumentasjon))
     | StartÅSkrive
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
@@ -172,7 +164,7 @@ update msg (Model model) =
         BrukerVilRegistrereFagbrev ->
             ( ""
                 |> TypeaheadState.init
-                |> RegistrerFagbrev SvennebrevFagbrev
+                |> RegistrerKonsept SvennebrevFagbrev
                 |> nesteSamtaleSteg model (Melding.svar [ "Registrer Fagbrev/Svennebrev" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -181,7 +173,7 @@ update msg (Model model) =
         BrukerVilRegistrereMesterbrev ->
             ( ""
                 |> TypeaheadState.init
-                |> RegistrerMesterbrev
+                |> RegistrerKonsept Mesterbrev
                 |> nesteSamtaleSteg model (Melding.svar [ "Registrer Mesterbrev/Svennebrev" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -190,7 +182,7 @@ update msg (Model model) =
         BrukerVilRegistrereAutorisasjon ->
             ( ""
                 |> TypeaheadState.init
-                |> RegistrerAutorisasjon
+                |> RegistrerKonsept Autorisasjon
                 |> nesteSamtaleSteg model (Melding.svar [ "Registrer en Autorisasjon" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -198,45 +190,15 @@ update msg (Model model) =
 
         BrukerOppdatererFagdokumentasjon query ->
             case model.aktivSamtale of
-                RegistrerFagbrev fagdokumentasjonType typeaheadState ->
+                RegistrerKonsept fagdokumentasjonType typeaheadState ->
                     ( Model
                         { model
                             | aktivSamtale =
                                 typeaheadState
                                     |> TypeaheadState.updateValue query
-                                    |> RegistrerFagbrev fagdokumentasjonType
+                                    |> RegistrerKonsept fagdokumentasjonType
                         }
                     , hentTypeaheadSuggestions query fagdokumentasjonType
-                    )
-                        |> IkkeFerdig
-
-                RegistrerMesterbrev typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue query
-                                    |> RegistrerMesterbrev
-                        }
-                    , Cmd.batch
-                        [ Api.getMesterbrevTypeahead HentetTypeahead query
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
-                    )
-                        |> IkkeFerdig
-
-                RegistrerAutorisasjon typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue query
-                                    |> RegistrerAutorisasjon
-                        }
-                    , Cmd.batch
-                        [ Api.getAutorisasjonTypeahead HentetTypeahead query
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
                     )
                         |> IkkeFerdig
 
@@ -259,12 +221,12 @@ update msg (Model model) =
 
         HentetTypeahead result ->
             case model.aktivSamtale of
-                RegistrerFagbrev fagdokumentasjonType typeaheadState ->
+                RegistrerKonsept fagdokumentasjonType typeaheadState ->
                     case result of
                         Ok suggestions ->
                             ( typeaheadState
                                 |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> RegistrerFagbrev fagdokumentasjonType
+                                |> RegistrerKonsept fagdokumentasjonType
                                 |> oppdaterSamtaleSteg model
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -272,36 +234,6 @@ update msg (Model model) =
 
                         Err error ->
                             ( Model model, logFeilmelding error "Hente FagbrevTypeahead" )
-                                |> IkkeFerdig
-
-                RegistrerMesterbrev typeaheadState ->
-                    case result of
-                        Ok suggestions ->
-                            ( typeaheadState
-                                |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> RegistrerMesterbrev
-                                |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( Model model, logFeilmelding error "Hente MesterbrevTypeahead" )
-                                |> IkkeFerdig
-
-                RegistrerAutorisasjon typeaheadState ->
-                    case result of
-                        Ok suggestions ->
-                            ( typeaheadState
-                                |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> RegistrerAutorisasjon
-                                |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( Model model, logFeilmelding error "Hente AutorisasjonTypeahead" )
                                 |> IkkeFerdig
 
                 EndrerOppsummering skjema ->
@@ -324,37 +256,13 @@ update msg (Model model) =
 
         BrukerHovrerOverTypeaheadSuggestion typeahead ->
             case model.aktivSamtale of
-                RegistrerFagbrev fagdokumentasjonType typeaheadState ->
+                RegistrerKonsept fagdokumentasjonType typeaheadState ->
                     ( Model
                         { model
                             | aktivSamtale =
                                 typeaheadState
                                     |> TypeaheadState.updateActive typeahead
-                                    |> RegistrerFagbrev fagdokumentasjonType
-                        }
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                RegistrerMesterbrev typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateActive typeahead
-                                    |> RegistrerMesterbrev
-                        }
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                RegistrerAutorisasjon typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateActive typeahead
-                                    |> RegistrerAutorisasjon
+                                    |> RegistrerKonsept fagdokumentasjonType
                         }
                     , Cmd.none
                     )
@@ -366,7 +274,7 @@ update msg (Model model) =
 
         BrukerTrykkerTypeaheadTast operation ->
             case model.aktivSamtale of
-                RegistrerFagbrev fagdokumentasjonType typeaheadState ->
+                RegistrerKonsept fagdokumentasjonType typeaheadState ->
                     case operation of
                         Typeahead.ArrowUp ->
                             ( Model
@@ -374,7 +282,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.arrowUp
-                                            |> RegistrerFagbrev fagdokumentasjonType
+                                            |> RegistrerKonsept fagdokumentasjonType
                                 }
                             , Cmd.none
                             )
@@ -386,7 +294,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.arrowDown
-                                            |> RegistrerFagbrev fagdokumentasjonType
+                                            |> RegistrerKonsept fagdokumentasjonType
                                 }
                             , Cmd.none
                             )
@@ -397,7 +305,7 @@ update msg (Model model) =
                                 Just active ->
                                     ( active
                                         |> forrigetilBeskrivelseInfo
-                                        |> RegistrerFagbrevBeskrivelse fagdokumentasjonType
+                                        |> RegistrerBeskrivelse fagdokumentasjonType
                                         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label active ])
                                     , lagtTilSpørsmålCmd model.debugStatus
                                     )
@@ -406,7 +314,7 @@ update msg (Model model) =
                                 Nothing ->
                                     ( Model
                                         { model
-                                            | aktivSamtale = RegistrerFagbrev fagdokumentasjonType typeaheadState
+                                            | aktivSamtale = RegistrerKonsept fagdokumentasjonType typeaheadState
                                         }
                                     , Cmd.none
                                     )
@@ -418,123 +326,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.removeActive
-                                            |> RegistrerFagbrev fagdokumentasjonType
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                RegistrerMesterbrev typeaheadState ->
-                    case operation of
-                        Typeahead.ArrowUp ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowUp
-                                            |> RegistrerMesterbrev
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.ArrowDown ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowDown
-                                            |> RegistrerMesterbrev
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.Enter ->
-                            case TypeaheadState.getActive typeaheadState of
-                                Just active ->
-                                    ( active
-                                        |> forrigetilBeskrivelseInfo
-                                        |> RegistrerMesterbrevBeskrivelse
-                                        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label active ])
-                                    , lagtTilSpørsmålCmd model.debugStatus
-                                    )
-                                        |> IkkeFerdig
-
-                                Nothing ->
-                                    ( Model
-                                        { model
-                                            | aktivSamtale = RegistrerMesterbrev typeaheadState
-                                        }
-                                    , Cmd.none
-                                    )
-                                        |> IkkeFerdig
-
-                        Typeahead.MouseLeaveSuggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.removeActive
-                                            |> RegistrerMesterbrev
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                RegistrerAutorisasjon typeaheadState ->
-                    case operation of
-                        Typeahead.ArrowUp ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowUp
-                                            |> RegistrerAutorisasjon
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.ArrowDown ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowDown
-                                            |> RegistrerAutorisasjon
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.Enter ->
-                            case TypeaheadState.getActive typeaheadState of
-                                Just active ->
-                                    ( active
-                                        |> forrigetilBeskrivelseInfo
-                                        |> RegistrerAutorisasjonBeskrivelse
-                                        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label active ])
-                                    , lagtTilSpørsmålCmd model.debugStatus
-                                    )
-                                        |> IkkeFerdig
-
-                                Nothing ->
-                                    ( Model
-                                        { model
-                                            | aktivSamtale = RegistrerAutorisasjon typeaheadState
-                                        }
-                                    , Cmd.none
-                                    )
-                                        |> IkkeFerdig
-
-                        Typeahead.MouseLeaveSuggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.removeActive
-                                            |> RegistrerAutorisasjon
+                                            |> RegistrerKonsept fagdokumentasjonType
                                 }
                             , Cmd.none
                             )
@@ -568,7 +360,7 @@ update msg (Model model) =
 
                         Typeahead.Enter ->
                             case Skjema.konsept skjema of
-                                KonseptIkkeValgt typeaheadState ->
+                                KonseptIkkeValgt _ ->
                                     ( Model
                                         { model
                                             | aktivSamtale =
@@ -601,28 +393,10 @@ update msg (Model model) =
 
         BrukerVelgerKonseptFraTypeahead konsept ->
             case model.aktivSamtale of
-                RegistrerFagbrev fagdokumentasjonType _ ->
+                RegistrerKonsept fagdokumentasjonType _ ->
                     ( konsept
                         |> forrigetilBeskrivelseInfo
-                        |> RegistrerFagbrevBeskrivelse fagdokumentasjonType
-                        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                RegistrerMesterbrev _ ->
-                    ( konsept
-                        |> forrigetilBeskrivelseInfo
-                        |> RegistrerMesterbrevBeskrivelse
-                        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                RegistrerAutorisasjon _ ->
-                    ( konsept
-                        |> forrigetilBeskrivelseInfo
-                        |> RegistrerAutorisasjonBeskrivelse
+                        |> RegistrerBeskrivelse fagdokumentasjonType
                         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -646,7 +420,7 @@ update msg (Model model) =
 
         BrukerVilRegistrereFagbrevBeskrivelse ->
             case model.aktivSamtale of
-                RegistrerFagbrevBeskrivelse fagdokumentasjonType info ->
+                RegistrerBeskrivelse fagdokumentasjonType info ->
                     ( Skjema.initValidertSkjema fagdokumentasjonType info.konsept info.beskrivelse
                         |> Oppsummering
                         |> nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ])
@@ -727,58 +501,10 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        BrukerVilRegistrereAutorisasjonBeskrivelse ->
-            case model.aktivSamtale of
-                RegistrerAutorisasjonBeskrivelse info ->
-                    let
-                        skjema =
-                            Skjema.initValidertSkjema Fagdokumentasjon.Autorisasjon info.konsept info.beskrivelse
-                    in
-                    IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) FagdokumentasjonLagret
-                        , Cmd.batch
-                            [ Api.postFagdokumentasjon AutorisasjonSendtTilApi skjema
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            ]
-                        )
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        BrukerVilRegistrereMesterbrevBeskrivelse ->
-            case model.aktivSamtale of
-                RegistrerMesterbrevBeskrivelse info ->
-                    let
-                        skjema =
-                            Skjema.initValidertSkjema Fagdokumentasjon.Mesterbrev info.konsept info.beskrivelse
-                    in
-                    IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ]) FagdokumentasjonLagret
-                        , Cmd.batch
-                            [ Api.postFagdokumentasjon MesterbrevSendtTilApi skjema
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            ]
-                        )
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
         OppdaterFagdokumentasjonBeskrivelse beskrivelse ->
             case model.aktivSamtale of
-                RegistrerFagbrevBeskrivelse fagdokumentasjonType info ->
-                    ( oppdaterSamtaleSteg model (RegistrerFagbrevBeskrivelse fagdokumentasjonType { info | beskrivelse = beskrivelse })
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                RegistrerMesterbrevBeskrivelse info ->
-                    ( oppdaterSamtaleSteg model (RegistrerMesterbrevBeskrivelse { info | beskrivelse = beskrivelse })
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                RegistrerAutorisasjonBeskrivelse info ->
-                    ( oppdaterSamtaleSteg model (RegistrerAutorisasjonBeskrivelse { info | beskrivelse = beskrivelse })
+                RegistrerBeskrivelse fagdokumentasjonType info ->
+                    ( oppdaterSamtaleSteg model (RegistrerBeskrivelse fagdokumentasjonType { info | beskrivelse = beskrivelse })
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -816,53 +542,7 @@ update msg (Model model) =
                     ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
                     , Cmd.batch
                         [ lagtTilSpørsmålCmd model.debugStatus
-                        , logFeilmelding error "Lagre fagbrev"
-                        ]
-                    )
-                        |> IkkeFerdig
-
-        MesterbrevSendtTilApi result ->
-            case result of
-                Ok fagdokumentasjoner ->
-                    ( Model
-                        { model
-                            | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
-                            , seksjonsMeldingsLogg =
-                                model.seksjonsMeldingsLogg
-                                    |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ]
-                        }
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                Err error ->
-                    ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
-                    , Cmd.batch
-                        [ lagtTilSpørsmålCmd model.debugStatus
-                        , logFeilmelding error "Lagre mesterbrev"
-                        ]
-                    )
-                        |> IkkeFerdig
-
-        AutorisasjonSendtTilApi result ->
-            case result of
-                Ok fagdokumentasjoner ->
-                    ( Model
-                        { model
-                            | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
-                            , seksjonsMeldingsLogg =
-                                model.seksjonsMeldingsLogg
-                                    |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ]
-                        }
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                Err error ->
-                    ( nesteSamtaleSteg model (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre det! La oss prøve på nytt" ]) RegistrerType
-                    , Cmd.batch
-                        [ lagtTilSpørsmålCmd model.debugStatus
-                        , logFeilmelding error "Lagre autorisasjon"
+                        , logFeilmelding error "Lagre fagbrev" --TODO: Trekk ut i funksjon
                         ]
                     )
                         |> IkkeFerdig
@@ -995,7 +675,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                 [ "Hvilken av de følgende typene vil du legge til? Du vil få muligheten til å legge til flere etterhvert." ]
             ]
 
-        RegistrerFagbrev fagdokumentasjonType _ ->
+        RegistrerKonsept fagdokumentasjonType _ ->
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
                     [ Melding.spørsmål [ "Hva er navnet på fagbrevet/svennebrevet ditt?" ]
@@ -1012,23 +692,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                     , Melding.spørsmål [ "Begynn å skrive inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
                     ]
 
-        RegistrerMesterbrev _ ->
-            [ Melding.spørsmål [ "Hva er navnet på mesterbrevet ditt?" ]
-            , Melding.spørsmål [ "Begynn å skrive inn mesterbrevet ditt. Velg fra listen med forslag som kommer opp." ]
-            ]
-
-        RegistrerAutorisasjon _ ->
-            [ Melding.spørsmål [ "Hva er navnet på autorisasjonen din?" ]
-            , Melding.spørsmål [ "Begynn å skrive inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
-            ]
-
-        RegistrerFagbrevBeskrivelse fagdokumentasjonType _ ->
-            [ Melding.spørsmål [ "Hva lærte du?" ] ]
-
-        RegistrerMesterbrevBeskrivelse _ ->
-            [ Melding.spørsmål [ "Hva lærte du?" ] ]
-
-        RegistrerAutorisasjonBeskrivelse _ ->
+        RegistrerBeskrivelse _ _ ->
             [ Melding.spørsmål [ "Hva lærte du?" ] ]
 
         Oppsummering skjema ->
@@ -1105,29 +769,14 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
-                -- TODO fiks typeahead for alle
-                RegistrerFagbrev fagdokumentasjonType typeaheadState ->
+                RegistrerKonsept fagdokumentasjonType typeaheadState ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ viewTypeahead fagdokumentasjonType typeaheadState
+                            [ viewTypeahead typeaheadState fagdokumentasjonType
                             ]
                         ]
 
-                RegistrerMesterbrev typeaheadState ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ viewTypeaheadRegistrerMesterbrev typeaheadState
-                            ]
-                        ]
-
-                RegistrerAutorisasjon typeaheadState ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ viewTypeaheadRegistrerAutorisasjon typeaheadState
-                            ]
-                        ]
-
-                RegistrerFagbrevBeskrivelse fagdokumentasjonType beskrivelseinfo ->
+                RegistrerBeskrivelse _ beskrivelseinfo ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ beskrivelseinfo.beskrivelse
@@ -1139,25 +788,7 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
-                RegistrerMesterbrevBeskrivelse beskrivelseinfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Textarea.toHtml
-                            , Knapp.knapp BrukerVilRegistrereMesterbrevBeskrivelse "Gå videre"
-                                |> Knapp.toHtml
-                            ]
-                        ]
-
-                RegistrerAutorisasjonBeskrivelse beskrivelseinfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ beskrivelseinfo.beskrivelse |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "" } |> Textarea.toHtml
-                            , Knapp.knapp BrukerVilRegistrereAutorisasjonBeskrivelse "Gå videre"
-                                |> Knapp.toHtml
-                            ]
-                        ]
-
-                LeggTilFlereFagdokumentasjoner string ->
+                LeggTilFlereFagdokumentasjoner _ ->
                     div [ class "inputkolonne" ]
                         [ div [ class "inputkolonne-innhold" ]
                             [ Knapp.knapp BrukerVilRegistrereFagdokumentasjon "Legg til flere"
@@ -1199,11 +830,19 @@ viewBrukerInput (Model model) =
                                 KonseptValgt konsept ->
                                     konsept
                                         |> Konsept.label
-                                        |> Input.input { label = "Fagbrev/svennebrev", msg = BrukerOppdatererFagdokumentasjon }
+                                        |> Input.input
+                                            { msg = BrukerOppdatererFagdokumentasjon
+                                            , label =
+                                                skjema
+                                                    |> Skjema.fagdokumentasjonType
+                                                    |> typeaheadLabel
+                                            }
                                         |> Input.toHtml
 
                                 KonseptIkkeValgt typeaheadState ->
-                                    viewTypeaheadRegistrerFagbrev typeaheadState
+                                    skjema
+                                        |> Skjema.fagdokumentasjonType
+                                        |> viewTypeahead typeaheadState
                             , skjema
                                 |> Skjema.beskrivelse
                                 |> Textarea.textarea { label = "Beskrivelse", msg = OppdaterFagdokumentasjonBeskrivelse }
@@ -1254,8 +893,8 @@ feilmeldingBeskrivelsesfelt innhold =
         Just ("Du har " ++ tallTekst ++ " tegn for mye")
 
 
-viewTypeahead : FagdokumentasjonType -> TypeaheadState Konsept -> Html Msg
-viewTypeahead fagdokumentasjonType typeaheadState =
+viewTypeahead : TypeaheadState Konsept -> FagdokumentasjonType -> Html Msg
+viewTypeahead typeaheadState fagdokumentasjonType =
     typeaheadState
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = typeaheadLabel fagdokumentasjonType, onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
@@ -1274,33 +913,6 @@ typeaheadLabel fagdokumentasjonType =
 
         Autorisasjon ->
             "Autorisasjon"
-
-
-viewTypeaheadRegistrerFagbrev : TypeaheadState Konsept -> Html Msg
-viewTypeaheadRegistrerFagbrev typeaheadState =
-    typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Fagbrev/svennebrev", onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
-        |> Typeahead.toHtml
-
-
-viewTypeaheadRegistrerMesterbrev : TypeaheadState Konsept -> Html Msg
-viewTypeaheadRegistrerMesterbrev typeaheadState =
-    typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Mesterbrev", onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
-        |> Typeahead.toHtml
-
-
-viewTypeaheadRegistrerAutorisasjon : TypeaheadState Konsept -> Html Msg
-viewTypeaheadRegistrerAutorisasjon typeaheadState =
-    typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Autorisasjon", onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
-        |> Typeahead.toHtml
 
 
 typeaheadStateSuggestionsTilViewSuggestion : TypeaheadState Konsept -> List (Typeahead.Suggestion Msg)
@@ -1326,13 +938,13 @@ typeaheadStateSuggestionsTilViewSuggestion typeaheadState =
 -- INIT --
 
 
-initFagbrev : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-initFagbrev debugStatus gammelMeldingsLogg fagdokumentasjonListe =
+init : FagdokumentasjonType -> DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+init fagdokumentasjonType debugStatus gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
             ""
                 |> TypeaheadState.init
-                |> RegistrerFagbrev SvennebrevFagbrev
+                |> RegistrerKonsept fagdokumentasjonType
     in
     ( Model
         { seksjonsMeldingsLogg =
@@ -1343,41 +955,18 @@ initFagbrev debugStatus gammelMeldingsLogg fagdokumentasjonListe =
         }
     , lagtTilSpørsmålCmd debugStatus
     )
+
+
+initFagbrev : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initFagbrev =
+    init SvennebrevFagbrev
 
 
 initMesterbrev : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-initMesterbrev debugStatus gammelMeldingsLogg fagdokumentasjonListe =
-    let
-        aktivSamtale =
-            ""
-                |> TypeaheadState.init
-                |> RegistrerFagbrev Mesterbrev
-    in
-    ( Model
-        { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
-        , aktivSamtale = aktivSamtale
-        , fagdokumentasjonListe = fagdokumentasjonListe
-        , debugStatus = debugStatus
-        }
-    , lagtTilSpørsmålCmd debugStatus
-    )
+initMesterbrev =
+    init Mesterbrev
 
 
 initAutorisasjon : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-initAutorisasjon debugStatus gammelMeldingsLogg fagdokumentasjonListe =
-    let
-        aktivSamtale =
-            ""
-                |> TypeaheadState.init
-                |> RegistrerFagbrev Autorisasjon
-    in
-    ( Model
-        { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
-        , aktivSamtale = aktivSamtale
-        , fagdokumentasjonListe = fagdokumentasjonListe
-        , debugStatus = debugStatus
-        }
-    , lagtTilSpørsmålCmd debugStatus
-    )
+initAutorisasjon =
+    init Autorisasjon
