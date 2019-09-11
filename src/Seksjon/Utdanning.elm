@@ -1379,8 +1379,8 @@ endreSkjema model utdanningsskjema =
                 |> Input.toHtml
             , utdanningsskjema
                 |> Skjema.beskrivelse
-                |> Input.input { label = "Beskriv utdanningen", msg = BeskrivelseEndret >> SkjemaOppdatert }
-                |> Input.toHtml
+                |> Textarea.textarea { label = "Beskriv utdanningen", msg = BeskrivelseEndret >> SkjemaOppdatert }
+                |> Textarea.toHtml
             , Select.select "Måned utdanningen startet"
                 (FraMånedEndret >> SkjemaOppdatert)
                 [ ( "Januar", "Januar" )
