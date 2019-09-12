@@ -146,13 +146,17 @@ validertSkjema (UvalidertSkjema info) =
             Nothing
 
         KonseptValgt konsept_ ->
-            Just
-                (ValidertSkjema
-                    { fagdokumentasjonType = info.fagdokumentasjonType
-                    , konsept = konsept_
-                    , beskrivelse = info.beskrivelse
-                    }
-                )
+            if String.length info.beskrivelse > 200 then
+                Nothing
+
+            else
+                Just
+                    (ValidertSkjema
+                        { fagdokumentasjonType = info.fagdokumentasjonType
+                        , konsept = konsept_
+                        , beskrivelse = info.beskrivelse
+                        }
+                    )
 
 
 tilSkjema : ValidertFagdokumentasjonSkjema -> FagdokumentasjonSkjema

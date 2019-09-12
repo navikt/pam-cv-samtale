@@ -421,12 +421,17 @@ update msg (Model model) =
         BrukerVilRegistrereFagbrevBeskrivelse ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse fagdokumentasjonType info ->
-                    ( Skjema.initValidertSkjema fagdokumentasjonType info.konsept info.beskrivelse
-                        |> Oppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    case feilmeldingBeskrivelsesfelt info.beskrivelse of
+                        Nothing ->
+                            ( Skjema.initValidertSkjema fagdokumentasjonType info.konsept info.beskrivelse
+                                |> Oppsummering
+                                |> nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Just _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -784,6 +789,13 @@ viewBrukerInput (Model model) =
                                 |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
                                 |> Textarea.toHtml
                             , Knapp.knapp BrukerVilRegistrereFagbrevBeskrivelse "Gå videre"
+                                |> Knapp.withEnabled
+                                    (if feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse /= Nothing then
+                                        Disabled
+
+                                     else
+                                        Enabled
+                                    )
                                 |> Knapp.toHtml
                             ]
                         ]
@@ -846,6 +858,7 @@ viewBrukerInput (Model model) =
                             , skjema
                                 |> Skjema.beskrivelse
                                 |> Textarea.textarea { label = "Beskrivelse", msg = OppdaterFagdokumentasjonBeskrivelse }
+                                |> Textarea.withMaybeFeilmelding (Skjema.beskrivelse skjema |> feilmeldingBeskrivelsesfelt)
                                 |> Textarea.toHtml
                             , case Skjema.validertSkjema skjema of
                                 Just validertSkjema ->
