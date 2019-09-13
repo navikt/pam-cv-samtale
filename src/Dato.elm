@@ -1,4 +1,18 @@
-module Dato exposing (Dato, Måned(..), fraStringTilDato, måned, månedTilString, setMåned, setÅr, stringTilMåned, tilString, tilStringForBackend, validerÅr, år)
+module Dato exposing
+    ( Dato
+    , Måned(..)
+    , feilmeldingÅr
+    , fraStringTilDato
+    , måned
+    , månedTilString
+    , setMåned
+    , setÅr
+    , stringTilMåned
+    , tilString
+    , tilStringForBackend
+    , validerÅr
+    , år
+    )
 
 
 type Dato
@@ -255,6 +269,20 @@ validerÅr string =
 
                 Nothing ->
                     False
+
+
+feilmeldingÅr : String -> Maybe String
+feilmeldingÅr år_ =
+    if String.isEmpty år_ then
+        Nothing
+
+    else
+        case String.toInt år_ of
+            Just _ ->
+                Nothing
+
+            Nothing ->
+                Just "Vennligst skriv inn et gyldig år"
 
 
 validerAarMaanedDag : String -> Bool

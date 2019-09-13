@@ -17,7 +17,7 @@ import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
 import FrontendModuler.InputInt as InputInt
-import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
 import FrontendModuler.Select as Select
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
@@ -229,6 +229,7 @@ type Msg
     | UtdanningSendtTilApi (Result Http.Error (List Utdanning))
     | AvbrytLagringOgTaMegTilIntro
     | ViewportSatt (Result Dom.Error ())
+    | FokusSatt (Result Dom.Error ())
     | ErrorLogget
     | StartÅSkrive
     | FullførMelding
@@ -550,7 +551,7 @@ update msg (Model model) =
                             ]
                         )
 
-                LeggTilFlereUtdannelser ferdigskjema ->
+                LeggTilFlereUtdannelser _ ->
                     ( VenterPåAnimasjonFørFullføring model.utdanningListe
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg er ferdig." ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -644,17 +645,45 @@ update msg (Model model) =
         BekreftAlleredeRegistrert ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        OppsummeringEndret felt string ->
+        OppsummeringEndret _ _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        OppsummeringBoolEndret felt ->
+        OppsummeringBoolEndret _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        ViewportSatt result ->
+        ViewportSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
+
+        FokusSatt _ ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+
+settFokus : Samtale -> Cmd Msg
+settFokus samtale =
+    case samtale of
+        RegistrerSkole _ ->
+            settFokusCmd RegistrerSkoleInput
+
+        RegistrerRetning _ ->
+            settFokusCmd RegistrerRetningInput
+
+        RegistrerBeskrivelse _ ->
+            settFokusCmd RegistrerBeskrivelseInput
+
+        RegistrereFraÅr _ ->
+            settFokusCmd RegistrereFraÅrInput
+
+        RegistrereTilÅr _ ->
+            settFokusCmd RegistrereTilÅrInput
+
+        EndrerOppsummering _ ->
+            settFokusCmd EndrerOppsummeringInput
+
+        _ ->
+            Cmd.none
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -671,7 +700,10 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                             | seksjonsMeldingsLogg =
                                 nyMeldingsLogg
                         }
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    , Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , settFokus model.aktivSamtale
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -686,17 +718,6 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                 |> IkkeFerdig
 
 
-fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> List Utdanning -> SamtaleStatus
-fullførSeksjonHvisMeldingsloggErFerdig modelInfo utdanningListe =
-    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
-        FerdigAnimert ferdigAnimertMeldingsLogg ->
-            Ferdig utdanningListe ferdigAnimertMeldingsLogg
-
-        MeldingerGjenstår ->
-            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring utdanningListe }, Cmd.none )
-                |> IkkeFerdig
-
-
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
@@ -708,11 +729,12 @@ lagtTilSpørsmålCmd debugStatus =
         ]
 
 
-logFeilmelding : Http.Error -> String -> Cmd Msg
-logFeilmelding error operasjon =
-    Feilmelding.feilmelding operasjon error
-        |> Maybe.map (Api.logError (always ErrorLogget))
-        |> Maybe.withDefault Cmd.none
+settFokusCmd : InputId -> Cmd Msg
+settFokusCmd inputId =
+    inputId
+        |> inputIdTilString
+        |> Dom.focus
+        |> Task.attempt FokusSatt
 
 
 oppdaterSkjema : SkjemaEndring -> Skjema.UtdanningSkjema -> Skjema.UtdanningSkjema
@@ -1011,10 +1033,10 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 ]
             ]
 
-        OppsummeringLagret utdanningSkjema ->
+        OppsummeringLagret _ ->
             []
 
-        AvsluttSeksjon utdanningSkjema ->
+        AvsluttSeksjon _ ->
             []
 
 
@@ -1150,6 +1172,8 @@ viewBrukerInput (Model model) =
                         [ div [ class "skjema" ]
                             [ skoleinfo.skole
                                 |> Input.input { msg = OppdaterSkole, label = "Skole/studiested" }
+                                |> Input.withOnEnter BrukerVilRegistrereSkole
+                                |> Input.withId (inputIdTilString RegistrerSkoleInput)
                                 |> Input.toHtml
                             , Knapp.knapp BrukerVilRegistrereSkole "Gå videre"
                                 |> (if skoleinfo.skole /= "" then
@@ -1167,6 +1191,8 @@ viewBrukerInput (Model model) =
                         [ div [ class "skjema" ]
                             [ retningsinfo.retning
                                 |> Input.input { msg = OppdaterRetning, label = "Grad og utdanningsretning" }
+                                |> Input.withId (inputIdTilString RegistrerRetningInput)
+                                |> Input.withOnEnter BrukerVilRegistrereRetning
                                 |> Input.toHtml
                             , Knapp.knapp BrukerVilRegistrereRetning "Gå videre"
                                 |> (if retningsinfo.retning /= "" then
@@ -1184,6 +1210,7 @@ viewBrukerInput (Model model) =
                         [ div [ class "skjema" ]
                             [ beskrivelseinfo.beskrivelse
                                 |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
+                                |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
                                 |> Textarea.toHtml
                             , Knapp.knapp BrukerVilRegistrereBeskrivelse "Gå videre"
                                 |> (if beskrivelseinfo.beskrivelse /= "" then
@@ -1240,9 +1267,21 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema-int" ]
                             [ fraDatoInfo.fraÅr
-                                |> lagÅrInputField (OppdaterFraÅr "")
-                            , BrukerVilRegistrereNaavarende
-                                |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
+                                |> Input.input { label = "År", msg = OppdaterFraÅr }
+                                |> Input.withMaybeFeilmelding (Dato.feilmeldingÅr fraDatoInfo.fraÅr)
+                                |> Input.withId (inputIdTilString RegistrereFraÅrInput)
+                                |> Input.withOnEnter BrukerVilRegistrereNaavarende
+                                |> Input.toHtml
+                            , Knapp.knapp BrukerVilRegistrereNaavarende "Gå videre"
+                                |> Knapp.withEnabled
+                                    (case Dato.feilmeldingÅr fraDatoInfo.fraÅr of
+                                        Just _ ->
+                                            Disabled
+
+                                        Nothing ->
+                                            Enabled
+                                    )
+                                |> Knapp.toHtml
                             ]
                         ]
 
@@ -1303,9 +1342,21 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema-int" ]
                             [ tilDatoInfo.tilÅr
-                                |> lagÅrInputField (OppdaterTilÅr "")
-                            , BrukerVilGåTilOppsummering
-                                |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
+                                |> Input.input { label = "År", msg = OppdaterTilÅr }
+                                |> Input.withMaybeFeilmelding (Dato.feilmeldingÅr tilDatoInfo.tilÅr)
+                                |> Input.withId (inputIdTilString RegistrereTilÅrInput)
+                                |> Input.withOnEnter BrukerVilGåTilOppsummering
+                                |> Input.toHtml
+                            , Knapp.knapp BrukerVilGåTilOppsummering "Gå videre"
+                                |> Knapp.withEnabled
+                                    (case Dato.feilmeldingÅr tilDatoInfo.tilÅr of
+                                        Just _ ->
+                                            Disabled
+
+                                        Nothing ->
+                                            Enabled
+                                    )
+                                |> Knapp.toHtml
                             ]
                         ]
 
@@ -1349,17 +1400,48 @@ viewBrukerInput (Model model) =
                 LeggTilUtdanningFeiletIApi _ utdanningSkjema ->
                     endreSkjema model utdanningSkjema
 
-                OppsummeringLagret utdanningSkjema ->
+                OppsummeringLagret _ ->
                     div [] []
 
-                VenterPåAnimasjonFørFullføring list ->
+                VenterPåAnimasjonFørFullføring _ ->
                     div [] []
 
-                AvsluttSeksjon utdanningSkjema ->
+                AvsluttSeksjon _ ->
                     div [] []
 
         MeldingerGjenstår ->
             text ""
+
+
+type InputId
+    = RegistrerSkoleInput
+    | RegistrerRetningInput
+    | RegistrerBeskrivelseInput
+    | RegistrereFraÅrInput
+    | RegistrereTilÅrInput
+    | EndrerOppsummeringInput
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        RegistrerSkoleInput ->
+            "utdanning-registrer-skole"
+
+        RegistrerRetningInput ->
+            "utdanning-registrer-grad"
+
+        RegistrerBeskrivelseInput ->
+            "utdanning-registrer-beskrivelse"
+
+        RegistrereFraÅrInput ->
+            "utdanning-registrere-fra-år"
+
+        RegistrereTilÅrInput ->
+            "utdanning-registrere-til-år"
+
+        EndrerOppsummeringInput ->
+            "utdanning-endrer-oppsummering"
 
 
 endreSkjema : ModelInfo -> Skjema.UtdanningSkjema -> Html Msg
@@ -1485,22 +1567,10 @@ endreSkjema model utdanningsskjema =
         ]
 
 
-lagÅrInputKnapp : String -> String -> Msg -> Html Msg
-lagÅrInputKnapp knappeTekst inputTekst msg =
-    Knapp.knapp msg knappeTekst
-        |> (if inputTekst /= "" && Dato.validerÅr inputTekst then
-                Knapp.withEnabled Knapp.Enabled
-
-            else
-                Knapp.withEnabled Knapp.Disabled
-           )
-        |> Knapp.toHtml
-
-
 lagÅrInputField : Msg -> String -> Html Msg
 lagÅrInputField msg inputTekst =
     case msg of
-        OppdaterFraÅr string ->
+        OppdaterFraÅr _ ->
             let
                 inputfield =
                     inputTekst
@@ -1515,7 +1585,7 @@ lagÅrInputField msg inputTekst =
                 inputfield
                     |> Input.toHtml
 
-        OppdaterTilÅr string ->
+        OppdaterTilÅr _ ->
             let
                 inputfield =
                     inputTekst

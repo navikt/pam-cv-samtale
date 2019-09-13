@@ -6,6 +6,7 @@ module FrontendModuler.Textarea exposing
     ,  withFeilmelding
        --    , withMaxLength
 
+    , withId
     , withMaybeFeilmelding
     , withTextAreaClass
     )
@@ -27,6 +28,7 @@ type alias Options msg =
     , textAreaClass : String
     , feilmelding : Maybe String
     , maxLength : Maybe Int
+    , id : Maybe String
     }
 
 
@@ -45,6 +47,7 @@ textarea { msg, label } innhold =
         , textAreaClass = ""
         , feilmelding = Nothing
         , maxLength = Nothing
+        , id = Nothing
         }
 
 
@@ -61,6 +64,11 @@ withFeilmelding feilmelding (Textarea options) =
 withMaybeFeilmelding : Maybe String -> Textarea msg -> Textarea msg
 withMaybeFeilmelding maybeFeilmelding (Textarea options) =
     Textarea { options | feilmelding = maybeFeilmelding }
+
+
+withId : String -> Textarea msg -> Textarea msg
+withId id (Textarea options) =
+    Textarea { options | id = Just id }
 
 
 
@@ -84,6 +92,9 @@ toHtml (Textarea options) =
                     , ( "overflow-auto-textbox", True ) -- Klassen er for at man skal kunne legge til overflow auto, som ikke er med i designsystemet
                     ]
                 , value options.innhold
+                , options.id
+                    |> Maybe.map id
+                    |> Maybe.withDefault noAttribute
                 ]
                 []
             , case options.maxLength of
@@ -119,3 +130,8 @@ toHtml (Textarea options) =
             Nothing ->
                 text ""
         ]
+
+
+noAttribute : Html.Attribute msg
+noAttribute =
+    classList []
