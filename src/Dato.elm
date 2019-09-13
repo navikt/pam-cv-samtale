@@ -279,7 +279,11 @@ feilmeldingÅr år_ =
     else
         case String.toInt år_ of
             Just _ ->
-                Nothing
+                if String.length år_ /= 4 then
+                    Just "Vennligst skriv inn et gyldig år"
+
+                else
+                    Nothing
 
             Nothing ->
                 Just "Vennligst skriv inn et gyldig år"

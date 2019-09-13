@@ -5,6 +5,7 @@ module FrontendModuler.Typeahead exposing
     , TypeaheadOptions
     , toHtml
     , typeahead
+    , withInputId
     , withSuggestions
     )
 
@@ -24,6 +25,7 @@ type alias TypeaheadInfo msg =
     , onTypeaheadChange : Operation -> msg
     , innhold : String
     , suggestions : List (Suggestion msg)
+    , inputId : Maybe String
     }
 
 
@@ -49,6 +51,7 @@ typeahead options innhold =
         , onTypeaheadChange = options.onTypeaheadChange
         , innhold = innhold
         , suggestions = []
+        , inputId = Nothing
         }
 
 
@@ -63,6 +66,11 @@ type alias Suggestion msg =
 withSuggestions : List (Suggestion msg) -> Typeahead msg -> Typeahead msg
 withSuggestions suggestions (Typeahead options) =
     Typeahead { options | suggestions = suggestions }
+
+
+withInputId : String -> Typeahead msg -> Typeahead msg
+withInputId id (Typeahead options) =
+    Typeahead { options | inputId = Just id }
 
 
 onKeyUp : (Operation -> msg) -> Html.Attribute msg
@@ -87,60 +95,6 @@ typeaheadKeys onTypeaheadChange i =
         Json.Decode.fail ""
 
 
-
---<SkjemaGruppe
---        feil={this.props.feilmelding ? { feilmelding: this.props.feilmelding } : undefined}
---        className={classNames('typeahead', this.props.className)}>
---- SKJEMAGRUPPE
---<div className={cls(className, feil)} {...other}>
---    { title && this.renderTitle() }
---    {children}
---    <SkjemaelementFeilmelding feil={feil} />
---</div>
---<input
---    id={this.props.id}
---    role="combobox"
---    aria-autocomplete="list"
---    aria-controls={`${this.props.id}-suggestions`}
---    aria-owns={`${this.props.id}-suggestions`}
---    aria-expanded={showSuggestions}
---    aria-haspopup={showSuggestions}
---    aria-activedescendant={`${this.props.id}-item-${this.state.activeSuggestionIndex}`}
---    placeholder={this.props.placeholder}
---    value={this.state.value}
---    autoComplete="off"
---    onChange={this.onChange}
---    onBlur={this.onBlur}
---    onKeyDown={this.onKeyDown}
---    onFocus={this.onFocus}
---    ref={input => {
---        this.input = input;
---    }}
---    className="skjemaelement__input input--fullbredde typo-normal"
---/>
---<ul
---    id={`${this.props.id}-suggestions`}
---    role="listbox"
---    className={showSuggestions ? '' : 'typeahead-suggestions-hidden'}
---    onMouseLeave={this.onMouseLeave}
---    onMouseEnter={this.onMouseEnter}>
---    {showSuggestions &&
---        this.props.suggestions.map((li, i) => (
---            <TypeaheadSuggestion
---                id={`${this.props.id}-item-${i}`}
---                key={li}
---                index={i}
---                value={li}
---                match={this.state.value}
---                active={i === this.state.activeSuggestionIndex}
---                onClick={this.selectSuggestion}
---                highlightSuggestion={this.highlightSuggestion}
---                avoidBlur={this.avoidBlur}
---            />
---        ))}
---</ul>
-
-
 toHtml : Typeahead msg -> Html msg
 toHtml (Typeahead options) =
     div [ class "typeahead" ]
@@ -154,6 +108,9 @@ toHtml (Typeahead options) =
             , class "skjemaelement__input input--fullbredde"
             , onKeyUp options.onTypeaheadChange
             , type_ "text"
+            , options.inputId
+                |> Maybe.map id
+                |> Maybe.withDefault noAttribute
             ]
             []
         , if List.isEmpty options.suggestions then
@@ -175,3 +132,8 @@ viewSuggestion suggestion =
         [ span [ classList [ ( "typetext", True ), ( "active", suggestion.active ) ] ]
             [ text suggestion.innhold ]
         ]
+
+
+noAttribute : Html.Attribute msg
+noAttribute =
+    classList []

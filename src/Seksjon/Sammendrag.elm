@@ -70,6 +70,7 @@ type Msg
     | SammendragOppdatert (Result Http.Error Sammendrag)
     | BrukerVilAvslutteSeksjonen
     | ViewportSatt (Result Dom.Error ())
+    | FokusSatt (Result Dom.Error ())
     | StartÅSkrive
     | FullførMelding
     | ErrorLogget
@@ -199,6 +200,9 @@ update msg (Model model) =
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
 
+        FokusSatt _ ->
+            IkkeFerdig ( Model model, Cmd.none )
+
 
 leggSammendragTilAPI : String -> Cmd Msg
 leggSammendragTilAPI sammendrag =
@@ -219,7 +223,15 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                             | seksjonsMeldingsLogg =
                                 nyMeldingsLogg
                         }
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    , Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , case model.aktivSamtale of
+                            EndreOriginal _ ->
+                                settFokusCmd sammendragId
+
+                            _ ->
+                                Cmd.none
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -234,17 +246,6 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                 |> IkkeFerdig
 
 
-fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> String -> SamtaleStatus
-fullførSeksjonHvisMeldingsloggErFerdig modelInfo sammendrag =
-    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
-        FerdigAnimert ferdigAnimertMeldingsLogg ->
-            Ferdig ferdigAnimertMeldingsLogg
-
-        MeldingerGjenstår ->
-            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring }, Cmd.none )
-                |> IkkeFerdig
-
-
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
     Cmd.batch
@@ -254,6 +255,13 @@ lagtTilSpørsmålCmd debugStatus =
             |> Process.sleep
             |> Task.perform (always StartÅSkrive)
         ]
+
+
+settFokusCmd : String -> Cmd Msg
+settFokusCmd id =
+    id
+        |> Dom.focus
+        |> Task.attempt FokusSatt
 
 
 samtaleTilMeldingsLogg : Samtale -> List Melding
@@ -341,6 +349,7 @@ viewBrukerInput (Model model) =
                         [ div [ class "skjema" ]
                             [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
                                 |> Textarea.withTextAreaClass "textarea_stor"
+                                |> Textarea.withId sammendragId
                                 |> Textarea.toHtml
                             , Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Gå videre"
                                 |> Knapp.toHtml
@@ -367,6 +376,11 @@ viewBrukerInput (Model model) =
 
         MeldingerGjenstår ->
             text ""
+
+
+sammendragId : String
+sammendragId =
+    "sammendrag-input"
 
 
 

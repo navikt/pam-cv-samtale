@@ -109,6 +109,7 @@ type Msg
     | StartÅSkrive
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
+    | FokusSatt (Result Dom.Error ())
     | ErrorLogget (Result Http.Error ())
 
 
@@ -576,7 +577,10 @@ update msg (Model model) =
         ViewportSatt result ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        ErrorLogget result ->
+        FokusSatt result ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        ErrorLogget _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
         BrukerVilLagrerUvalidertSkjema ->
@@ -610,7 +614,10 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                             | seksjonsMeldingsLogg =
                                 nyMeldingsLogg
                         }
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    , Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , settFokus model.aktivSamtale
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -733,6 +740,27 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             []
 
 
+settFokus : Samtale -> Cmd Msg
+settFokus samtale =
+    case samtale of
+        RegistrerKonsept _ _ ->
+            settFokusCmd RegistrerKonseptInput
+
+        RegistrerBeskrivelse _ _ ->
+            settFokusCmd RegistrerBeskrivelseInput
+
+        _ ->
+            Cmd.none
+
+
+settFokusCmd : InputId -> Cmd Msg
+settFokusCmd inputId =
+    inputId
+        |> inputIdTilString
+        |> Dom.focus
+        |> Task.attempt FokusSatt
+
+
 
 -- View --
 
@@ -787,6 +815,7 @@ viewBrukerInput (Model model) =
                             [ beskrivelseinfo.beskrivelse
                                 |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
                                 |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
+                                |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
                                 |> Textarea.toHtml
                             , Knapp.knapp BrukerVilRegistrereFagbrevBeskrivelse "Gå videre"
                                 |> Knapp.withEnabled
@@ -892,6 +921,21 @@ viewBrukerInput (Model model) =
             text ""
 
 
+type InputId
+    = RegistrerKonseptInput
+    | RegistrerBeskrivelseInput
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        RegistrerKonseptInput ->
+            "fagdokumentasjon-registrer-konsept"
+
+        RegistrerBeskrivelseInput ->
+            "fagdokumentasjon-registrer-beskrivelse"
+
+
 feilmeldingBeskrivelsesfelt : String -> Maybe String
 feilmeldingBeskrivelsesfelt innhold =
     if String.length innhold <= 200 then
@@ -912,6 +956,7 @@ viewTypeahead typeaheadState fagdokumentasjonType =
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = typeaheadLabel fagdokumentasjonType, onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
+        |> Typeahead.withInputId (inputIdTilString RegistrerKonseptInput)
         |> Typeahead.toHtml
 
 
