@@ -140,6 +140,13 @@ html {
 .skjema-wrapper {
   display: flex;
   flex-direction: column;
+  margin-top: 1rem;
+  @media (min-width: 768px) {
+    margin-top: 1.25rem;
+  }
+  @media (max-width: 767px) {
+    margin-top: 1rem;
+  }
 }
 
 .skjema {
@@ -147,12 +154,12 @@ html {
   align-self: flex-end;
   flex-direction: column;
 
-  @media (min-width: 768px) {
+  @media (min-width: 580px) {
     width: @meldingBredde;
   }
 
-  @media (max-width: 767px) {
-    width: @meldingBreddeMobil;
+  @media (max-width: 579px) {
+    width: 100%
   }
   .textarea__higher {
     height: 6rem;
@@ -352,6 +359,17 @@ html {
   }
 }
 
+.PersonaliaSeksjon-poststed {
+  display: flex;
+  :first-child.skjemaelement {
+    width: 6rem;
+  }
+  :last-child.skjemaelement {
+    width: 100%;
+    padding-left: 1rem;
+  }
+}
+
 .avslutt-knapp {
   text-decoration: none;
 }
@@ -392,9 +410,6 @@ html {
     cursor: pointer;
   }
 }
-
-
-
 
 .typeahead-suggestions-hidden {
   display: none;

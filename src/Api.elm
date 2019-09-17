@@ -9,6 +9,7 @@ module Api exposing
     , getPersonalia
     , getSpråkkoder
     , getYrkeTypeahead
+    , hentPoststed
     , logError
     , logErrorWithRequestBody
     , postArbeidserfaring
@@ -38,6 +39,7 @@ import Json.Encode
 import Konsept exposing (Konsept)
 import Person exposing (Person)
 import Personalia exposing (Personalia)
+import Poststed exposing (Poststed)
 import Skjema.Arbeidserfaring
 import Skjema.Fagdokumentasjon
 import Skjema.Personalia
@@ -90,7 +92,7 @@ postPersonalia msgConstructor =
         }
 
 
-putPersonalia : (Result Error Personalia -> msg) -> Skjema.Personalia.PersonaliaSkjema -> String -> Cmd msg
+putPersonalia : (Result Error Personalia -> msg) -> Skjema.Personalia.ValidertPersonaliaSkjema -> String -> Cmd msg
 putPersonalia msgConstructor skjema id =
     put
         { url = "/cv-samtale/api/rest/person/personalia"
@@ -113,6 +115,14 @@ getSpråkkoder msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/koder/sprak"
         , expect = expectJson msgConstructor (Json.Decode.list SpråkKode.decode)
+        }
+
+
+hentPoststed : (Result Error Poststed -> msg) -> String -> Cmd msg
+hentPoststed msgConstructor postnummer =
+    Http.get
+        { url = "/cv-samtale/api/rest/koder/poststed?postnummer=" ++ postnummer
+        , expect = expectJson msgConstructor Poststed.decode
         }
 
 
