@@ -94,9 +94,16 @@ postnummer (PersonaliaSkjema info) =
 
 poststed : PersonaliaSkjema -> String
 poststed (PersonaliaSkjema info) =
-    info.poststed
-        |> Maybe.map Poststed.sted
-        |> Maybe.withDefault ""
+    case info.poststed of
+        Just poststed_ ->
+            if Poststed.kode poststed_ == info.postnummer then
+                Poststed.sted poststed_
+
+            else
+                ""
+
+        Nothing ->
+            ""
 
 
 oppdaterFelt : Felt -> PersonaliaSkjema -> String -> PersonaliaSkjema
