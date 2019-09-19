@@ -16,8 +16,18 @@ svar list =
 
 
 innhold : Melding -> List String
-innhold (Melding list) =
-    list
+innhold (Melding linjer) =
+    linjer
+        |> List.map (String.split "\n")
+        |> List.concat
+        |> List.map
+            (\linje ->
+                if (String.trim >> String.isEmpty) linje then
+                    tomLinje
+
+                else
+                    linje
+            )
 
 
 tomLinje : String
