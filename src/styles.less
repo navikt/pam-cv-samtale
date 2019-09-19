@@ -149,16 +149,19 @@ html {
   }
 }
 
+@storSkjermSkjema: 580px;
+@litenSkjermSkjema: 579px;
+
 .skjema {
   display: flex;
   align-self: flex-end;
   flex-direction: column;
 
-  @media (min-width: 580px) {
+  @media (min-width: @storSkjermSkjema) {
     width: @meldingBredde;
   }
 
-  @media (max-width: 579px) {
+  @media (max-width: @litenSkjermSkjema) {
     width: 100%
   }
   .textarea__higher {
@@ -408,6 +411,33 @@ html {
     -ms-user-select: none;
     user-select: none;
     cursor: pointer;
+  }
+}
+
+.DatoInput-fra-til-rad {
+  display: flex;
+  justify-content: space-between;
+  @media (min-width: @storSkjermSkjema) {
+    flex-direction: row;
+  }
+
+  @media (max-width: @litenSkjermSkjema) {
+    flex-direction: column;
+  }
+
+}
+
+.DatoInput-wrapper {
+  display: flex;
+  align-items: flex-start;
+  .skjemaelement__input.input--fullbredde.år {
+    width: 5rem;
+  }
+  select.skjemaelement__input.DatoInput-måned {
+    padding-right: 2.5rem;
+  }
+  .DatoInput-år-wrapper {
+    margin-left: 1rem;
   }
 }
 

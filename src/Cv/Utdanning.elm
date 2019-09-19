@@ -1,20 +1,19 @@
 module Cv.Utdanning exposing
     ( Nivå(..)
+    , TilDato(..)
     , Utdanning
-    , Yrkesskole(..)
     , beskrivelse
     , decode
-    , fradato
-    , harAutorisasjon
+    , fraMåned
+    , fraÅr
     , id
-    , navarende
-    , nuskode
+    , nivå
     , studiested
-    , tildato
+    , tilDato
     , utdanningsretning
-    , yrkesskole
     )
 
+import Dato exposing (Måned, År)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 
@@ -27,13 +26,11 @@ type alias UtdanningInfo =
     { id : String
     , studiested : Maybe String
     , utdanningsretning : Maybe String
-    , fradato : Maybe String
-    , tildato : Maybe String
+    , fraMåned : Måned
+    , fraÅr : År
+    , tildato : TilDato
     , beskrivelse : Maybe String
-    , navarende : Maybe Bool ----Maybe bool? ref Dtoen
-    , nuskode : Nivå
-    , yrkesskole : Yrkesskole
-    , harAutorisasjon : Bool -- Egentlig maybe?
+    , nivå : Nivå
     }
 
 
@@ -47,10 +44,9 @@ type Nivå
     | Phd
 
 
-type Yrkesskole
-    = SvennebrevFagbrev
-    | Mesterbrev
-    | Ingen
+type TilDato
+    = Nåværende
+    | Avsluttet Måned År
 
 
 id : Utdanning -> String
@@ -73,34 +69,24 @@ beskrivelse (Utdanning info) =
     info.beskrivelse
 
 
-fradato : Utdanning -> Maybe String
-fradato (Utdanning info) =
-    info.fradato
+fraMåned : Utdanning -> Måned
+fraMåned (Utdanning info) =
+    info.fraMåned
 
 
-tildato : Utdanning -> Maybe String
-tildato (Utdanning info) =
+fraÅr : Utdanning -> År
+fraÅr (Utdanning info) =
+    info.fraÅr
+
+
+tilDato : Utdanning -> TilDato
+tilDato (Utdanning info) =
     info.tildato
 
 
-navarende : Utdanning -> Maybe Bool
-navarende (Utdanning info) =
-    info.navarende
-
-
-nuskode : Utdanning -> Nivå
-nuskode (Utdanning info) =
-    info.nuskode
-
-
-yrkesskole : Utdanning -> Yrkesskole
-yrkesskole (Utdanning info) =
-    info.yrkesskole
-
-
-harAutorisasjon : Utdanning -> Bool
-harAutorisasjon (Utdanning info) =
-    info.harAutorisasjon
+nivå : Utdanning -> Nivå
+nivå (Utdanning info) =
+    info.nivå
 
 
 
@@ -110,8 +96,7 @@ harAutorisasjon (Utdanning info) =
 decode : Decoder Utdanning
 decode =
     decodeBackendData
-        |> andThen tilUtdanningsInfo
-        |> map Utdanning
+        |> Json.Decode.andThen tilUtdanningsInfo
 
 
 decodeBackendData : Decoder BackendData
@@ -120,98 +105,86 @@ decodeBackendData =
         |> required "id" string
         |> required "studiested" (nullable string)
         |> required "utdanningsretning" (nullable string)
-        |> required "fradato" (nullable string)
+        |> required "fradato" string
         |> required "tildato" (nullable string)
         |> required "beskrivelse" (nullable string)
-        |> required "navarende" (nullable bool)
-        |> required "nuskode" (nullable string)
-        |> required "yrkesskole" string
-        |> required "harAutorisasjon" bool
+        |> required "navarende" bool
+        |> required "nuskode" string
 
 
-
----decodeYrkesskole backendData.yrkesskole
----decodeNivå backendData.nuskode
-
-
-tilUtdanningsInfo : BackendData -> Decoder UtdanningInfo
+tilUtdanningsInfo : BackendData -> Decoder Utdanning
 tilUtdanningsInfo backendData =
-    map2 (lagUtdanningsinfo backendData)
+    Json.Decode.map3 (lagUtdanningsinfo backendData)
         (decodeNivå backendData.nuskode)
-        (decodeYrkesskole backendData.yrkesskole)
+        (Dato.decodeMonthYear backendData.fradato)
+        (decodeTilDato backendData.navarende backendData.tildato)
 
 
-lagUtdanningsinfo : BackendData -> Nivå -> Yrkesskole -> UtdanningInfo
-lagUtdanningsinfo backendData nivå ys =
-    { id = backendData.id
-    , studiested = backendData.studiested
-    , utdanningsretning = backendData.utdanningsretning
-    , fradato = backendData.fradato
-    , tildato = backendData.tildato
-    , beskrivelse = backendData.beskrivelse
-    , navarende = backendData.navarende
-    , nuskode = nivå
-    , yrkesskole = ys
-    , harAutorisasjon = backendData.harAutorisasjon
-    }
+lagUtdanningsinfo : BackendData -> Nivå -> ( Måned, År ) -> TilDato -> Utdanning
+lagUtdanningsinfo backendData nivå_ ( fraMåned_, fraÅr_ ) tilDato_ =
+    Utdanning
+        { id = backendData.id
+        , studiested = backendData.studiested
+        , utdanningsretning = backendData.utdanningsretning
+        , fraMåned = fraMåned_
+        , fraÅr = fraÅr_
+        , tildato = tilDato_
+        , beskrivelse = backendData.beskrivelse
+        , nivå = nivå_
+        }
 
 
-decodeNivå : Maybe String -> Decoder Nivå
-decodeNivå maybeNivå =
-    case maybeNivå of
-        Just nivå ->
-            if String.left 1 nivå == "1" || String.left 1 nivå == "2" then
-                succeed Grunnskole
+decodeNivå : String -> Decoder Nivå
+decodeNivå nivå_ =
+    if String.left 1 nivå_ == "1" || String.left 1 nivå_ == "2" then
+        succeed Grunnskole
 
-            else if String.left 1 nivå == "3" then
-                succeed VideregåendeYrkesskole
+    else if String.left 1 nivå_ == "3" then
+        succeed VideregåendeYrkesskole
 
-            else if String.left 1 nivå == "4" then
-                succeed Fagskole
+    else if String.left 1 nivå_ == "4" then
+        succeed Fagskole
 
-            else if String.left 1 nivå == "5" then
-                succeed Folkehøyskole
+    else if String.left 1 nivå_ == "5" then
+        succeed Folkehøyskole
 
-            else if String.left 1 nivå == "6" then
-                succeed HøyereUtdanning1til4
+    else if String.left 1 nivå_ == "6" then
+        succeed HøyereUtdanning1til4
 
-            else if String.left 1 nivå == "7" then
-                succeed HøyereUtdanning4pluss
+    else if String.left 1 nivå_ == "7" then
+        succeed HøyereUtdanning4pluss
 
-            else if String.left 1 nivå == "8" then
-                succeed Phd
-
-            else
-                fail ("Decoding av enum Nivå feilet. Klarer ikke decode verdi: " ++ nivå)
-
-        Nothing ->
-            fail "Nuskode er et påkrevd felt, men var null"
-
-
-decodeYrkesskole : String -> Decoder Yrkesskole
-decodeYrkesskole ys =
-    if ys == "SVENNEBREV_FAGBREV" then
-        succeed SvennebrevFagbrev
-
-    else if ys == "MESTERBREV" then
-        succeed Mesterbrev
-
-    else if ys == "INGEN" then
-        succeed Ingen
+    else if String.left 1 nivå_ == "8" then
+        succeed Phd
 
     else
-        fail ("Decoding av enum Yrkesskole feilet. Klarer ikke decode verdi: " ++ ys)
+        fail ("Decoding av nuskode feilet. Klarer ikke decode verdi: " ++ nivå_)
+
+
+decodeTilDato : Bool -> Maybe String -> Decoder TilDato
+decodeTilDato nåværende maybeTilDatoString =
+    if nåværende then
+        succeed Nåværende
+
+    else
+        case maybeTilDatoString of
+            Just tilDatoString ->
+                tilDatoString
+                    |> Dato.decodeMonthYear
+                    |> Json.Decode.map (\( a, b ) -> Avsluttet a b)
+
+            Nothing ->
+                fail "Decoding av til-dato feilet. nåværende kan ikke være false samtidig som tildato er null"
 
 
 type alias BackendData =
+    -- TODO: Endre DTO på backend til å kun være optional på riktige felter
     { id : String
     , studiested : Maybe String
     , utdanningsretning : Maybe String
-    , fradato : Maybe String
+    , fradato : String
     , tildato : Maybe String
     , beskrivelse : Maybe String
-    , navarende : Maybe Bool ----Maybe bool? ref Dtoen
-    , nuskode : Maybe String
-    , yrkesskole : String --- Egentlig en enum
-    , harAutorisasjon : Bool -- Egentlig maybe?
+    , navarende : Bool
+    , nuskode : String
     }

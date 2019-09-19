@@ -2,6 +2,7 @@ module FrontendModuler.Select exposing
     ( Select
     , select
     , toHtml
+    , withClass
     , withSelected
     )
 
@@ -16,6 +17,7 @@ type Select msg
         , msg : String -> msg
         , listOfOptions : List ( String, String )
         , selectedValue : Maybe String
+        , class : Maybe String
         }
 
 
@@ -26,6 +28,7 @@ select label msg listOfOptions =
         , msg = msg
         , listOfOptions = listOfOptions
         , selectedValue = Nothing
+        , class = Nothing
         }
 
 
@@ -34,13 +37,24 @@ withSelected selectedValue (Select options) =
     Select { options | selectedValue = Just selectedValue }
 
 
+withClass : String -> Select msg -> Select msg
+withClass class (Select options) =
+    Select { options | class = Just class }
+
+
 toHtml : Select msg -> Html msg
 toHtml (Select options) =
     div [ class "skjemaelement" ]
         [ label [ class "skjemaelement__label" ] [ text options.label ]
         , div [ class "selectContainer input--fullbredde" ]
             [ List.map (optionToHtml options.selectedValue) options.listOfOptions
-                |> Html.select [ onInput options.msg, class "skjemaelement__input" ]
+                |> Html.select
+                    [ onInput options.msg
+                    , class "skjemaelement__input"
+                    , options.class
+                        |> Maybe.map class
+                        |> Maybe.withDefault noAttribute
+                    ]
             ]
         ]
 
@@ -55,3 +69,8 @@ optionToHtml maybeSelectedValue ( valueString, tekst ) =
             |> selected
         ]
         [ text tekst ]
+
+
+noAttribute : Html.Attribute msg
+noAttribute =
+    classList []

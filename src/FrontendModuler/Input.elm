@@ -10,6 +10,7 @@ module FrontendModuler.Input exposing
     , withFeilmelding
     , withId
     , withMaybeFeilmelding
+    , withOnBlur
     , withOnEnter
     )
 
@@ -35,6 +36,7 @@ type alias Options msg =
     , feilmelding : Maybe String
     , class : Maybe Class
     , onEnter : Maybe msg
+    , onBlur : Maybe msg
     , id : Maybe String
     , enabled : Enabled
     }
@@ -55,6 +57,7 @@ input { msg, label } innhold =
         , feilmelding = Nothing
         , class = Nothing
         , onEnter = Nothing
+        , onBlur = Nothing
         , id = Nothing
         , enabled = Enabled
         }
@@ -88,6 +91,11 @@ withClass class (Input options) =
 withOnEnter : msg -> Input msg -> Input msg
 withOnEnter msg (Input info) =
     Input { info | onEnter = Just msg }
+
+
+withOnBlur : msg -> Input msg -> Input msg
+withOnBlur msg (Input info) =
+    Input { info | onBlur = Just msg }
 
 
 withId : String -> Input msg -> Input msg
@@ -137,6 +145,9 @@ toHtml (Input options) =
                 |> Maybe.withDefault noAttribute
             , options.onEnter
                 |> Maybe.map onEnter
+                |> Maybe.withDefault noAttribute
+            , options.onBlur
+                |> Maybe.map onBlur
                 |> Maybe.withDefault noAttribute
             , disabled (options.enabled == Disabled)
             ]

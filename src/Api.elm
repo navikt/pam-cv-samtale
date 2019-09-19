@@ -198,7 +198,7 @@ getYrkeTypeahead msgConstructor string =
         }
 
 
-postUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.UtdanningSkjema -> Cmd msg
+postUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.ValidertUtdanningSkjema -> Cmd msg
 postUtdanning msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/utdanning"
@@ -207,7 +207,7 @@ postUtdanning msgConstructor skjema =
         }
 
 
-putUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.UtdanningSkjema -> String -> Cmd msg
+putUtdanning : (Result Error (List Utdanning) -> msg) -> Skjema.Utdanning.ValidertUtdanningSkjema -> String -> Cmd msg
 putUtdanning msgConstructor skjema id =
     Http.request
         { method = "PUT"
