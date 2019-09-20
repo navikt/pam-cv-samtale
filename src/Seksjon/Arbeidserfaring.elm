@@ -107,6 +107,7 @@ type Msg
     | StartÅSkrive
     | FullFørMelding
     | ViewportSatt (Result Dom.Error ())
+    | FokusSatt (Result Dom.Error ())
     | GåTilNesteSeksjon
     | ErrorLogget
 
@@ -1029,8 +1030,10 @@ update msg (Model model) =
                     Ferdig ferdigAnimertMeldingsLogg
 
                 MeldingerGjenstår ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        FokusSatt _ ->
+            IkkeFerdig ( Model model, Cmd.none )
 
 
 oppdaterSkjema : SkjemaEndring -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
@@ -1062,11 +1065,11 @@ updateEtterFullførtMelding info nyMeldingsLogg =
                     Ferdig ferdigAnimertSamtale
 
                 _ ->
-                    ( Model
-                        { info
-                            | seksjonsMeldingsLogg = nyMeldingsLogg
-                        }
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    ( Model { info | seksjonsMeldingsLogg = nyMeldingsLogg }
+                    , Cmd.batch
+                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        , settFokus info.aktivSamtale
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -1078,6 +1081,42 @@ updateEtterFullførtMelding info nyMeldingsLogg =
             , lagtTilSpørsmålCmd info.debugStatus
             )
                 |> IkkeFerdig
+
+
+settFokus : Samtale -> Cmd Msg
+settFokus samtale =
+    case samtale of
+        RegistrerYrke _ ->
+            settFokusCmd YrkeTypeaheadId
+
+        EndreJobbtittel _ ->
+            settFokusCmd JobbtittelInput
+
+        RegistrereBedriftNavn _ ->
+            settFokusCmd BedriftsnavnInput
+
+        RegistrereSted _ ->
+            settFokusCmd StedInput
+
+        RegistrereArbeidsoppgaver _ ->
+            settFokusCmd ArbeidsoppgaverInput
+
+        RegistrereFraÅr _ ->
+            settFokusCmd FraÅrInput
+
+        RegistrereTilÅr _ ->
+            settFokusCmd TilÅrInput
+
+        _ ->
+            Cmd.none
+
+
+settFokusCmd : InputId -> Cmd Msg
+settFokusCmd inputId =
+    inputId
+        |> inputIdTilString
+        |> Dom.focus
+        |> Task.attempt FokusSatt
 
 
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
@@ -1451,8 +1490,8 @@ viewBrukerInput (Model info) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ jobbtittelInfo.jobbtittel
-                                |> Input.input
-                                    { label = "Stilling/yrke som vil vises i CV-en", msg = BrukerOppdatererJobbtittelFelt }
+                                |> Input.input { label = "Stilling/yrke som vil vises i CV-en", msg = BrukerOppdatererJobbtittelFelt }
+                                |> Input.withId (inputIdTilString JobbtittelInput)
                                 |> Input.toHtml
                             , BrukerVilRegistrereBedriftnavn "Gå videre"
                                 |> lagTekstInputKnapp "Gå videre" jobbtittelInfo.jobbtittel
@@ -1464,6 +1503,7 @@ viewBrukerInput (Model info) =
                         [ div [ class "skjema" ]
                             [ bedriftnanvsInfo.bedriftNavn
                                 |> Input.input { label = "Bedriftens navn", msg = BrukerOppdatererBedriftnavn }
+                                |> Input.withId (inputIdTilString BedriftsnavnInput)
                                 |> Input.toHtml
                             , BrukerVilRegistrereSted
                                 |> lagTekstInputKnapp "Gå videre" bedriftnanvsInfo.bedriftNavn
@@ -1475,6 +1515,7 @@ viewBrukerInput (Model info) =
                         [ div [ class "skjema" ]
                             [ stedInfo.lokasjon
                                 |> Input.input { label = "Sted/land", msg = BrukerOppdatererSted }
+                                |> Input.withId (inputIdTilString StedInput)
                                 |> Input.toHtml
                             , BrukerVilRegistrereArbeidsoppgaver
                                 |> lagTekstInputKnapp "Gå videre" stedInfo.lokasjon
@@ -1486,6 +1527,7 @@ viewBrukerInput (Model info) =
                         [ div [ class "skjema" ]
                             [ arbeidsoppgaverInfo.arbeidsoppgaver
                                 |> Textarea.textarea { label = "Arbeidsoppgaver", msg = BrukerOppdatererArbeidsoppgaver }
+                                |> Textarea.withId (inputIdTilString ArbeidsoppgaverInput)
                                 |> Textarea.toHtml
                             , BrukerVilRegistrereFraMåned
                                 |> lagTekstInputKnapp "Gå videre" arbeidsoppgaverInfo.arbeidsoppgaver
@@ -1527,6 +1569,7 @@ viewBrukerInput (Model info) =
                                 [ fraDatoInfo.fraÅr
                                     |> Input.input { label = "År", msg = BrukerOppdatererFraÅr }
                                     |> Input.withClass Input.År
+                                    |> Input.withId (inputIdTilString FraÅrInput)
                                     |> Input.toHtml
                                 , BrukerVilRegistrereNaavarende
                                     |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
@@ -1582,6 +1625,7 @@ viewBrukerInput (Model info) =
                             [ tilDatoInfo.tilÅr
                                 |> Input.input { label = "År", msg = BrukerOppdatererTilÅr }
                                 |> Input.withClass Input.År
+                                |> Input.withId (inputIdTilString TilÅrInput)
                                 |> Input.toHtml
                             , div [ class "inputkolonne" ]
                                 [ BrukerVilGåTilOppsummering
@@ -1731,11 +1775,47 @@ viewBrukerInput (Model info) =
             div [] []
 
 
+type InputId
+    = YrkeTypeaheadId
+    | JobbtittelInput
+    | BedriftsnavnInput
+    | StedInput
+    | ArbeidsoppgaverInput
+    | FraÅrInput
+    | TilÅrInput
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        YrkeTypeaheadId ->
+            "arbeidserfaring-registrer-yrke-typeahead"
+
+        JobbtittelInput ->
+            "arbeidserfaring-registrer-jobbtittel"
+
+        BedriftsnavnInput ->
+            "arbeidserfaring-registrer-bedriftsnavn"
+
+        StedInput ->
+            "arbeidserfaring-registrer-sted"
+
+        ArbeidsoppgaverInput ->
+            "arbeidserfaring-registrer-arbeidsoppgaver"
+
+        FraÅrInput ->
+            "arbeidserfaring-registrer-fra-år"
+
+        TilÅrInput ->
+            "arbeidserfaring-registrer-til-år"
+
+
 viewTypeaheadRegistrerYrke : TypeaheadState Yrke -> Html Msg
 viewTypeaheadRegistrerYrke typeaheadState =
     typeaheadState
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = "Hvilken stilling/yrke har du?", onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
+        |> Typeahead.withInputId (inputIdTilString YrkeTypeaheadId)
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke typeaheadState)
         |> Typeahead.toHtml
 
