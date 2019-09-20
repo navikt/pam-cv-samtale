@@ -1,37 +1,21 @@
 module Dato exposing
-    ( Dato
-    , Måned(..)
+    ( Måned(..)
+    , TilDato(..)
     , År
     , decodeMonthYear
     , encodeMonthYear
     , feilmeldingÅr
-    , fraStringTilDato
-    , måned
     , månedTilNummerMåned
     , månedTilString
-    , setMåned
-    , setÅr
+    , periodeTilString
     , stringTilMåned
     , stringTilÅr
-    , tilStringForBackend
     , validerÅr
-    , år
     , årTilString
     )
 
 import Json.Decode exposing (Decoder)
 import Json.Encode
-
-
-type Dato
-    = Dato DatoInfo
-
-
-type alias DatoInfo =
-    { måned : Måned
-    , år : Int
-    , dag : Int
-    }
 
 
 type Måned
@@ -47,26 +31,6 @@ type Måned
     | Oktober
     | November
     | Desember
-
-
-måned : Dato -> Måned
-måned (Dato info) =
-    info.måned
-
-
-år : Dato -> Int
-år (Dato info) =
-    info.år
-
-
-setMåned : Dato -> Måned -> Dato
-setMåned (Dato info) maaned =
-    Dato { info | måned = maaned }
-
-
-setÅr : Dato -> Int -> Dato
-setÅr (Dato info) aar =
-    Dato { info | år = aar }
 
 
 månedTilString : Måned -> String
@@ -188,34 +152,6 @@ stringTilMåned string =
             Januar
 
 
-
--- Tar en string av typen 2006-09
-
-
-fraStringTilDato : String -> Dato
-fraStringTilDato string =
-    case String.split "-" string of
-        aar :: maaned :: [] ->
-            case String.toInt aar of
-                Just aarInt ->
-                    Dato
-                        { måned = stringTilMåned maaned
-                        , år = aarInt
-                        , dag = 1
-                        }
-
-                _ ->
-                    Dato { måned = Januar, år = 9999, dag = 1 }
-
-        _ ->
-            Dato { måned = Januar, år = 9999, dag = 1 }
-
-
-tilStringForBackend : Dato -> String
-tilStringForBackend (Dato info) =
-    String.fromInt info.år ++ "-" ++ månedTilNummerMåned info.måned
-
-
 månedTilNummerMåned : Måned -> String
 månedTilNummerMåned maaned =
     case maaned of
@@ -300,7 +236,7 @@ stringTilÅr string =
 feilmeldingÅr : String -> Maybe String
 feilmeldingÅr år_ =
     if String.isEmpty år_ then
-        Just "Skriv inn et årstall"
+        Just "Skriv årstall"
 
     else if String.length år_ /= 4 || String.toInt år_ == Nothing then
         Just "Kun 4 siffer"
@@ -370,3 +306,34 @@ nummerStringTilMåned string =
 encodeMonthYear : Måned -> År -> Json.Encode.Value
 encodeMonthYear måned_ (År år_) =
     Json.Encode.string (år_ ++ "-" ++ månedTilNummerMåned måned_)
+
+
+
+--- TilDato ---
+
+
+type TilDato
+    = Nåværende
+    | Avsluttet Måned År
+
+
+periodeTilString : Måned -> År -> TilDato -> String
+periodeTilString måned_ år_ tilDato =
+    datoTilString måned_ år_
+        ++ " - "
+        ++ (tilDatoTilString >> String.toLower) tilDato
+
+
+tilDatoTilString : TilDato -> String
+tilDatoTilString tilDato =
+    case tilDato of
+        Avsluttet måned_ år_ ->
+            datoTilString måned_ år_
+
+        Nåværende ->
+            "nåværende"
+
+
+datoTilString : Måned -> År -> String
+datoTilString måned_ år_ =
+    månedTilString måned_ ++ " " ++ årTilString år_

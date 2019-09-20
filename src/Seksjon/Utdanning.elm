@@ -10,8 +10,8 @@ module Seksjon.Utdanning exposing
 
 import Api
 import Browser.Dom as Dom
-import Cv.Utdanning as Utdanning exposing (Nivå(..), TilDato(..), Utdanning)
-import Dato exposing (Dato, Måned(..), År)
+import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
+import Dato exposing (Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.DatoInput as DatoInput
@@ -55,7 +55,7 @@ type Samtale
     | RegistrerBeskrivelse BeskrivelseInfo
     | RegistrereFraMåned FraDatoInfo
     | RegistrereFraÅr FraDatoInfo
-    | RegistrereNavarende NåværendeInfo
+    | RegistrereNåværende NåværendeInfo
     | RegistrereTilMåned TilDatoInfo
     | RegistrereTilÅr TilDatoInfo
     | Oppsummering ValidertUtdanningSkjema
@@ -105,20 +105,9 @@ type alias NåværendeInfo =
 
 type alias TilDatoInfo =
     { forrige : NåværendeInfo
-    , tilMåned : Dato.Måned
+    , tilMåned : Måned
     , tilÅr : String
     , visÅrFeilmelding : Bool
-    }
-
-
-type alias OppsummeringInfo =
-    { nivå : Nivå
-    , skole : String
-    , retning : String
-    , beskrivelse : String
-    , fradato : Dato
-    , navarende : Bool
-    , tilDato : Maybe Dato
     }
 
 
@@ -420,7 +409,7 @@ update msg (Model model) =
                               , fraMåned = datoInfo.fraMåned
                               , fraÅr = fraÅr
                               }
-                                |> RegistrereNavarende
+                                |> RegistrereNåværende
                                 |> nesteSamtaleSteg model (Melding.svar [ datoInfo.fraÅr ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -439,7 +428,7 @@ update msg (Model model) =
 
         BrukerSvarerJaTilNaavarende ->
             case model.aktivSamtale of
-                RegistrereNavarende nåværendeInfo ->
+                RegistrereNåværende nåværendeInfo ->
                     ( nåværendeInfo
                         |> nåværendeInfoTilUtdanningsSkjema
                         |> Oppsummering
@@ -453,7 +442,7 @@ update msg (Model model) =
 
         BrukerSvarerNeiTilNaavarende ->
             case model.aktivSamtale of
-                RegistrereNavarende nåværendeInfo ->
+                RegistrereNåværende nåværendeInfo ->
                     ( nåværendeInfo
                         |> forrigeTilTildatoInfo
                         |> RegistrereTilMåned
@@ -590,8 +579,8 @@ update msg (Model model) =
 
         OppsummeringSkjemaLagreknappTrykket ->
             case model.aktivSamtale of
-                EndrerOppsummering ferdigskjema ->
-                    case Skjema.validerSkjema ferdigskjema of
+                EndrerOppsummering skjema ->
+                    case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
                             IkkeFerdig
                                 ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (LagrerSkjema validertSkjema)
@@ -602,7 +591,13 @@ update msg (Model model) =
                                 )
 
                         Nothing ->
-                            IkkeFerdig ( Model model, Cmd.none )
+                            IkkeFerdig
+                                ( skjema
+                                    |> Skjema.gjørAlleFeilmeldingerSynlig
+                                    |> EndrerOppsummering
+                                    |> oppdaterSamtaleSteg model
+                                , Cmd.none
+                                )
 
                 LagringFeilet _ feiletskjema ->
                     IkkeFerdig
@@ -903,33 +898,11 @@ utdanningslisteTilString utdanninger =
 
 utdanningTilStrings : Utdanning -> List String
 utdanningTilStrings utdanning =
-    [ datoRad (Utdanning.fraMåned utdanning) (Utdanning.fraÅr utdanning) (Utdanning.tilDato utdanning)
+    [ Dato.periodeTilString (Utdanning.fraMåned utdanning) (Utdanning.fraÅr utdanning) (Utdanning.tilDato utdanning)
     , (Utdanning.utdanningsretning utdanning |> Maybe.withDefault "")
         ++ " ved  "
         ++ (Utdanning.studiested utdanning |> Maybe.withDefault "")
     ]
-
-
-datoRad : Måned -> År -> TilDato -> String
-datoRad måned år tilDato =
-    datoTilString måned år
-        ++ " - "
-        ++ (tilDatoTilString >> String.toLower) tilDato
-
-
-tilDatoTilString : TilDato -> String
-tilDatoTilString tilDato =
-    case tilDato of
-        Avsluttet måned år ->
-            datoTilString måned år
-
-        Nåværende ->
-            ""
-
-
-datoTilString : Måned -> År -> String
-datoTilString måned år =
-    Dato.månedTilString måned ++ " " ++ Dato.årTilString år
 
 
 samtaleTilMeldingsLogg : Samtale -> List Melding
@@ -1013,7 +986,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         RegistrereFraÅr _ ->
             [ Melding.spørsmål [ "Hvilket år begynte du på utdanningen din?" ] ]
 
-        RegistrereNavarende _ ->
+        RegistrereNåværende _ ->
             [ Melding.spørsmål [ "Går du fremdeles på studiet?" ] ]
 
         RegistrereTilMåned _ ->
@@ -1032,7 +1005,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             [ Melding.spørsmål
                 [ "Du har lagt inn dette:"
                 , Melding.tomLinje
-                , datoRad (Skjema.fraMåned utdanningsskjema) (Skjema.fraÅrValidert validertSkjema) (Skjema.tilDatoValidert validertSkjema)
+                , Dato.periodeTilString (Skjema.fraMåned utdanningsskjema) (Skjema.fraÅrValidert validertSkjema) (Skjema.tilDatoValidert validertSkjema)
                 , Melding.tomLinje
                 , "Utdanningsnivå: " ++ nivåToString (Skjema.nivå utdanningsskjema)
                 , "Grad og studieretning: " ++ Skjema.innholdTekstFelt Utdanningsretning utdanningsskjema
@@ -1246,7 +1219,7 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
-                RegistrereNavarende _ ->
+                RegistrereNåværende _ ->
                     div []
                         [ div [ class "inputrad" ]
                             [ div [ class "inputrad-innhold" ]
@@ -1454,7 +1427,7 @@ viewSkjema utdanningsskjema =
         ]
 
 
-lagFraMånedKnapp : Dato.Måned -> Html Msg
+lagFraMånedKnapp : Måned -> Html Msg
 lagFraMånedKnapp måned =
     måned
         |> Dato.månedTilString
@@ -1463,7 +1436,7 @@ lagFraMånedKnapp måned =
         |> Knapp.toHtml
 
 
-lagTilMånedKnapp : Dato.Måned -> Html Msg
+lagTilMånedKnapp : Måned -> Html Msg
 lagTilMånedKnapp måned =
     måned
         |> Dato.månedTilString

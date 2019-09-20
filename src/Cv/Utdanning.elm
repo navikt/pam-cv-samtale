@@ -1,6 +1,5 @@
 module Cv.Utdanning exposing
     ( Nivå(..)
-    , TilDato(..)
     , Utdanning
     , beskrivelse
     , decode
@@ -13,7 +12,7 @@ module Cv.Utdanning exposing
     , utdanningsretning
     )
 
-import Dato exposing (Måned, År)
+import Dato exposing (Måned, TilDato(..), År)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 
@@ -42,11 +41,6 @@ type Nivå
     | HøyereUtdanning1til4
     | HøyereUtdanning4pluss
     | Phd
-
-
-type TilDato
-    = Nåværende
-    | Avsluttet Måned År
 
 
 id : Utdanning -> String
@@ -114,14 +108,14 @@ decodeBackendData =
 
 tilUtdanningsInfo : BackendData -> Decoder Utdanning
 tilUtdanningsInfo backendData =
-    Json.Decode.map3 (lagUtdanningsinfo backendData)
+    Json.Decode.map3 (lagUtdanning backendData)
         (decodeNivå backendData.nuskode)
         (Dato.decodeMonthYear backendData.fradato)
         (decodeTilDato backendData.navarende backendData.tildato)
 
 
-lagUtdanningsinfo : BackendData -> Nivå -> ( Måned, År ) -> TilDato -> Utdanning
-lagUtdanningsinfo backendData nivå_ ( fraMåned_, fraÅr_ ) tilDato_ =
+lagUtdanning : BackendData -> Nivå -> ( Måned, År ) -> TilDato -> Utdanning
+lagUtdanning backendData nivå_ ( fraMåned_, fraÅr_ ) tilDato_ =
     Utdanning
         { id = backendData.id
         , studiested = backendData.studiested

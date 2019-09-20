@@ -7,8 +7,6 @@ module Yrke exposing
     , styrkkode
     )
 
-import FrontendModuler.Knapp as Knapp
-import Html exposing (Html)
 import Json.Decode exposing (Decoder, at, int, map, map3, string)
 
 

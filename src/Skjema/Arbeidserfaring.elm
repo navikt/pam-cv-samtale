@@ -1,33 +1,35 @@
 module Skjema.Arbeidserfaring exposing
-    ( ArbeidserfaringSkjema(..)
+    ( ArbeidserfaringSkjema
     , Felt(..)
     , SkjemaInfo
     , TypeaheadFelt(..)
     , ValidertArbeidserfaringSkjema
-    , arbeidsoppgaver
-    , bedriftNavn
     , encode
-    , fraDato
+    , fraArbeidserfaring
+    , fraMåned
+    , fraÅrValidert
     , id
-    , idValidert
-    , jobbTittel
-    , lokasjon
+    , initValidertSkjema
+    , innholdTekstFelt
     , mapTypeaheadState
-    , naavarende
-    , nyttValidertSkjema
+    , nåværende
+    , oppdaterFraMåned
     , oppdaterStringFelt
+    , oppdaterTilMåned
     , oppdaterYrkeFelt
     , setYrkeFeltTilYrke
-    , tilArbeidserfaringSkjema
-    , tilDato
-    , toggleBool
+    , tilDatoValidert
+    , tilMåned
+    , tilUvalidertSkjema
+    , toggleNåværende
     , valider
     , velgAktivYrkeITypeahead
     , yrke
     , yrkeTypeahead
     )
 
-import Dato exposing (Dato)
+import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
+import Dato exposing (Måned(..), TilDato(..), År)
 import Json.Encode
 import TypeaheadState exposing (TypeaheadState)
 import Yrke exposing (Yrke)
@@ -37,21 +39,17 @@ type ArbeidserfaringSkjema
     = ArbeidserfaringSkjema SkjemaInfo
 
 
-type ValidertArbeidserfaringSkjema
-    = ValidertArbeidserfaringSkjema ValidertSkjemaInfo
-
-
-type alias ValidertSkjemaInfo =
-    { yrke : Yrke
+type alias SkjemaInfo =
+    { yrke : TypeaheadFelt
     , jobbTittel : String
     , bedriftNavn : String
     , lokasjon : String
     , arbeidsoppgaver : String
-    , fraDato : Dato
-    , naavarende : Bool
-    , tilDato : Maybe Dato
-    , styrkkode : String
-    , konseptId : Int
+    , fraMåned : Måned
+    , fraÅr : String
+    , nåværende : Bool
+    , tilMåned : Måned
+    , tilÅr : String
     , id : Maybe String
     }
 
@@ -61,19 +59,75 @@ type TypeaheadFelt
     | Typeahead (TypeaheadState Yrke)
 
 
-type alias SkjemaInfo =
-    { yrke : TypeaheadFelt
-    , jobbTittel : String
-    , bedriftNavn : String
-    , lokasjon : String
-    , arbeidsoppgaver : String
-    , fraDato : Dato
-    , naavarende : Bool
-    , tilDato : Maybe Dato
-    , styrkkode : String
-    , konseptId : Int
-    , id : Maybe String
-    }
+
+--- INIT ---
+
+
+initValidertSkjema : ValidertSkjemaInfo -> ValidertArbeidserfaringSkjema
+initValidertSkjema skjemaInfo =
+    ValidertArbeidserfaringSkjema skjemaInfo
+
+
+fraArbeidserfaring : Arbeidserfaring -> ArbeidserfaringSkjema
+fraArbeidserfaring arbeidserfaring =
+    ArbeidserfaringSkjema
+        { yrke =
+            arbeidserfaring
+                |> Arbeidserfaring.yrke
+                |> Maybe.map Yrke
+                |> Maybe.withDefault (Typeahead (TypeaheadState.init ""))
+        , jobbTittel = (Arbeidserfaring.yrkeFritekst >> Maybe.withDefault "") arbeidserfaring
+        , bedriftNavn = (Arbeidserfaring.arbeidsgiver >> Maybe.withDefault "") arbeidserfaring
+        , lokasjon = (Arbeidserfaring.sted >> Maybe.withDefault "") arbeidserfaring
+        , arbeidsoppgaver = (Arbeidserfaring.beskrivelse >> Maybe.withDefault "") arbeidserfaring
+        , fraMåned = Arbeidserfaring.fraMåned arbeidserfaring
+        , fraÅr = (Arbeidserfaring.fraÅr >> Dato.årTilString) arbeidserfaring
+        , nåværende = Arbeidserfaring.tilDato arbeidserfaring == Nåværende
+        , tilMåned = (Arbeidserfaring.tilDato >> månedFraTilDato) arbeidserfaring
+        , tilÅr = (Arbeidserfaring.tilDato >> årFraTilDato) arbeidserfaring
+        , id = (Arbeidserfaring.id >> Just) arbeidserfaring
+        }
+
+
+tilUvalidertSkjema : ValidertArbeidserfaringSkjema -> ArbeidserfaringSkjema
+tilUvalidertSkjema (ValidertArbeidserfaringSkjema info) =
+    ArbeidserfaringSkjema
+        { yrke = Yrke info.yrke
+        , jobbTittel = info.jobbTittel
+        , bedriftNavn = info.bedriftNavn
+        , lokasjon = info.lokasjon
+        , arbeidsoppgaver = info.arbeidsoppgaver
+        , fraMåned = info.fraMåned
+        , fraÅr = Dato.årTilString info.fraÅr
+        , nåværende = info.tilDato == Nåværende
+        , tilMåned = månedFraTilDato info.tilDato
+        , tilÅr = årFraTilDato info.tilDato
+        , id = info.id
+        }
+
+
+månedFraTilDato : TilDato -> Måned
+månedFraTilDato tilDato =
+    case tilDato of
+        Nåværende ->
+            Januar
+
+        Avsluttet måned _ ->
+            måned
+
+
+årFraTilDato : TilDato -> String
+årFraTilDato tilDato =
+    case tilDato of
+        Nåværende ->
+            ""
+
+        Avsluttet _ år ->
+            Dato.årTilString år
+
+
+
+--- INNHOLD ---
 
 
 type Felt
@@ -81,10 +135,7 @@ type Felt
     | BedriftNavn
     | Lokasjon
     | Arbeidsoppgaver
-    | FraMåned
     | FraÅr
-    | Naavarende
-    | TilMåned
     | TilÅr
 
 
@@ -93,153 +144,102 @@ yrkeTypeahead (ArbeidserfaringSkjema info) =
     info.yrke
 
 
+innholdTekstFelt : Felt -> ArbeidserfaringSkjema -> String
+innholdTekstFelt felt (ArbeidserfaringSkjema skjema) =
+    case felt of
+        JobbTittel ->
+            skjema.jobbTittel
+
+        BedriftNavn ->
+            skjema.bedriftNavn
+
+        Lokasjon ->
+            skjema.lokasjon
+
+        Arbeidsoppgaver ->
+            skjema.arbeidsoppgaver
+
+        FraÅr ->
+            skjema.fraÅr
+
+        TilÅr ->
+            skjema.tilÅr
+
+
+nåværende : ArbeidserfaringSkjema -> Bool
+nåværende (ArbeidserfaringSkjema info) =
+    info.nåværende
+
+
+fraMåned : ArbeidserfaringSkjema -> Måned
+fraMåned (ArbeidserfaringSkjema info) =
+    info.fraMåned
+
+
+tilMåned : ArbeidserfaringSkjema -> Måned
+tilMåned (ArbeidserfaringSkjema info) =
+    info.tilMåned
+
+
 yrke : ValidertArbeidserfaringSkjema -> Yrke
 yrke (ValidertArbeidserfaringSkjema info) =
     info.yrke
 
 
-idValidert : ValidertArbeidserfaringSkjema -> Maybe String
-idValidert (ValidertArbeidserfaringSkjema info) =
-    info.id
+fraÅrValidert : ValidertArbeidserfaringSkjema -> År
+fraÅrValidert (ValidertArbeidserfaringSkjema info) =
+    info.fraÅr
 
 
-id : ArbeidserfaringSkjema -> Maybe String
-id (ArbeidserfaringSkjema info) =
-    info.id
-
-
-jobbTittel : ArbeidserfaringSkjema -> String
-jobbTittel (ArbeidserfaringSkjema info) =
-    info.jobbTittel
-
-
-bedriftNavn : ArbeidserfaringSkjema -> String
-bedriftNavn (ArbeidserfaringSkjema info) =
-    info.bedriftNavn
-
-
-lokasjon : ArbeidserfaringSkjema -> String
-lokasjon (ArbeidserfaringSkjema info) =
-    info.lokasjon
-
-
-arbeidsoppgaver : ArbeidserfaringSkjema -> String
-arbeidsoppgaver (ArbeidserfaringSkjema info) =
-    info.arbeidsoppgaver
-
-
-naavarende : ArbeidserfaringSkjema -> Bool
-naavarende (ArbeidserfaringSkjema info) =
-    info.naavarende
-
-
-fraDato : ArbeidserfaringSkjema -> Dato
-fraDato (ArbeidserfaringSkjema info) =
-    info.fraDato
-
-
-tilDato : ArbeidserfaringSkjema -> Maybe Dato
-tilDato (ArbeidserfaringSkjema info) =
+tilDatoValidert : ValidertArbeidserfaringSkjema -> TilDato
+tilDatoValidert (ValidertArbeidserfaringSkjema info) =
     info.tilDato
 
 
+id : ValidertArbeidserfaringSkjema -> Maybe String
+id (ValidertArbeidserfaringSkjema info) =
+    info.id
 
---- OPPDATER FELT ETTER EGENSKAP ----
 
 
-oppdaterStringFelt : ArbeidserfaringSkjema -> Felt -> String -> ArbeidserfaringSkjema
-oppdaterStringFelt skjema felt string =
+--- OPPDATERING ---
+
+
+oppdaterStringFelt : Felt -> String -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+oppdaterStringFelt felt string (ArbeidserfaringSkjema skjema) =
     case felt of
         JobbTittel ->
-            string
-                |> oppdaterJobbTittelFelt skjema
+            ArbeidserfaringSkjema { skjema | jobbTittel = string }
 
         BedriftNavn ->
-            string
-                |> oppdaterBedriftNavnFelt skjema
+            ArbeidserfaringSkjema { skjema | bedriftNavn = string }
 
         Lokasjon ->
-            string
-                |> oppdaterLokasjonFelt skjema
+            ArbeidserfaringSkjema { skjema | lokasjon = string }
 
         Arbeidsoppgaver ->
-            string
-                |> oppdaterArbeidsoppgaverFelt skjema
-
-        FraMåned ->
-            string
-                |> oppdaterFraMåned skjema
+            ArbeidserfaringSkjema { skjema | arbeidsoppgaver = string }
 
         FraÅr ->
-            if string == "" then
-                oppdaterFraÅr skjema string
-
-            else
-                case String.toInt string of
-                    Just a ->
-                        oppdaterFraÅr skjema string
-
-                    Nothing ->
-                        skjema
-
-        TilMåned ->
-            string
-                |> oppdaterTilMåned skjema
+            ArbeidserfaringSkjema { skjema | fraÅr = string }
 
         TilÅr ->
-            skjema
-                |> tilDato
-                |> Maybe.withDefault (Dato.fraStringTilDato (string ++ "-" ++ "01"))
-                |> Dato.måned
-                |> Dato.månedTilString
-                |> oppdaterTilÅr skjema string
-
-        _ ->
-            skjema
+            ArbeidserfaringSkjema { skjema | tilÅr = string }
 
 
-toggleBool : ArbeidserfaringSkjema -> Felt -> ArbeidserfaringSkjema
-toggleBool (ArbeidserfaringSkjema skjema) felt =
-    case felt of
-        Naavarende ->
-            case naavarende (ArbeidserfaringSkjema skjema) of
-                True ->
-                    oppdaterNaavarende False (ArbeidserfaringSkjema skjema)
-
-                False ->
-                    oppdaterNaavarende True (ArbeidserfaringSkjema skjema)
-
-        _ ->
-            ArbeidserfaringSkjema skjema
+toggleNåværende : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+toggleNåværende (ArbeidserfaringSkjema skjema) =
+    ArbeidserfaringSkjema { skjema | nåværende = not skjema.nåværende }
 
 
-
---- OPPDATER FELT ETTER NAVN ---
-
-
-oppdaterNaavarende : Bool -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
-oppdaterNaavarende bool (ArbeidserfaringSkjema skjema) =
-    if skjema.naavarende == True then
-        ArbeidserfaringSkjema
-            { skjema
-                | tilDato =
-                    tilDato (ArbeidserfaringSkjema skjema)
-                        |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
-                        |> Just
-                , naavarende = bool
-            }
-
-    else
-        ArbeidserfaringSkjema { skjema | naavarende = bool }
+oppdaterFraMåned : ArbeidserfaringSkjema -> Måned -> ArbeidserfaringSkjema
+oppdaterFraMåned (ArbeidserfaringSkjema skjema) fraMåned_ =
+    ArbeidserfaringSkjema { skjema | fraMåned = fraMåned_ }
 
 
-oppdaterNavarendeFelt : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
-oppdaterNavarendeFelt (ArbeidserfaringSkjema skjema) =
-    if skjema.naavarende == True then
-        ArbeidserfaringSkjema { skjema | naavarende = False }
-
-    else
-        ArbeidserfaringSkjema { skjema | naavarende = True }
+oppdaterTilMåned : ArbeidserfaringSkjema -> Måned -> ArbeidserfaringSkjema
+oppdaterTilMåned (ArbeidserfaringSkjema skjema) tilMåned_ =
+    ArbeidserfaringSkjema { skjema | tilMåned = tilMåned_ }
 
 
 oppdaterYrkeFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
@@ -300,105 +300,25 @@ setYrkeFeltTilYrke yrke_ (ArbeidserfaringSkjema info) =
     ArbeidserfaringSkjema { info | yrke = Yrke yrke_ }
 
 
-oppdaterJobbTittelFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterJobbTittelFelt (ArbeidserfaringSkjema skjema) string =
-    ArbeidserfaringSkjema { skjema | jobbTittel = string }
+
+--- VALIDERING ---
 
 
-oppdaterBedriftNavnFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterBedriftNavnFelt (ArbeidserfaringSkjema skjema) string =
-    ArbeidserfaringSkjema { skjema | bedriftNavn = string }
+type ValidertArbeidserfaringSkjema
+    = ValidertArbeidserfaringSkjema ValidertSkjemaInfo
 
 
-oppdaterLokasjonFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterLokasjonFelt (ArbeidserfaringSkjema skjema) string =
-    ArbeidserfaringSkjema { skjema | lokasjon = string }
-
-
-oppdaterArbeidsoppgaverFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterArbeidsoppgaverFelt (ArbeidserfaringSkjema skjema) string =
-    ArbeidserfaringSkjema { skjema | arbeidsoppgaver = string }
-
-
-oppdaterFraMåned : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterFraMåned (ArbeidserfaringSkjema skjema) string =
-    ArbeidserfaringSkjema
-        { skjema
-            | fraDato =
-                string
-                    |> Dato.stringTilMåned
-                    |> Dato.setMåned skjema.fraDato
-        }
-
-
-oppdaterFraÅr : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterFraÅr (ArbeidserfaringSkjema skjema) string =
-    ArbeidserfaringSkjema
-        { skjema
-            | fraDato =
-                string
-                    |> String.toInt
-                    |> Maybe.withDefault 0
-                    |> Dato.setÅr skjema.fraDato
-        }
-
-
-oppdaterTilMåned : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterTilMåned (ArbeidserfaringSkjema skjema) string =
-    case skjema.tilDato of
-        Just dato ->
-            ArbeidserfaringSkjema
-                { skjema
-                    | tilDato =
-                        string
-                            |> Dato.stringTilMåned
-                            |> Dato.setMåned dato
-                            |> Just
-                }
-
-        Nothing ->
-            ArbeidserfaringSkjema skjema
-
-
-oppdaterTilÅr : ArbeidserfaringSkjema -> String -> String -> ArbeidserfaringSkjema
-oppdaterTilÅr (ArbeidserfaringSkjema skjema) år måned =
-    case skjema.tilDato of
-        Just dato ->
-            ArbeidserfaringSkjema
-                { skjema
-                    | tilDato =
-                        år
-                            |> String.toInt
-                            |> Maybe.withDefault 0
-                            |> Dato.setÅr dato
-                            |> Just
-                }
-
-        Nothing ->
-            ArbeidserfaringSkjema
-                skjema
-
-
-nyttValidertSkjema : ValidertSkjemaInfo -> ValidertArbeidserfaringSkjema
-nyttValidertSkjema skjemaInfo =
-    ValidertArbeidserfaringSkjema skjemaInfo
-
-
-tilArbeidserfaringSkjema : ValidertArbeidserfaringSkjema -> ArbeidserfaringSkjema
-tilArbeidserfaringSkjema (ValidertArbeidserfaringSkjema info) =
-    ArbeidserfaringSkjema
-        { yrke = Yrke info.yrke
-        , jobbTittel = info.jobbTittel
-        , bedriftNavn = info.bedriftNavn
-        , lokasjon = info.lokasjon
-        , arbeidsoppgaver = info.arbeidsoppgaver
-        , fraDato = info.fraDato
-        , naavarende = info.naavarende
-        , tilDato = info.tilDato
-        , styrkkode = info.styrkkode
-        , konseptId = info.konseptId
-        , id = info.id
-        }
+type alias ValidertSkjemaInfo =
+    { yrke : Yrke
+    , jobbTittel : String
+    , bedriftNavn : String
+    , lokasjon : String
+    , arbeidsoppgaver : String
+    , fraMåned : Måned
+    , fraÅr : År
+    , tilDato : TilDato
+    , id : Maybe String
+    }
 
 
 valider : ArbeidserfaringSkjema -> Maybe ValidertArbeidserfaringSkjema
@@ -406,70 +326,69 @@ valider (ArbeidserfaringSkjema info) =
     case info.yrke of
         Yrke yrkefelt ->
             if Yrke.label yrkefelt /= "" then
-                ValidertArbeidserfaringSkjema
-                    { yrke = yrkefelt
-                    , jobbTittel = info.jobbTittel
-                    , bedriftNavn = info.bedriftNavn
-                    , lokasjon = info.lokasjon
-                    , arbeidsoppgaver = info.arbeidsoppgaver
-                    , fraDato = info.fraDato
-                    , naavarende = info.naavarende
-                    , tilDato = info.tilDato
-                    , styrkkode = info.styrkkode
-                    , konseptId = info.konseptId
-                    , id = info.id
-                    }
-                    |> Just
+                Maybe.map2
+                    (\tilDato fraÅr_ ->
+                        ValidertArbeidserfaringSkjema
+                            { yrke = yrkefelt
+                            , jobbTittel = info.jobbTittel
+                            , bedriftNavn = info.bedriftNavn
+                            , lokasjon = info.lokasjon
+                            , arbeidsoppgaver = info.arbeidsoppgaver
+                            , fraMåned = info.fraMåned
+                            , fraÅr = fraÅr_
+                            , tilDato = tilDato
+                            , id = info.id
+                            }
+                    )
+                    (validerTilDato info.nåværende info.tilMåned info.tilÅr)
+                    (Dato.stringTilÅr info.fraÅr)
 
             else
                 Nothing
 
-        Typeahead typeaheadState ->
+        Typeahead _ ->
             Nothing
+
+
+validerTilDato : Bool -> Måned -> String -> Maybe TilDato
+validerTilDato nåværende_ måned år =
+    if nåværende_ then
+        Just Nåværende
+
+    else
+        år
+            |> Dato.stringTilÅr
+            |> Maybe.map (Avsluttet måned)
+
+
+
+--- ENCODING ---
 
 
 encode : ValidertArbeidserfaringSkjema -> Json.Encode.Value
 encode (ValidertArbeidserfaringSkjema skjema) =
-    case skjema.naavarende of
-        True ->
-            Json.Encode.object
-                [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
-                , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
-                , ( "sted", Json.Encode.string skjema.lokasjon )
-                , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
-                , ( "tildato", Json.Encode.null )
-                , ( "navarende", Json.Encode.bool skjema.naavarende )
-                , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
-                , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
-                , ( "styrkkode", Json.Encode.string skjema.styrkkode )
-                , ( "konseptid", Json.Encode.int skjema.konseptId )
-                ]
+    [ [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
+      , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
+      , ( "sted", Json.Encode.string skjema.lokasjon )
+      , ( "fradato", Dato.encodeMonthYear skjema.fraMåned skjema.fraÅr )
+      , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
+      , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
+      , ( "styrkkode", (Yrke.styrkkode >> Json.Encode.string) skjema.yrke )
+      , ( "konseptid", (Yrke.konseptId >> Json.Encode.int) skjema.yrke )
+      ]
+    , encodeTilDato skjema.tilDato
+    ]
+        |> List.concat
+        |> Json.Encode.object
 
-        False ->
-            case skjema.tilDato of
-                Just tildato ->
-                    Json.Encode.object
-                        [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
-                        , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
-                        , ( "sted", Json.Encode.string skjema.lokasjon )
-                        , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
-                        , ( "tildato", Json.Encode.string (Dato.tilStringForBackend tildato) )
-                        , ( "navarende", Json.Encode.bool skjema.naavarende )
-                        , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
-                        , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
-                        , ( "styrkkode", Json.Encode.string skjema.styrkkode )
-                        , ( "konseptid", Json.Encode.int skjema.konseptId )
-                        ]
 
-                Nothing ->
-                    Json.Encode.object
-                        [ ( "arbeidsgiver", Json.Encode.string skjema.bedriftNavn )
-                        , ( "yrke", Json.Encode.string (Yrke.label skjema.yrke) )
-                        , ( "sted", Json.Encode.string skjema.lokasjon )
-                        , ( "fradato", Json.Encode.string (skjema.fraDato |> Dato.tilStringForBackend) )
-                        , ( "navarende", Json.Encode.bool skjema.naavarende )
-                        , ( "yrkeFritekst", Json.Encode.string skjema.jobbTittel )
-                        , ( "beskrivelse", Json.Encode.string skjema.arbeidsoppgaver )
-                        , ( "styrkkode", Json.Encode.string skjema.styrkkode )
-                        , ( "konseptid", Json.Encode.int skjema.konseptId )
-                        ]
+encodeTilDato : TilDato -> List ( String, Json.Encode.Value )
+encodeTilDato tilDato =
+    case tilDato of
+        Nåværende ->
+            [ ( "navarende", Json.Encode.bool True ) ]
+
+        Avsluttet måned år ->
+            [ ( "navarende", Json.Encode.bool False )
+            , ( "tildato", Dato.encodeMonthYear måned år )
+            ]

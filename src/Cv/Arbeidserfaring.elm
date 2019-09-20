@@ -3,20 +3,20 @@ module Cv.Arbeidserfaring exposing
     , arbeidsgiver
     , beskrivelse
     , decode
-    , fradato
+    , fraMåned
+    , fraÅr
     , id
-    , ikkeAktueltForFremtiden
-    , konseptid
-    , navarende
     , sted
-    , styrkkode
-    , tildato
+    , tilDato
     , yrke
     , yrkeFritekst
+    , yrkeString
     )
 
+import Dato exposing (Måned, TilDato(..), År)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Yrke exposing (Yrke)
 
 
 type Arbeidserfaring
@@ -30,15 +30,12 @@ type AAregArbeidserfaring
 type alias ArbeidserfaringInfo =
     { id : String
     , arbeidsgiver : Maybe String
-    , yrke : Maybe String
+    , yrke : Maybe Yrke
     , sted : Maybe String
-    , fradato : Maybe String
-    , tildato : Maybe String
-    , navarende : Bool
-    , styrkkode : Maybe String
-    , ikkeAktueltForFremtiden : Bool
+    , fraMåned : Måned
+    , fraÅr : År
+    , tilDato : TilDato
     , yrkeFritekst : Maybe String
-    , konseptid : Maybe String
     , beskrivelse : Maybe String
     }
 
@@ -53,9 +50,14 @@ arbeidsgiver (Arbeidserfaring info) =
     info.arbeidsgiver
 
 
-yrke : Arbeidserfaring -> Maybe String
+yrke : Arbeidserfaring -> Maybe Yrke
 yrke (Arbeidserfaring info) =
     info.yrke
+
+
+yrkeString : Arbeidserfaring -> Maybe String
+yrkeString (Arbeidserfaring info) =
+    Maybe.map Yrke.label info.yrke
 
 
 sted : Arbeidserfaring -> Maybe String
@@ -63,39 +65,24 @@ sted (Arbeidserfaring info) =
     info.sted
 
 
-fradato : Arbeidserfaring -> Maybe String
-fradato (Arbeidserfaring info) =
-    info.fradato
+fraMåned : Arbeidserfaring -> Måned
+fraMåned (Arbeidserfaring info) =
+    info.fraMåned
 
 
-tildato : Arbeidserfaring -> Maybe String
-tildato (Arbeidserfaring info) =
-    info.tildato
+fraÅr : Arbeidserfaring -> År
+fraÅr (Arbeidserfaring info) =
+    info.fraÅr
 
 
-navarende : Arbeidserfaring -> Bool
-navarende (Arbeidserfaring info) =
-    info.navarende
-
-
-styrkkode : Arbeidserfaring -> Maybe String
-styrkkode (Arbeidserfaring info) =
-    info.styrkkode
-
-
-ikkeAktueltForFremtiden : Arbeidserfaring -> Bool
-ikkeAktueltForFremtiden (Arbeidserfaring info) =
-    info.ikkeAktueltForFremtiden
+tilDato : Arbeidserfaring -> TilDato
+tilDato (Arbeidserfaring info) =
+    info.tilDato
 
 
 yrkeFritekst : Arbeidserfaring -> Maybe String
 yrkeFritekst (Arbeidserfaring info) =
     info.yrkeFritekst
-
-
-konseptid : Arbeidserfaring -> Maybe String
-konseptid (Arbeidserfaring info) =
-    info.konseptid
 
 
 beskrivelse : Arbeidserfaring -> Maybe String
@@ -127,21 +114,77 @@ Arbeidserfaringdto:
 decode : Decoder Arbeidserfaring
 decode =
     decodeBackendData
-        |> map Arbeidserfaring
+        |> andThen tilArbeidserfaring
 
 
-decodeBackendData : Decoder ArbeidserfaringInfo
+tilArbeidserfaring : BackendData -> Decoder Arbeidserfaring
+tilArbeidserfaring backendData =
+    Json.Decode.map2 (lagArbeidserfaring backendData)
+        (Dato.decodeMonthYear backendData.fradato)
+        (decodeTilDato backendData.navarende backendData.tildato)
+
+
+lagArbeidserfaring : BackendData -> ( Måned, År ) -> TilDato -> Arbeidserfaring
+lagArbeidserfaring backendData ( fraMåned_, fraÅr_ ) tilDato_ =
+    Arbeidserfaring
+        { id = backendData.id
+        , arbeidsgiver = backendData.arbeidsgiver
+        , sted = backendData.sted
+        , fraMåned = fraMåned_
+        , fraÅr = fraÅr_
+        , tilDato = tilDato_
+        , yrkeFritekst = backendData.yrkeFritekst
+        , beskrivelse = backendData.beskrivelse
+        , yrke =
+            Maybe.map3 Yrke.fraString
+                backendData.yrke
+                backendData.styrkkode
+                backendData.konseptid
+        }
+
+
+decodeTilDato : Bool -> Maybe String -> Decoder TilDato
+decodeTilDato nåværende maybeTilDatoString =
+    if nåværende then
+        succeed Nåværende
+
+    else
+        case maybeTilDatoString of
+            Just tilDatoString ->
+                tilDatoString
+                    |> Dato.decodeMonthYear
+                    |> Json.Decode.map (\( a, b ) -> Avsluttet a b)
+
+            Nothing ->
+                fail "Decoding av til-dato feilet. nåværende kan ikke være false samtidig som tildato er null"
+
+
+type alias BackendData =
+    { id : String
+    , arbeidsgiver : Maybe String
+    , yrke : Maybe String
+    , sted : Maybe String
+    , fradato : String
+    , tildato : Maybe String
+    , navarende : Bool
+    , styrkkode : Maybe String
+    , yrkeFritekst : Maybe String
+    , konseptid : Maybe String
+    , beskrivelse : Maybe String
+    }
+
+
+decodeBackendData : Decoder BackendData
 decodeBackendData =
-    succeed ArbeidserfaringInfo
+    succeed BackendData
         |> required "id" string
         |> required "arbeidsgiver" (nullable string)
         |> required "yrke" (nullable string)
         |> required "sted" (nullable string)
-        |> required "fradato" (nullable string)
+        |> required "fradato" string
         |> required "tildato" (nullable string)
         |> required "navarende" bool
         |> required "styrkkode" (nullable string)
-        |> required "ikkeAktueltForFremtiden" bool
         |> required "yrkeFritekst" (nullable string)
         |> required "konseptid" (nullable string)
         |> required "beskrivelse" (nullable string)

@@ -28,8 +28,8 @@ module Skjema.Utdanning exposing
     , validerSkjema
     )
 
-import Cv.Utdanning as Utdanning exposing (Nivå(..), TilDato(..), Utdanning)
-import Dato exposing (Dato, Måned(..), År)
+import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
+import Dato exposing (Måned(..), TilDato(..), År)
 import Json.Encode
 
 

@@ -11,24 +11,23 @@ module Seksjon.Arbeidserfaring exposing
 import Api
 import Browser.Dom as Dom
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
-import Dato exposing (Dato)
+import Dato exposing (Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
+import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
-import FrontendModuler.Select as Select
 import FrontendModuler.Textarea as Textarea
 import FrontendModuler.Typeahead as Typeahead
 import Html exposing (Attribute, Html, div, text)
 import Html.Attributes exposing (class)
 import Http exposing (Error)
-import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Arbeidserfaring as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, TypeaheadFelt(..), ValidertArbeidserfaringSkjema)
+import Skjema.Arbeidserfaring as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, Felt(..), TypeaheadFelt(..), ValidertArbeidserfaringSkjema)
 import Task
 import TypeaheadState exposing (TypeaheadState)
 import Yrke exposing (Yrke)
@@ -67,7 +66,7 @@ type SamtaleStatus
 type Msg
     = BrukerOppretterNyArbeidserfaring String
     | BrukerVilRedigereArbeidserfaring String
-    | BrukerHarValgtArbeidserfaringÅRedigere ArbeidserfaringSkjema String
+    | BrukerHarValgtArbeidserfaringÅRedigere Arbeidserfaring String
     | BrukerHopperOverArbeidserfaring String
     | HentAAregArbeidserfaring
     | HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
@@ -98,7 +97,7 @@ type Msg
     | BrukerTrykkerTypeaheadTastIOppsummering Typeahead.Operation
     | BrukerHovrerOverTypeaheadSuggestionIOppsummering Yrke
     | BrukerVelgerYrkeIOppsummering Yrke
-    | ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Felt String
+    | SkjemaEndret SkjemaEndring
     | ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Felt
     | BrukerTrykkerPåLagreArbeidserfaringKnapp String ValidertArbeidserfaringSkjema
     | BrukerTrykkerPåLagreArbeidserfaringKnappMenSkjemaValidererIkke
@@ -110,6 +109,13 @@ type Msg
     | ViewportSatt (Result Dom.Error ())
     | GåTilNesteSeksjon
     | ErrorLogget
+
+
+type SkjemaEndring
+    = Tekst Felt String
+    | NåværendeToggled
+    | FraMåned String
+    | TilMåned String
 
 
 type Samtale
@@ -128,7 +134,7 @@ type Samtale
     | RegistrereArbeidsoppgaver ArbeidsoppgaverInfo
     | RegistrereFraMåned FraDatoInfo
     | RegistrereFraÅr FraDatoInfo
-    | RegistrereNaavarende FraDatoInfo
+    | RegistrereNåværende NåværendeInfo
     | RegistrereTilMåned TilDatoInfo
     | RegistrereTilÅr TilDatoInfo
     | VisOppsummering ValidertArbeidserfaringSkjema
@@ -168,15 +174,21 @@ type alias ArbeidsoppgaverInfo =
 
 type alias FraDatoInfo =
     { tidligereInfo : ArbeidsoppgaverInfo
-    , fraMåned : Dato.Måned
+    , fraMåned : Måned
     , fraÅr : String
-    , naavarende : Bool
+    }
+
+
+type alias NåværendeInfo =
+    { tidligereInfo : ArbeidsoppgaverInfo
+    , fraMåned : Måned
+    , fraÅr : År
     }
 
 
 type alias TilDatoInfo =
-    { tidligereInfo : FraDatoInfo
-    , tilMåned : Dato.Måned
+    { tidligereInfo : NåværendeInfo
+    , tilMåned : Måned
     , tilÅr : String
     }
 
@@ -210,43 +222,45 @@ stedInfoTilArbeidsoppgaverInfo lokasjonInfo =
 arbeidsoppgaverInfoTilfraDatoInfo : ArbeidsoppgaverInfo -> FraDatoInfo
 arbeidsoppgaverInfoTilfraDatoInfo arbeidsoppgaverInfo =
     { tidligereInfo = arbeidsoppgaverInfo
-    , fraMåned = Dato.Januar
+    , fraMåned = Januar
     , fraÅr = ""
-    , naavarende = False
     }
 
 
-fraDatoInfoTilTilDatoInfo : FraDatoInfo -> TilDatoInfo
-fraDatoInfoTilTilDatoInfo fraDatoInfo =
-    { tidligereInfo = fraDatoInfo
-    , tilMåned = Dato.Januar
+fraDatoInfoTilTilDatoInfo : NåværendeInfo -> TilDatoInfo
+fraDatoInfoTilTilDatoInfo nåværendeInfo =
+    { tidligereInfo = nåværendeInfo
+    , tilMåned = Januar
     , tilÅr = ""
     }
 
 
-tilDatoTilSkjema : TilDatoInfo -> ValidertArbeidserfaringSkjema
-tilDatoTilSkjema tilDatoInfo =
-    ArbeidserfaringSkjema.nyttValidertSkjema
-        { yrke =
-            tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
+nåværendeInfoTilSkjema : NåværendeInfo -> ValidertArbeidserfaringSkjema
+nåværendeInfoTilSkjema nåværendeInfo =
+    ArbeidserfaringSkjema.initValidertSkjema
+        { yrke = nåværendeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
+        , jobbTittel = nåværendeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel
+        , bedriftNavn = nåværendeInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn
+        , lokasjon = nåværendeInfo.tidligereInfo.tidligereInfo.lokasjon
+        , arbeidsoppgaver = nåværendeInfo.tidligereInfo.arbeidsoppgaver
+        , fraMåned = nåværendeInfo.fraMåned
+        , fraÅr = nåværendeInfo.fraÅr
+        , tilDato = Nåværende
+        , id = Nothing
+        }
+
+
+tilDatoTilSkjema : TilDatoInfo -> År -> ValidertArbeidserfaringSkjema
+tilDatoTilSkjema tilDatoInfo år =
+    ArbeidserfaringSkjema.initValidertSkjema
+        { yrke = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
         , jobbTittel = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel
         , bedriftNavn = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn
         , lokasjon = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.lokasjon
         , arbeidsoppgaver = tilDatoInfo.tidligereInfo.tidligereInfo.arbeidsoppgaver
-        , fraDato = Dato.fraStringTilDato (tilDatoInfo.tidligereInfo.fraÅr ++ "-" ++ (tilDatoInfo.tidligereInfo.fraMåned |> Dato.månedTilString))
-        , naavarende = tilDatoInfo.tidligereInfo.naavarende
-        , tilDato =
-            if tilDatoInfo.tidligereInfo.naavarende then
-                Nothing
-
-            else
-                Just (Dato.fraStringTilDato (tilDatoInfo.tilÅr ++ "-" ++ (tilDatoInfo.tilMåned |> Dato.månedTilString)))
-        , styrkkode =
-            tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
-                |> Yrke.styrkkode
-        , konseptId =
-            tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
-                |> Yrke.konseptId
+        , fraMåned = tilDatoInfo.tidligereInfo.fraMåned
+        , fraÅr = tilDatoInfo.tidligereInfo.fraÅr
+        , tilDato = Avsluttet tilDatoInfo.tilMåned år
         , id = Nothing
         }
 
@@ -268,8 +282,9 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        BrukerHarValgtArbeidserfaringÅRedigere skjema knappeTekst ->
-            ( skjema
+        BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring knappeTekst ->
+            ( arbeidserfaring
+                |> ArbeidserfaringSkjema.fraArbeidserfaring
                 |> RedigerOppsummering
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
             , lagtTilSpørsmålCmd model.debugStatus
@@ -650,23 +665,29 @@ update msg (Model model) =
         BrukerVilRegistrereNaavarende ->
             case model.aktivSamtale of
                 RegistrereFraÅr datoInfo ->
-                    ( RegistrereNaavarende datoInfo
-                        |> nesteSamtaleSteg model (Melding.svar [ datoInfo.fraÅr ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    case Dato.stringTilÅr datoInfo.fraÅr of
+                        Just fraÅr ->
+                            ( { tidligereInfo = datoInfo.tidligereInfo
+                              , fraMåned = datoInfo.fraMåned
+                              , fraÅr = fraÅr
+                              }
+                                |> RegistrereNåværende
+                                |> nesteSamtaleSteg model (Melding.svar [ datoInfo.fraÅr ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerSvarerJaTilNaavarende knappeTekst ->
             case model.aktivSamtale of
-                RegistrereNaavarende datoInfo ->
+                RegistrereNåværende datoInfo ->
                     ( datoInfo
-                        |> fraDatoInfoTilTilDatoInfo
-                        |> setNaavarendeTilTrue
-                        |> tilDatoTilSkjema
+                        |> nåværendeInfoTilSkjema
                         |> VisOppsummering
                         |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -679,7 +700,7 @@ update msg (Model model) =
 
         BrukerSvarerNeiTilNaavarende knappeTekst ->
             case model.aktivSamtale of
-                RegistrereNaavarende fraDatoInfo ->
+                RegistrereNåværende fraDatoInfo ->
                     ( fraDatoInfo
                         |> fraDatoInfoTilTilDatoInfo
                         |> RegistrereTilMåned
@@ -731,23 +752,26 @@ update msg (Model model) =
         BrukerVilGåTilOppsummering ->
             case model.aktivSamtale of
                 RegistrereTilÅr tilDatoInfo ->
-                    ( tilDatoInfo
-                        |> tilDatoTilSkjema
-                        |> VisOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    case Dato.stringTilÅr tilDatoInfo.tilÅr of
+                        Just år ->
+                            ( tilDatoTilSkjema tilDatoInfo år
+                                |> VisOppsummering
+                                |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerVilRedigereOppsummering knappeTekst ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
                     ( skjema
-                        |> ArbeidserfaringSkjema.tilArbeidserfaringSkjema
+                        |> ArbeidserfaringSkjema.tilUvalidertSkjema
                         |> RedigerOppsummering
                         |> nesteSamtaleSteg model
                             (Melding.svar [ knappeTekst ])
@@ -854,35 +878,13 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        ArbeidserfaringStringSkjemaEndret felt string ->
+        SkjemaEndret skjemaEndring ->
             case model.aktivSamtale of
                 RedigerOppsummering arbeidserfaringSkjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                ArbeidserfaringSkjema.oppdaterStringFelt arbeidserfaringSkjema felt string
-                                    |> RedigerOppsummering
-                        }
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                RegistrereFraÅr fraDatoInfo ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                RegistrereFraÅr { fraDatoInfo | fraÅr = string }
-                        }
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                RegistrereTilÅr tildDatoInfo ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                RegistrereTilÅr { tildDatoInfo | tilÅr = string }
-                        }
+                    ( arbeidserfaringSkjema
+                        |> oppdaterSkjema skjemaEndring
+                        |> RedigerOppsummering
+                        |> oppdaterSamtalesteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -897,7 +899,8 @@ update msg (Model model) =
                     ( Model
                         { model
                             | aktivSamtale =
-                                ArbeidserfaringSkjema.toggleBool arbeidserfaringSkjema felt
+                                arbeidserfaringSkjema
+                                    |> ArbeidserfaringSkjema.toggleNåværende
                                     |> RedigerOppsummering
                         }
                     , Cmd.none
@@ -913,8 +916,7 @@ update msg (Model model) =
                 RedigerOppsummering _ ->
                     ( validertSkjema
                         |> LagreArbeidserfaring
-                        |> nesteSamtaleSteg model
-                            (Melding.svar (validertSkjemaTilSetninger validertSkjema))
+                        |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
                     , Cmd.batch
                         [ validertSkjema
                             |> postEllerPutArbeidserfaring ArbeidserfaringLagret
@@ -949,8 +951,7 @@ update msg (Model model) =
                 LagreArbeidserfaring arbeidserfaringSkjema ->
                     case result of
                         Ok arbeidserfaringer ->
-                            ( SpørOmBrukerVilLeggeInnMer
-                                |> oppdaterSamtalesteg { model | arbeidserfaringListe = arbeidserfaringer }
+                            ( oppdaterSamtalesteg { model | arbeidserfaringListe = arbeidserfaringer } SpørOmBrukerVilLeggeInnMer
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -1032,6 +1033,26 @@ update msg (Model model) =
                         |> IkkeFerdig
 
 
+oppdaterSkjema : SkjemaEndring -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+oppdaterSkjema endring skjema =
+    case endring of
+        Tekst felt string ->
+            ArbeidserfaringSkjema.oppdaterStringFelt felt string skjema
+
+        NåværendeToggled ->
+            ArbeidserfaringSkjema.toggleNåværende skjema
+
+        FraMåned månedString ->
+            månedString
+                |> Dato.stringTilMåned
+                |> ArbeidserfaringSkjema.oppdaterFraMåned skjema
+
+        TilMåned månedString ->
+            månedString
+                |> Dato.stringTilMåned
+                |> ArbeidserfaringSkjema.oppdaterTilMåned skjema
+
+
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
 updateEtterFullførtMelding info nyMeldingsLogg =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
@@ -1056,17 +1077,6 @@ updateEtterFullførtMelding info nyMeldingsLogg =
                 }
             , lagtTilSpørsmålCmd info.debugStatus
             )
-                |> IkkeFerdig
-
-
-fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> SamtaleStatus
-fullførSeksjonHvisMeldingsloggErFerdig modelInfo =
-    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
-        FerdigAnimert ferdigAnimertMeldingsLogg ->
-            Ferdig ferdigAnimertMeldingsLogg
-
-        MeldingerGjenstår ->
-            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring "" }, Cmd.none )
                 |> IkkeFerdig
 
 
@@ -1145,16 +1155,6 @@ nesteSamtaleSteg modelInfo melding samtaleSeksjon =
                     |> MeldingsLogg.leggTilSvar melding
                     |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
         }
-
-
-setNaavarendeTilTrue : TilDatoInfo -> TilDatoInfo
-setNaavarendeTilTrue info =
-    { info | tidligereInfo = setTilTrue info.tidligereInfo }
-
-
-setTilTrue : FraDatoInfo -> FraDatoInfo
-setTilTrue fraDatoInfo =
-    { fraDatoInfo | naavarende = True }
 
 
 setFraMåned : FraDatoInfo -> Dato.Måned -> FraDatoInfo
@@ -1251,7 +1251,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         RegistrereFraÅr _ ->
             [ Melding.spørsmål [ "Hvilket år begynte du i jobben?" ] ]
 
-        RegistrereNaavarende periodeInfo ->
+        RegistrereNåværende periodeInfo ->
             let
                 yrkestittel =
                     case periodeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel of
@@ -1307,21 +1307,18 @@ samtaleTilMeldingsLogg personaliaSeksjon =
 
 validertSkjemaTilSetninger : ValidertArbeidserfaringSkjema -> List String
 validertSkjemaTilSetninger validertSkjema =
-    [ hentFraDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-        ++ " - "
-        ++ (if ArbeidserfaringSkjema.naavarende (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema) == True then
-                "nåværende"
-
-            else
-                hentTilDato (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-           )
+    let
+        skjema =
+            ArbeidserfaringSkjema.tilUvalidertSkjema validertSkjema
+    in
+    [ datoRad validertSkjema
     , Melding.tomLinje
     , "Stilling/Yrke: " ++ hentStilling validertSkjema
-    , "Bedriftnavn: " ++ ArbeidserfaringSkjema.bedriftNavn (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
-    , "Sted: " ++ ArbeidserfaringSkjema.lokasjon (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+    , "Bedriftnavn: " ++ ArbeidserfaringSkjema.innholdTekstFelt BedriftNavn skjema
+    , "Sted: " ++ ArbeidserfaringSkjema.innholdTekstFelt Lokasjon skjema
     , Melding.tomLinje
     , "Arbeidsoppgaver: "
-    , ArbeidserfaringSkjema.arbeidsoppgaver (ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema)
+    , ArbeidserfaringSkjema.innholdTekstFelt Arbeidsoppgaver skjema
     ]
 
 
@@ -1329,44 +1326,23 @@ hentStilling : ValidertArbeidserfaringSkjema -> String
 hentStilling validertSkjema =
     let
         skjema =
-            ArbeidserfaringSkjema.tilArbeidserfaringSkjema validertSkjema
+            ArbeidserfaringSkjema.tilUvalidertSkjema validertSkjema
     in
-    if ArbeidserfaringSkjema.jobbTittel skjema == "" then
+    if ArbeidserfaringSkjema.innholdTekstFelt JobbTittel skjema == "" then
         validertSkjema
             |> ArbeidserfaringSkjema.yrke
             |> Yrke.label
 
     else
-        ArbeidserfaringSkjema.jobbTittel skjema
+        ArbeidserfaringSkjema.innholdTekstFelt JobbTittel skjema
 
 
-hentFraDato : ArbeidserfaringSkjema -> String
-hentFraDato skjema =
-    let
-        år =
-            skjema |> ArbeidserfaringSkjema.fraDato |> Dato.år |> String.fromInt
-
-        maaned =
-            skjema |> ArbeidserfaringSkjema.fraDato |> Dato.måned |> Dato.månedTilString
-    in
-    maaned
-        ++ " "
-        ++ år
-
-
-hentTilDato : ArbeidserfaringSkjema -> String
-hentTilDato skjema =
-    if ArbeidserfaringSkjema.naavarende skjema == True then
-        ""
-
-    else
-        let
-            dato =
-                skjema
-                    |> ArbeidserfaringSkjema.tilDato
-                    |> Maybe.withDefault (ArbeidserfaringSkjema.fraDato skjema)
-        in
-        (dato |> Dato.måned |> Dato.månedTilString |> String.toLower) ++ " " ++ (dato |> Dato.år |> String.fromInt)
+datoRad : ValidertArbeidserfaringSkjema -> String
+datoRad skjema =
+    Dato.periodeTilString
+        ((ArbeidserfaringSkjema.tilUvalidertSkjema >> ArbeidserfaringSkjema.fraMåned) skjema)
+        (ArbeidserfaringSkjema.fraÅrValidert skjema)
+        (ArbeidserfaringSkjema.tilDatoValidert skjema)
 
 
 
@@ -1549,14 +1525,16 @@ viewBrukerInput (Model info) =
                         [ div [ class "skjema-int" ]
                             [ div [ class "inputkolonne" ]
                                 [ fraDatoInfo.fraÅr
-                                    |> lagÅrInput ArbeidserfaringSkjema.FraÅr
+                                    |> Input.input { label = "År", msg = BrukerOppdatererFraÅr }
+                                    |> Input.withClass Input.År
+                                    |> Input.toHtml
                                 , BrukerVilRegistrereNaavarende
                                     |> lagÅrInputKnapp "Gå videre" fraDatoInfo.fraÅr
                                 ]
                             ]
                         ]
 
-                RegistrereNaavarende _ ->
+                RegistrereNåværende _ ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "knapperad-wrapper" ]
                             [ div [ class "inputrad" ]
@@ -1602,7 +1580,9 @@ viewBrukerInput (Model info) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema-int" ]
                             [ tilDatoInfo.tilÅr
-                                |> lagÅrInput ArbeidserfaringSkjema.TilÅr
+                                |> Input.input { label = "År", msg = BrukerOppdatererTilÅr }
+                                |> Input.withClass Input.År
+                                |> Input.toHtml
                             , div [ class "inputkolonne" ]
                                 [ BrukerVilGåTilOppsummering
                                     |> lagÅrInputKnapp "Gå videre" tilDatoInfo.tilÅr
@@ -1635,31 +1615,56 @@ viewBrukerInput (Model info) =
 
                                 Typeahead typeaheadState ->
                                     viewTypeaheadOppsummering typeaheadState
-                            , if
-                                ArbeidserfaringSkjema.jobbTittel skjema
-                                    == ""
-                              then
-                                div [] []
+                            , if ArbeidserfaringSkjema.innholdTekstFelt JobbTittel skjema == "" then
+                                text ""
 
                               else
                                 skjema
-                                    |> ArbeidserfaringSkjema.jobbTittel
-                                    |> Input.input { label = "Jobbtittel", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.JobbTittel }
+                                    |> ArbeidserfaringSkjema.innholdTekstFelt JobbTittel
+                                    |> Input.input { label = "Jobbtittel", msg = Tekst JobbTittel >> SkjemaEndret }
                                     |> Input.toHtml
                             , skjema
-                                |> ArbeidserfaringSkjema.bedriftNavn
-                                |> Input.input { label = "Bedriftens navn", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.BedriftNavn }
+                                |> ArbeidserfaringSkjema.innholdTekstFelt BedriftNavn
+                                |> Input.input { label = "Bedriftens navn", msg = Tekst BedriftNavn >> SkjemaEndret }
                                 |> Input.toHtml
                             , skjema
-                                |> ArbeidserfaringSkjema.lokasjon
-                                |> Input.input { label = "Sted/land", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Lokasjon }
+                                |> ArbeidserfaringSkjema.innholdTekstFelt Lokasjon
+                                |> Input.input { label = "Sted/land", msg = Tekst Lokasjon >> SkjemaEndret }
                                 |> Input.toHtml
                             , skjema
-                                |> ArbeidserfaringSkjema.arbeidsoppgaver
-                                |> Textarea.textarea { label = "Arbeidsoppgaver", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.Arbeidsoppgaver }
+                                |> ArbeidserfaringSkjema.innholdTekstFelt Arbeidsoppgaver
+                                |> Textarea.textarea { label = "Arbeidsoppgaver", msg = Tekst Arbeidsoppgaver >> SkjemaEndret }
                                 |> Textarea.toHtml
+                            , div [ class "DatoInput-fra-til-rad" ]
+                                [ DatoInput.datoInput
+                                    { label = "Fra"
+                                    , onMånedChange = FraMåned >> SkjemaEndret
+                                    , måned = ArbeidserfaringSkjema.fraMåned skjema
+                                    , onÅrChange = Tekst FraÅr >> SkjemaEndret
+                                    , år = ArbeidserfaringSkjema.innholdTekstFelt FraÅr skjema
+                                    }
+                                    --                                    |> DatoInput.withMaybeFeilmeldingÅr (ArbeidserfaringSkjema.feilmeldingFraÅr skjema)
+                                    --                                    |> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
+                                    |> DatoInput.toHtml
+                                , if not (ArbeidserfaringSkjema.nåværende skjema) then
+                                    DatoInput.datoInput
+                                        { label = "Til"
+                                        , onMånedChange = TilMåned >> SkjemaEndret
+                                        , måned = ArbeidserfaringSkjema.tilMåned skjema
+                                        , onÅrChange = Tekst TilÅr >> SkjemaEndret
+                                        , år = ArbeidserfaringSkjema.innholdTekstFelt TilÅr skjema
+                                        }
+                                        --                                        |> DatoInput.withMaybeFeilmeldingÅr (ArbeidserfaringSkjema.feilmeldingTilÅr skjema)
+                                        --                                        |> DatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
+                                        |> DatoInput.toHtml
+
+                                  else
+                                    text ""
+                                ]
                             , skjema
-                                |> lagRedigerDatoInput
+                                |> ArbeidserfaringSkjema.nåværende
+                                |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
+                                |> Checkbox.toHtml
                             , div [ class "inputrad" ]
                                 [ case ArbeidserfaringSkjema.valider skjema of
                                     Just validertSkjema ->
@@ -1786,61 +1791,16 @@ lagArbeidserfaringKnapper : Model -> List (Html Msg)
 lagArbeidserfaringKnapper (Model info) =
     info.arbeidserfaringListe
         |> List.map
-            (\arbErf ->
+            (\arbeidserfaring ->
                 let
                     text =
-                        Maybe.withDefault "" (Cv.Arbeidserfaring.yrke arbErf)
+                        Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
                             ++ ", "
-                            ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbErf)
+                            ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
                 in
-                Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere (arbeidserfaringTilSkjema arbErf) text) text
+                Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring text) text
                     |> Knapp.toHtml
             )
-
-
-arbeidserfaringTilSkjema : Cv.Arbeidserfaring.Arbeidserfaring -> ArbeidserfaringSkjema
-arbeidserfaringTilSkjema arbeidserfaring =
-    let
-        yrk =
-            Maybe.withDefault "" (Cv.Arbeidserfaring.yrke arbeidserfaring)
-
-        styrkKode =
-            Maybe.withDefault "" (Cv.Arbeidserfaring.yrke arbeidserfaring)
-
-        konsept =
-            Maybe.withDefault "" (Cv.Arbeidserfaring.konseptid arbeidserfaring)
-
-        ferdigYrke =
-            Yrke.fraString yrk styrkKode konsept
-    in
-    ArbeidserfaringSkjema.nyttValidertSkjema
-        { yrke = ferdigYrke
-        , jobbTittel = Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeFritekst arbeidserfaring)
-        , bedriftNavn = Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
-        , lokasjon = Maybe.withDefault "" (Cv.Arbeidserfaring.sted arbeidserfaring)
-        , arbeidsoppgaver = Maybe.withDefault "" (Cv.Arbeidserfaring.beskrivelse arbeidserfaring)
-        , fraDato =
-            Maybe.withDefault "2007-09" (Cv.Arbeidserfaring.fradato arbeidserfaring)
-                |> Dato.fraStringTilDato
-        , naavarende = Cv.Arbeidserfaring.navarende arbeidserfaring
-        , tilDato =
-            if Cv.Arbeidserfaring.navarende arbeidserfaring then
-                Nothing
-
-            else
-                Just
-                    (Maybe.withDefault "1970-01" (Cv.Arbeidserfaring.tildato arbeidserfaring)
-                        |> Dato.fraStringTilDato
-                    )
-        , styrkkode =
-            Maybe.withDefault "" (Cv.Arbeidserfaring.styrkkode arbeidserfaring)
-        , konseptId =
-            Maybe.withDefault "1" (Cv.Arbeidserfaring.konseptid arbeidserfaring)
-                |> String.toInt
-                |> Maybe.withDefault 1
-        , id = Just (Cv.Arbeidserfaring.id arbeidserfaring)
-        }
-        |> ArbeidserfaringSkjema.tilArbeidserfaringSkjema
 
 
 lagTekstInputKnapp : String -> String -> Msg -> Html Msg
@@ -1892,126 +1852,127 @@ lagTilMånedKnapp måned =
         |> Knapp.toHtml
 
 
-lagÅrInput : ArbeidserfaringSkjema.Felt -> String -> Html Msg
-lagÅrInput felt inputTekst =
-    let
-        inputfield =
-            inputTekst
-                |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret felt }
-                |> Input.withClass Input.År
-    in
-    if not (Dato.validerÅr inputTekst) && inputTekst /= "" then
-        inputfield
-            |> Input.withFeilmelding "Vennligst skriv inn et gyldig årstall"
-            |> Input.toHtml
 
-    else
-        inputfield
-            |> Input.toHtml
-
-
-lagRedigerDatoInput : ArbeidserfaringSkjema -> Html Msg
-lagRedigerDatoInput arbeidserfaringSkjema =
-    div []
-        [ Select.select "Måned"
-            (ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.FraMåned)
-            [ ( "Januar", "Januar" )
-            , ( "Februar", "Februar" )
-            , ( "Mars", "Mars" )
-            , ( "April", "April" )
-            , ( "Mai", "Mai" )
-            , ( "Juni", "Juni" )
-            , ( "Juli", "Juli" )
-            , ( "August", "August" )
-            , ( "September", "September" )
-            , ( "Oktober", "Oktober" )
-            , ( "November", "November" )
-            , ( "Desember", "Desember" )
-            ]
-            |> Select.withSelected (arbeidserfaringSkjema |> ArbeidserfaringSkjema.fraDato |> Dato.måned |> Dato.månedTilString)
-            |> Select.toHtml
-        , arbeidserfaringSkjema
-            |> ArbeidserfaringSkjema.fraDato
-            |> Dato.år
-            |> String.fromInt
-            |> (\string ->
-                    if string == "0" then
-                        ""
-
-                    else
-                        string
-               )
-            |> lagÅrInput ArbeidserfaringSkjema.FraÅr
-
-        -- |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.FraÅr }
-        -- |> Input.toHtml
-        , arbeidserfaringSkjema
-            |> ArbeidserfaringSkjema.naavarende
-            |> Checkbox.checkbox "Nåværende" (ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Naavarende)
-            |> Checkbox.toHtml
-        , if ArbeidserfaringSkjema.naavarende arbeidserfaringSkjema then
-            text ""
-
-          else
-            div []
-                [ Select.select "Måned"
-                    (ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.TilMåned)
-                    [ ( "Januar", "Januar" )
-                    , ( "Februar", "Februar" )
-                    , ( "Mars", "Mars" )
-                    , ( "April", "April" )
-                    , ( "Mai", "Mai" )
-                    , ( "Juni", "Juni" )
-                    , ( "Juli", "Juli" )
-                    , ( "August", "August" )
-                    , ( "September", "September" )
-                    , ( "Oktober", "Oktober" )
-                    , ( "November", "November" )
-                    , ( "Desember", "Desember" )
-                    ]
-                    |> Select.withSelected
-                        (arbeidserfaringSkjema
-                            |> ArbeidserfaringSkjema.tilDato
-                            |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
-                            |> Dato.måned
-                            |> Dato.månedTilString
-                        )
-                    |> Select.toHtml
-                , case ArbeidserfaringSkjema.tilDato arbeidserfaringSkjema of
-                    Just dato ->
-                        dato
-                            |> Dato.år
-                            |> String.fromInt
-                            |> (\string ->
-                                    if string == "0" then
-                                        ""
-
-                                    else
-                                        string
-                               )
-                            |> lagÅrInput ArbeidserfaringSkjema.TilÅr
-
-                    Nothing ->
-                        arbeidserfaringSkjema
-                            |> ArbeidserfaringSkjema.tilDato
-                            |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
-                            |> Dato.år
-                            |> String.fromInt
-                            |> (\string ->
-                                    if string == "0" then
-                                        ""
-
-                                    else
-                                        string
-                               )
-                            |> lagÅrInput ArbeidserfaringSkjema.TilÅr
-                ]
-        ]
+--
+--lagÅrInput : ArbeidserfaringSkjema.Felt -> String -> Html Msg
+--lagÅrInput felt inputTekst =
+--    let
+--        inputfield =
+--            inputTekst
+--                |> Input.input { label = "År", msg = SkjemaEndret felt }
+--                |> Input.withClass Input.År
+--    in
+--    if not (Dato.validerÅr inputTekst) && inputTekst /= "" then
+--        inputfield
+--            |> Input.withFeilmelding "Vennligst skriv inn et gyldig årstall"
+--            |> Input.toHtml
+--
+--    else
+--        inputfield
+--            |> Input.toHtml
+--
+--lagRedigerDatoInput : ArbeidserfaringSkjema -> Html Msg
+--lagRedigerDatoInput arbeidserfaringSkjema =
+--    div []
+--        [ Select.select "Måned"
+--            (SkjemaEndret ArbeidserfaringSkjema.FraMåned)
+--            [ ( "Januar", "Januar" )
+--            , ( "Februar", "Februar" )
+--            , ( "Mars", "Mars" )
+--            , ( "April", "April" )
+--            , ( "Mai", "Mai" )
+--            , ( "Juni", "Juni" )
+--            , ( "Juli", "Juli" )
+--            , ( "August", "August" )
+--            , ( "September", "September" )
+--            , ( "Oktober", "Oktober" )
+--            , ( "November", "November" )
+--            , ( "Desember", "Desember" )
+--            ]
+--            |> Select.withSelected (arbeidserfaringSkjema |> ArbeidserfaringSkjema.fraDato |> Dato.måned |> Dato.månedTilString)
+--            |> Select.toHtml
+--        , arbeidserfaringSkjema
+--            |> ArbeidserfaringSkjema.fraDato
+--            |> Dato.år
+--            |> String.fromInt
+--            |> (\string ->
+--                    if string == "0" then
+--                        ""
+--
+--                    else
+--                        string
+--               )
+--            |> lagÅrInput ArbeidserfaringSkjema.FraÅr
+--
+--        -- |> Input.input { label = "År", msg = ArbeidserfaringStringSkjemaEndret ArbeidserfaringSkjema.FraÅr }
+--        -- |> Input.toHtml
+--        , arbeidserfaringSkjema
+--            |> ArbeidserfaringSkjema.nåværende
+--            |> Checkbox.checkbox "Nåværende" (ArbeidserfaringBoolSkjemaEndret ArbeidserfaringSkjema.Naavarende)
+--            |> Checkbox.toHtml
+--        , if ArbeidserfaringSkjema.nåværende arbeidserfaringSkjema then
+--            text ""
+--
+--          else
+--            div []
+--                [ Select.select "Måned"
+--                    (SkjemaEndret ArbeidserfaringSkjema.TilMåned)
+--                    [ ( "Januar", "Januar" )
+--                    , ( "Februar", "Februar" )
+--                    , ( "Mars", "Mars" )
+--                    , ( "April", "April" )
+--                    , ( "Mai", "Mai" )
+--                    , ( "Juni", "Juni" )
+--                    , ( "Juli", "Juli" )
+--                    , ( "August", "August" )
+--                    , ( "September", "September" )
+--                    , ( "Oktober", "Oktober" )
+--                    , ( "November", "November" )
+--                    , ( "Desember", "Desember" )
+--                    ]
+--                    |> Select.withSelected
+--                        (arbeidserfaringSkjema
+--                            |> ArbeidserfaringSkjema.tilDato
+--                            |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
+--                            |> Dato.måned
+--                            |> Dato.månedTilString
+--                        )
+--                    |> Select.toHtml
+--                , case ArbeidserfaringSkjema.tilDato arbeidserfaringSkjema of
+--                    Just dato ->
+--                        dato
+--                            |> Dato.år
+--                            |> String.fromInt
+--                            |> (\string ->
+--                                    if string == "0" then
+--                                        ""
+--
+--                                    else
+--                                        string
+--                               )
+--                            |> lagÅrInput ArbeidserfaringSkjema.TilÅr
+--
+--                    Nothing ->
+--                        arbeidserfaringSkjema
+--                            |> ArbeidserfaringSkjema.tilDato
+--                            |> Maybe.withDefault (Dato.fraStringTilDato "1970-01")
+--                            |> Dato.år
+--                            |> String.fromInt
+--                            |> (\string ->
+--                                    if string == "0" then
+--                                        ""
+--
+--                                    else
+--                                        string
+--                               )
+--                            |> lagÅrInput ArbeidserfaringSkjema.TilÅr
+--                ]
+--        ]
 
 
 postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
 postEllerPutArbeidserfaring msgConstructor skjema =
-    case ArbeidserfaringSkjema.idValidert skjema of
+    case ArbeidserfaringSkjema.id skjema of
         Just id ->
             Api.putArbeidserfaring msgConstructor skjema id
 
@@ -2019,93 +1980,29 @@ postEllerPutArbeidserfaring msgConstructor skjema =
             Api.postArbeidserfaring msgConstructor skjema
 
 
-arbeidserfaringToString : List Arbeidserfaring -> List String
-arbeidserfaringToString arbeidserfaringsListe =
-    List.map
-        (\el ->
-            case Cv.Arbeidserfaring.fradato el of
-                Just fraDato ->
-                    case Cv.Arbeidserfaring.tildato el of
-                        Just tilDato ->
-                            [ (fraDato
-                                |> Dato.fraStringTilDato
-                                |> Dato.måned
-                                |> Dato.månedTilString
-                              )
-                                ++ " "
-                                ++ (fraDato
-                                        |> Dato.fraStringTilDato
-                                        |> Dato.år
-                                        |> String.fromInt
-                                   )
-                                ++ " - "
-                                ++ (tilDato
-                                        |> Dato.fraStringTilDato
-                                        |> Dato.måned
-                                        |> Dato.månedTilString
-                                   )
-                                ++ " "
-                                ++ (tilDato
-                                        |> Dato.fraStringTilDato
-                                        |> Dato.år
-                                        |> String.fromInt
-                                   )
-                            ]
-                                ++ [ ((if Cv.Arbeidserfaring.yrkeFritekst el == Nothing then
-                                        Cv.Arbeidserfaring.yrke el
-
-                                       else
-                                        Cv.Arbeidserfaring.yrkeFritekst el
-                                      )
-                                        |> Maybe.withDefault ""
-                                     )
-                                        ++ " hos "
-                                        ++ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                   ]
-                                ++ (if List.elemIndex el arbeidserfaringsListe == Just (List.length arbeidserfaringsListe - 1) then
-                                        [ "" ]
-
-                                    else
-                                        [ Melding.tomLinje ]
-                                   )
-
-                        Nothing ->
-                            [ (fraDato
-                                |> Dato.fraStringTilDato
-                                |> Dato.måned
-                                |> Dato.månedTilString
-                              )
-                                ++ " "
-                                ++ (fraDato
-                                        |> Dato.fraStringTilDato
-                                        |> Dato.år
-                                        |> String.fromInt
-                                   )
-                                ++ " - Nåværende"
-                            ]
-                                ++ [ ((if Cv.Arbeidserfaring.yrkeFritekst el == Nothing then
-                                        Cv.Arbeidserfaring.yrke el
-
-                                       else
-                                        Cv.Arbeidserfaring.yrkeFritekst el
-                                      )
-                                        |> Maybe.withDefault ""
-                                     )
-                                        ++ " hos "
-                                        ++ (Cv.Arbeidserfaring.arbeidsgiver el |> Maybe.withDefault "")
-                                   ]
-                                ++ (if List.elemIndex el arbeidserfaringsListe == Just (List.length arbeidserfaringsListe - 1) then
-                                        [ "" ]
-
-                                    else
-                                        [ Melding.tomLinje ]
-                                   )
-
-                Nothing ->
-                    [ "" ]
-        )
-        arbeidserfaringsListe
+arbeidserfaringerTilString : List Arbeidserfaring -> List String
+arbeidserfaringerTilString arbeidserfaringer =
+    arbeidserfaringer
+        |> List.map arbeidserfaringTilString
+        |> List.intersperse [ Melding.tomLinje ]
         |> List.concat
+
+
+arbeidserfaringTilString : Arbeidserfaring -> List String
+arbeidserfaringTilString arbeidserfaring =
+    -- TODO : FIks dette? og Sjekk
+    [ Dato.periodeTilString (Cv.Arbeidserfaring.fraMåned arbeidserfaring) (Cv.Arbeidserfaring.fraÅr arbeidserfaring) (Cv.Arbeidserfaring.tilDato arbeidserfaring)
+    , ((if Cv.Arbeidserfaring.yrkeFritekst arbeidserfaring == Nothing then
+            Cv.Arbeidserfaring.yrkeString arbeidserfaring
+
+        else
+            Cv.Arbeidserfaring.yrkeFritekst arbeidserfaring
+       )
+        |> Maybe.withDefault ""
+      )
+        ++ " hos "
+        ++ (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring |> Maybe.withDefault "")
+    ]
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
@@ -2132,7 +2029,7 @@ init debugStatus gammelMeldingsLogg arbeidserfaringsListe =
                         MeldingsLogg.leggTilSpørsmål
                             [ Melding.spørsmål [ "Nå skal vi legge til arbeidserfaringen din." ]
                             , Melding.spørsmål [ "Jeg ser at du har lagt til noe allerede." ]
-                            , Melding.spørsmål (arbeidserfaringToString arbeidserfaringsListe)
+                            , Melding.spørsmål (arbeidserfaringerTilString arbeidserfaringsListe)
                             , Melding.spørsmål [ "Vil du legge til mer?" ]
                             ]
                    )
