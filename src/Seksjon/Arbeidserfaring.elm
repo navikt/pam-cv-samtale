@@ -1314,8 +1314,8 @@ validertSkjemaTilSetninger validertSkjema =
     [ datoRad validertSkjema
     , Melding.tomLinje
     , "Stilling/Yrke: " ++ hentStilling validertSkjema
-    , "Bedriftnavn: " ++ ArbeidserfaringSkjema.innholdTekstFelt BedriftNavn skjema
-    , "Sted: " ++ ArbeidserfaringSkjema.innholdTekstFelt Lokasjon skjema
+    , "Bedriftnavn: " ++ ArbeidserfaringSkjema.innholdTekstFelt Bedriftsnavn skjema
+    , "Sted: " ++ ArbeidserfaringSkjema.innholdTekstFelt Sted skjema
     , Melding.tomLinje
     , "Arbeidsoppgaver: "
     , ArbeidserfaringSkjema.innholdTekstFelt Arbeidsoppgaver skjema
@@ -1328,13 +1328,13 @@ hentStilling validertSkjema =
         skjema =
             ArbeidserfaringSkjema.tilUvalidertSkjema validertSkjema
     in
-    if ArbeidserfaringSkjema.innholdTekstFelt JobbTittel skjema == "" then
+    if ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema == "" then
         validertSkjema
             |> ArbeidserfaringSkjema.yrke
             |> Yrke.label
 
     else
-        ArbeidserfaringSkjema.innholdTekstFelt JobbTittel skjema
+        ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema
 
 
 datoRad : ValidertArbeidserfaringSkjema -> String
@@ -1615,21 +1615,21 @@ viewBrukerInput (Model info) =
 
                                 Typeahead typeaheadState ->
                                     viewTypeaheadOppsummering typeaheadState
-                            , if ArbeidserfaringSkjema.innholdTekstFelt JobbTittel skjema == "" then
+                            , if ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema == "" then
                                 text ""
 
                               else
                                 skjema
-                                    |> ArbeidserfaringSkjema.innholdTekstFelt JobbTittel
-                                    |> Input.input { label = "Jobbtittel", msg = Tekst JobbTittel >> SkjemaEndret }
+                                    |> ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel
+                                    |> Input.input { label = "Jobbtittel", msg = Tekst Jobbtittel >> SkjemaEndret }
                                     |> Input.toHtml
                             , skjema
-                                |> ArbeidserfaringSkjema.innholdTekstFelt BedriftNavn
-                                |> Input.input { label = "Bedriftens navn", msg = Tekst BedriftNavn >> SkjemaEndret }
+                                |> ArbeidserfaringSkjema.innholdTekstFelt Bedriftsnavn
+                                |> Input.input { label = "Bedriftens navn", msg = Tekst Bedriftsnavn >> SkjemaEndret }
                                 |> Input.toHtml
                             , skjema
-                                |> ArbeidserfaringSkjema.innholdTekstFelt Lokasjon
-                                |> Input.input { label = "Sted/land", msg = Tekst Lokasjon >> SkjemaEndret }
+                                |> ArbeidserfaringSkjema.innholdTekstFelt Sted
+                                |> Input.input { label = "Sted/land", msg = Tekst Sted >> SkjemaEndret }
                                 |> Input.toHtml
                             , skjema
                                 |> ArbeidserfaringSkjema.innholdTekstFelt Arbeidsoppgaver

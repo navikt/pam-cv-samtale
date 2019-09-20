@@ -11,10 +11,10 @@ import Json.Decode exposing (Decoder, at, int, map, map3, string)
 
 
 type Yrke
-    = Yrke YrkeTypeaheadInfo
+    = Yrke YrkeInfo
 
 
-type alias YrkeTypeaheadInfo =
+type alias YrkeInfo =
     { konseptId : Int
     , label : String
     , styrk08 : String
@@ -51,9 +51,9 @@ decode =
         |> map Yrke
 
 
-decodeBackendData : Decoder YrkeTypeaheadInfo
+decodeBackendData : Decoder YrkeInfo
 decodeBackendData =
-    map3 YrkeTypeaheadInfo
+    map3 YrkeInfo
         (at [ "konseptId" ] int)
         (at [ "label" ] string)
         (at [ "styrk08" ] string)

@@ -42,8 +42,8 @@ type ArbeidserfaringSkjema
 type alias SkjemaInfo =
     { yrke : TypeaheadFelt
     , jobbTittel : String
-    , bedriftNavn : String
-    , lokasjon : String
+    , bedriftsnavn : String
+    , sted : String
     , arbeidsoppgaver : String
     , fraMåned : Måned
     , fraÅr : String
@@ -77,8 +77,8 @@ fraArbeidserfaring arbeidserfaring =
                 |> Maybe.map Yrke
                 |> Maybe.withDefault (Typeahead (TypeaheadState.init ""))
         , jobbTittel = (Arbeidserfaring.yrkeFritekst >> Maybe.withDefault "") arbeidserfaring
-        , bedriftNavn = (Arbeidserfaring.arbeidsgiver >> Maybe.withDefault "") arbeidserfaring
-        , lokasjon = (Arbeidserfaring.sted >> Maybe.withDefault "") arbeidserfaring
+        , bedriftsnavn = (Arbeidserfaring.arbeidsgiver >> Maybe.withDefault "") arbeidserfaring
+        , sted = (Arbeidserfaring.sted >> Maybe.withDefault "") arbeidserfaring
         , arbeidsoppgaver = (Arbeidserfaring.beskrivelse >> Maybe.withDefault "") arbeidserfaring
         , fraMåned = Arbeidserfaring.fraMåned arbeidserfaring
         , fraÅr = (Arbeidserfaring.fraÅr >> Dato.årTilString) arbeidserfaring
@@ -94,8 +94,8 @@ tilUvalidertSkjema (ValidertArbeidserfaringSkjema info) =
     ArbeidserfaringSkjema
         { yrke = Yrke info.yrke
         , jobbTittel = info.jobbTittel
-        , bedriftNavn = info.bedriftNavn
-        , lokasjon = info.lokasjon
+        , bedriftsnavn = info.bedriftNavn
+        , sted = info.lokasjon
         , arbeidsoppgaver = info.arbeidsoppgaver
         , fraMåned = info.fraMåned
         , fraÅr = Dato.årTilString info.fraÅr
@@ -131,9 +131,9 @@ månedFraTilDato tilDato =
 
 
 type Felt
-    = JobbTittel
-    | BedriftNavn
-    | Lokasjon
+    = Jobbtittel
+    | Bedriftsnavn
+    | Sted
     | Arbeidsoppgaver
     | FraÅr
     | TilÅr
@@ -147,14 +147,14 @@ yrkeTypeahead (ArbeidserfaringSkjema info) =
 innholdTekstFelt : Felt -> ArbeidserfaringSkjema -> String
 innholdTekstFelt felt (ArbeidserfaringSkjema skjema) =
     case felt of
-        JobbTittel ->
+        Jobbtittel ->
             skjema.jobbTittel
 
-        BedriftNavn ->
-            skjema.bedriftNavn
+        Bedriftsnavn ->
+            skjema.bedriftsnavn
 
-        Lokasjon ->
-            skjema.lokasjon
+        Sted ->
+            skjema.sted
 
         Arbeidsoppgaver ->
             skjema.arbeidsoppgaver
@@ -208,14 +208,14 @@ id (ValidertArbeidserfaringSkjema info) =
 oppdaterStringFelt : Felt -> String -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
 oppdaterStringFelt felt string (ArbeidserfaringSkjema skjema) =
     case felt of
-        JobbTittel ->
+        Jobbtittel ->
             ArbeidserfaringSkjema { skjema | jobbTittel = string }
 
-        BedriftNavn ->
-            ArbeidserfaringSkjema { skjema | bedriftNavn = string }
+        Bedriftsnavn ->
+            ArbeidserfaringSkjema { skjema | bedriftsnavn = string }
 
-        Lokasjon ->
-            ArbeidserfaringSkjema { skjema | lokasjon = string }
+        Sted ->
+            ArbeidserfaringSkjema { skjema | sted = string }
 
         Arbeidsoppgaver ->
             ArbeidserfaringSkjema { skjema | arbeidsoppgaver = string }
@@ -331,8 +331,8 @@ valider (ArbeidserfaringSkjema info) =
                         ValidertArbeidserfaringSkjema
                             { yrke = yrkefelt
                             , jobbTittel = info.jobbTittel
-                            , bedriftNavn = info.bedriftNavn
-                            , lokasjon = info.lokasjon
+                            , bedriftNavn = info.bedriftsnavn
+                            , lokasjon = info.sted
                             , arbeidsoppgaver = info.arbeidsoppgaver
                             , fraMåned = info.fraMåned
                             , fraÅr = fraÅr_
