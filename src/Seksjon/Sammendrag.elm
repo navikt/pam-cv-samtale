@@ -276,7 +276,7 @@ samtaleTilMeldingsLogg sammendragSeksjon =
                 , Melding.spørsmål
                     [ "Du har allerede skrevet dette..."
                     ]
-                , Melding.spørsmål (List.intersperse Melding.tomLinje (String.split "\n" sammendrag))
+                , Melding.spørsmål [ sammendrag ]
                 , Melding.spørsmål [ "Vil du legge til eller endre på noe?" ]
                 ]
 
