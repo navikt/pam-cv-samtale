@@ -5,9 +5,14 @@ module Skjema.Arbeidserfaring exposing
     , TypeaheadFelt(..)
     , ValidertArbeidserfaringSkjema
     , encode
+    , feilmeldingFraÅr
+    , feilmeldingTilÅr
     , fraArbeidserfaring
     , fraMåned
     , fraÅrValidert
+    , gjørAlleFeilmeldingerSynlig
+    , gjørFeilmeldingFraÅrSynlig
+    , gjørFeilmeldingTilÅrSynlig
     , id
     , initValidertSkjema
     , innholdTekstFelt
@@ -47,9 +52,11 @@ type alias SkjemaInfo =
     , arbeidsoppgaver : String
     , fraMåned : Måned
     , fraÅr : String
+    , visFraÅrFeilmelding : Bool
     , nåværende : Bool
     , tilMåned : Måned
     , tilÅr : String
+    , visTilÅrFeilmelding : Bool
     , id : Maybe String
     }
 
@@ -82,9 +89,11 @@ fraArbeidserfaring arbeidserfaring =
         , arbeidsoppgaver = (Arbeidserfaring.beskrivelse >> Maybe.withDefault "") arbeidserfaring
         , fraMåned = Arbeidserfaring.fraMåned arbeidserfaring
         , fraÅr = (Arbeidserfaring.fraÅr >> Dato.årTilString) arbeidserfaring
+        , visFraÅrFeilmelding = False
         , nåværende = Arbeidserfaring.tilDato arbeidserfaring == Nåværende
         , tilMåned = (Arbeidserfaring.tilDato >> månedFraTilDato) arbeidserfaring
         , tilÅr = (Arbeidserfaring.tilDato >> årFraTilDato) arbeidserfaring
+        , visTilÅrFeilmelding = False
         , id = (Arbeidserfaring.id >> Just) arbeidserfaring
         }
 
@@ -99,9 +108,11 @@ tilUvalidertSkjema (ValidertArbeidserfaringSkjema info) =
         , arbeidsoppgaver = info.arbeidsoppgaver
         , fraMåned = info.fraMåned
         , fraÅr = Dato.årTilString info.fraÅr
+        , visFraÅrFeilmelding = False
         , nåværende = info.tilDato == Nåværende
         , tilMåned = månedFraTilDato info.tilDato
         , tilÅr = årFraTilDato info.tilDato
+        , visTilÅrFeilmelding = False
         , id = info.id
         }
 
@@ -298,6 +309,45 @@ velgAktivYrkeITypeahead (ArbeidserfaringSkjema info) =
 setYrkeFeltTilYrke : Yrke -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
 setYrkeFeltTilYrke yrke_ (ArbeidserfaringSkjema info) =
     ArbeidserfaringSkjema { info | yrke = Yrke yrke_ }
+
+
+
+--- FEILMELDINGER ---
+
+
+feilmeldingFraÅr : ArbeidserfaringSkjema -> Maybe String
+feilmeldingFraÅr (ArbeidserfaringSkjema skjema) =
+    if skjema.visFraÅrFeilmelding then
+        Dato.feilmeldingÅr skjema.fraÅr
+
+    else
+        Nothing
+
+
+feilmeldingTilÅr : ArbeidserfaringSkjema -> Maybe String
+feilmeldingTilÅr (ArbeidserfaringSkjema skjema) =
+    if not skjema.nåværende && skjema.visTilÅrFeilmelding then
+        Dato.feilmeldingÅr skjema.tilÅr
+
+    else
+        Nothing
+
+
+gjørFeilmeldingFraÅrSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+gjørFeilmeldingFraÅrSynlig (ArbeidserfaringSkjema skjema) =
+    ArbeidserfaringSkjema { skjema | visFraÅrFeilmelding = True }
+
+
+gjørFeilmeldingTilÅrSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+gjørFeilmeldingTilÅrSynlig (ArbeidserfaringSkjema skjema) =
+    ArbeidserfaringSkjema { skjema | visTilÅrFeilmelding = True }
+
+
+gjørAlleFeilmeldingerSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+gjørAlleFeilmeldingerSynlig skjema =
+    skjema
+        |> gjørFeilmeldingFraÅrSynlig
+        |> gjørFeilmeldingTilÅrSynlig
 
 
 
