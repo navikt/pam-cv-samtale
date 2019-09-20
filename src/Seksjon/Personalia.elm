@@ -149,13 +149,18 @@ update msg (Model model) =
                             IkkeFerdig ( Model model, Cmd.none )
 
                 Err error ->
-                    IkkeFerdig
-                        ( Model model
-                        , error
-                            |> Feilmelding.feilmelding ("Hent poststed for postnummer: \"" ++ postnummer ++ "\"")
-                            |> Maybe.map (Api.logError (always ErrorLogget))
-                            |> Maybe.withDefault Cmd.none
-                        )
+                    case error of
+                        Http.BadStatus 404 ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                        _ ->
+                            IkkeFerdig
+                                ( Model model
+                                , error
+                                    |> Feilmelding.feilmelding ("Hent poststed for postnummer: \"" ++ postnummer ++ "\"")
+                                    |> Maybe.map (Api.logError (always ErrorLogget))
+                                    |> Maybe.withDefault Cmd.none
+                                )
 
         PoststedfeltEndretSelvOmDetErDisabled _ ->
             IkkeFerdig ( Model model, Cmd.none )
