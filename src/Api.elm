@@ -7,6 +7,7 @@ module Api exposing
     , getMesterbrevTypeahead
     , getPerson
     , getPersonalia
+    , getSertifikatTypeahead
     , getSpråkkoder
     , getYrkeTypeahead
     , hentPoststed
@@ -17,6 +18,7 @@ module Api exposing
     , postFagdokumentasjon
     , postPerson
     , postPersonalia
+    , postSertifikat
     , postSpråk
     , postSynlighet
     , postUtdanning
@@ -30,6 +32,7 @@ import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
 import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
+import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
 import Cv.Spraakferdighet exposing (Spraakferdighet)
 import Cv.Utdanning exposing (Utdanning)
 import Feilmelding exposing (Feilmelding)
@@ -40,9 +43,11 @@ import Konsept exposing (Konsept)
 import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Poststed exposing (Poststed)
+import SertifikatFelt exposing (SertifikatFelt)
 import Skjema.Arbeidserfaring
 import Skjema.Fagdokumentasjon
 import Skjema.Personalia
+import Skjema.Sertifikat
 import Skjema.Sprak
 import Skjema.Utdanning
 import SpråkKode exposing (SpråkKode)
@@ -190,6 +195,15 @@ putArbeidserfaring msgConstructor skjema id =
         }
 
 
+postSertifikat : (Result Error (List Sertifikat) -> msg) -> Skjema.Sertifikat.ValidertSertifikatSkjema -> Cmd msg
+postSertifikat msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/sertifikat"
+        , expect = expectJson msgConstructor (Json.Decode.list Sertifikat.decode)
+        , body = Skjema.Sertifikat.encode skjema |> jsonBody
+        }
+
+
 getYrkeTypeahead : (Result Error (List Yrke) -> msg) -> String -> Cmd msg
 getYrkeTypeahead msgConstructor string =
     Http.get
@@ -253,6 +267,14 @@ getAutorisasjonTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/autorisasjoner?q=" ++ string
         , expect = expectJson msgConstructor (Json.Decode.list Konsept.decode)
+        }
+
+
+getSertifikatTypeahead : (Result Error (List SertifikatFelt) -> msg) -> String -> Cmd msg
+getSertifikatTypeahead msgConstructor string =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/autorisasjon?q=" ++ string
+        , expect = expectJson msgConstructor (Json.Decode.list SertifikatFelt.decode)
         }
 
 

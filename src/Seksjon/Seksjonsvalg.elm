@@ -274,7 +274,7 @@ seksjonsvalgDisabled seksjonsvalg =
             Enabled
 
         SertifiseringSeksjon ->
-            Disabled
+            Enabled
 
         AnnenErfaringSeksjon ->
             Disabled
@@ -302,7 +302,7 @@ seksjonsvalgTilString seksjonsvalg =
             "Autorisasjon"
 
         SertifiseringSeksjon ->
-            "Sertifisering"
+            "Sertifisering/sertifikat"
 
         AnnenErfaringSeksjon ->
             "Annen erfaring"
