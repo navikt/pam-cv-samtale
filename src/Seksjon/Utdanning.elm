@@ -357,12 +357,7 @@ update msg (Model model) =
                 RegistrereFraMåned fraDatoInfo ->
                     ( { fraDatoInfo | fraMåned = måned }
                         |> RegistrereFraÅr
-                        |> nesteSamtaleSteg model
-                            (Melding.svar
-                                [ fraDatoInfo.fraMåned
-                                    |> Dato.månedTilString
-                                ]
-                            )
+                        |> nesteSamtaleSteg model (Melding.svar [ Dato.månedTilString måned ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -459,7 +454,7 @@ update msg (Model model) =
                 RegistrereTilMåned tilDatoInfo ->
                     ( { tilDatoInfo | tilMåned = måned }
                         |> RegistrereTilÅr
-                        |> nesteSamtaleSteg model (Melding.svar [ Dato.månedTilString tilDatoInfo.tilMåned ])
+                        |> nesteSamtaleSteg model (Melding.svar [ Dato.månedTilString måned ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
