@@ -1,6 +1,8 @@
 module Skjema.Sertifikat exposing
-    ( SertifikatSkjema
+    ( Felt(..)
+    , SertifikatSkjema
     , TypeaheadFelt(..)
+    , Utløpsdato(..)
     , ValidertSertifikatSkjema
     , encode
     , initValidertSkjema
@@ -25,13 +27,18 @@ type ValidertSertifikatSkjema
     = ValidertSkjema ValidertSkjemaInfo
 
 
+type Utløpsdato
+    = IkkeOppgitt
+    | Oppgitt Måned År
+
+
 type alias UvalidertSkjemaInfo =
     { sertifikatFelt : TypeaheadFelt
     , utsteder : String
     , fullførtMåned : Måned
-    , fullførtÅr : År
+    , fullførtÅr : String
     , utløperMåned : Måned
-    , utløperÅr : År
+    , utløperÅr : String
     }
 
 
@@ -40,8 +47,7 @@ type alias ValidertSkjemaInfo =
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : År
-    , utløperMåned : Måned
-    , utløperÅr : År
+    , utløpsdato : Utløpsdato
     }
 
 
@@ -89,19 +95,9 @@ fullførtMåned (UvalidertSkjema skjema) =
     skjema.fullførtMåned
 
 
-fullførtÅr : SertifikatSkjema -> År
-fullførtÅr (UvalidertSkjema skjema) =
-    skjema.fullførtÅr
-
-
 utløperMåned : SertifikatSkjema -> Måned
 utløperMåned (UvalidertSkjema skjema) =
     skjema.utløperMåned
-
-
-utløperÅr : SertifikatSkjema -> År
-utløperÅr (UvalidertSkjema skjema) =
-    skjema.utløperÅr
 
 
 
@@ -202,9 +198,21 @@ tilUvalidertSkjema (ValidertSkjema skjema) =
         { sertifikatFelt = SertifikatFelt skjema.sertifikatFelt
         , utsteder = skjema.utsteder
         , fullførtMåned = skjema.fullførtMåned
-        , fullførtÅr = skjema.fullførtÅr
-        , utløperMåned = skjema.utløperMåned
-        , utløperÅr = skjema.utløperÅr
+        , fullførtÅr = Dato.årTilString skjema.fullførtÅr
+        , utløperMåned =
+            case skjema.utløpsdato of
+                IkkeOppgitt ->
+                    Januar
+
+                Oppgitt måned _ ->
+                    måned
+        , utløperÅr =
+            case skjema.utløpsdato of
+                IkkeOppgitt ->
+                    ""
+
+                Oppgitt _ år ->
+                    Dato.årTilString år
         }
 
 

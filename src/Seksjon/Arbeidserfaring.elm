@@ -1615,6 +1615,11 @@ viewBrukerInput (Model info) =
                                     |> Input.withOnBlur FraÅrMisterFokus
                                     |> Input.withId (inputIdTilString FraÅrInput)
                                     |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visFeilmeldingFraÅr) fraDatoInfo.fraÅr)
+                                    |> Input.withMaybeFeilmelding
+                                        (fraDatoInfo.fraÅr
+                                            |> Dato.feilmeldingÅr
+                                            |> maybeHvisTrue fraDatoInfo.visFeilmeldingFraÅr
+                                        )
                                     |> Input.toHtml
                                 , Knapp.knapp BrukerVilRegistrereFraÅr "Gå videre"
                                     |> Knapp.toHtml
