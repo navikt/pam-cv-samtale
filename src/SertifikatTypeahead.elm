@@ -1,5 +1,5 @@
-module SertifikatFelt exposing
-    ( SertifikatFelt
+module SertifikatTypeahead exposing
+    ( SertifikatTypeahead
     , decode
     , konseptId
     , label
@@ -8,8 +8,8 @@ module SertifikatFelt exposing
 import Json.Decode exposing (Decoder, at, int, map, map2, string)
 
 
-type SertifikatFelt
-    = SertifikatFelt SertifikatFeltTypeaheadInfo
+type SertifikatTypeahead
+    = SertifikatTypeahead SertifikatFeltTypeaheadInfo
 
 
 type alias SertifikatFeltTypeaheadInfo =
@@ -18,20 +18,20 @@ type alias SertifikatFeltTypeaheadInfo =
     }
 
 
-label : SertifikatFelt -> String
-label (SertifikatFelt info) =
+label : SertifikatTypeahead -> String
+label (SertifikatTypeahead info) =
     info.label
 
 
-konseptId : SertifikatFelt -> Int
-konseptId (SertifikatFelt info) =
+konseptId : SertifikatTypeahead -> Int
+konseptId (SertifikatTypeahead info) =
     info.konseptId
 
 
-decode : Decoder SertifikatFelt
+decode : Decoder SertifikatTypeahead
 decode =
     decodeBackendData
-        |> map SertifikatFelt
+        |> map SertifikatTypeahead
 
 
 decodeBackendData : Decoder SertifikatFeltTypeaheadInfo

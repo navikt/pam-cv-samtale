@@ -111,6 +111,7 @@ toHtml (Typeahead options) =
             , options.inputId
                 |> Maybe.map id
                 |> Maybe.withDefault noAttribute
+            , autocomplete False
             ]
             []
         , if List.isEmpty options.suggestions then

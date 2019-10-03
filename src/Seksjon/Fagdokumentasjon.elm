@@ -443,7 +443,7 @@ update msg (Model model) =
                     IkkeFerdig
                         ( skjema
                             |> Lagrer
-                            |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil informasjonen er riktig" ])
+                            |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
                         , Cmd.batch
                             [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
                             , lagtTilSpørsmålCmd model.debugStatus
@@ -454,7 +454,7 @@ update msg (Model model) =
                     IkkeFerdig
                         ( skjema
                             |> Lagrer
-                            |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil informasjonen er riktig" ])
+                            |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
                         , Cmd.batch
                             [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
                             , lagtTilSpørsmålCmd model.debugStatus

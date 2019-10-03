@@ -50,6 +50,7 @@ type Seksjonsvalg
 
 type Samtale
     = LeggTilAutorisasjoner
+    | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
     | VenterPåAnimasjonFørFullføring Seksjonsvalg
 
@@ -193,6 +194,9 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
+        LeggTilFlereAutorisasjoner ->
+            [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
+
         LeggTilAnnet ->
             [ Melding.spørsmål [ "Det er viktig å få med alt du kan på CV-en." ]
             , Melding.spørsmål [ "Har du jobbet som frivillig eller har hatt verv? Legg til annen erfaring." ]
@@ -240,6 +244,23 @@ viewBrukerInput (Model model) =
                                     , seksjonsvalgKnapp KursSeksjon
                                     , seksjonsvalgKnapp FørerkortSeksjon
                                     , seksjonsvalgKnapp IngenAvSeksjonene
+                                    ]
+                                ]
+                            ]
+                        ]
+
+                LeggTilFlereAutorisasjoner -> --TODO: funksjon
+                    div [ class "skjema-wrapper" ]
+                        [ div [ class "skjema" ]
+                            [ div [ class "inputkolonne" ]
+                                [ div []
+                                    [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
+                                    , seksjonsvalgKnapp MesterbrevSeksjon
+                                    , seksjonsvalgKnapp AutorisasjonSeksjon
+                                    , seksjonsvalgKnapp SertifiseringSeksjon
+                                    , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
+                                        |> Knapp.withClass Knapp.SpråknivåKnapp
+                                        |> Knapp.toHtml
                                     ]
                                 ]
                             ]

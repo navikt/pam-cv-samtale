@@ -25,6 +25,7 @@ module Api exposing
     , putArbeidserfaring
     , putPersonalia
     , putSammendrag
+    , putSertifikat
     , putUtdanning
     )
 
@@ -43,7 +44,7 @@ import Konsept exposing (Konsept)
 import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Poststed exposing (Poststed)
-import SertifikatFelt exposing (SertifikatFelt)
+import SertifikatTypeahead exposing (SertifikatTypeahead)
 import Skjema.Arbeidserfaring
 import Skjema.Fagdokumentasjon
 import Skjema.Personalia
@@ -204,6 +205,19 @@ postSertifikat msgConstructor skjema =
         }
 
 
+putSertifikat : (Result Error (List Sertifikat) -> msg) -> Skjema.Sertifikat.ValidertSertifikatSkjema -> String -> Cmd msg
+putSertifikat msgConstructor skjema id =
+    Http.request
+        { method = "PUT"
+        , headers = []
+        , url = "/cv-samtale/api/rest/cv/sertifikat/" ++ id
+        , expect = expectJson msgConstructor (Json.Decode.list Sertifikat.decode)
+        , body = Skjema.Sertifikat.encode skjema |> jsonBody
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 getYrkeTypeahead : (Result Error (List Yrke) -> msg) -> String -> Cmd msg
 getYrkeTypeahead msgConstructor string =
     Http.get
@@ -270,11 +284,11 @@ getAutorisasjonTypeahead msgConstructor string =
         }
 
 
-getSertifikatTypeahead : (Result Error (List SertifikatFelt) -> msg) -> String -> Cmd msg
+getSertifikatTypeahead : (Result Error (List SertifikatTypeahead) -> msg) -> String -> Cmd msg
 getSertifikatTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/autorisasjon?q=" ++ string
-        , expect = expectJson msgConstructor (Json.Decode.list SertifikatFelt.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list SertifikatTypeahead.decode)
         }
 
 
