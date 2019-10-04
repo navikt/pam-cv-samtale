@@ -1,6 +1,5 @@
 module FrontendModuler.Input exposing
-    ( Class(..)
-    , Enabled(..)
+    ( Enabled(..)
     , Input
     , InputOptions
     , input
@@ -25,16 +24,12 @@ type Input msg
     = Input (Options msg)
 
 
-type Class
-    = År
-
-
 type alias Options msg =
     { msg : String -> msg
     , label : String
     , innhold : String
     , feilmelding : Maybe String
-    , class : Maybe Class
+    , classes : List String
     , onEnter : Maybe msg
     , onBlur : Maybe msg
     , id : Maybe String
@@ -55,7 +50,7 @@ input { msg, label } innhold =
         , label = label
         , innhold = innhold
         , feilmelding = Nothing
-        , class = Nothing
+        , classes = []
         , onEnter = Nothing
         , onBlur = Nothing
         , id = Nothing
@@ -83,9 +78,9 @@ withEnabled enabled (Input options) =
     Input { options | enabled = enabled }
 
 
-withClass : Class -> Input msg -> Input msg
+withClass : String -> Input msg -> Input msg
 withClass class (Input options) =
-    Input { options | class = Just class }
+    Input { options | classes = class :: options.classes }
 
 
 withOnEnter : msg -> Input msg -> Input msg
@@ -128,30 +123,31 @@ toHtml (Input options) =
     div [ class "skjemaelement" ]
         [ label
             --- TODO: htmlFor={inputId}
-            [ class "skjemaelement__label" ]
-            [ text options.label ]
-        , Html.input
-            [ type_ "text"
-            , value options.innhold
-            , classList
-                [ ( "skjemaelement__input", True )
-                , ( "input--fullbredde", True )
-                , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
-                , inputKlasse options.class
-                ]
-            , onInput options.msg
-            , options.id
-                |> Maybe.map id
-                |> Maybe.withDefault noAttribute
-            , options.onEnter
-                |> Maybe.map onEnter
-                |> Maybe.withDefault noAttribute
-            , options.onBlur
-                |> Maybe.map onBlur
-                |> Maybe.withDefault noAttribute
-            , disabled (options.enabled == Disabled)
-            ]
             []
+            [ span [ class "skjemaelement__label" ] [ text options.label ]
+            , Html.input
+                [ type_ "text"
+                , value options.innhold
+                , classList
+                    [ ( "skjemaelement__input", True )
+                    , ( "input--fullbredde", True )
+                    , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
+                    ]
+                , optionClasses options.classes
+                , onInput options.msg
+                , options.id
+                    |> Maybe.map id
+                    |> Maybe.withDefault noAttribute
+                , options.onEnter
+                    |> Maybe.map onEnter
+                    |> Maybe.withDefault noAttribute
+                , options.onBlur
+                    |> Maybe.map onBlur
+                    |> Maybe.withDefault noAttribute
+                , disabled (options.enabled == Disabled)
+                ]
+                []
+            ]
         , case options.feilmelding of
             Just feilmelding ->
                 div [ role "alert", ariaLive "assertive" ]
@@ -164,14 +160,11 @@ toHtml (Input options) =
         ]
 
 
-inputKlasse : Maybe Class -> ( String, Bool )
-inputKlasse maybe =
-    case maybe of
-        Just År ->
-            ( "år", True )
-
-        Nothing ->
-            ( "", False )
+optionClasses : List String -> Html.Attribute msg
+optionClasses classes =
+    classes
+        |> List.map (\class_ -> ( class_, True ))
+        |> Html.Attributes.classList
 
 
 noAttribute : Html.Attribute msg

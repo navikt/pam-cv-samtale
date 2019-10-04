@@ -1,6 +1,11 @@
 @import '../node_modules/pam-frontend-core/less/variables';
-// HTML ELEMENTER
 
+
+@meldingBredde: 30rem;
+@meldingBreddeMobil: 80%;
+
+@storSkjermSkjema: 580px;
+@litenSkjermSkjema: 579px;
 
 body {
   margin: 0;
@@ -13,8 +18,11 @@ html {
   margin: 0;
 }
 
-@meldingBredde: 30rem;
-@meldingBreddeMobil: 80%;
+.app {
+  height: 100%;
+  margin-top: 0;
+  margin-bottom: 0;
+}
 
 .spinner-wrapper {
   display: flex;
@@ -22,12 +30,42 @@ html {
   padding-top: 2rem;
 }
 
-// SAMTALE
-.app {
-  height: 100%;
-  margin-top: 0;
-  margin-bottom: 0;
+// HEADER
+
+.header {
+  display: flex;
+  align-items: center;
+  height: 4.5rem;
+  border-bottom: 2px solid #40c1ac;
+  justify-content: space-between;
+
+  @media (min-width: 768px) {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+  @media (max-width: 767px) {
+    padding-right: 1.25rem;
+  }
+
+  .header-hoyre {
+    display: flex;
+
+    a {
+      color: #8C368E;
+    }
+
+    a:visited {
+      color: #8C368E;
+    }
+
+    a:hover {
+      color: #8C368E;
+      text-decoration: none;
+    }
+  }
 }
+
+// SAMTALE
 
 .samtale-wrapper {
   position: absolute;
@@ -45,13 +83,14 @@ html {
 
 .samtale {
   @media (min-width: 768px) {
-    width: 36rem;
+    width: 40rem;
   }
   @media (max-width: 767px) {
     width: 100%;
     margin-left: 1rem;
     margin-right: 1rem;
   }
+
   .samtale-padding {
     min-height: 2.5rem;
   }
@@ -61,10 +100,9 @@ html {
   display: flex;
 }
 
-
-
 .sporsmal {
   justify-content: flex-start;
+
   .melding {
     background-color: #f1f1f1;
     color: #062140;
@@ -83,6 +121,7 @@ html {
     margin-top: -6px;
     margin-left: -6px;
   }
+
   .robot {
     width: 50px;
     height: 50px;
@@ -94,6 +133,7 @@ html {
 
 .svar {
   justify-content: flex-end;
+
   .melding {
     background-color: #062140;
     color: white;
@@ -125,6 +165,7 @@ html {
   border-radius: 12px;
   position: relative;
   margin-top: 0.5rem;
+
   p {
     margin: 0;
   }
@@ -134,55 +175,9 @@ html {
   margin-top: 0.75rem;
 }
 
-
-
-// SKJEMA
-.skjema-wrapper {
-  display: flex;
-  flex-direction: column;
-  margin-top: 1rem;
-  @media (min-width: 768px) {
-    margin-top: 1.25rem;
-  }
-  @media (max-width: 767px) {
-    margin-top: 1rem;
-  }
-}
-
-@storSkjermSkjema: 580px;
-@litenSkjermSkjema: 579px;
-
-.skjema {
-  display: flex;
-  align-self: flex-end;
-  flex-direction: column;
-
-  @media (min-width: @storSkjermSkjema) {
-    width: @meldingBredde;
-  }
-
-  @media (max-width: @litenSkjermSkjema) {
-    width: 100%
-  }
-  .textarea__higher {
-    height: 6rem;
-  }
-}
-
-.skjema-int {
-  display: flex;
-  align-self: flex-end;
-  flex-direction: column;
-  width: 140px;
-
-}
-
-.textarea_stor {
-  height: 20rem;
-}
-
 .skriver-melding {
   opacity: 0.2;
+
   .bounce {
     width: 10px;
     height: 10px;
@@ -190,16 +185,19 @@ html {
     display: inline-block;
     -webkit-animation: sk-bouncedelay 1.4s infinite ease-in-out both;
     animation: sk-bouncedelay 1.4s infinite ease-in-out both;
-    background: rgba(0,0,0,1);
+    background: rgba(0, 0, 0, 1);
   }
+
   .bounce1 {
     -webkit-animation-delay: -0.32s;
     animation-delay: -0.32s;
   }
+
   .bounce2 {
     -webkit-animation-delay: -0.16s;
     animation-delay: -0.16s;
   }
+
   @-webkit-keyframes sk-bouncedelay {
     0%,
     80%,
@@ -225,148 +223,112 @@ html {
   }
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  height: 4.5rem;
-  border-bottom: 2px solid #40c1ac;
-  justify-content: space-between;
+// Knapper i samtalen
 
-  @media (min-width: 768px) {
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
-  }
-  @media (max-width: 767px) {
-    padding-right: 1.25rem;
-  }
-  .header-hoyre {
+.knapperad {
+  display: grid;
+  margin-top: 1rem;
+  justify-items: end;
+
+  .knapper--flytende {
     display: flex;
-    a {
-      color: #8C368E;
+    justify-content: flex-end;
+    flex-flow: wrap;
+    max-width: @meldingBredde;
+  }
+
+  .knapper--kolonne {
+    display: grid;
+    justify-items: end;
+    max-width: @meldingBredde;
+  }
+
+  .knapper--måneder {
+    display: grid;
+    @media (min-width: @meldingBredde) {
+      width: @meldingBredde;
     }
-    a:visited {
-      color: #8C368E;
+    @media (max-width: 479px) {
+      width: 100%;
     }
-    a:hover {
-      color: #8C368E;
-      text-decoration: none;
+    @media (min-width: 360px) {
+      grid-template-columns: 33% 33% 33%;
+      grid-template-rows: auto auto auto auto;
+    }
+    @media (max-width: 359px) {
+      grid-template-columns: 50% 50%;
+      grid-template-rows: auto auto auto auto auto auto;
     }
   }
-}
-
-.knapperad-wrapper {
-  width: max-content;
-  align-self: flex-end;
-}
-
-
-.inputrad {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 0.5rem;
 
   .Knapp {
     margin-top: 0.5rem;
-    min-width: 5rem;
-    margin-right: 1rem;
-  }
 
-  .Knapp:last-child {
-    margin-right: 0;
-    margin-left: 0;
-
-
-  }
-
-  .Knapp--disabled {
-    margin-top: 0.5rem;
-    min-width: 5rem;
-    margin-right: 1rem;
-    width: 100%
-  }
-
-  .inputrad-innhold {
-    display: flex;
-    justify-content: flex-end;
-    flex-wrap: wrap;
     @media (min-width: 768px) {
-      width: @meldingBredde;
+      margin-left: 1rem;
     }
-
     @media (max-width: 767px) {
-      width: @meldingBreddeMobil;
-    }
-
-    .Knapp {
-      margin-top: 0.5rem;
-      min-width: 5rem;
-      margin-right: 1rem;
-    }
-
-    .Knapp:last-child {
-      margin-right: 0;
-      margin-left: 0;
+      margin-left: 0.5rem;
     }
   }
 }
 
-.inputkolonne {
+// SKJEMA
+
+.skjema-wrapper {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  margin-top: 1rem;
+  @media (min-width: 768px) {
+    margin-top: 1.25rem;
+  }
+  @media (max-width: 767px) {
+    margin-top: 1rem;
+  }
+}
+
+.skjema {
+  display: flex;
   align-self: flex-end;
-  margin-top: 0.5rem;
-  .Knapp {
-    margin-top: 0.5rem;
-    min-width: 5rem;
-    width: 100%;
+  flex-direction: column;
+
+  @media (min-width: @storSkjermSkjema) {
+    width: @meldingBredde;
   }
 
-  .Knapp--disabled{
-    margin-top: 0.5rem;
-    min-width: 5rem;
+  @media (max-width: @litenSkjermSkjema) {
     width: 100%
   }
-  .inputkolonne-innhold {
+
+  .år-wrapper {
+    display: flex;
+    align-self: flex-end;
+    flex-direction: column;
+    width: 9rem;
+  }
+
+  .select-i-samtaleflyt-wrapper {
     display: flex;
     justify-content: flex-end;
-    flex-wrap: wrap;
-    @media (min-width: 768px) {
-      width: @meldingBredde;
-    }
-
-    @media (max-width: 767px) {
-      width: @meldingBreddeMobil;
-    }
-
-    .Knapp {
-      margin-top: 0.5rem;
-      min-width: 5rem;
-    }
   }
 
-  .månedknapp {
-    width: 140px;
+  .gå-videre-knapp {
+    display: flex;
+    justify-content: flex-end;
   }
+}
 
-  .utdanningsnivåknapp {
-    width: 20rem;
-  }
-
-  .språknivåknapp {
-    min-width: 100%;
-  }
-
-  .leggetilutdannelseknapp {
-    width: 23rem
-  }
+.textarea_stor {
+  height: 20rem;
 }
 
 .PersonaliaSeksjon-poststed {
   display: flex;
+
   :first-child.skjemaelement {
     width: 6rem;
   }
+
   :last-child.skjemaelement {
     width: 100%;
     padding-left: 1rem;
@@ -382,9 +344,41 @@ html {
   overflow: auto;
 }
 
+.DatoInput-fra-til-rad {
+  display: flex;
+  justify-content: space-between;
+  @media (min-width: @storSkjermSkjema) {
+    flex-direction: row;
+  }
+
+  @media (max-width: @litenSkjermSkjema) {
+    flex-direction: column;
+  }
+}
+
+.DatoInput-wrapper {
+  display: flex;
+  align-items: flex-start;
+
+  .skjemaelement__input.input--fullbredde.aar {
+    width: 5rem;
+  }
+
+  select.skjemaelement__input.DatoInput-måned {
+    padding-right: 2.5rem;
+  }
+
+  .DatoInput-år-wrapper {
+    margin-left: 1rem;
+  }
+}
+
+// TYPEAHEAD
+
 .typeahead {
   position: relative;
   margin-bottom: 1rem;
+
   ul {
     position: absolute;
     top: 100%;
@@ -400,6 +394,7 @@ html {
     overflow: auto;
     max-height: 242px;
   }
+
   ul li {
     display: block;
     clear: both;
@@ -411,33 +406,6 @@ html {
     -ms-user-select: none;
     user-select: none;
     cursor: pointer;
-  }
-}
-
-.DatoInput-fra-til-rad {
-  display: flex;
-  justify-content: space-between;
-  @media (min-width: @storSkjermSkjema) {
-    flex-direction: row;
-  }
-
-  @media (max-width: @litenSkjermSkjema) {
-    flex-direction: column;
-  }
-
-}
-
-.DatoInput-wrapper {
-  display: flex;
-  align-items: flex-start;
-  .skjemaelement__input.input--fullbredde.år {
-    width: 5rem;
-  }
-  select.skjemaelement__input.DatoInput-måned {
-    padding-right: 2.5rem;
-  }
-  .DatoInput-år-wrapper {
-    margin-left: 1rem;
   }
 }
 
@@ -457,6 +425,7 @@ html {
 
 .typeahead-substring {
   font-weight: 600;
+
   .Utdanningsnivå {
     display: flex;
     flex-direction: column;

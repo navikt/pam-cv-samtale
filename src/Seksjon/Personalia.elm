@@ -12,6 +12,7 @@ import Api
 import Browser.Dom as Dom
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
+import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
@@ -218,7 +219,7 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        ViewportSatt result ->
+        ViewportSatt _ ->
             ( Model model, Cmd.none )
                 |> IkkeFerdig
 
@@ -337,17 +338,17 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                 )
             ]
 
-        EndreOriginal personaliaSkjema ->
+        EndreOriginal _ ->
             [ Melding.spørsmål
                 [ "Ok! Vennligst skriv inn riktig informasjon i feltene under:" ]
             ]
 
-        LagrerEndring personaliaSkjema ->
+        LagrerEndring _ ->
             [ Melding.spørsmål
                 [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ]
             ]
 
-        LagringFeilet error personaliaSkjema ->
+        LagringFeilet _ _ ->
             [ Melding.spørsmål
                 [ "Oops.. Noe gikk galt!" ]
             ]
@@ -390,19 +391,16 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
     case MeldingsLogg.ferdigAnimert seksjonsMeldingsLogg of
         FerdigAnimert _ ->
             case aktivSamtale of
-                BekreftOriginal personalia ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen er riktig"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, jeg vil endre"
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                BekreftOriginal _ ->
+                    Containers.knapper Flytende
+                        [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen er riktig"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, jeg vil endre"
+                            |> Knapp.toHtml
                         ]
 
                 EndreOriginal personaliaSkjema ->
+                    -- TODO: Endre til og bruke Container og til at feilmeldinger kun kommer etter blur/lagring
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ personaliaSkjema
@@ -443,20 +441,24 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                                 ]
                             , case Skjema.Personalia.validerSkjema personaliaSkjema of
                                 Just validertSkjema ->
-                                    Knapp.knapp (PersonaliaskjemaLagreknappTrykket validertSkjema) "Lagre endringer"
-                                        |> Knapp.toHtml
+                                    div []
+                                        [ Knapp.knapp (PersonaliaskjemaLagreknappTrykket validertSkjema) "Lagre endringer"
+                                            |> Knapp.toHtml
+                                        ]
 
                                 Nothing ->
-                                    Knapp.knapp PersonaliaskjemaLagreknappTrykketSelvOmDenErDisabled "Lagre endringer"
-                                        |> Knapp.withEnabled Knapp.Disabled
-                                        |> Knapp.toHtml
+                                    div []
+                                        [ Knapp.knapp PersonaliaskjemaLagreknappTrykketSelvOmDenErDisabled "Lagre endringer"
+                                            |> Knapp.withEnabled Knapp.Disabled
+                                            |> Knapp.toHtml
+                                        ]
                             ]
                         ]
 
-                LagrerEndring personaliaSkjema ->
+                LagrerEndring _ ->
                     text ""
 
-                LagringFeilet error personaliaSkjema ->
+                LagringFeilet _ _ ->
                     text ""
 
                 VenterPåAnimasjonFørFullføring _ ->

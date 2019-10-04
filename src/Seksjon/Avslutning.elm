@@ -15,10 +15,10 @@ import Browser.Dom as Dom
 import Cv.Cv exposing (Cv)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
+import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (..)
 import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
@@ -67,9 +67,9 @@ meldingsLogg (Model model) =
 
 
 type Msg
-    = BrukerGodkjennerSynligCV String
-    | BrukerGodkjennerIkkeSynligCV String
-    | BrukerVilHentePersonPåNytt String
+    = BrukerGodkjennerSynligCV
+    | BrukerGodkjennerIkkeSynligCV
+    | BrukerVilHentePersonPåNytt
     | BrukerVilAvslutte String
     | PersonHentet (Result Http.Error Person)
     | SynlighetPostet (Result Http.Error Bool)
@@ -82,7 +82,7 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        ViewportSatt result ->
+        ViewportSatt _ ->
             ( Model model, Cmd.none )
                 |> IkkeFerdig
 
@@ -140,12 +140,12 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-        BrukerGodkjennerSynligCV knappeTekst ->
+        BrukerGodkjennerSynligCV ->
             ( Model
                 { model
                     | seksjonsMeldingsLogg =
                         model.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, CV-en skal være synlig for arbeidsgivere" ])
                 }
             , Cmd.batch
                 [ lagtTilSpørsmålCmd model.debugStatus
@@ -154,12 +154,12 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        BrukerGodkjennerIkkeSynligCV knappeTekst ->
+        BrukerGodkjennerIkkeSynligCV ->
             ( Model
                 { model
                     | seksjonsMeldingsLogg =
                         model.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, CV-en skal bare være synlig for meg" ])
                 }
             , Cmd.batch
                 [ lagtTilSpørsmålCmd model.debugStatus
@@ -170,7 +170,7 @@ update msg (Model model) =
 
         SynlighetPostet result ->
             case result of
-                Ok value ->
+                Ok _ ->
                     ( nesteSamtaleStegUtenMelding model AvsluttendeOrd, lagtTilSpørsmålCmd model.debugStatus ) |> IkkeFerdig
 
                 Err error ->
@@ -185,12 +185,12 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-        BrukerVilHentePersonPåNytt knappeTekst ->
+        BrukerVilHentePersonPåNytt ->
             ( Model
                 { model
                     | seksjonsMeldingsLogg =
                         model.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSvar (Melding.svar [ knappeTekst ])
+                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, prøv på nytt" ])
                 }
             , Cmd.batch
                 [ lagtTilSpørsmålCmd model.debugStatus
@@ -334,14 +334,10 @@ viewBrukerInput (Model model) =
         FerdigAnimert _ ->
             case model.aktivSamtale of
                 AvsluttendeOrd ->
-                    div []
-                        [ div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
-                                    [ div [ class "Knapp" ]
-                                        [ text "Avslutt og vis CV-en min" ]
-                                    ]
-                                ]
+                    Containers.knapper Flytende
+                        [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
+                            [ div [ class "Knapp" ]
+                                [ text "Avslutt og vis CV-en min" ]
                             ]
                         ]
 
@@ -349,92 +345,40 @@ viewBrukerInput (Model model) =
                     text ""
 
                 DelMedArbeidsgiver _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ]
-                                [ let
-                                    synligCV =
-                                        "Ja, CV-en skal være synlig for arbeidsgivere"
-                                  in
-                                  Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
-                                    |> Knapp.withClass Knapp.SpråknivåKnapp
-                                    |> Knapp.toHtml
-                                ]
-                            , div [ class "inputkolonne" ]
-                                [ let
-                                    ikkeSynligCV =
-                                        "Nei, CV-en skal bare være synlig for meg"
-                                  in
-                                  Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
-                                    |> Knapp.withClass Knapp.SpråknivåKnapp
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en skal bare være synlig for meg"
+                            |> Knapp.toHtml
                         ]
 
                 Intro ->
                     text ""
 
                 UnderOppfølging ->
-                    div []
-                        [ div [ class "inputrad" ]
-                            [ div [ class "inputrad-innhold" ]
-                                [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
-                                    [ div [ class "Knapp" ]
-                                        [ text "Avslutt og vis CV-en min" ]
-                                    ]
-                                ]
+                    Containers.knapper Flytende
+                        [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
+                            [ div [ class "Knapp" ]
+                                [ text "Avslutt og vis CV-en min" ]
                             ]
                         ]
 
                 HentPersonFeilet ->
-                    div [ class "inputkolonne" ]
-                        [ div [ class "inputkolonne-innhold" ]
-                            [ let
-                                hentBruker =
-                                    "Ja, prøv på nytt"
-                              in
-                              Knapp.knapp (BrukerVilHentePersonPåNytt hentBruker) hentBruker
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            , let
-                                avslutt =
-                                    "Nei, jeg gjør det senere"
-                              in
-                              Knapp.knapp (BrukerVilAvslutte avslutt) avslutt
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerVilHentePersonPåNytt "Ja, prøv på nytt"
+                            |> Knapp.toHtml
+                        , Knapp.knapp (BrukerVilAvslutte "Nei, jeg gjør det senere") "Nei, jeg gjør det senere"
+                            |> Knapp.toHtml
                         ]
 
                 LagringSynlighetFeilet ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ]
-                                [ let
-                                    synligCV =
-                                        "Ja, CV-en skal være synlig for arbeidsgivere"
-                                  in
-                                  Knapp.knapp (BrukerGodkjennerSynligCV synligCV) synligCV
-                                    |> Knapp.toHtml
-                                ]
-                            , div [ class "inputkolonne" ]
-                                [ let
-                                    ikkeSynligCV =
-                                        "Nei, CV-en skal bare være synlig for meg"
-                                  in
-                                  Knapp.knapp (BrukerGodkjennerIkkeSynligCV ikkeSynligCV) ikkeSynligCV
-                                    |> Knapp.toHtml
-                                ]
-                            , div [ class "inputkolonne" ]
-                                [ let
-                                    avslutt =
-                                        "Avslutt, jeg gjør det senere"
-                                  in
-                                  Knapp.knapp (BrukerVilAvslutte avslutt) avslutt
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en skal bare være synlig for meg"
+                            |> Knapp.toHtml
+                        , Knapp.knapp (BrukerVilAvslutte "Avslutt, jeg gjør det senere") "Avslutt, jeg gjør det senere"
+                            |> Knapp.toHtml
                         ]
 
         MeldingerGjenstår ->

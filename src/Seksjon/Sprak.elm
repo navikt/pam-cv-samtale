@@ -12,6 +12,7 @@ import Api
 import Cv.Spraakferdighet as Spraakferdighet exposing (Spraakferdighet)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
+import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Select as Select
 import Html exposing (..)
@@ -53,7 +54,7 @@ type Samtale
     | LagrerNorsk SpråkSkjema
     | LagreNorskFeilet SpråkSkjema Http.Error
     | LeggTilEngelsk
-    | VelgNyttSpråk (Maybe SpråkKode)
+    | VelgNyttSpråk { valgtSpråk : Maybe SpråkKode, feilmelding : Maybe String }
     | LeggTilMuntlig SpråkKode
     | LeggTilSkriftlig SpråkMedMuntlig
     | LagrerSpråk SpråkSkjema
@@ -209,7 +210,9 @@ update msg (Model model) =
         BrukerKanFlereSpråk ->
             case model.språkKoder of
                 Success _ ->
-                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ]) (VelgNyttSpråk Nothing)
+                    ( { valgtSpråk = Nothing, feilmelding = Nothing }
+                        |> VelgNyttSpråk
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -221,26 +224,15 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         BrukerHarValgtSpråkFraDropdown valgtSpråk ->
-            case model.språkKoder of
-                Success språkKoder ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                språkKoder
-                                    |> List.find (\sprakKode -> valgtSpråk == SpråkKode.kode sprakKode)
-                                    |> VelgNyttSpråk
-                        }
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none ) |> IkkeFerdig
+            IkkeFerdig
+                ( Model { model | aktivSamtale = updateEtterAtBrukerHarValgtSpråkFraDropdown model.aktivSamtale model.språkKoder valgtSpråk }
+                , Cmd.none
+                )
 
         BrukerVilGåVidereMedValgtSpråk ->
             case model.aktivSamtale of
-                VelgNyttSpråk maybeSpråkKode ->
-                    case maybeSpråkKode of
+                VelgNyttSpråk velgNyttSpråkInfo ->
+                    case velgNyttSpråkInfo.valgtSpråk of
                         Just språkKode ->
                             ( LeggTilMuntlig språkKode
                                 |> nesteSamtaleSteg model (Melding.svar [ SpråkKode.kode språkKode ])
@@ -249,7 +241,17 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Nothing ->
-                            ( Model model, Cmd.none ) |> IkkeFerdig
+                            ( Model
+                                { model
+                                    | aktivSamtale =
+                                        VelgNyttSpråk
+                                            { velgNyttSpråkInfo
+                                                | feilmelding = Just "Velg et språk"
+                                            }
+                                }
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
 
                 _ ->
                     ( Model model, Cmd.none ) |> IkkeFerdig
@@ -327,7 +329,9 @@ update msg (Model model) =
         BrukerVilHenteSpråkKoderPåNytt ->
             case model.språkKoder of
                 Success _ ->
-                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ]) (VelgNyttSpråk Nothing)
+                    ( { valgtSpråk = Nothing, feilmelding = Nothing }
+                        |> VelgNyttSpråk
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, legg til språk" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -374,6 +378,27 @@ update msg (Model model) =
 
         ErrorLogget ->
             ( Model model, Cmd.none ) |> IkkeFerdig
+
+
+updateEtterAtBrukerHarValgtSpråkFraDropdown : Samtale -> RemoteDataSpråkKoder -> String -> Samtale
+updateEtterAtBrukerHarValgtSpråkFraDropdown aktivSamtale remoteSpråkKoder valgtSpråk =
+    case ( aktivSamtale, remoteSpråkKoder ) of
+        ( VelgNyttSpråk velgNyttSpråkInfo, Success språkKoder ) ->
+            case List.find (\sprakKode -> valgtSpråk == SpråkKode.kode sprakKode) språkKoder of
+                Just språkKode ->
+                    VelgNyttSpråk
+                        { valgtSpråk = Just språkKode
+                        , feilmelding = Nothing
+                        }
+
+                Nothing ->
+                    VelgNyttSpråk
+                        { velgNyttSpråkInfo
+                            | valgtSpråk = Nothing
+                        }
+
+        _ ->
+            aktivSamtale
 
 
 muntligNivåTilKnappeTekst : SpråkKode -> Ferdighet -> String
@@ -595,169 +620,123 @@ viewBrukerInput (Model model) =
             case model.aktivSamtale of
                 IntroLeggTilNorsk språkListe ->
                     if List.isEmpty språkListe then
-                        div [ class "skjema-wrapper" ]
-                            [ div [ class "skjema" ]
-                                [ div [ class "inputrad" ]
-                                    [ Knapp.knapp NorskErFørstespråk "Ja"
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp NorskErIkkeFørstespråk "Nei"
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
+                        Containers.knapper Flytende
+                            [ Knapp.knapp NorskErFørstespråk "Ja"
+                                |> Knapp.toHtml
+                            , Knapp.knapp NorskErIkkeFørstespråk "Nei"
+                                |> Knapp.toHtml
                             ]
 
                     else
-                        div [ class "skjema-wrapper" ]
-                            [ div [ class "skjema" ]
-                                [ div [ class "inputkolonne" ]
-                                    [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.toHtml
                             ]
 
                 LeggTilNorskMuntlig ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ muntligKnapp SpråkKode.norsk Nybegynner ]
-                            , div [ class "inputkolonne" ] [ muntligKnapp SpråkKode.norsk Godt ]
-                            , div [ class "inputkolonne" ] [ muntligKnapp SpråkKode.norsk VeldigGodt ]
-                            ]
+                    Containers.knapper Kolonne
+                        [ muntligKnapp SpråkKode.norsk Nybegynner
+                        , muntligKnapp SpråkKode.norsk Godt
+                        , muntligKnapp SpråkKode.norsk VeldigGodt
                         ]
 
                 LeggTilNorskSkriftlig _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ skriftligKnapp SpråkKode.norsk Nybegynner ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp SpråkKode.norsk Godt ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp SpråkKode.norsk VeldigGodt ]
-                            ]
+                    Containers.knapper Kolonne
+                        [ skriftligKnapp SpråkKode.norsk Nybegynner
+                        , skriftligKnapp SpråkKode.norsk Godt
+                        , skriftligKnapp SpråkKode.norsk VeldigGodt
                         ]
 
                 LagrerNorsk _ ->
                     text ""
 
                 LagreNorskFeilet _ _ ->
-                    div [ class "inputkolonne" ]
-                        [ div [ class "inputkolonne-innhold" ]
-                            [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                            |> Knapp.toHtml
                         ]
 
                 LeggTilEngelsk ->
-                    div [ class "inputrad" ]
-                        [ div [ class "inputrad-innhold" ]
-                            [ Knapp.knapp BrukerKanEngelsk "Ja"
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerKanIkkeEngelsk "Nei"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerKanEngelsk "Ja"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerKanIkkeEngelsk "Nei"
+                            |> Knapp.toHtml
                         ]
 
-                VelgNyttSpråk valgtSpråk ->
+                LeggTilMuntlig språkKode ->
+                    Containers.knapper Kolonne
+                        [ muntligKnapp språkKode Førstespråk
+                        , muntligKnapp språkKode Nybegynner
+                        , muntligKnapp språkKode Godt
+                        , muntligKnapp språkKode VeldigGodt
+                        ]
+
+                LeggTilSkriftlig språkKode ->
+                    Containers.knapper Kolonne
+                        [ skriftligKnapp språkKode.språk Førstespråk
+                        , skriftligKnapp språkKode.språk Nybegynner
+                        , skriftligKnapp språkKode.språk Godt
+                        , skriftligKnapp språkKode.språk VeldigGodt
+                        ]
+
+                VelgNyttSpråk velgNyttSpråkInfo ->
                     case model.språkKoder of
                         Success list ->
-                            div [ class "skjema-wrapper" ]
-                                [ div [ class "skjema" ]
-                                    [ div [ class "inputkolonne" ]
-                                        [ div []
-                                            [ Select.select "Språk"
-                                                BrukerHarValgtSpråkFraDropdown
-                                                (( "Velg språk", "Velg språk" )
-                                                    :: List.map
-                                                        (\el ->
-                                                            ( SpråkKode.kode el, SpråkKode.term el )
-                                                        )
-                                                        list
+                            Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedValgtSpråk
+                                [ div [ class "select-i-samtaleflyt-wrapper" ]
+                                    [ Select.select "Språk"
+                                        BrukerHarValgtSpråkFraDropdown
+                                        (( "Velg språk", "Velg språk" )
+                                            :: List.map
+                                                (\el ->
+                                                    ( SpråkKode.kode el, SpråkKode.term el )
                                                 )
-                                                |> Select.toHtml
-                                            , Knapp.knapp BrukerVilGåVidereMedValgtSpråk "Legg til"
-                                                |> Knapp.withEnabled
-                                                    (if valgtSpråk /= Nothing then
-                                                        Knapp.Enabled
-
-                                                     else
-                                                        Knapp.Disabled
-                                                    )
-                                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                                |> Knapp.toHtml
-                                            ]
-                                        ]
+                                                list
+                                        )
+                                        |> Select.withMaybeSelected (Maybe.map SpråkKode.kode velgNyttSpråkInfo.valgtSpråk)
+                                        |> Select.withMaybeFeilmelding velgNyttSpråkInfo.feilmelding
+                                        |> Select.toHtml
                                     ]
                                 ]
 
                         Loading ->
-                            div [ class "inputkolonne" ]
-                                [ div [ class "inputkolonne-innhold" ]
-                                    [ text "Loading..." ]
-                                ]
+                            text ""
 
                         Failure _ ->
-                            div [ class "inputkolonne" ]
-                                [ div [ class "inputkolonne-innhold" ]
-                                    [ text "Noe gikk galt..." ]
-                                ]
-
-                LeggTilMuntlig språkKode ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ muntligKnapp språkKode Førstespråk ]
-                            , div [ class "inputkolonne" ] [ muntligKnapp språkKode Nybegynner ]
-                            , div [ class "inputkolonne" ] [ muntligKnapp språkKode Godt ]
-                            , div [ class "inputkolonne" ] [ muntligKnapp språkKode VeldigGodt ]
-                            ]
-                        ]
-
-                LeggTilSkriftlig språkKode ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Førstespråk ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Nybegynner ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk Godt ]
-                            , div [ class "inputkolonne" ] [ skriftligKnapp språkKode.språk VeldigGodt ]
-                            ]
-                        ]
+                            -- TODO: Fiks feilhåndtering her
+                            Containers.knapper Flytende
+                                [ text "Noe gikk galt..." ]
 
                 LagrerSpråk _ ->
                     text ""
 
                 LagringFeilet _ _ ->
-                    div [ class "inputkolonne" ]
-                        [ div [ class "inputkolonne-innhold" ]
-                            [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                            |> Knapp.toHtml
                         ]
 
                 LeggTilFlereSpråk ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                                    |> Knapp.withClass Knapp.SpråknivåKnapp
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                    |> Knapp.withClass Knapp.SpråknivåKnapp
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                            |> Knapp.toHtml
                         ]
 
                 SpråkKodeneFeilet _ ->
-                    div [ class "inputkolonne" ]
-                        [ div [ class "inputkolonne-innhold" ]
-                            [ Knapp.knapp BrukerVilHenteSpråkKoderPåNytt "Ja, prøv på nytt"
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, avslutt og gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerVilHenteSpråkKoderPåNytt "Ja, prøv på nytt"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, avslutt og gå videre"
+                            |> Knapp.toHtml
                         ]
 
                 VenterPåAnimasjonFørFullføring ->
@@ -770,14 +749,12 @@ viewBrukerInput (Model model) =
 muntligKnapp : SpråkKode -> Ferdighet -> Html Msg
 muntligKnapp språkKode ferdighet =
     Knapp.knapp (BrukerVelgerMuntligNivå ferdighet) (muntligNivåTilKnappeTekst språkKode ferdighet)
-        |> Knapp.withClass Knapp.SpråknivåKnapp
         |> Knapp.toHtml
 
 
 skriftligKnapp : SpråkKode -> Ferdighet -> Html Msg
 skriftligKnapp språkKode ferdighet =
     Knapp.knapp (BrukerVelgerSkriftligNivå ferdighet) (skriftligNivåTilKnappeTekst språkKode ferdighet)
-        |> Knapp.withClass Knapp.SpråknivåKnapp
         |> Knapp.toHtml
 
 

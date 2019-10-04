@@ -9,21 +9,20 @@ module Seksjon.Seksjonsvalg exposing
     , viewBrukerInput
     )
 
--- MODEL --
-
 import Browser.Dom as Dom
 import DebugStatus exposing (DebugStatus)
+import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
-import FrontendModuler.Select as Select
 import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
-import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
 import Task
+
+
+
+--- MODEL ---
 
 
 type Model
@@ -65,7 +64,7 @@ meldingsLogg (Model model) =
 
 
 
--- UPDATE --
+--- UPDATE ---
 
 
 type Msg
@@ -79,7 +78,7 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        ViewportSatt result ->
+        ViewportSatt _ ->
             ( Model model, Cmd.none )
                 |> IkkeFerdig
 
@@ -203,7 +202,7 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
 
 
 
--- VIEW --
+--- VIEW ---
 
 
 viewBrukerInput : Model -> Html Msg
@@ -215,34 +214,21 @@ viewBrukerInput (Model model) =
                     text ""
 
                 LeggTilAutorisasjoner ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div []
-                                    [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
-                                    , seksjonsvalgKnapp MesterbrevSeksjon
-                                    , seksjonsvalgKnapp AutorisasjonSeksjon
-                                    , seksjonsvalgKnapp SertifiseringSeksjon
-                                    , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
-                            ]
+                    Containers.knapper Kolonne
+                        [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
+                        , seksjonsvalgKnapp MesterbrevSeksjon
+                        , seksjonsvalgKnapp AutorisasjonSeksjon
+                        , seksjonsvalgKnapp SertifiseringSeksjon
+                        , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
+                            |> Knapp.toHtml
                         ]
 
                 LeggTilAnnet ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div []
-                                    [ seksjonsvalgKnapp AnnenErfaringSeksjon
-                                    , seksjonsvalgKnapp KursSeksjon
-                                    , seksjonsvalgKnapp FørerkortSeksjon
-                                    , seksjonsvalgKnapp IngenAvSeksjonene
-                                    ]
-                                ]
-                            ]
+                    Containers.knapper Kolonne
+                        [ seksjonsvalgKnapp AnnenErfaringSeksjon
+                        , seksjonsvalgKnapp KursSeksjon
+                        , seksjonsvalgKnapp FørerkortSeksjon
+                        , seksjonsvalgKnapp IngenAvSeksjonene
                         ]
 
         MeldingerGjenstår ->
@@ -255,7 +241,6 @@ seksjonsvalgKnapp seksjonsvalg =
         |> seksjonsvalgTilString
         |> Knapp.knapp (SeksjonValgt seksjonsvalg)
         |> Knapp.withEnabled (seksjonsvalgDisabled seksjonsvalg)
-        |> Knapp.withClass Knapp.SpråknivåKnapp
         |> Knapp.toHtml
 
 
@@ -318,7 +303,7 @@ seksjonsvalgTilString seksjonsvalg =
 
 
 
--- INIT --
+--- INIT ---
 
 
 init : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
