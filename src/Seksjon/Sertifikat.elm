@@ -15,9 +15,11 @@ import Dato exposing (Måned(..), År, datoTilString)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
+import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
+import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Typeahead as Typeahead
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -1131,127 +1133,59 @@ viewBrukerInput (Model model) =
                         ]
 
                 RegistrerUtsteder input ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ input.utsteder
-                                |> Input.input { label = "Utsteder", msg = OppdaterUtsteder }
-                                |> Input.withOnEnter VilRegistrereUtsteder
-                                |> Input.withId (inputIdTilString UtstederId)
-                                |> Input.toHtml
-                            , Knapp.knapp VilRegistrereUtsteder "Gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.inputMedGåVidereKnapp VilRegistrereUtsteder
+                        [ input.utsteder
+                            |> Input.input { label = "Utsteder", msg = OppdaterUtsteder }
+                            |> Input.withOnEnter VilRegistrereUtsteder
+                            |> Input.withId (inputIdTilString UtstederId)
+                            |> Input.toHtml
                         ]
 
                 RegistrerFullførtMåned _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div [ class "knapperad-wrapper" ]
-                                    [ lagFullførtMånedKnapp Januar
-                                    , lagFullførtMånedKnapp Februar
-                                    , lagFullførtMånedKnapp Mars
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagFullførtMånedKnapp April
-                                    , lagFullførtMånedKnapp Mai
-                                    , lagFullførtMånedKnapp Juni
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagFullførtMånedKnapp Juli
-                                    , lagFullførtMånedKnapp August
-                                    , lagFullførtMånedKnapp September
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagFullførtMånedKnapp Oktober
-                                    , lagFullførtMånedKnapp November
-                                    , lagFullførtMånedKnapp Desember
-                                    ]
-                                ]
-                            ]
-                        ]
+                    MånedKnapper.månedKnapper FullførtMånedValgt
 
                 RegistrerFullførtÅr fullførtDatoInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema-int" ]
-                            [ div [ class "inputkolonne" ]
-                                [ fullførtDatoInfo.fullførtÅr
-                                    |> Input.input { label = "År", msg = OppdatererFullførtÅr }
-                                    |> Input.withClass Input.År
-                                    |> Input.withOnEnter VilRegistrereFullførtÅr
-                                    |> Input.withOnBlur ÅrMisterFokus
-                                    |> Input.withId (inputIdTilString FullførtÅrId)
-                                    |> Input.withMaybeFeilmelding
-                                        (fullførtDatoInfo.fullførtÅr
-                                            |> Dato.feilmeldingÅr
-                                            |> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtÅr
-                                        )
-                                    |> Input.toHtml
-                                , Knapp.knapp VilRegistrereFullførtÅr "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+                    Containers.inputMedGåVidereKnapp VilRegistrereFullførtÅr
+                        [ div [ class "år-wrapper" ]
+                            [ fullførtDatoInfo.fullførtÅr
+                                |> Input.input { label = "År", msg = OppdatererFullførtÅr }
+                                |> Input.withClass "aar"
+                                |> Input.withOnEnter VilRegistrereFullførtÅr
+                                |> Input.withOnBlur ÅrMisterFokus
+                                |> Input.withId (inputIdTilString FullførtÅrId)
+                                |> Input.withMaybeFeilmelding
+                                    (fullførtDatoInfo.fullførtÅr
+                                        |> Dato.feilmeldingÅr
+                                        |> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtÅr
+                                    )
+                                |> Input.toHtml
                             ]
                         ]
 
                 SpørOmUtløpsdatoFinnes _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div [ class "inputkolonne-innhold" ]
-                                    [ "Ja, sertifiseringen utløper"
-                                        |> Knapp.knapp VilRegistrereUtløperMåned
-                                        |> Knapp.toHtml
-                                    , "Nei, sertifiseringen utløper ikke"
-                                        |> Knapp.knapp VilIkkeRegistrereUtløpesdato
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ "Ja, sertifiseringen utløper"
+                            |> Knapp.knapp VilRegistrereUtløperMåned
+                            |> Knapp.toHtml
+                        , "Nei, sertifiseringen utløper ikke"
+                            |> Knapp.knapp VilIkkeRegistrereUtløpesdato
+                            |> Knapp.toHtml
                         ]
 
                 RegistrerUtløperMåned _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div [ class "knapperad-wrapper" ]
-                                    [ lagMånedKnapp Januar UtløperMånedValgt
-                                    , lagMånedKnapp Februar UtløperMånedValgt
-                                    , lagMånedKnapp Mars UtløperMånedValgt
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagMånedKnapp April UtløperMånedValgt
-                                    , lagMånedKnapp Mai UtløperMånedValgt
-                                    , lagMånedKnapp Juni UtløperMånedValgt
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagMånedKnapp Juli UtløperMånedValgt
-                                    , lagMånedKnapp August UtløperMånedValgt
-                                    , lagMånedKnapp September UtløperMånedValgt
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagMånedKnapp Oktober UtløperMånedValgt
-                                    , lagMånedKnapp November UtløperMånedValgt
-                                    , lagMånedKnapp Desember UtløperMånedValgt
-                                    ]
-                                ]
-                            ]
-                        ]
+                    MånedKnapper.månedKnapper UtløperMånedValgt
 
                 RegistrerUtløperÅr utløpsdatoInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema-int" ]
-                            [ div [ class "inputkolonne" ]
-                                [ utløpsdatoInfo.utløperÅr
-                                    |> Input.input { label = "År", msg = OppdatererUtløperÅr }
-                                    |> Input.withClass Input.År
-                                    |> Input.withOnEnter VilRegistrereUtløperÅr
-                                    |> Input.withOnBlur ÅrMisterFokus
-                                    |> Input.withId (inputIdTilString UtløperÅrId)
-                                    |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
-                                    |> Input.toHtml
-                                , Knapp.knapp VilRegistrereUtløperÅr "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+                    Containers.inputMedGåVidereKnapp VilRegistrereUtløperÅr
+                        [ div [ class "år-wrapper" ]
+                            [ utløpsdatoInfo.utløperÅr
+                                |> Input.input { label = "År", msg = OppdatererUtløperÅr }
+                                |> Input.withClass "aar"
+                                |> Input.withOnEnter VilRegistrereUtløperÅr
+                                |> Input.withOnBlur ÅrMisterFokus
+                                |> Input.withId (inputIdTilString UtløperÅrId)
+                                |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
+                                |> Input.toHtml
                             ]
                         ]
 
@@ -1262,57 +1196,50 @@ viewBrukerInput (Model model) =
                     viewBekreftOppsummering
 
                 EndreOpplysninger skjema ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ case SertifikatSkjema.sertifikatTypeahed skjema of
-                                SuggestionValgt sertifikat ->
-                                    sertifikat
-                                        |> SertifikatTypeahead.label
-                                        |> Input.input { label = "Sertifisering", msg = VilOppdatereSertifikatFelt }
-                                        |> Input.toHtml
+                    Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                        [ case SertifikatSkjema.sertifikatTypeahed skjema of
+                            SuggestionValgt sertifikat ->
+                                sertifikat
+                                    |> SertifikatTypeahead.label
+                                    |> Input.input { label = "Sertifisering", msg = VilOppdatereSertifikatFelt }
+                                    |> Input.toHtml
 
-                                SuggestionIkkeValgt typeaheadState ->
-                                    viewTypeahead typeaheadState
-                            , skjema
-                                |> SertifikatSkjema.utsteder
-                                |> Input.input { label = "Utsteder", msg = Utsteder >> SkjemaEndret }
-                                |> Input.toHtml
-                            , div [ class "DatoInput-fra-til-rad" ]
-                                [ DatoInput.datoInput
-                                    { label = "Fullført"
-                                    , onMånedChange = FullførtMåned >> SkjemaEndret
-                                    , måned = SertifikatSkjema.fullførtMåned skjema
-                                    , onÅrChange = FullførtÅr >> SkjemaEndret
-                                    , år = SertifikatSkjema.fullførtÅr skjema
+                            SuggestionIkkeValgt typeaheadState ->
+                                viewTypeahead typeaheadState
+                        , skjema
+                            |> SertifikatSkjema.utsteder
+                            |> Input.input { label = "Utsteder", msg = Utsteder >> SkjemaEndret }
+                            |> Input.toHtml
+                        , div [ class "DatoInput-fra-til-rad" ]
+                            [ DatoInput.datoInput
+                                { label = "Fullført"
+                                , onMånedChange = FullførtMåned >> SkjemaEndret
+                                , måned = SertifikatSkjema.fullførtMåned skjema
+                                , onÅrChange = FullførtÅr >> SkjemaEndret
+                                , år = SertifikatSkjema.fullførtÅr skjema
+                                }
+                                |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingFullførtÅr skjema)
+                                |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
+                                |> DatoInput.toHtml
+                            , if not (SertifikatSkjema.utløperIkke skjema) then
+                                DatoInput.datoInput
+                                    { label = "Utløper"
+                                    , onMånedChange = UtløperMåned >> SkjemaEndret
+                                    , måned = SertifikatSkjema.utløperMåned skjema
+                                    , onÅrChange = UtløperÅr >> SkjemaEndret
+                                    , år = SertifikatSkjema.utløperÅr skjema
                                     }
-                                    |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingFullførtÅr skjema)
-                                    |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
+                                    |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingUtløperÅr skjema)
+                                    |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
                                     |> DatoInput.toHtml
-                                , if not (SertifikatSkjema.utløperIkke skjema) then
-                                    DatoInput.datoInput
-                                        { label = "Utløper"
-                                        , onMånedChange = UtløperMåned >> SkjemaEndret
-                                        , måned = SertifikatSkjema.utløperMåned skjema
-                                        , onÅrChange = UtløperÅr >> SkjemaEndret
-                                        , år = SertifikatSkjema.utløperÅr skjema
-                                        }
-                                        |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingUtløperÅr skjema)
-                                        |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
-                                        |> DatoInput.toHtml
 
-                                  else
-                                    text ""
-                                ]
-                            , skjema
-                                |> SertifikatSkjema.utløperIkke
-                                |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
-                                |> Checkbox.toHtml
-                            , div [ class "inputrad" ]
-                                [ "Lagre endringer"
-                                    |> Knapp.knapp VilLagreEndretSkjema
-                                    |> Knapp.toHtml
-                                ]
+                              else
+                                text ""
                             ]
+                        , skjema
+                            |> SertifikatSkjema.utløperIkke
+                            |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
+                            |> Checkbox.toHtml
                         ]
 
                 LeggInnMer ->
@@ -1322,13 +1249,11 @@ viewBrukerInput (Model model) =
                     div [] []
 
                 LagringFeilet _ _ ->
-                    div [ class "inputkolonne" ]
-                        [ div [ class "inputkolonne-innhold" ]
-                            [ Knapp.knapp VilLagreSertifikat "Ja, prøv på nytt"
-                                |> Knapp.toHtml
-                            , Knapp.knapp (FerdigMedSertifikat "Nei, gå videre") "Nei, gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp VilLagreSertifikat "Ja, prøv på nytt"
+                            |> Knapp.toHtml
+                        , Knapp.knapp (FerdigMedSertifikat "Nei, gå videre") "Nei, gå videre"
+                            |> Knapp.toHtml
                         ]
 
                 VenterPåAnimasjonFørFullføring _ ->
@@ -1350,15 +1275,11 @@ viewTypeahead typeaheadState =
 
 viewBekreftOppsummering : Html Msg
 viewBekreftOppsummering =
-    div [ class "skjema-wrapper" ]
-        [ div [ class "skjema" ]
-            [ div [ class "inputkolonne" ]
-                [ Knapp.knapp VilLagreSertifikat "Ja, informasjonen er riktig"
-                    |> Knapp.toHtml
-                , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
-                    |> Knapp.toHtml
-                ]
-            ]
+    Containers.knapper Flytende
+        [ Knapp.knapp VilLagreSertifikat "Ja, informasjonen er riktig"
+            |> Knapp.toHtml
+        , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
+            |> Knapp.toHtml
         ]
 
 
@@ -1379,24 +1300,6 @@ typeaheadStateSuggestionsTilViewSuggestion typeaheadState =
                             False
                 }
             )
-
-
-lagFullførtMånedKnapp : Dato.Måned -> Html Msg
-lagFullførtMånedKnapp måned =
-    måned
-        |> Dato.månedTilString
-        |> Knapp.knapp (FullførtMånedValgt måned)
-        |> Knapp.withClass Knapp.MånedKnapp
-        |> Knapp.toHtml
-
-
-lagMånedKnapp : Dato.Måned -> (Dato.Måned -> Msg) -> Html Msg
-lagMånedKnapp måned onClick =
-    måned
-        |> Dato.månedTilString
-        |> Knapp.knapp (onClick måned)
-        |> Knapp.withClass Knapp.MånedKnapp
-        |> Knapp.toHtml
 
 
 maybeHvisTrue : Bool -> Maybe a -> Maybe a

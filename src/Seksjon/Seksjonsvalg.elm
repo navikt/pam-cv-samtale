@@ -219,14 +219,10 @@ viewBrukerInput (Model model) =
                     text ""
 
                 LeggTilAutorisasjoner ->
-                    Containers.knapper Kolonne
-                        [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
-                        , seksjonsvalgKnapp MesterbrevSeksjon
-                        , seksjonsvalgKnapp AutorisasjonSeksjon
-                        , seksjonsvalgKnapp SertifiseringSeksjon
-                        , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                    viewLeggTilAutorisasjoner
+
+                LeggTilFlereAutorisasjoner ->
+                    viewLeggTilAutorisasjoner
 
                 LeggTilAnnet ->
                     Containers.knapper Kolonne
@@ -236,26 +232,20 @@ viewBrukerInput (Model model) =
                         , seksjonsvalgKnapp IngenAvSeksjonene
                         ]
 
-                LeggTilFlereAutorisasjoner ->
-                    --TODO: funksjon
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div []
-                                    [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
-                                    , seksjonsvalgKnapp MesterbrevSeksjon
-                                    , seksjonsvalgKnapp AutorisasjonSeksjon
-                                    , seksjonsvalgKnapp SertifiseringSeksjon
-                                    , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
-                            ]
-                        ]
-
         MeldingerGjenstår ->
             text ""
+
+
+viewLeggTilAutorisasjoner : Html Msg
+viewLeggTilAutorisasjoner =
+    Containers.knapper Kolonne
+        [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
+        , seksjonsvalgKnapp MesterbrevSeksjon
+        , seksjonsvalgKnapp AutorisasjonSeksjon
+        , seksjonsvalgKnapp SertifiseringSeksjon
+        , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
+            |> Knapp.toHtml
+        ]
 
 
 seksjonsvalgKnapp : Seksjonsvalg -> Html Msg
