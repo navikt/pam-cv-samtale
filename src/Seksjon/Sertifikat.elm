@@ -938,9 +938,7 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
             [ Melding.spørsmål
                 [ "Hvilken organisasjon sertifiserte deg?" ]
             , Melding.spørsmål
-                [ "Er du usikker på hvem som har ansvar for"
-                    ++ "sertifiseringen? Det vil ofte stå på beviset ditt"
-                ]
+                [ "Er du usikker på hvem som har ansvar for sertifiseringen? Det vil ofte stå på beviset ditt" ]
             ]
 
         RegistrerFullførtMåned _ ->
@@ -987,9 +985,7 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
 
         LagringFeilet _ _ ->
             [ Melding.spørsmål
-                [ "Oops... Jeg klarte ikke å lagre sertifikatet."
-                    ++ " Vil du prøve på nytt?"
-                ]
+                [ "Oops... Jeg klarte ikke å lagre sertifikatet. Vil du prøve på nytt?" ]
             ]
 
         VenterPåAnimasjonFørFullføring _ ->
