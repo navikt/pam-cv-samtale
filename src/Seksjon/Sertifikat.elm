@@ -73,7 +73,6 @@ type Samtale
     | VisOppsummeringEtterEndring ValidertSertifikatSkjema
     | LagrerSkjema ValidertSertifikatSkjema
     | LagringFeilet Http.Error ValidertSertifikatSkjema
-    | LeggInnMer
     | VenterPåAnimasjonFørFullføring (List Sertifikat)
 
 
@@ -713,14 +712,6 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                LeggInnMer ->
-                    ( model.sertifikatListe
-                        |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
                 LagringFeilet _ _ ->
                     ( model.sertifikatListe
                         |> VenterPåAnimasjonFørFullføring
@@ -994,15 +985,6 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
         LagrerSkjema _ ->
             []
 
-        LeggInnMer ->
-            [ Melding.spørsmål
-                [ "Nå er sertifiseringen din lagt til i CV-en!"
-                ]
-            , Melding.spørsmål
-                [ "Vil du legge til flere kategorier?"
-                ]
-            ]
-
         LagringFeilet _ _ ->
             [ Melding.spørsmål
                 [ "Oops... Jeg klarte ikke å lagre sertifikatet."
@@ -1241,9 +1223,6 @@ viewBrukerInput (Model model) =
                             |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
                             |> Checkbox.toHtml
                         ]
-
-                LeggInnMer ->
-                    div [] []
 
                 LagrerSkjema _ ->
                     div [] []

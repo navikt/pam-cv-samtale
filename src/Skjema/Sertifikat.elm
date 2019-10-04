@@ -84,7 +84,7 @@ type alias ValidertSkjemaInfo =
 
 
 
---INIT --
+--- INIT ---
 
 
 initValidertSkjema : ValidertSkjemaInfo -> ValidertSertifikatSkjema
