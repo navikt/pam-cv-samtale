@@ -1,12 +1,12 @@
 module Cv.Sertifikat exposing
     ( Sertifikat
     , decode
-    , fradato
+    , fraDato
     , id
     , konseptId
+    , sertifikatNavn
     , sertifikatNavnFritekst
-    , sertifikatnavn
-    , tildato
+    , tilDato
     , utsteder
     )
 
@@ -39,8 +39,8 @@ sertifikatNavnFritekst (Sertifikat info) =
     info.sertifikatNavnFritekst
 
 
-sertifikatnavn : Sertifikat -> Maybe String
-sertifikatnavn (Sertifikat info) =
+sertifikatNavn : Sertifikat -> Maybe String
+sertifikatNavn (Sertifikat info) =
     info.sertifikatnavn
 
 
@@ -49,13 +49,13 @@ konseptId (Sertifikat info) =
     info.konseptId
 
 
-fradato : Sertifikat -> Maybe String
-fradato (Sertifikat info) =
+fraDato : Sertifikat -> Maybe String
+fraDato (Sertifikat info) =
     info.fradato
 
 
-tildato : Sertifikat -> Maybe String
-tildato (Sertifikat info) =
+tilDato : Sertifikat -> Maybe String
+tilDato (Sertifikat info) =
     info.tildato
 
 
