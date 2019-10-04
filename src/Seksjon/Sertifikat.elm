@@ -67,8 +67,8 @@ type Samtale
     | RegistrerUtløperMåned UtløpsdatoInfo
     | RegistrerUtløperÅr UtløpsdatoInfo
     | VisOppsummering ValidertSertifikatSkjema
-    | EndreOppsummering SertifikatSkjema
-    | OppsummeringEtterEndring ValidertSertifikatSkjema --TODO: rename til HarEndret?
+    | EndreOpplysninger SertifikatSkjema
+    | VisOppsummeringEtterEndring ValidertSertifikatSkjema
     | LagrerSkjema ValidertSertifikatSkjema
     | LagringFeilet Http.Error ValidertSertifikatSkjema
     | LeggInnMer
@@ -79,9 +79,11 @@ type SkjemaEndring
     = Utsteder String
     | FullførtMåned String
     | FullførtÅr String
+    | FullførtÅrMistetFokus
     | UtløperIkkeToggled
     | UtløperMåned String
     | UtløperÅr String
+    | UtløperÅrMistetFokus
 
 
 type alias UtstederInfo =
@@ -186,7 +188,7 @@ type Msg
     | VilRegistrereUtløperÅr
     | OppdatererUtløperÅr String
     | VilLagreSertifikat
-    | VilEndreOppsumering
+    | VilEndreOpplysninger
     | SkjemaEndret SkjemaEndring
     | VilLagreEndretSkjema
     | SertifikatLagret (Result Http.Error (List Sertifikat))
@@ -195,6 +197,7 @@ type Msg
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
     | FokusSatt (Result Dom.Error ())
+    | ÅrMisterFokus
     | ErrorLogget
 
 
@@ -218,13 +221,13 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering skjema ->
+                EndreOpplysninger skjema ->
                     ( Model
                         { model
                             | aktivSamtale =
                                 string
                                     |> SertifikatSkjema.oppdaterSertifikatFelt skjema
-                                    |> EndreOppsummering
+                                    |> EndreOpplysninger
                         }
                     , Api.getSertifikatTypeahead HentetTypeahead string
                     )
@@ -250,12 +253,12 @@ update msg (Model model) =
                             ( Model model, logFeilmelding error "Hente FagbrevTypeahead" )
                                 |> IkkeFerdig
 
-                EndreOppsummering skjema ->
+                EndreOpplysninger skjema ->
                     case result of
                         Ok suggestions ->
                             ( TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> SertifikatSkjema.mapTypeaheadState skjema
-                                |> EndreOppsummering
+                                |> EndreOpplysninger
                                 |> oppdaterSamtaleSteg model
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -340,7 +343,7 @@ update msg (Model model) =
                             )
                                 |> IkkeFerdig
 
-                EndreOppsummering skjema ->
+                EndreOpplysninger skjema ->
                     case operation of
                         Typeahead.ArrowUp ->
                             ( Model
@@ -348,7 +351,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         TypeaheadState.arrowUp
                                             |> SertifikatSkjema.mapTypeaheadState skjema
-                                            |> EndreOppsummering
+                                            |> EndreOpplysninger
                                 }
                             , Cmd.none
                             )
@@ -360,7 +363,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         TypeaheadState.arrowDown
                                             |> SertifikatSkjema.mapTypeaheadState skjema
-                                            |> EndreOppsummering
+                                            |> EndreOpplysninger
                                 }
                             , Cmd.none
                             )
@@ -372,7 +375,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         skjema
                                             |> SertifikatSkjema.velgAktivtSertifikatITypeahead
-                                            |> EndreOppsummering
+                                            |> EndreOpplysninger
                                 }
                             , Cmd.none
                             )
@@ -384,7 +387,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         TypeaheadState.removeActive
                                             |> SertifikatSkjema.mapTypeaheadState skjema
-                                            |> EndreOppsummering
+                                            |> EndreOpplysninger
                                 }
                             , Cmd.none
                             )
@@ -399,13 +402,13 @@ update msg (Model model) =
                 RegistrerSertifikatFelt _ ->
                     brukerVelgerSertifikatFelt model typeahead
 
-                EndreOppsummering skjema ->
+                EndreOpplysninger skjema ->
                     ( Model
                         { model
                             | aktivSamtale =
                                 skjema
                                     |> SertifikatSkjema.setSertifikatFelt typeahead
-                                    |> EndreOppsummering
+                                    |> EndreOpplysninger
                         }
                     , Cmd.none
                     )
@@ -584,6 +587,58 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
+        VilEndreOpplysninger ->
+            case model.aktivSamtale of
+                VisOppsummering validertSertifikatSkjema ->
+                    gåTilEndreSkjema model validertSertifikatSkjema
+
+                VisOppsummeringEtterEndring validertSertifikatSkjema ->
+                    gåTilEndreSkjema model validertSertifikatSkjema
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        SkjemaEndret skjemaEndring ->
+            case model.aktivSamtale of
+                EndreOpplysninger sertifikatSkjema ->
+                    ( sertifikatSkjema
+                        |> oppdaterSkjema skjemaEndring
+                        |> EndreOpplysninger
+                        |> oppdaterSamtalesteg model
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+        VilLagreEndretSkjema ->
+            case model.aktivSamtale of
+                EndreOpplysninger skjema ->
+                    case SertifikatSkjema.valider skjema of
+                        Just validertSkjema ->
+                            ( validertSkjema
+                                |> VisOppsummeringEtterEndring
+                                |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                ]
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            ( skjema
+                                |> SertifikatSkjema.visAlleFeilmeldinger
+                                |> EndreOpplysninger
+                                |> oppdaterSamtalesteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         VilLagreSertifikat ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
@@ -597,7 +652,7 @@ update msg (Model model) =
                             ]
                         )
 
-                OppsummeringEtterEndring skjema ->
+                VisOppsummeringEtterEndring skjema ->
                     IkkeFerdig
                         ( skjema
                             |> LagrerSkjema
@@ -617,80 +672,10 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilEndreOppsumering ->
-            case model.aktivSamtale of
-                VisOppsummering validertSertifikatSkjema ->
-                    ( validertSertifikatSkjema
-                        |> SertifikatSkjema.tilUvalidertSkjema
-                        |> EndreOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                OppsummeringEtterEndring validertSertifikatSkjema ->
-                    ( validertSertifikatSkjema
-                        |> SertifikatSkjema.tilUvalidertSkjema
-                        |> EndreOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        SkjemaEndret skjemaEndring ->
-            case model.aktivSamtale of
-                EndreOppsummering sertifikatSkjema ->
-                    ( sertifikatSkjema
-                        |> oppdaterSkjema skjemaEndring
-                        |> EndreOppsummering
-                        |> oppdaterSamtalesteg model
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        VilLagreEndretSkjema ->
-            case model.aktivSamtale of
-                EndreOppsummering skjema ->
-                    case SertifikatSkjema.valider skjema of
-                        Just validertSkjema ->
-                            ( validertSkjema
-                                |> OppsummeringEtterEndring
-                                |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
-                            , Cmd.batch
-                                [ lagtTilSpørsmålCmd model.debugStatus
-                                ]
-                            )
-                                |> IkkeFerdig
-
-                        Nothing ->
-                            ( skjema
-                                |> SertifikatSkjema.gjørAlleFeilmeldingerSynlig
-                                |> EndreOppsummering
-                                |> oppdaterSamtalesteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
         SertifikatLagret result ->
             case model.aktivSamtale of
                 LagrerSkjema sertifikatSkjema ->
                     case result of
-                        {-
-                           Ok sertifikater ->
-                               ( nesteSamtaleStegUtenMelding { model | sertifikatListe = sertifikater } LeggInnMer
-                               , lagtTilSpørsmålCmd model.debugStatus
-                               )
-                        -}
                         Ok sertifikater ->
                             ( Model
                                 { model
@@ -767,14 +752,36 @@ update msg (Model model) =
                 |> MeldingsLogg.fullførMelding
                 |> updateEtterFullførtMelding model
 
-        ViewportSatt result ->
+        ViewportSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        FokusSatt result ->
+        FokusSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
+
+        ÅrMisterFokus ->
+            case model.aktivSamtale of
+                RegistrerFullførtÅr fullførtDatoInfo ->
+                    ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
+                        |> RegistrerFullførtÅr
+                        |> oppdaterSamtalesteg model
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                RegistrerUtløperÅr utløpsdatoInfo ->
+                    ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
+                        |> RegistrerUtløperÅr
+                        |> oppdaterSamtalesteg model
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
 
 
 setFullførtMåned : FullførtDatoInfo -> Dato.Måned -> FullførtDatoInfo
@@ -814,6 +821,12 @@ oppdaterSkjema endring skjema =
 
         UtløperIkkeToggled ->
             SertifikatSkjema.toggleUtløperIkke skjema
+
+        FullførtÅrMistetFokus ->
+            SertifikatSkjema.visFeilmeldingFullførtÅr skjema
+
+        UtløperÅrMistetFokus ->
+            SertifikatSkjema.visFeilmeldingUtløperÅr skjema
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -855,6 +868,17 @@ brukerVelgerSertifikatFelt info sertifikatTypeahead =
         |> RegistrerUtsteder
         |> nesteSamtaleSteg info (Melding.svar [ SertifikatTypeahead.label sertifikatTypeahead ])
     , lagtTilSpørsmålCmd info.debugStatus
+    )
+        |> IkkeFerdig
+
+
+gåTilEndreSkjema : ModelInfo -> ValidertSertifikatSkjema -> SamtaleStatus
+gåTilEndreSkjema model skjema =
+    ( skjema
+        |> SertifikatSkjema.tilUvalidertSkjema
+        |> EndreOpplysninger
+        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+    , lagtTilSpørsmålCmd model.debugStatus
     )
         |> IkkeFerdig
 
@@ -959,10 +983,10 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
                 )
             ]
 
-        EndreOppsummering _ ->
+        EndreOpplysninger _ ->
             []
 
-        OppsummeringEtterEndring _ ->
+        VisOppsummeringEtterEndring _ ->
             [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
 
         LagrerSkjema _ ->
@@ -984,8 +1008,7 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
                 ]
             ]
 
-        -- hva er dette?--
-        VenterPåAnimasjonFørFullføring list ->
+        VenterPåAnimasjonFørFullføring _ ->
             []
 
 
@@ -1156,9 +1179,8 @@ viewBrukerInput (Model model) =
                                     |> Input.input { label = "År", msg = OppdatererFullførtÅr }
                                     |> Input.withClass Input.År
                                     |> Input.withOnEnter VilRegistrereFullførtÅr
-                                    --|> Input.withOnBlur FraÅrMisterFokus
+                                    |> Input.withOnBlur ÅrMisterFokus
                                     |> Input.withId (inputIdTilString FullførtÅrId)
-                                    --|> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtDato) fullførtDatoInfo.fullførtÅr)
                                     |> Input.withMaybeFeilmelding
                                         (fullførtDatoInfo.fullførtÅr
                                             |> Dato.feilmeldingÅr
@@ -1178,12 +1200,9 @@ viewBrukerInput (Model model) =
                                 [ div [ class "inputkolonne-innhold" ]
                                     [ "Ja, sertifiseringen utløper"
                                         |> Knapp.knapp VilRegistrereUtløperMåned
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        --TODO: endre klasse
                                         |> Knapp.toHtml
                                     , "Nei, sertifiseringen utløper ikke"
                                         |> Knapp.knapp VilIkkeRegistrereUtløpesdato
-                                        --|> Knapp.withClass Knapp.SpråknivåKnapp TODO: endre klasse
                                         |> Knapp.toHtml
                                     ]
                                 ]
@@ -1226,14 +1245,9 @@ viewBrukerInput (Model model) =
                                     |> Input.input { label = "År", msg = OppdatererUtløperÅr }
                                     |> Input.withClass Input.År
                                     |> Input.withOnEnter VilRegistrereUtløperÅr
-                                    --|> Input.withOnBlur FraÅrMisterFokus
+                                    |> Input.withOnBlur ÅrMisterFokus
                                     |> Input.withId (inputIdTilString UtløperÅrId)
-                                    --|> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtDato) fullførtDatoInfo.fullførtÅr)
-                                    |> Input.withMaybeFeilmelding
-                                        (utløpsdatoInfo.utløperÅr
-                                            |> Dato.feilmeldingÅr
-                                            |> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr
-                                        )
+                                    |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
                                     |> Input.toHtml
                                 , Knapp.knapp VilRegistrereUtløperÅr "Gå videre"
                                     |> Knapp.toHtml
@@ -1244,10 +1258,10 @@ viewBrukerInput (Model model) =
                 VisOppsummering _ ->
                     viewBekreftOppsummering
 
-                OppsummeringEtterEndring _ ->
+                VisOppsummeringEtterEndring _ ->
                     viewBekreftOppsummering
 
-                EndreOppsummering skjema ->
+                EndreOpplysninger skjema ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ case SertifikatSkjema.sertifikatTypeahed skjema of
@@ -1264,7 +1278,6 @@ viewBrukerInput (Model model) =
                                 |> Input.input { label = "Utsteder", msg = Utsteder >> SkjemaEndret }
                                 |> Input.toHtml
                             , div [ class "DatoInput-fra-til-rad" ]
-                                --todo:endre klasse
                                 [ DatoInput.datoInput
                                     { label = "Fullført"
                                     , onMånedChange = FullførtMåned >> SkjemaEndret
@@ -1273,7 +1286,7 @@ viewBrukerInput (Model model) =
                                     , år = SertifikatSkjema.fullførtÅr skjema
                                     }
                                     |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingFullførtÅr skjema)
-                                    --|> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
+                                    |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
                                     |> DatoInput.toHtml
                                 , if not (SertifikatSkjema.utløperIkke skjema) then
                                     DatoInput.datoInput
@@ -1284,7 +1297,7 @@ viewBrukerInput (Model model) =
                                         , år = SertifikatSkjema.utløperÅr skjema
                                         }
                                         |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingUtløperÅr skjema)
-                                        --|> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrBlurred)
+                                        |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
                                         |> DatoInput.toHtml
 
                                   else
@@ -1318,7 +1331,7 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
-                VenterPåAnimasjonFørFullføring list ->
+                VenterPåAnimasjonFørFullføring _ ->
                     div [] []
 
         MeldingerGjenstår ->
@@ -1342,7 +1355,7 @@ viewBekreftOppsummering =
             [ div [ class "inputkolonne" ]
                 [ Knapp.knapp VilLagreSertifikat "Ja, informasjonen er riktig"
                     |> Knapp.toHtml
-                , Knapp.knapp VilEndreOppsumering "Nei, jeg vil endre"
+                , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
                     |> Knapp.toHtml
                 ]
             ]

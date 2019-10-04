@@ -9,7 +9,6 @@ module Skjema.Sertifikat exposing
     , fullførtMåned
     , fullførtÅr
     , fullførtÅrValidert
-    , gjørAlleFeilmeldingerSynlig
     , id
     , initValidertSkjema
     , mapTypeaheadState
@@ -31,6 +30,9 @@ module Skjema.Sertifikat exposing
     , utsteder
     , valider
     , velgAktivtSertifikatITypeahead
+    , visAlleFeilmeldinger
+    , visFeilmeldingFullførtÅr
+    , visFeilmeldingUtløperÅr
     )
 
 import Dato exposing (Måned(..), År)
@@ -174,6 +176,36 @@ oppdaterSertifikatFelt (UvalidertSkjema skjema) feltInnhold =
                 }
 
 
+oppdaterUtsteder : SertifikatSkjema -> String -> SertifikatSkjema
+oppdaterUtsteder (UvalidertSkjema skjema) oppdatering =
+    UvalidertSkjema { skjema | utsteder = oppdatering }
+
+
+oppdaterFullførtMåned : SertifikatSkjema -> Måned -> SertifikatSkjema
+oppdaterFullførtMåned (UvalidertSkjema skjema) oppdatering =
+    UvalidertSkjema { skjema | fullførtMåned = oppdatering }
+
+
+oppdaterFullførtÅr : SertifikatSkjema -> String -> SertifikatSkjema
+oppdaterFullførtÅr (UvalidertSkjema skjema) oppdatering =
+    UvalidertSkjema { skjema | fullførtÅr = oppdatering }
+
+
+oppdaterUtløperMåned : SertifikatSkjema -> Måned -> SertifikatSkjema
+oppdaterUtløperMåned (UvalidertSkjema skjema) oppdatering =
+    UvalidertSkjema { skjema | utløperMåned = oppdatering }
+
+
+oppdaterUtløperÅr : SertifikatSkjema -> String -> SertifikatSkjema
+oppdaterUtløperÅr (UvalidertSkjema skjema) oppdatering =
+    UvalidertSkjema { skjema | utløperÅr = oppdatering }
+
+
+toggleUtløperIkke : SertifikatSkjema -> SertifikatSkjema
+toggleUtløperIkke (UvalidertSkjema skjema) =
+    UvalidertSkjema { skjema | utløperIkke = not skjema.utløperIkke }
+
+
 setSertifikatFelt : SertifikatTypeahead -> SertifikatSkjema -> SertifikatSkjema
 setSertifikatFelt typeahaedSugestion (UvalidertSkjema skjema) =
     UvalidertSkjema { skjema | sertifikatFelt = SuggestionValgt typeahaedSugestion }
@@ -210,36 +242,6 @@ velgAktivtSertifikatITypeahead (UvalidertSkjema skjema) =
                     UvalidertSkjema skjema
 
 
-oppdaterUtsteder : SertifikatSkjema -> String -> SertifikatSkjema
-oppdaterUtsteder (UvalidertSkjema skjema) oppdatering =
-    UvalidertSkjema { skjema | utsteder = oppdatering }
-
-
-oppdaterFullførtMåned : SertifikatSkjema -> Måned -> SertifikatSkjema
-oppdaterFullførtMåned (UvalidertSkjema skjema) oppdatering =
-    UvalidertSkjema { skjema | fullførtMåned = oppdatering }
-
-
-oppdaterFullførtÅr : SertifikatSkjema -> String -> SertifikatSkjema
-oppdaterFullførtÅr (UvalidertSkjema skjema) oppdatering =
-    UvalidertSkjema { skjema | fullførtÅr = oppdatering }
-
-
-oppdaterUtløperMåned : SertifikatSkjema -> Måned -> SertifikatSkjema
-oppdaterUtløperMåned (UvalidertSkjema skjema) oppdatering =
-    UvalidertSkjema { skjema | utløperMåned = oppdatering }
-
-
-oppdaterUtløperÅr : SertifikatSkjema -> String -> SertifikatSkjema
-oppdaterUtløperÅr (UvalidertSkjema skjema) oppdatering =
-    UvalidertSkjema { skjema | utløperÅr = oppdatering }
-
-
-toggleUtløperIkke : SertifikatSkjema -> SertifikatSkjema
-toggleUtløperIkke (UvalidertSkjema skjema) =
-    UvalidertSkjema { skjema | utløperIkke = not skjema.utløperIkke }
-
-
 
 --- FEILMELDINGER ---
 
@@ -262,21 +264,21 @@ feilmeldingUtløperÅr (UvalidertSkjema skjema) =
         Nothing
 
 
-gjørFeilmeldingFullførtÅrSynlig : SertifikatSkjema -> SertifikatSkjema
-gjørFeilmeldingFullførtÅrSynlig (UvalidertSkjema skjema) =
+visFeilmeldingFullførtÅr : SertifikatSkjema -> SertifikatSkjema
+visFeilmeldingFullførtÅr (UvalidertSkjema skjema) =
     UvalidertSkjema { skjema | visFullførtÅrFeilmelding = True }
 
 
-gjørFeilmeldingUtløperÅrSynlig : SertifikatSkjema -> SertifikatSkjema
-gjørFeilmeldingUtløperÅrSynlig (UvalidertSkjema skjema) =
+visFeilmeldingUtløperÅr : SertifikatSkjema -> SertifikatSkjema
+visFeilmeldingUtløperÅr (UvalidertSkjema skjema) =
     UvalidertSkjema { skjema | visUtløperÅrFeilmelding = True }
 
 
-gjørAlleFeilmeldingerSynlig : SertifikatSkjema -> SertifikatSkjema
-gjørAlleFeilmeldingerSynlig skjema =
+visAlleFeilmeldinger : SertifikatSkjema -> SertifikatSkjema
+visAlleFeilmeldinger skjema =
     skjema
-        |> gjørFeilmeldingFullførtÅrSynlig
-        |> gjørFeilmeldingUtløperÅrSynlig
+        |> visFeilmeldingFullførtÅr
+        |> visFeilmeldingUtløperÅr
 
 
 
