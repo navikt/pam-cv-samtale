@@ -208,28 +208,19 @@ update msg (Model model) =
         VilOppdatereSertifikatFelt string ->
             case model.aktivSamtale of
                 RegistrerSertifikatFelt typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue string
-                                    |> RegistrerSertifikatFelt
-                        }
-                    , Cmd.batch
-                        [ Api.getSertifikatTypeahead HentetTypeahead string
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
+                    ( typeaheadState
+                        |> TypeaheadState.updateValue string
+                        |> RegistrerSertifikatFelt
+                        |> oppdaterSamtaleSteg model
+                    , Api.getSertifikatTypeahead HentetTypeahead string
                     )
                         |> IkkeFerdig
 
                 EndreOpplysninger skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                string
-                                    |> SertifikatSkjema.oppdaterSertifikatFelt skjema
-                                    |> EndreOpplysninger
-                        }
+                    ( string
+                        |> SertifikatSkjema.oppdaterSertifikatFelt skjema
+                        |> EndreOpplysninger
+                        |> oppdaterSamtaleSteg model
                     , Api.getSertifikatTypeahead HentetTypeahead string
                     )
                         |> IkkeFerdig
@@ -246,7 +237,7 @@ update msg (Model model) =
                                 |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
                                 |> RegistrerSertifikatFelt
                                 |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
@@ -261,7 +252,7 @@ update msg (Model model) =
                                 |> SertifikatSkjema.mapTypeaheadState skjema
                                 |> EndreOpplysninger
                                 |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
@@ -275,13 +266,10 @@ update msg (Model model) =
         HovrerOverTypeaheadSuggestion typeahead ->
             case model.aktivSamtale of
                 RegistrerSertifikatFelt typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateActive typeahead
-                                    |> RegistrerSertifikatFelt
-                        }
+                    ( typeaheadState
+                        |> TypeaheadState.updateActive typeahead
+                        |> RegistrerSertifikatFelt
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -295,25 +283,19 @@ update msg (Model model) =
                 RegistrerSertifikatFelt typeaheadState ->
                     case operation of
                         Typeahead.ArrowUp ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowUp
-                                            |> RegistrerSertifikatFelt
-                                }
+                            ( typeaheadState
+                                |> TypeaheadState.arrowUp
+                                |> RegistrerSertifikatFelt
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         Typeahead.ArrowDown ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowDown
-                                            |> RegistrerSertifikatFelt
-                                }
+                            ( typeaheadState
+                                |> TypeaheadState.arrowDown
+                                |> RegistrerSertifikatFelt
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -324,22 +306,16 @@ update msg (Model model) =
                                     brukerVelgerSertifikatFelt model active
 
                                 Nothing ->
-                                    ( Model
-                                        { model
-                                            | aktivSamtale = RegistrerSertifikatFelt typeaheadState
-                                        }
+                                    ( Model model
                                     , Cmd.none
                                     )
                                         |> IkkeFerdig
 
                         Typeahead.MouseLeaveSuggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.removeActive
-                                            |> RegistrerSertifikatFelt
-                                }
+                            ( typeaheadState
+                                |> TypeaheadState.removeActive
+                                |> RegistrerSertifikatFelt
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -347,49 +323,37 @@ update msg (Model model) =
                 EndreOpplysninger skjema ->
                     case operation of
                         Typeahead.ArrowUp ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.arrowUp
-                                            |> SertifikatSkjema.mapTypeaheadState skjema
-                                            |> EndreOpplysninger
-                                }
+                            ( TypeaheadState.arrowUp
+                                |> SertifikatSkjema.mapTypeaheadState skjema
+                                |> EndreOpplysninger
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         Typeahead.ArrowDown ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.arrowDown
-                                            |> SertifikatSkjema.mapTypeaheadState skjema
-                                            |> EndreOpplysninger
-                                }
+                            ( TypeaheadState.arrowDown
+                                |> SertifikatSkjema.mapTypeaheadState skjema
+                                |> EndreOpplysninger
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         Typeahead.Enter ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        skjema
-                                            |> SertifikatSkjema.velgAktivtSertifikatITypeahead
-                                            |> EndreOpplysninger
-                                }
+                            ( skjema
+                                |> SertifikatSkjema.velgAktivtSertifikatITypeahead
+                                |> EndreOpplysninger
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         Typeahead.MouseLeaveSuggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.removeActive
-                                            |> SertifikatSkjema.mapTypeaheadState skjema
-                                            |> EndreOpplysninger
-                                }
+                            ( TypeaheadState.removeActive
+                                |> SertifikatSkjema.mapTypeaheadState skjema
+                                |> EndreOpplysninger
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -404,13 +368,10 @@ update msg (Model model) =
                     brukerVelgerSertifikatFelt model typeahead
 
                 EndreOpplysninger skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                skjema
-                                    |> SertifikatSkjema.setSertifikatFelt typeahead
-                                    |> EndreOpplysninger
-                        }
+                    ( skjema
+                        |> SertifikatSkjema.setSertifikatFelt typeahead
+                        |> EndreOpplysninger
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -437,10 +398,9 @@ update msg (Model model) =
         OppdaterUtsteder string ->
             case model.aktivSamtale of
                 RegistrerUtsteder utsteder ->
-                    ( Model
-                        { model
-                            | aktivSamtale = RegistrerUtsteder { utsteder | utsteder = string }
-                        }
+                    ( { utsteder | utsteder = string }
+                        |> RegistrerUtsteder
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -588,6 +548,28 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
+        ÅrMisterFokus ->
+            case model.aktivSamtale of
+                RegistrerFullførtÅr fullførtDatoInfo ->
+                    ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
+                        |> RegistrerFullførtÅr
+                        |> oppdaterSamtalesteg model
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                RegistrerUtløperÅr utløpsdatoInfo ->
+                    ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
+                        |> RegistrerUtløperÅr
+                        |> oppdaterSamtalesteg model
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
         VilEndreOpplysninger ->
             case model.aktivSamtale of
                 VisOppsummering validertSertifikatSkjema ->
@@ -622,9 +604,7 @@ update msg (Model model) =
                             ( validertSkjema
                                 |> VisOppsummeringEtterEndring
                                 |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
-                            , Cmd.batch
-                                [ lagtTilSpørsmålCmd model.debugStatus
-                                ]
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
@@ -643,32 +623,13 @@ update msg (Model model) =
         VilLagreSertifikat ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
-                    IkkeFerdig
-                        ( skjema
-                            |> LagrerSkjema
-                            |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
-                        , Cmd.batch
-                            [ postEllerPutSertifikat SertifikatLagret skjema
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            ]
-                        )
+                    gåTilLagrerSkjema model skjema "Ja, informasjonen er riktig"
 
                 VisOppsummeringEtterEndring skjema ->
-                    IkkeFerdig
-                        ( skjema
-                            |> LagrerSkjema
-                            |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
-                        , Cmd.batch
-                            [ postEllerPutSertifikat SertifikatLagret skjema
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            ]
-                        )
+                    gåTilLagrerSkjema model skjema "Ja, informasjonen er riktig"
 
                 LagringFeilet _ skjema ->
-                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, prøv på nytt" ]) (LagrerSkjema skjema)
-                    , postEllerPutSertifikat SertifikatLagret skjema
-                    )
-                        |> IkkeFerdig
+                    gåTilLagrerSkjema model skjema "Ja, prøv på nytt"
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -753,28 +714,6 @@ update msg (Model model) =
 
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
-
-        ÅrMisterFokus ->
-            case model.aktivSamtale of
-                RegistrerFullførtÅr fullførtDatoInfo ->
-                    ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
-                        |> RegistrerFullførtÅr
-                        |> oppdaterSamtalesteg model
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                RegistrerUtløperÅr utløpsdatoInfo ->
-                    ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
-                        |> RegistrerUtløperÅr
-                        |> oppdaterSamtalesteg model
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
 
 
 setFullførtMåned : FullførtDatoInfo -> Dato.Måned -> FullførtDatoInfo
@@ -872,6 +811,16 @@ gåTilEndreSkjema model skjema =
         |> EndreOpplysninger
         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
     , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
+
+
+gåTilLagrerSkjema : ModelInfo -> ValidertSertifikatSkjema -> String -> SamtaleStatus
+gåTilLagrerSkjema model skjema svar =
+    ( skjema
+        |> LagrerSkjema
+        |> nesteSamtaleSteg model (Melding.svar [ svar ])
+    , postEllerPutSertifikat SertifikatLagret skjema
     )
         |> IkkeFerdig
 
