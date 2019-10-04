@@ -185,7 +185,7 @@ type Msg
     | UtløperMånedValgt Dato.Måned
     | VilRegistrereUtløperÅr
     | OppdatererUtløperÅr String
-    | VilLagreEtterOppsumering
+    | VilLagreSertifikat
     | VilEndreOppsumering
     | SkjemaEndret SkjemaEndring
     | VilLagreEndretSkjema
@@ -584,7 +584,7 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        VilLagreEtterOppsumering ->
+        VilLagreSertifikat ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
                     IkkeFerdig
@@ -607,6 +607,12 @@ update msg (Model model) =
                             , lagtTilSpørsmålCmd model.debugStatus
                             ]
                         )
+
+                LagringFeilet _ skjema ->
+                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, prøv på nytt" ]) (LagrerSkjema skjema)
+                    , Api.postSertifikat SertifikatLagret skjema
+                    )
+                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -724,6 +730,14 @@ update msg (Model model) =
                     ( model.sertifikatListe
                         |> VenterPåAnimasjonFørFullføring
                         |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                LagringFeilet _ _ ->
+                    ( model.sertifikatListe
+                        |> VenterPåAnimasjonFørFullføring
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -1297,7 +1311,7 @@ viewBrukerInput (Model model) =
                 LagringFeilet _ _ ->
                     div [ class "inputkolonne" ]
                         [ div [ class "inputkolonne-innhold" ]
-                            [ Knapp.knapp VilLagreEndretSkjema "Ja, prøv på nytt"
+                            [ Knapp.knapp VilLagreSertifikat "Ja, prøv på nytt"
                                 |> Knapp.toHtml
                             , Knapp.knapp (FerdigMedSertifikat "Nei, gå videre") "Nei, gå videre"
                                 |> Knapp.toHtml
@@ -1326,7 +1340,7 @@ viewBekreftOppsummering =
     div [ class "skjema-wrapper" ]
         [ div [ class "skjema" ]
             [ div [ class "inputkolonne" ]
-                [ Knapp.knapp VilLagreEtterOppsumering "Ja, informasjonen er riktig"
+                [ Knapp.knapp VilLagreSertifikat "Ja, informasjonen er riktig"
                     |> Knapp.toHtml
                 , Knapp.knapp VilEndreOppsumering "Nei, jeg vil endre"
                     |> Knapp.toHtml
