@@ -1,4 +1,14 @@
-module Cv.Sertifikat exposing (Sertifikat, decode, fradato, id, konseptid, sertifikatNavnFritekst, sertifikatnavn, tildato, utsteder)
+module Cv.Sertifikat exposing
+    ( Sertifikat
+    , decode
+    , fradato
+    , id
+    , konseptId
+    , sertifikatNavnFritekst
+    , sertifikatnavn
+    , tildato
+    , utsteder
+    )
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
@@ -12,7 +22,7 @@ type alias SertifikatInfo =
     { id : String
     , sertifikatNavnFritekst : Maybe String
     , sertifikatnavn : Maybe String
-    , konseptid : Maybe String
+    , konseptId : Maybe String
     , utsteder : Maybe String
     , fradato : Maybe String
     , tildato : Maybe String
@@ -34,9 +44,9 @@ sertifikatnavn (Sertifikat info) =
     info.sertifikatnavn
 
 
-konseptid : Sertifikat -> Maybe String
-konseptid (Sertifikat info) =
-    info.konseptid
+konseptId : Sertifikat -> Maybe String
+konseptId (Sertifikat info) =
+    info.konseptId
 
 
 fradato : Sertifikat -> Maybe String

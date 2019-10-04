@@ -14,6 +14,7 @@ import Cv.Sertifikat exposing (Sertifikat)
 import Dato exposing (Måned(..), År, datoTilString)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
+import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
@@ -78,6 +79,7 @@ type SkjemaEndring
     = Utsteder String
     | FullførtMåned String
     | FullførtÅr String
+    | UtløperIkkeToggled
     | UtløperMåned String
     | UtløperÅr String
 
@@ -168,8 +170,7 @@ utløpsdatoTilSkjema info år =
 
 
 type Msg
-    = VilRegistrereSertifikat
-    | VilOppdatereSertifikat String
+    = VilOppdatereSertifikatFelt String
     | HentetTypeahead (Result Http.Error (List SertifikatTypeahead))
     | HovrerOverTypeaheadSuggestion SertifikatTypeahead
     | TrykkerTypeaheadTast Typeahead.Operation
@@ -200,14 +201,37 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        VilRegistrereSertifikat ->
-            ( ""
-                |> TypeaheadState.init
-                |> RegistrerSertifikatFelt
-                |> nesteSamtaleSteg model (Melding.svar [ "Test123 Sertifisering/sertifikat" ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
+        VilOppdatereSertifikatFelt string ->
+            case model.aktivSamtale of
+                RegistrerSertifikatFelt typeaheadState ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                typeaheadState
+                                    |> TypeaheadState.updateValue string
+                                    |> RegistrerSertifikatFelt
+                        }
+                    , Cmd.batch
+                        [ Api.getSertifikatTypeahead HentetTypeahead string
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        ]
+                    )
+                        |> IkkeFerdig
+
+                EndreOppsummering skjema ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                string
+                                    |> SertifikatSkjema.oppdaterSertifikatFelt skjema
+                                    |> EndreOppsummering
+                        }
+                    , Api.getSertifikatTypeahead HentetTypeahead string
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         HentetTypeahead result ->
             case model.aktivSamtale of
@@ -375,8 +399,16 @@ update msg (Model model) =
                 RegistrerSertifikatFelt _ ->
                     brukerVelgerSertifikatFelt model typeahead
 
-                EndreOppsummering _ ->
-                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
+                EndreOppsummering skjema ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                skjema
+                                    |> SertifikatSkjema.setSertifikatFelt typeahead
+                                    |> EndreOppsummering
+                        }
+                    , Cmd.none
+                    )
                         |> IkkeFerdig
 
                 _ ->
@@ -667,7 +699,7 @@ update msg (Model model) =
 
                         Err error ->
                             ( LagringFeilet error sertifikatSkjema
-                                |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt med lagringen" ])
+                                |> nesteSamtaleStegUtenMelding model
                             , sertifikatSkjema
                                 |> SertifikatSkjema.encode
                                 |> Api.logErrorWithRequestBody ErrorLogget "Lagre sertifikat" error
@@ -699,38 +731,6 @@ update msg (Model model) =
                 _ ->
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
-
-        VilOppdatereSertifikat string ->
-            case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue string
-                                    |> RegistrerSertifikatFelt
-                        }
-                    , Cmd.batch
-                        [ Api.getSertifikatTypeahead HentetTypeahead string
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
-                    )
-                        |> IkkeFerdig
-
-                EndreOppsummering skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                string
-                                    |> SertifikatSkjema.oppdaterSertifikatFelt skjema
-                                    |> EndreOppsummering
-                        }
-                    , Api.getSertifikatTypeahead HentetTypeahead string
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
 
         StartÅSkrive ->
             ( Model
@@ -797,6 +797,9 @@ oppdaterSkjema endring skjema =
 
         UtløperÅr string ->
             SertifikatSkjema.oppdaterUtløperÅr skjema string
+
+        UtløperIkkeToggled ->
+            SertifikatSkjema.toggleUtløperIkke skjema
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -998,11 +1001,17 @@ utløpsdatoTilString utløpsdato =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
+        RegistrerSertifikatFelt _ ->
+            settFokusCmd SertifikatTypeaheadId
+
         RegistrerUtsteder _ ->
-            settFokusCmd UtstederInput
+            settFokusCmd UtstederId
 
         RegistrerFullførtÅr _ ->
-            settFokusCmd FullførtÅrInput
+            settFokusCmd FullførtÅrId
+
+        RegistrerUtløperÅr _ ->
+            settFokusCmd UtløperÅrId
 
         _ ->
             Cmd.none
@@ -1021,30 +1030,34 @@ settFokusCmd inputId =
 
 
 type InputId
-    = SertifikatTypeaheadInput
-    | UtstederInput
-    | FullførtÅrInput
+    = SertifikatTypeaheadId
+    | UtstederId
+    | FullførtÅrId
+    | UtløperÅrId
 
 
 inputIdTilString : InputId -> String
 inputIdTilString inputId =
     case inputId of
-        UtstederInput ->
-            "sertifikat-registrer-utsteder"
+        UtstederId ->
+            "sertifikat-utsteder-id"
 
-        FullførtÅrInput ->
-            "sertifikat-registrer-fullført-år"
+        FullførtÅrId ->
+            "sertifikat-fullførtår-id"
 
-        SertifikatTypeaheadInput ->
-            "sertifikat-felt-typeahead"
+        SertifikatTypeaheadId ->
+            "sertifikat-typeahead-id"
+
+        UtløperÅrId ->
+            "sertifikat-utløperår-id"
 
 
 viewTypeaheadSertifikatFelt : TypeaheadState SertifikatTypeahead -> Html Msg
 viewTypeaheadSertifikatFelt typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikat, onTypeaheadChange = TrykkerTypeaheadTast }
-        |> Typeahead.withInputId (inputIdTilString SertifikatTypeaheadInput)
+        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikatFelt, onTypeaheadChange = TrykkerTypeaheadTast }
+        |> Typeahead.withInputId (inputIdTilString SertifikatTypeaheadId)
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSertifikatFelt typeaheadState)
         |> Typeahead.toHtml
 
@@ -1086,7 +1099,7 @@ viewBrukerInput (Model model) =
                             [ input.utsteder
                                 |> Input.input { label = "Utsteder", msg = OppdaterUtsteder }
                                 |> Input.withOnEnter VilRegistrereUtsteder
-                                |> Input.withId (inputIdTilString UtstederInput)
+                                |> Input.withId (inputIdTilString UtstederId)
                                 |> Input.toHtml
                             , Knapp.knapp VilRegistrereUtsteder "Gå videre"
                                 |> Knapp.toHtml
@@ -1130,7 +1143,7 @@ viewBrukerInput (Model model) =
                                     |> Input.withClass Input.År
                                     |> Input.withOnEnter VilRegistrereFullførtÅr
                                     --|> Input.withOnBlur FraÅrMisterFokus
-                                    |> Input.withId (inputIdTilString FullførtÅrInput)
+                                    |> Input.withId (inputIdTilString FullførtÅrId)
                                     --|> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtDato) fullførtDatoInfo.fullførtÅr)
                                     |> Input.withMaybeFeilmelding
                                         (fullførtDatoInfo.fullførtÅr
@@ -1200,7 +1213,7 @@ viewBrukerInput (Model model) =
                                     |> Input.withClass Input.År
                                     |> Input.withOnEnter VilRegistrereUtløperÅr
                                     --|> Input.withOnBlur FraÅrMisterFokus
-                                    |> Input.withId (inputIdTilString FullførtÅrInput)
+                                    |> Input.withId (inputIdTilString UtløperÅrId)
                                     --|> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtDato) fullførtDatoInfo.fullførtÅr)
                                     |> Input.withMaybeFeilmelding
                                         (utløpsdatoInfo.utløperÅr
@@ -1224,13 +1237,13 @@ viewBrukerInput (Model model) =
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ case SertifikatSkjema.sertifikatTypeahed skjema of
-                                SertifikatTypeahead sertifikat ->
+                                SuggestionValgt sertifikat ->
                                     sertifikat
                                         |> SertifikatTypeahead.label
-                                        |> Input.input { label = "Sertifisering", msg = VilOppdatereSertifikat }
+                                        |> Input.input { label = "Sertifisering", msg = VilOppdatereSertifikatFelt }
                                         |> Input.toHtml
 
-                                Typeahead typeaheadState ->
+                                SuggestionIkkeValgt typeaheadState ->
                                     viewTypeahead typeaheadState
                             , skjema
                                 |> SertifikatSkjema.utsteder
@@ -1248,17 +1261,25 @@ viewBrukerInput (Model model) =
                                     |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingFullførtÅr skjema)
                                     --|> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
                                     |> DatoInput.toHtml
-                                , DatoInput.datoInput
-                                    { label = "Utløper"
-                                    , onMånedChange = UtløperMåned >> SkjemaEndret
-                                    , måned = SertifikatSkjema.utløperMåned skjema
-                                    , onÅrChange = UtløperÅr >> SkjemaEndret
-                                    , år = SertifikatSkjema.utløperÅr skjema
-                                    }
-                                    |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingUtløperÅr skjema)
-                                    --|> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrBlurred)
-                                    |> DatoInput.toHtml
+                                , if not (SertifikatSkjema.utløperIkke skjema) then
+                                    DatoInput.datoInput
+                                        { label = "Utløper"
+                                        , onMånedChange = UtløperMåned >> SkjemaEndret
+                                        , måned = SertifikatSkjema.utløperMåned skjema
+                                        , onÅrChange = UtløperÅr >> SkjemaEndret
+                                        , år = SertifikatSkjema.utløperÅr skjema
+                                        }
+                                        |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingUtløperÅr skjema)
+                                        --|> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrBlurred)
+                                        |> DatoInput.toHtml
+
+                                  else
+                                    text ""
                                 ]
+                            , skjema
+                                |> SertifikatSkjema.utløperIkke
+                                |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
+                                |> Checkbox.toHtml
                             , div [ class "inputrad" ]
                                 [ "Lagre endringer"
                                     |> Knapp.knapp VilLagreEndretSkjema
@@ -1294,9 +1315,9 @@ viewTypeahead : TypeaheadState SertifikatTypeahead -> Html Msg
 viewTypeahead typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikat, onTypeaheadChange = TrykkerTypeaheadTast }
+        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikatFelt, onTypeaheadChange = TrykkerTypeaheadTast }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
-        |> Typeahead.withInputId (inputIdTilString SertifikatTypeaheadInput)
+        |> Typeahead.withInputId (inputIdTilString SertifikatTypeaheadId)
         |> Typeahead.toHtml
 
 

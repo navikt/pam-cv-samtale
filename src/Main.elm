@@ -615,7 +615,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Fagdokumentasjon.Ferdig fagdokumentasjonListe meldingsLogg ->
-                            gåTilSeksjonsValg model meldingsLogg
+                            gåTilFlereSeksjonsValg model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -633,7 +633,7 @@ updateSuccess successMsg model =
                             )
 
                         Seksjon.Sertifikat.Ferdig sertifikatListe meldingsLogg ->
-                            gåTilSeksjonsValg model meldingsLogg
+                            gåTilFlereSeksjonsValg model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -773,7 +773,7 @@ gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd M
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     let
         ( seksjonsvalgModel, seksjonsvalgCmd ) =
-            Seksjon.Seksjonsvalg.init model.debugStatus ferdigAnimertMeldingsLogg
+            Seksjon.Seksjonsvalg.initLeggTil model.debugStatus ferdigAnimertMeldingsLogg
     in
     ( Success
         { model
@@ -782,6 +782,19 @@ gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) seksjonsvalgCmd
     )
 
+
+gåTilFlereSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
+    let
+        ( seksjonsvalgModel, seksjonsvalgCmd ) =
+            Seksjon.Seksjonsvalg.initLeggTilFlere model.debugStatus ferdigAnimertMeldingsLogg
+    in
+    ( Success
+        { model
+            | aktivSamtale = SeksjonsvalgSeksjon seksjonsvalgModel
+        }
+    , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) seksjonsvalgCmd
+    )
 
 
 --- VIEW ---
@@ -1017,6 +1030,7 @@ viewBrukerInput aktivSamtale =
             sertifikatSeksjon
                 |> Seksjon.Sertifikat.viewBrukerInput
                 |> Html.map (SertifikatMsg >> SuccessMsg)
+
 
 
 --- PROGRAM ---

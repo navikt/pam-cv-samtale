@@ -3,7 +3,8 @@ module Seksjon.Seksjonsvalg exposing
     , Msg
     , SamtaleStatus(..)
     , Seksjonsvalg(..)
-    , init
+    , initLeggTil
+    , initLeggTilFlere
     , meldingsLogg
     , update
     , viewBrukerInput
@@ -249,7 +250,8 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
-                LeggTilFlereAutorisasjoner -> --TODO: funksjon
+                LeggTilFlereAutorisasjoner ->
+                    --TODO: funksjon
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
                             [ div [ class "inputkolonne" ]
@@ -342,11 +344,11 @@ seksjonsvalgTilString seksjonsvalg =
 -- INIT --
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg =
+init : Samtale -> DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+init aktivSamtale_ debugStatus gammelMeldingsLogg =
     let
         aktivSamtale =
-            LeggTilAutorisasjoner
+            aktivSamtale_
     in
     ( Model
         { seksjonsMeldingsLogg =
@@ -356,3 +358,13 @@ init debugStatus gammelMeldingsLogg =
         }
     , lagtTilSpørsmålCmd debugStatus
     )
+
+
+initLeggTilFlere : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+initLeggTilFlere =
+    init LeggTilFlereAutorisasjoner
+
+
+initLeggTil : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+initLeggTil =
+    init LeggTilAutorisasjoner
