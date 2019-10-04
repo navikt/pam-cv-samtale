@@ -12,10 +12,10 @@ import Api
 import Browser.Dom as Dom
 import Cv.Sammendrag exposing (Sammendrag)
 import DebugStatus exposing (DebugStatus)
+import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
-import Html.Attributes exposing (..)
 import Http
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
@@ -25,7 +25,7 @@ import Task
 
 
 
--- MODEL --
+--- MODEL ---
 
 
 type Model
@@ -59,7 +59,7 @@ meldingsLogg (Model model) =
 
 
 
--- UPDATE --
+--- UPDATE ---
 
 
 type Msg
@@ -92,7 +92,7 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        BrukerVilEndreSammendrag sammendrag ->
+        BrukerVilEndreSammendrag _ ->
             ( model.sammendrag
                 |> EndreOriginal
                 |> nesteSamtaleSteg model
@@ -114,7 +114,7 @@ update msg (Model model) =
 
         BrukerVilLagreSammendrag sammendrag ->
             case model.aktivSamtale of
-                LagringFeilet error feiletSammendrag ->
+                LagringFeilet _ feiletSammendrag ->
                     ( nesteSamtaleSteg model (Melding.svar [ "Prøv på nytt" ]) (LagrerEndring feiletSammendrag)
                     , Cmd.batch
                         [ lagtTilSpørsmålCmd model.debugStatus
@@ -141,9 +141,8 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        ViewportSatt result ->
-            ( Model model, Cmd.none )
-                |> IkkeFerdig
+        ViewportSatt _ ->
+            IkkeFerdig ( Model model, Cmd.none )
 
         StartÅSkrive ->
             ( Model
@@ -280,13 +279,13 @@ samtaleTilMeldingsLogg sammendragSeksjon =
                 , Melding.spørsmål [ "Vil du legge til eller endre på noe?" ]
                 ]
 
-        EndreOriginal string ->
+        EndreOriginal _ ->
             [ Melding.spørsmål [ "Ok! Fyll ut sammendraget ditt i boksen under." ] ]
 
-        LagrerEndring string ->
+        LagrerEndring _ ->
             []
 
-        LagringFeilet error string ->
+        LagringFeilet _ _ ->
             [ Melding.spørsmål
                 [ "Sjekk at du er på internett og prøv igjen!" ]
             ]
@@ -316,59 +315,45 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 
 
 
--- VIEW --
+--- VIEW ---
 
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
     case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-        FerdigAnimert ferdigAnimertMeldingsLogg ->
+        FerdigAnimert _ ->
             case model.aktivSamtale of
                 BekreftOriginal sammendrag ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp (BrukerVilEndreSammendrag sammendrag)
-                                    (if sammendrag == "" then
-                                        "Jeg vil legge til sammendrag"
+                    Containers.knapper Flytende
+                        [ Knapp.knapp (BrukerVilEndreSammendrag sammendrag)
+                            (if sammendrag == "" then
+                                "Jeg vil legge til sammendrag"
 
-                                     else
-                                        "Ja, jeg vil se over"
-                                    )
-                                    |> Knapp.withClass Knapp.SpråknivåKnapp
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                    |> Knapp.withClass Knapp.SpråknivåKnapp
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                             else
+                                "Ja, jeg vil se over"
+                            )
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                            |> Knapp.toHtml
                         ]
 
                 EndreOriginal sammendrag ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
-                                |> Textarea.withTextAreaClass "textarea_stor"
-                                |> Textarea.withId sammendragId
-                                |> Textarea.toHtml
-                            , Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.inputMedGåVidereKnapp (BrukerVilLagreSammendrag sammendrag)
+                        [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
+                            |> Textarea.withTextAreaClass "textarea_stor"
+                            |> Textarea.withId sammendragId
+                            |> Textarea.toHtml
                         ]
 
-                LagrerEndring string ->
+                LagrerEndring _ ->
                     text ""
 
-                LagringFeilet error sammendrag ->
-                    div [ class "inputkolonne" ]
-                        [ div [ class "inputkolonne-innhold" ]
-                            [ Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Prøv på nytt"
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Gå videre uten å lagre"
-                                |> Knapp.withClass Knapp.SpråknivåKnapp
-                                |> Knapp.toHtml
-                            ]
+                LagringFeilet _ sammendrag ->
+                    Containers.knapper Flytende
+                        [ Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Prøv på nytt"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Gå videre uten å lagre"
+                            |> Knapp.toHtml
                         ]
 
                 VenterPåAnimasjonFørFullføring ->

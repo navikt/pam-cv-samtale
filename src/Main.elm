@@ -8,6 +8,7 @@ import Browser.Navigation as Navigation
 import Cv.Cv as Cv exposing (Cv)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
+import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.RobotLogo as RobotLogo
@@ -300,7 +301,7 @@ updateLoading debugStatus navigationKey msg model =
 
         RegistreringsProgresjonHentet result ->
             case result of
-                Ok value ->
+                Ok _ ->
                     ( model, Cmd.none )
 
                 Err error ->
@@ -838,7 +839,7 @@ view { model, windowWidth } =
                             [ text ("Fikk en " ++ String.fromInt int ++ " feilmelding. Vennligst prøv igjen senere!")
                             ]
 
-                    Http.BadBody string ->
+                    Http.BadBody _ ->
                         div []
                             [ text "Det set ut til at du ikke har godkjent vilkårene på arbeidsplassen.no/cv."
                             , text "Vennligst gjøre dette før du benytter det av tjenesten."
@@ -973,14 +974,9 @@ viewBrukerInput aktivSamtale =
         Introduksjon logg ->
             case MeldingsLogg.ferdigAnimert logg of
                 FerdigAnimert _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
-                                    |> Knapp.withClass Knapp.MånedKnapp
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
+                            |> Knapp.toHtml
                         ]
 
                 MeldingerGjenstår ->

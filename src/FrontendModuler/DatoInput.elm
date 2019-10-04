@@ -7,7 +7,7 @@ module FrontendModuler.DatoInput exposing
     )
 
 import Dato exposing (Måned)
-import FrontendModuler.Input as Input exposing (Class(..), Input)
+import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Select as Select
 import Html exposing (..)
 import Html.Attributes exposing (class)
@@ -84,7 +84,7 @@ toHtml (DatoInput options) =
             |> Select.toHtml
         , div [ class "DatoInput-år-wrapper" ]
             [ Input.input { label = "År", msg = options.onÅrChange } options.år
-                |> Input.withClass År
+                |> Input.withClass "aar"
                 |> Input.withMaybeFeilmelding options.feilmeldingÅr
                 |> withMaybeOnBlur options.onBlurÅr
                 |> Input.toHtml

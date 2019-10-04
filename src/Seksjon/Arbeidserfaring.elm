@@ -15,9 +15,11 @@ import Dato exposing (Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
+import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Textarea as Textarea
 import FrontendModuler.Typeahead as Typeahead
 import Html exposing (Attribute, Html, div, text)
@@ -147,10 +149,8 @@ type Samtale
     | LagrerArbeidserfaring ValidertArbeidserfaringSkjema
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
     | SpørOmBrukerVilLeggeInnMer
-    | StartNyArbeidserfaring (TypeaheadState Yrke)
+    | StartNyArbeidserfaring (TypeaheadState Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
     | VenterPåAnimasjonFørFullføring String
-    | HeltFerdig
-    | HeltFerdigUtenArbeidsErfaring
 
 
 type alias JobbtittelInfo =
@@ -991,7 +991,7 @@ update msg (Model model) =
                     case result of
                         Ok arbeidserfaringer ->
                             ( oppdaterSamtalesteg { model | arbeidserfaringListe = arbeidserfaringer } SpørOmBrukerVilLeggeInnMer
-                            , Cmd.none
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
@@ -1221,6 +1221,15 @@ oppdaterSamtalesteg modelInfo samtaleSeksjon =
                             |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
                 }
 
+        SpørOmBrukerVilLeggeInnMer ->
+            Model
+                { modelInfo
+                    | aktivSamtale = samtaleSeksjon
+                    , seksjonsMeldingsLogg =
+                        modelInfo.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+                }
+
         _ ->
             Model
                 { modelInfo
@@ -1365,27 +1374,21 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
         LagrerArbeidserfaring _ ->
-            [ Melding.spørsmål [ "Flott! Da har du lagt inn en arbeidserfaring." ]
-            , Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ]
-            ]
+            []
 
         LagringFeilet _ _ ->
             []
 
         SpørOmBrukerVilLeggeInnMer ->
-            [ Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ] ]
+            [ Melding.spørsmål [ "Flott! Da har du lagt inn en arbeidserfaring." ]
+            , Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ]
+            ]
 
         StartNyArbeidserfaring _ ->
             [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
 
         VenterPåAnimasjonFørFullføring string ->
             [ Melding.spørsmål [ string ] ]
-
-        HeltFerdig ->
-            [ Melding.spørsmål [ "Bra innsats! 😊 Nå kan arbeidsgivere finne deg hvis du har den erfaringen de ser etter." ] ]
-
-        HeltFerdigUtenArbeidsErfaring ->
-            [ Melding.spørsmål [ "Det var synd! Du kan alltid komme tilbake og legge til om du kommer på noe!" ] ]
 
 
 validertSkjemaTilSetninger : ValidertArbeidserfaringSkjema -> List String
@@ -1439,50 +1442,28 @@ viewBrukerInput (Model info) =
             case info.aktivSamtale of
                 Intro ->
                     if List.isEmpty info.arbeidserfaringListe then
-                        div [ class "skjema-wrapper" ]
-                            [ div [ class "knapperad-wrapper" ]
-                                [ div [ class "inputkolonne" ]
-                                    [ "Ja, jeg har arbeidserfaring"
-                                        |> Knapp.knapp (BrukerVilLeggeTilNyArbeidserfaring "Ja, jeg har arbeidserfaring")
-                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                        |> Knapp.toHtml
-                                    ]
-                                , div [ class "inputkolonne" ]
-                                    [ Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har ikke arbeidserfaring") "Nei, jeg har ikke arbeidserfaring"
-                                        |> Knapp.withClass Knapp.LeggeTilUtdannelseKnapp
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
+                        Containers.knapper Flytende
+                            [ "Ja, jeg har arbeidserfaring"
+                                |> Knapp.knapp (BrukerVilLeggeTilNyArbeidserfaring "Ja, jeg har arbeidserfaring")
+                                |> Knapp.toHtml
+                            , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har ikke arbeidserfaring") "Nei, jeg har ikke arbeidserfaring"
+                                |> Knapp.toHtml
                             ]
 
                     else
-                        div [ class "skjema-wrapper" ]
-                            [ div [ class "skjema" ]
-                                [ div [ class "inputkolonne" ]
-                                    [ "Ja, jeg vil legge til mer"
-                                        |> Knapp.knapp (BrukerVilLeggeTilNyArbeidserfaring "Ja, jeg vil legge til mer")
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp BrukerHopperOverArbeidserfaring "Nei, jeg er ferdig"
-                                        |> Knapp.toHtml
-                                    , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Jeg vil redigere det jeg har lagt inn") "Jeg vil redigere det jeg har lagt inn"
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
+                        Containers.knapper Flytende
+                            [ "Ja, jeg vil legge til mer"
+                                |> Knapp.knapp (BrukerVilLeggeTilNyArbeidserfaring "Ja, jeg vil legge til mer")
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerHopperOverArbeidserfaring "Nei, jeg er ferdig"
+                                |> Knapp.toHtml
+                            , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Jeg vil redigere det jeg har lagt inn") "Jeg vil redigere det jeg har lagt inn"
+                                |> Knapp.toHtml
                             ]
 
                 VelgEnArbeidserfaringÅRedigere ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "knapperad-wrapper" ]
-                            (Model info
-                                |> lagArbeidserfaringKnapper
-                                |> List.map
-                                    (\msg ->
-                                        div [ class "inputkolonne" ]
-                                            [ msg
-                                            ]
-                                    )
-                            )
-                        ]
+                    Containers.knapper Kolonne
+                        (List.map lagArbeidserfaringKnapp info.arbeidserfaringListe)
 
                 HenterFraAareg ->
                     div [] []
@@ -1508,258 +1489,161 @@ viewBrukerInput (Model info) =
                         ]
 
                 SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div [ class "inputkolonne-innhold" ]
-                                    [ "Nei, legg til nytt navn"
-                                        |> Knapp.knapp (BrukerVilEndreJobbtittel jobbtittelInfo)
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    , "Ja, det stemmer"
-                                        |> Knapp.knapp BrukerVilIkkeEndreJobbtittel
-                                        |> Knapp.withClass Knapp.SpråknivåKnapp
-                                        |> Knapp.toHtml
-                                    ]
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ "Nei, legg til nytt navn"
+                            |> Knapp.knapp (BrukerVilEndreJobbtittel jobbtittelInfo)
+                            |> Knapp.toHtml
+                        , "Ja, det stemmer"
+                            |> Knapp.knapp BrukerVilIkkeEndreJobbtittel
+                            |> Knapp.toHtml
                         ]
 
                 EndreJobbtittel jobbtittelInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ jobbtittelInfo.jobbtittel
-                                |> Input.input { label = "Stilling/yrke som vil vises i CV-en", msg = BrukerOppdatererJobbtittelFelt }
-                                |> Input.withOnEnter BrukerVilRegistrereJobbtittel
-                                |> Input.withId (inputIdTilString JobbtittelInput)
-                                |> Input.toHtml
-                            , Knapp.knapp BrukerVilRegistrereJobbtittel "Gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereJobbtittel
+                        [ jobbtittelInfo.jobbtittel
+                            |> Input.input { label = "Stilling/yrke som vil vises i CV-en", msg = BrukerOppdatererJobbtittelFelt }
+                            |> Input.withOnEnter BrukerVilRegistrereJobbtittel
+                            |> Input.withId (inputIdTilString JobbtittelInput)
+                            |> Input.toHtml
                         ]
 
                 RegistrereBedriftsnavn bedriftnanvsInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ bedriftnanvsInfo.bedriftNavn
-                                |> Input.input { label = "Bedriftens navn", msg = BrukerOppdatererBedriftsnavn }
-                                |> Input.withOnEnter BrukerVilRegistrereBedriftsnavn
-                                |> Input.withId (inputIdTilString BedriftsnavnInput)
-                                |> Input.toHtml
-                            , Knapp.knapp BrukerVilRegistrereBedriftsnavn "Gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereBedriftsnavn
+                        [ bedriftnanvsInfo.bedriftNavn
+                            |> Input.input { label = "Bedriftens navn", msg = BrukerOppdatererBedriftsnavn }
+                            |> Input.withOnEnter BrukerVilRegistrereBedriftsnavn
+                            |> Input.withId (inputIdTilString BedriftsnavnInput)
+                            |> Input.toHtml
                         ]
 
                 RegistrereSted stedInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ stedInfo.lokasjon
-                                |> Input.input { label = "Sted/land", msg = BrukerOppdatererSted }
-                                |> Input.withOnEnter BrukerVilRegistrereSted
-                                |> Input.withId (inputIdTilString StedInput)
-                                |> Input.toHtml
-                            , Knapp.knapp BrukerVilRegistrereSted "Gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereSted
+                        [ stedInfo.lokasjon
+                            |> Input.input { label = "By, sted eller land", msg = BrukerOppdatererSted }
+                            |> Input.withOnEnter BrukerVilRegistrereSted
+                            |> Input.withId (inputIdTilString StedInput)
+                            |> Input.toHtml
                         ]
 
                 RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ arbeidsoppgaverInfo.arbeidsoppgaver
-                                |> Textarea.textarea { label = "Arbeidsoppgaver", msg = BrukerOppdatererArbeidsoppgaver }
-                                |> Textarea.withId (inputIdTilString ArbeidsoppgaverInput)
-                                |> Textarea.toHtml
-                            , Knapp.knapp BrukerVilRegistrereArbeidsoppgaver "Gå videre"
-                                |> Knapp.toHtml
-                            ]
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereArbeidsoppgaver
+                        [ arbeidsoppgaverInfo.arbeidsoppgaver
+                            |> Textarea.textarea { label = "Arbeidsoppgaver", msg = BrukerOppdatererArbeidsoppgaver }
+                            |> Textarea.withId (inputIdTilString ArbeidsoppgaverInput)
+                            |> Textarea.toHtml
                         ]
 
                 RegistrereFraMåned _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div [ class "knapperad-wrapper" ]
-                                    [ lagFraMånedKnapp Januar
-                                    , lagFraMånedKnapp Februar
-                                    , lagFraMånedKnapp Mars
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagFraMånedKnapp April
-                                    , lagFraMånedKnapp Mai
-                                    , lagFraMånedKnapp Juni
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagFraMånedKnapp Juli
-                                    , lagFraMånedKnapp August
-                                    , lagFraMånedKnapp September
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagFraMånedKnapp Oktober
-                                    , lagFraMånedKnapp November
-                                    , lagFraMånedKnapp Desember
-                                    ]
-                                ]
-                            ]
-                        ]
+                    MånedKnapper.månedKnapper BrukerTrykketFraMånedKnapp
 
                 RegistrereFraÅr fraDatoInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema-int" ]
-                            [ div [ class "inputkolonne" ]
-                                [ fraDatoInfo.fraÅr
-                                    |> Input.input { label = "År", msg = BrukerOppdatererFraÅr }
-                                    |> Input.withClass Input.År
-                                    |> Input.withOnEnter BrukerVilRegistrereFraÅr
-                                    |> Input.withOnBlur FraÅrMisterFokus
-                                    |> Input.withId (inputIdTilString FraÅrInput)
-                                    |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visFeilmeldingFraÅr) fraDatoInfo.fraÅr)
-                                    |> Input.toHtml
-                                , Knapp.knapp BrukerVilRegistrereFraÅr "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereFraÅr
+                        [ div [ class "år-wrapper" ]
+                            [ fraDatoInfo.fraÅr
+                                |> Input.input { label = "År", msg = BrukerOppdatererFraÅr }
+                                |> Input.withClass "aar"
+                                |> Input.withOnEnter BrukerVilRegistrereFraÅr
+                                |> Input.withOnBlur FraÅrMisterFokus
+                                |> Input.withId (inputIdTilString FraÅrInput)
+                                |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visFeilmeldingFraÅr) fraDatoInfo.fraÅr)
+                                |> Input.toHtml
                             ]
                         ]
 
                 RegistrereNåværende _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "knapperad-wrapper" ]
-                            [ div [ class "inputrad" ]
-                                [ Knapp.knapp BrukerSvarerJaTilNåværende "Ja"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerSvarerNeiTilNåværende "Nei"
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerSvarerJaTilNåværende "Ja"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerSvarerNeiTilNåværende "Nei"
+                            |> Knapp.toHtml
                         ]
 
                 RegistrereTilMåned _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ div [ class "knapperad-wrapper" ]
-                                    [ lagTilMånedKnapp Januar
-                                    , lagTilMånedKnapp Februar
-                                    , lagTilMånedKnapp Mars
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagTilMånedKnapp April
-                                    , lagTilMånedKnapp Mai
-                                    , lagTilMånedKnapp Juni
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagTilMånedKnapp Juli
-                                    , lagTilMånedKnapp August
-                                    , lagTilMånedKnapp September
-                                    ]
-                                , div [ class "knapperad-wrapper" ]
-                                    [ lagTilMånedKnapp Oktober
-                                    , lagTilMånedKnapp November
-                                    , lagTilMånedKnapp Desember
-                                    ]
-                                ]
-                            ]
-                        ]
+                    MånedKnapper.månedKnapper BrukerTrykketTilMånedKnapp
 
                 RegistrereTilÅr tilDatoInfo ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema-int" ]
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereTilÅr
+                        [ div [ class "år-wrapper" ]
                             [ tilDatoInfo.tilÅr
                                 |> Input.input { label = "År", msg = BrukerOppdatererTilÅr }
-                                |> Input.withClass Input.År
+                                |> Input.withClass "aar"
                                 |> Input.withOnEnter BrukerVilRegistrereTilÅr
                                 |> Input.withOnBlur TilÅrMisterFokus
                                 |> Input.withId (inputIdTilString TilÅrInput)
                                 |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visFeilmeldingTilÅr) tilDatoInfo.tilÅr)
                                 |> Input.toHtml
-                            , div [ class "inputkolonne" ]
-                                [ Knapp.knapp BrukerVilRegistrereTilÅr "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
                             ]
                         ]
 
                 VisOppsummering _ ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, informasjonen er riktig"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, informasjonen er riktig"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
+                            |> Knapp.toHtml
                         ]
 
                 RedigerOppsummering skjema ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ case ArbeidserfaringSkjema.yrkeTypeahead skjema of
-                                Yrke yrke ->
-                                    yrke
-                                        |> Yrke.label
-                                        |> Input.input { label = "Stilling/yrke", msg = YrkeRedigeringsfeltEndret }
-                                        |> Input.toHtml
+                    Containers.skjema { lagreMsg = BrukerVilLagreArbeidserfaringSkjema, lagreKnappTekst = "Lagre endringer" }
+                        [ case ArbeidserfaringSkjema.yrkeTypeahead skjema of
+                            Yrke yrke ->
+                                yrke
+                                    |> Yrke.label
+                                    |> Input.input { label = "Stilling/yrke", msg = YrkeRedigeringsfeltEndret }
+                                    |> Input.toHtml
 
-                                Typeahead typeaheadState ->
-                                    viewTypeaheadOppsummering typeaheadState
-                            , if ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema == "" then
-                                text ""
+                            Typeahead typeaheadState ->
+                                viewTypeaheadOppsummering typeaheadState
+                        , if ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema == "" then
+                            text ""
+
+                          else
+                            skjema
+                                |> ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel
+                                |> Input.input { label = "Jobbtittel", msg = Tekst Jobbtittel >> SkjemaEndret }
+                                |> Input.toHtml
+                        , skjema
+                            |> ArbeidserfaringSkjema.innholdTekstFelt Bedriftsnavn
+                            |> Input.input { label = "Bedriftens navn", msg = Tekst Bedriftsnavn >> SkjemaEndret }
+                            |> Input.toHtml
+                        , skjema
+                            |> ArbeidserfaringSkjema.innholdTekstFelt Sted
+                            |> Input.input { label = "By, sted eller land", msg = Tekst Sted >> SkjemaEndret }
+                            |> Input.toHtml
+                        , skjema
+                            |> ArbeidserfaringSkjema.innholdTekstFelt Arbeidsoppgaver
+                            |> Textarea.textarea { label = "Arbeidsoppgaver", msg = Tekst Arbeidsoppgaver >> SkjemaEndret }
+                            |> Textarea.toHtml
+                        , div [ class "DatoInput-fra-til-rad" ]
+                            [ DatoInput.datoInput
+                                { label = "Fra"
+                                , onMånedChange = FraMåned >> SkjemaEndret
+                                , måned = ArbeidserfaringSkjema.fraMåned skjema
+                                , onÅrChange = Tekst FraÅr >> SkjemaEndret
+                                , år = ArbeidserfaringSkjema.innholdTekstFelt FraÅr skjema
+                                }
+                                |> DatoInput.withMaybeFeilmeldingÅr (ArbeidserfaringSkjema.feilmeldingFraÅr skjema)
+                                |> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
+                                |> DatoInput.toHtml
+                            , if not (ArbeidserfaringSkjema.nåværende skjema) then
+                                DatoInput.datoInput
+                                    { label = "Til"
+                                    , onMånedChange = TilMåned >> SkjemaEndret
+                                    , måned = ArbeidserfaringSkjema.tilMåned skjema
+                                    , onÅrChange = Tekst TilÅr >> SkjemaEndret
+                                    , år = ArbeidserfaringSkjema.innholdTekstFelt TilÅr skjema
+                                    }
+                                    |> DatoInput.withMaybeFeilmeldingÅr (ArbeidserfaringSkjema.feilmeldingTilÅr skjema)
+                                    |> DatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
+                                    |> DatoInput.toHtml
 
                               else
-                                skjema
-                                    |> ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel
-                                    |> Input.input { label = "Jobbtittel", msg = Tekst Jobbtittel >> SkjemaEndret }
-                                    |> Input.toHtml
-                            , skjema
-                                |> ArbeidserfaringSkjema.innholdTekstFelt Bedriftsnavn
-                                |> Input.input { label = "Bedriftens navn", msg = Tekst Bedriftsnavn >> SkjemaEndret }
-                                |> Input.toHtml
-                            , skjema
-                                |> ArbeidserfaringSkjema.innholdTekstFelt Sted
-                                |> Input.input { label = "Sted/land", msg = Tekst Sted >> SkjemaEndret }
-                                |> Input.toHtml
-                            , skjema
-                                |> ArbeidserfaringSkjema.innholdTekstFelt Arbeidsoppgaver
-                                |> Textarea.textarea { label = "Arbeidsoppgaver", msg = Tekst Arbeidsoppgaver >> SkjemaEndret }
-                                |> Textarea.toHtml
-                            , div [ class "DatoInput-fra-til-rad" ]
-                                [ DatoInput.datoInput
-                                    { label = "Fra"
-                                    , onMånedChange = FraMåned >> SkjemaEndret
-                                    , måned = ArbeidserfaringSkjema.fraMåned skjema
-                                    , onÅrChange = Tekst FraÅr >> SkjemaEndret
-                                    , år = ArbeidserfaringSkjema.innholdTekstFelt FraÅr skjema
-                                    }
-                                    |> DatoInput.withMaybeFeilmeldingÅr (ArbeidserfaringSkjema.feilmeldingFraÅr skjema)
-                                    |> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
-                                    |> DatoInput.toHtml
-                                , if not (ArbeidserfaringSkjema.nåværende skjema) then
-                                    DatoInput.datoInput
-                                        { label = "Til"
-                                        , onMånedChange = TilMåned >> SkjemaEndret
-                                        , måned = ArbeidserfaringSkjema.tilMåned skjema
-                                        , onÅrChange = Tekst TilÅr >> SkjemaEndret
-                                        , år = ArbeidserfaringSkjema.innholdTekstFelt TilÅr skjema
-                                        }
-                                        |> DatoInput.withMaybeFeilmeldingÅr (ArbeidserfaringSkjema.feilmeldingTilÅr skjema)
-                                        |> DatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
-                                        |> DatoInput.toHtml
-
-                                  else
-                                    text ""
-                                ]
-                            , skjema
-                                |> ArbeidserfaringSkjema.nåværende
-                                |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
-                                |> Checkbox.toHtml
-                            , div [ class "inputrad" ]
-                                [ "Lagre endringer"
-                                    |> Knapp.knapp BrukerVilLagreArbeidserfaringSkjema
-                                    |> Knapp.toHtml
-                                ]
+                                text ""
                             ]
+                        , skjema
+                            |> ArbeidserfaringSkjema.nåværende
+                            |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
+                            |> Checkbox.toHtml
                         ]
 
                 LagrerArbeidserfaring _ ->
@@ -1769,19 +1653,13 @@ viewBrukerInput (Model info) =
                     div [] []
 
                 SpørOmBrukerVilLeggeInnMer ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ div [ class "inputkolonne" ]
-                                [ Knapp.knapp
-                                    NyArbeidserfaring
-                                    "Ja, legg til en arbeidserfaring"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Rediger arbeidserfaring") "Rediger arbeidserfaring"
-                                    |> Knapp.toHtml
-                                ]
-                            ]
+                    Containers.knapper Flytende
+                        [ Knapp.knapp NyArbeidserfaring "Ja, legg til en arbeidserfaring"
+                            |> Knapp.toHtml
+                        , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
+                            |> Knapp.toHtml
+                        , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Rediger arbeidserfaring") "Rediger arbeidserfaring"
+                            |> Knapp.toHtml
                         ]
 
                 StartNyArbeidserfaring typeaheadState ->
@@ -1793,22 +1671,6 @@ viewBrukerInput (Model info) =
 
                 VenterPåAnimasjonFørFullføring _ ->
                     div [] []
-
-                HeltFerdig ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "inputkolonne" ]
-                            [ Knapp.knapp GåTilNesteSeksjon "Gå videre"
-                                |> Knapp.toHtml
-                            ]
-                        ]
-
-                HeltFerdigUtenArbeidsErfaring ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "inputkolonne" ]
-                            [ Knapp.knapp GåTilNesteSeksjon "Gå videre"
-                                |> Knapp.toHtml
-                            ]
-                        ]
 
         MeldingsLogg.MeldingerGjenstår ->
             div [] []
@@ -1915,37 +1777,15 @@ typeaheadStateSuggestionsTilViewSuggestionOppsummering typeaheadState =
             )
 
 
-lagArbeidserfaringKnapper : Model -> List (Html Msg)
-lagArbeidserfaringKnapper (Model info) =
-    info.arbeidserfaringListe
-        |> List.map
-            (\arbeidserfaring ->
-                let
-                    text =
-                        Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
-                            ++ ", "
-                            ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
-                in
-                Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring text) text
-                    |> Knapp.toHtml
-            )
-
-
-lagFraMånedKnapp : Dato.Måned -> Html Msg
-lagFraMånedKnapp måned =
-    måned
-        |> Dato.månedTilString
-        |> Knapp.knapp (BrukerTrykketFraMånedKnapp måned)
-        |> Knapp.withClass Knapp.MånedKnapp
-        |> Knapp.toHtml
-
-
-lagTilMånedKnapp : Dato.Måned -> Html Msg
-lagTilMånedKnapp måned =
-    måned
-        |> Dato.månedTilString
-        |> Knapp.knapp (BrukerTrykketTilMånedKnapp måned)
-        |> Knapp.withClass Knapp.MånedKnapp
+lagArbeidserfaringKnapp : Arbeidserfaring -> Html Msg
+lagArbeidserfaringKnapp arbeidserfaring =
+    let
+        text =
+            Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
+                ++ ", "
+                ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
+    in
+    Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring text) text
         |> Knapp.toHtml
 
 
