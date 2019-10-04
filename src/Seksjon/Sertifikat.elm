@@ -250,7 +250,7 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model model, logFeilmelding error "Hente FagbrevTypeahead" )
+                            ( Model model, logFeilmelding error "Hent SertifikatTypeahead" )
                                 |> IkkeFerdig
 
                 EndreOpplysninger skjema ->
@@ -265,7 +265,7 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model model, logFeilmelding error "Hente AutorisasjonTypeahead" )
+                            ( Model model, logFeilmelding error "Hent SertifikatTypeahead" )
                                 |> IkkeFerdig
 
                 _ ->
@@ -647,7 +647,7 @@ update msg (Model model) =
                             |> LagrerSkjema
                             |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
                         , Cmd.batch
-                            [ Api.postSertifikat SertifikatLagret skjema
+                            [ postEllerPutSertifikat SertifikatLagret skjema
                             , lagtTilSpørsmålCmd model.debugStatus
                             ]
                         )
@@ -658,14 +658,14 @@ update msg (Model model) =
                             |> LagrerSkjema
                             |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
                         , Cmd.batch
-                            [ Api.postSertifikat SertifikatLagret skjema
+                            [ postEllerPutSertifikat SertifikatLagret skjema
                             , lagtTilSpørsmålCmd model.debugStatus
                             ]
                         )
 
                 LagringFeilet _ skjema ->
                     ( nesteSamtaleSteg model (Melding.svar [ "Ja, prøv på nytt" ]) (LagrerSkjema skjema)
-                    , Api.postSertifikat SertifikatLagret skjema
+                    , postEllerPutSertifikat SertifikatLagret skjema
                     )
                         |> IkkeFerdig
 
