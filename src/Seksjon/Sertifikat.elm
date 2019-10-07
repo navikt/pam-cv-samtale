@@ -573,10 +573,10 @@ update msg (Model model) =
         VilEndreOpplysninger ->
             case model.aktivSamtale of
                 VisOppsummering validertSertifikatSkjema ->
-                    gåTilEndreSkjema model validertSertifikatSkjema
+                    updateEtterVilEndreSkjema model validertSertifikatSkjema
 
                 VisOppsummeringEtterEndring validertSertifikatSkjema ->
-                    gåTilEndreSkjema model validertSertifikatSkjema
+                    updateEtterVilEndreSkjema model validertSertifikatSkjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -623,13 +623,13 @@ update msg (Model model) =
         VilLagreSertifikat ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
-                    gåTilLagrerSkjema model skjema "Ja, informasjonen er riktig"
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
 
                 VisOppsummeringEtterEndring skjema ->
-                    gåTilLagrerSkjema model skjema "Ja, informasjonen er riktig"
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
 
                 LagringFeilet _ skjema ->
-                    gåTilLagrerSkjema model skjema "Ja, prøv på nytt"
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, prøv på nytt" ])
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -804,8 +804,8 @@ brukerVelgerSertifikatFelt info sertifikatTypeahead =
         |> IkkeFerdig
 
 
-gåTilEndreSkjema : ModelInfo -> ValidertSertifikatSkjema -> SamtaleStatus
-gåTilEndreSkjema model skjema =
+updateEtterVilEndreSkjema : ModelInfo -> ValidertSertifikatSkjema -> SamtaleStatus
+updateEtterVilEndreSkjema model skjema =
     ( skjema
         |> SertifikatSkjema.tilUvalidertSkjema
         |> EndreOpplysninger
@@ -815,11 +815,11 @@ gåTilEndreSkjema model skjema =
         |> IkkeFerdig
 
 
-gåTilLagrerSkjema : ModelInfo -> ValidertSertifikatSkjema -> String -> SamtaleStatus
-gåTilLagrerSkjema model skjema svar =
+updateEtterLagreKnappTrykket : ModelInfo -> ValidertSertifikatSkjema -> Melding -> SamtaleStatus
+updateEtterLagreKnappTrykket model skjema melding =
     ( skjema
         |> LagrerSkjema
-        |> nesteSamtaleSteg model (Melding.svar [ svar ])
+        |> nesteSamtaleSteg model melding
     , postEllerPutSertifikat SertifikatLagret skjema
     )
         |> IkkeFerdig
