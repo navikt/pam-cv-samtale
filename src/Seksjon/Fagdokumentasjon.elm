@@ -862,9 +862,8 @@ viewTypeahead : TypeaheadState Konsept -> FagdokumentasjonType -> Html Msg
 viewTypeahead typeaheadState fagdokumentasjonType =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = typeaheadLabel fagdokumentasjonType, onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
+        |> Typeahead.typeahead { label = typeaheadLabel fagdokumentasjonType, onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = inputIdTilString RegistrerKonseptInput }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
-        |> Typeahead.withInputId (inputIdTilString RegistrerKonseptInput)
         |> Typeahead.toHtml
 
 

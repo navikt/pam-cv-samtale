@@ -1724,8 +1724,7 @@ viewTypeaheadRegistrerYrke : TypeaheadState Yrke -> Html Msg
 viewTypeaheadRegistrerYrke typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Hvilken stilling/yrke har du?", onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast }
-        |> Typeahead.withInputId (inputIdTilString YrkeTypeaheadId)
+        |> Typeahead.typeahead { label = "Hvilken stilling/yrke har du?", onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = inputIdTilString YrkeTypeaheadId }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke typeaheadState)
         |> Typeahead.toHtml
 
@@ -1753,7 +1752,7 @@ viewTypeaheadOppsummering : TypeaheadState Yrke -> Html Msg
 viewTypeaheadOppsummering typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Stilling/yrke", onInput = YrkeRedigeringsfeltEndret, onTypeaheadChange = BrukerTrykkerTypeaheadTastIOppsummering }
+        |> Typeahead.typeahead { label = "Stilling/yrke", onInput = YrkeRedigeringsfeltEndret, onTypeaheadChange = BrukerTrykkerTypeaheadTastIOppsummering, inputId = inputIdTilString YrkeTypeaheadId }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionOppsummering typeaheadState)
         |> Typeahead.toHtml
 
