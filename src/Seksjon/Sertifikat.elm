@@ -1022,8 +1022,7 @@ viewTypeaheadSertifikatFelt : TypeaheadState SertifikatTypeahead -> Html Msg
 viewTypeaheadSertifikatFelt typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikatFelt, onTypeaheadChange = TrykkerTypeaheadTast }
-        |> Typeahead.withInputId (inputIdTilString SertifikatTypeaheadId)
+        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikatFelt, onTypeaheadChange = TrykkerTypeaheadTast, inputId = inputIdTilString SertifikatTypeaheadId }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSertifikatFelt typeaheadState)
         |> Typeahead.toHtml
 
@@ -1191,9 +1190,8 @@ viewTypeahead : TypeaheadState SertifikatTypeahead -> Html Msg
 viewTypeahead typeaheadState =
     typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikatFelt, onTypeaheadChange = TrykkerTypeaheadTast }
+        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikatFelt, onTypeaheadChange = TrykkerTypeaheadTast, inputId = inputIdTilString SertifikatTypeaheadId }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
-        |> Typeahead.withInputId (inputIdTilString SertifikatTypeaheadId)
         |> Typeahead.toHtml
 
 

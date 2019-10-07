@@ -5,14 +5,15 @@ module FrontendModuler.Typeahead exposing
     , TypeaheadOptions
     , toHtml
     , typeahead
-    , withInputId
     , withSuggestions
     )
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Attributes.Aria exposing (..)
 import Html.Events exposing (..)
 import Json.Decode
+import List.Extra as List
 
 
 type Typeahead msg
@@ -25,7 +26,7 @@ type alias TypeaheadInfo msg =
     , onTypeaheadChange : Operation -> msg
     , innhold : String
     , suggestions : List (Suggestion msg)
-    , inputId : Maybe String
+    , inputId : String
     }
 
 
@@ -40,6 +41,7 @@ type alias TypeaheadOptions msg =
     { onInput : String -> msg
     , onTypeaheadChange : Operation -> msg
     , label : String
+    , inputId : String
     }
 
 
@@ -51,7 +53,7 @@ typeahead options innhold =
         , onTypeaheadChange = options.onTypeaheadChange
         , innhold = innhold
         , suggestions = []
-        , inputId = Nothing
+        , inputId = options.inputId
         }
 
 
@@ -66,11 +68,6 @@ type alias Suggestion msg =
 withSuggestions : List (Suggestion msg) -> Typeahead msg -> Typeahead msg
 withSuggestions suggestions (Typeahead options) =
     Typeahead { options | suggestions = suggestions }
-
-
-withInputId : String -> Typeahead msg -> Typeahead msg
-withInputId id (Typeahead options) =
-    Typeahead { options | inputId = Just id }
 
 
 onKeyUp : (Operation -> msg) -> Html.Attribute msg
@@ -99,8 +96,7 @@ toHtml : Typeahead msg -> Html msg
 toHtml (Typeahead options) =
     div [ class "typeahead" ]
         [ label
-            --- TODO: htmlFor={inputId}
-            [ class "skjemaelement__label" ]
+            [ class "skjemaelement__label", for options.inputId ]
             [ text options.label ]
         , input
             [ onInput options.onInput
@@ -108,10 +104,13 @@ toHtml (Typeahead options) =
             , class "skjemaelement__input input--fullbredde"
             , onKeyUp options.onTypeaheadChange
             , type_ "text"
-            , options.inputId
-                |> Maybe.map id
-                |> Maybe.withDefault noAttribute
+            , id options.inputId
             , autocomplete False
+            , role "combobox"
+            , ariaAutocompleteList
+            , ariaOwns (suggestionsId options.inputId)
+            , ariaControls (suggestionsId options.inputId)
+            , activeDescendant options.inputId options.suggestions
             ]
             []
         , if List.isEmpty options.suggestions then
@@ -119,20 +118,61 @@ toHtml (Typeahead options) =
 
           else
             options.suggestions
-                |> List.map viewSuggestion
-                |> ul [ onMouseLeave (options.onTypeaheadChange MouseLeaveSuggestions) ]
+                |> List.map (viewSuggestion options.inputId)
+                |> ul
+                    [ onMouseLeave (options.onTypeaheadChange MouseLeaveSuggestions)
+                    , id (suggestionsId options.inputId)
+                    , ariaExpanded "true"
+                    , role "listbox"
+                    ]
         ]
 
 
-viewSuggestion : Suggestion msg -> Html msg
-viewSuggestion suggestion =
+activeDescendant : String -> List (Suggestion msg) -> Html.Attribute msg
+activeDescendant inputFeltId suggestions =
+    suggestions
+        |> List.find .active
+        |> Maybe.map (suggestionId inputFeltId)
+        |> Maybe.map ariaActiveDescendant
+        |> Maybe.withDefault noAttribute
+
+
+viewSuggestion : String -> Suggestion msg -> Html msg
+viewSuggestion inputFeltId suggestion =
     li
         [ onClick suggestion.onClick
         , onMouseEnter suggestion.onActive
+        , role "option"
+        , id (suggestionId inputFeltId suggestion)
+        , if suggestion.active then
+            ariaSelected "true"
+
+          else
+            ariaSelected "false"
         ]
         [ span [ classList [ ( "typetext", True ), ( "active", suggestion.active ) ] ]
             [ text suggestion.innhold ]
         ]
+
+
+suggestionId : String -> Suggestion msg -> String
+suggestionId inputId { innhold } =
+    inputId ++ "-suggestion-" ++ String.replace " " "-" innhold
+
+
+suggestionsId : String -> String
+suggestionsId inputId =
+    inputId ++ "-suggestions"
+
+
+ariaOwns : String -> Html.Attribute msg
+ariaOwns id =
+    Html.Attributes.attribute "aria-owns" id
+
+
+ariaAutocompleteList : Html.Attribute msg
+ariaAutocompleteList =
+    Html.Attributes.attribute "aria-autocomplete" "list"
 
 
 noAttribute : Html.Attribute msg
