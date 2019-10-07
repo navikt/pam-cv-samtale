@@ -38,5 +38,5 @@ toHtml (Checkbox options) =
             []
 
         --- TODO: htmlFor
-        , label [ class "skjemaelement__label", onClick options.msg ] [ text options.label ]
+        , label [ class "skjemaelement__label", class "skjemaelement--checkbox-label", onClick options.msg ] [ text options.label ]
         ]

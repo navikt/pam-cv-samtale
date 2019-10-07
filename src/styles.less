@@ -261,6 +261,7 @@ html {
       grid-template-columns: 50% 50%;
       grid-template-rows: auto auto auto auto auto auto;
     }
+
     .Knapp {
       margin-left: 0.5rem;
     }
@@ -349,16 +350,14 @@ html {
   overflow: auto;
 }
 
+.skjemaelement--checkbox-label {
+  user-select: none;
+}
+
 .DatoInput-fra-til-rad {
   display: flex;
   justify-content: space-between;
-  @media (min-width: @storSkjermSkjema) {
-    flex-direction: row;
-  }
-
-  @media (max-width: @litenSkjermSkjema) {
-    flex-direction: column;
-  }
+  flex-direction: column;
 }
 
 .DatoInput-wrapper {
