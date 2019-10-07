@@ -407,10 +407,10 @@ update msg (Model model) =
         BrukerVilLagreIOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, jeg vil informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
 
                 OppsummeringEtterEndring skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, jeg vil informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )

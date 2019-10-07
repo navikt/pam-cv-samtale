@@ -3,7 +3,8 @@ module Seksjon.Seksjonsvalg exposing
     , Msg
     , SamtaleStatus(..)
     , Seksjonsvalg(..)
-    , init
+    , initLeggTil
+    , initLeggTilFlere
     , meldingsLogg
     , update
     , viewBrukerInput
@@ -49,6 +50,7 @@ type Seksjonsvalg
 
 type Samtale
     = LeggTilAutorisasjoner
+    | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
     | VenterPåAnimasjonFørFullføring Seksjonsvalg
 
@@ -192,6 +194,9 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
+        LeggTilFlereAutorisasjoner ->
+            [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
+
         LeggTilAnnet ->
             [ Melding.spørsmål [ "Det er viktig å få med alt du kan på CV-en." ]
             , Melding.spørsmål [ "Har du jobbet som frivillig eller har hatt verv? Legg til annen erfaring." ]
@@ -214,14 +219,10 @@ viewBrukerInput (Model model) =
                     text ""
 
                 LeggTilAutorisasjoner ->
-                    Containers.knapper Kolonne
-                        [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
-                        , seksjonsvalgKnapp MesterbrevSeksjon
-                        , seksjonsvalgKnapp AutorisasjonSeksjon
-                        , seksjonsvalgKnapp SertifiseringSeksjon
-                        , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                    viewLeggTilAutorisasjoner
+
+                LeggTilFlereAutorisasjoner ->
+                    viewLeggTilAutorisasjoner
 
                 LeggTilAnnet ->
                     Containers.knapper Kolonne
@@ -233,6 +234,18 @@ viewBrukerInput (Model model) =
 
         MeldingerGjenstår ->
             text ""
+
+
+viewLeggTilAutorisasjoner : Html Msg
+viewLeggTilAutorisasjoner =
+    Containers.knapper Kolonne
+        [ seksjonsvalgKnapp FagbrevSvennebrevSeksjon
+        , seksjonsvalgKnapp MesterbrevSeksjon
+        , seksjonsvalgKnapp AutorisasjonSeksjon
+        , seksjonsvalgKnapp SertifiseringSeksjon
+        , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
+            |> Knapp.toHtml
+        ]
 
 
 seksjonsvalgKnapp : Seksjonsvalg -> Html Msg
@@ -259,7 +272,7 @@ seksjonsvalgDisabled seksjonsvalg =
             Enabled
 
         SertifiseringSeksjon ->
-            Disabled
+            Enabled
 
         AnnenErfaringSeksjon ->
             Disabled
@@ -287,7 +300,7 @@ seksjonsvalgTilString seksjonsvalg =
             "Autorisasjon"
 
         SertifiseringSeksjon ->
-            "Sertifisering"
+            "Sertifisering/sertifikat"
 
         AnnenErfaringSeksjon ->
             "Annen erfaring"
@@ -306,11 +319,11 @@ seksjonsvalgTilString seksjonsvalg =
 --- INIT ---
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg =
+init : Samtale -> DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+init aktivSamtale_ debugStatus gammelMeldingsLogg =
     let
         aktivSamtale =
-            LeggTilAutorisasjoner
+            aktivSamtale_
     in
     ( Model
         { seksjonsMeldingsLogg =
@@ -320,3 +333,13 @@ init debugStatus gammelMeldingsLogg =
         }
     , lagtTilSpørsmålCmd debugStatus
     )
+
+
+initLeggTilFlere : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+initLeggTilFlere =
+    init LeggTilFlereAutorisasjoner
+
+
+initLeggTil : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+initLeggTil =
+    init LeggTilAutorisasjoner

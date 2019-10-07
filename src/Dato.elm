@@ -2,6 +2,7 @@ module Dato exposing
     ( Måned(..)
     , TilDato(..)
     , År
+    , datoTilString
     , decodeMonthYear
     , encodeMonthYear
     , feilmeldingÅr
