@@ -5,6 +5,9 @@ module FrontendModuler.Typeahead exposing
     , TypeaheadOptions
     , toHtml
     , typeahead
+    , withFeilmelding
+    , withOnBlur
+    , withOnFocus
     , withSuggestions
     )
 
@@ -27,6 +30,9 @@ type alias TypeaheadInfo msg =
     , innhold : String
     , suggestions : List (Suggestion msg)
     , inputId : String
+    , feilmelding : Maybe String
+    , onFocus : Maybe msg
+    , onBlur : Maybe msg
     }
 
 
@@ -54,6 +60,9 @@ typeahead options innhold =
         , innhold = innhold
         , suggestions = []
         , inputId = options.inputId
+        , feilmelding = Nothing
+        , onFocus = Nothing
+        , onBlur = Nothing
         }
 
 
@@ -68,6 +77,21 @@ type alias Suggestion msg =
 withSuggestions : List (Suggestion msg) -> Typeahead msg -> Typeahead msg
 withSuggestions suggestions (Typeahead options) =
     Typeahead { options | suggestions = suggestions }
+
+
+withFeilmelding : Maybe String -> Typeahead msg -> Typeahead msg
+withFeilmelding feilmelding (Typeahead options) =
+    Typeahead { options | feilmelding = feilmelding }
+
+
+withOnFocus : msg -> Typeahead msg -> Typeahead msg
+withOnFocus onFocus (Typeahead options) =
+    Typeahead { options | onFocus = Just onFocus }
+
+
+withOnBlur : msg -> Typeahead msg -> Typeahead msg
+withOnBlur onBlur (Typeahead options) =
+    Typeahead { options | onBlur = Just onBlur }
 
 
 onKeyUp : (Operation -> msg) -> Html.Attribute msg
@@ -94,37 +118,59 @@ typeaheadKeys onTypeaheadChange i =
 
 toHtml : Typeahead msg -> Html msg
 toHtml (Typeahead options) =
-    div [ class "typeahead" ]
-        [ label
-            [ class "skjemaelement__label", for options.inputId ]
-            [ text options.label ]
-        , input
-            [ onInput options.onInput
-            , value options.innhold
-            , class "skjemaelement__input input--fullbredde"
-            , onKeyUp options.onTypeaheadChange
-            , type_ "text"
-            , id options.inputId
-            , autocomplete False
-            , role "combobox"
-            , ariaAutocompleteList
-            , ariaOwns (suggestionsId options.inputId)
-            , ariaControls (suggestionsId options.inputId)
-            , activeDescendant options.inputId options.suggestions
-            ]
-            []
-        , if List.isEmpty options.suggestions then
-            text ""
+    div [ class "typeahead-wrapper" ]
+        [ div [ class "typeahead" ]
+            [ label
+                [ class "skjemaelement__label", for options.inputId ]
+                [ text options.label ]
+            , input
+                [ onInput options.onInput
+                , value options.innhold
+                , class "skjemaelement__input input--fullbredde"
+                , classList [ ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing ) ]
+                , onKeyUp options.onTypeaheadChange
+                , type_ "text"
+                , id options.inputId
+                , autocomplete False
+                , role "combobox"
+                , ariaAutocompleteList
+                , ariaOwns (suggestionsId options.inputId)
+                , ariaControls (suggestionsId options.inputId)
+                , activeDescendant options.inputId options.suggestions
+                , options.onFocus
+                    |> Maybe.map onFocus
+                    |> Maybe.withDefault noAttribute
+                , options.onBlur
+                    |> Maybe.map onBlur
+                    |> Maybe.withDefault noAttribute
+                ]
+                []
+            , if List.isEmpty options.suggestions then
+                text ""
 
-          else
-            options.suggestions
-                |> List.map (viewSuggestion options.inputId)
-                |> ul
-                    [ onMouseLeave (options.onTypeaheadChange MouseLeaveSuggestions)
-                    , id (suggestionsId options.inputId)
-                    , ariaExpanded "true"
-                    , role "listbox"
+              else
+                options.suggestions
+                    |> List.map (viewSuggestion options.inputId)
+                    |> ul
+                        [ onMouseLeave (options.onTypeaheadChange MouseLeaveSuggestions)
+                        , id (suggestionsId options.inputId)
+                        , ariaExpanded "true"
+                        , role "listbox"
+                        , tabindex -1
+                        , options.onFocus
+                            |> Maybe.map onFocus
+                            |> Maybe.withDefault noAttribute
+                        ]
+            ]
+        , case options.feilmelding of
+            Just feilmelding ->
+                div [ role "alert", ariaLive "assertive" ]
+                    [ div [ class "skjemaelement__feilmelding" ]
+                        [ text feilmelding ]
                     ]
+
+            Nothing ->
+                text ""
         ]
 
 

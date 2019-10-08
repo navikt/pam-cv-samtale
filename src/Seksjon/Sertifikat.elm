@@ -1030,7 +1030,7 @@ viewTypeaheadSertifikatFelt typeaheadState =
 typeaheadStateSuggestionsTilViewSertifikatFelt : TypeaheadState SertifikatTypeahead -> List (Typeahead.Suggestion Msg)
 typeaheadStateSuggestionsTilViewSertifikatFelt typeaheadState =
     typeaheadState
-        |> TypeaheadState.map
+        |> TypeaheadState.mapSuggestions
             (\activeState suggestion ->
                 { innhold = SertifikatTypeahead.label suggestion
                 , onClick = VelgerSertifikatFraTypeahead suggestion
@@ -1208,7 +1208,7 @@ viewBekreftOppsummering =
 typeaheadStateSuggestionsTilViewSuggestion : TypeaheadState SertifikatTypeahead -> List (Typeahead.Suggestion Msg)
 typeaheadStateSuggestionsTilViewSuggestion typeaheadState =
     typeaheadState
-        |> TypeaheadState.map
+        |> TypeaheadState.mapSuggestions
             (\activeState suggestion ->
                 { innhold = SertifikatTypeahead.label suggestion
                 , onClick = VelgerSertifikatFraTypeahead suggestion

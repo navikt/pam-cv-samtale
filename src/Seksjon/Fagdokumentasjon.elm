@@ -883,7 +883,7 @@ typeaheadLabel fagdokumentasjonType =
 typeaheadStateSuggestionsTilViewSuggestion : TypeaheadState Konsept -> List (Typeahead.Suggestion Msg)
 typeaheadStateSuggestionsTilViewSuggestion typeaheadState =
     typeaheadState
-        |> TypeaheadState.map
+        |> TypeaheadState.mapSuggestions
             (\activeState suggestion ->
                 { innhold = Konsept.label suggestion
                 , onClick = BrukerVelgerKonseptFraTypeahead suggestion

@@ -76,6 +76,9 @@ type Msg
     | BrukerTrykkerTypeaheadTast Typeahead.Operation
     | BrukerHovrerOverTypeaheadSuggestion Yrke
     | BrukerVelgerYrke Yrke
+    | RegistrerYrkeTypeaheadFikkFokus
+    | RegistrerYrkeTypeaheadMisterFokus
+    | BrukerVilRegistrereYrke
     | HentetYrkeTypeahead (Result Http.Error (List Yrke))
     | BrukerVilEndreJobbtittel JobbtittelInfo
     | BrukerVilIkkeEndreJobbtittel
@@ -133,7 +136,7 @@ type Samtale
     | IkkeHentetFraAAreg
     | IngenArbeidserfaringFraAareg (List Arbeidserfaring)
     | VisArbeidserfaringFraAareg (List Arbeidserfaring)
-    | RegistrerYrke (TypeaheadState Yrke)
+    | RegistrerYrke RegistrerYrkeInfo (TypeaheadState Yrke)
     | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
     | EndreJobbtittel JobbtittelInfo
     | RegistrereBedriftsnavn BedriftnavnInfo
@@ -151,6 +154,12 @@ type Samtale
     | SpørOmBrukerVilLeggeInnMer
     | StartNyArbeidserfaring (TypeaheadState Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
     | VenterPåAnimasjonFørFullføring String
+
+
+type alias RegistrerYrkeInfo =
+    { valgtYrke : Maybe Yrke
+    , feilmelding : Maybe String
+    }
 
 
 type alias JobbtittelInfo =
@@ -331,7 +340,7 @@ update msg (Model model) =
         BrukerVilLeggeTilNyArbeidserfaring knappeTekst ->
             ( ""
                 |> TypeaheadState.init
-                |> RegistrerYrke
+                |> RegistrerYrke { valgtYrke = Nothing, feilmelding = Nothing }
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -339,50 +348,80 @@ update msg (Model model) =
 
         BrukerOppdatererYrke string ->
             case model.aktivSamtale of
-                RegistrerYrke typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue string
-                                    |> RegistrerYrke
-                        }
-                    , Cmd.batch
-                        [ Api.getYrkeTypeahead HentetYrkeTypeahead string
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
-                    )
-                        |> IkkeFerdig
+                RegistrerYrke info typeaheadState ->
+                    updateEtterOppdatertYrke model string typeaheadState info
 
                 StartNyArbeidserfaring typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue string
-                                    |> RegistrerYrke
-                        }
-                    , Cmd.batch
-                        [ Api.getYrkeTypeahead HentetYrkeTypeahead string
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
-                    )
-                        |> IkkeFerdig
+                    updateEtterOppdatertYrke model string typeaheadState { valgtYrke = Nothing, feilmelding = Nothing }
 
                 _ ->
                     ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
+        RegistrerYrkeTypeaheadFikkFokus ->
+            case model.aktivSamtale of
+                RegistrerYrke info typeaheadState ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                typeaheadState
+                                    |> TypeaheadState.showSuggestions
+                                    |> RegistrerYrke info
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        RegistrerYrkeTypeaheadMisterFokus ->
+            case model.aktivSamtale of
+                RegistrerYrke info typeaheadState ->
+                    ( Model
+                        { model
+                            | aktivSamtale =
+                                typeaheadState
+                                    |> TypeaheadState.hideSuggestions
+                                    |> RegistrerYrke info
+                        }
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilRegistrereYrke ->
+            case model.aktivSamtale of
+                RegistrerYrke info typeaheadState ->
+                    case info.valgtYrke of
+                        Just yrke ->
+                            brukerVelgerYrke model yrke
+
+                        Nothing ->
+                            ( RegistrerYrke { info | feilmelding = Just "Velg et yrke fra listen med forslag som kommer opp" } typeaheadState
+                                |> oppdaterSamtalesteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         HentetYrkeTypeahead result ->
             case model.aktivSamtale of
-                RegistrerYrke typeaheadState ->
+                RegistrerYrke info typeaheadState ->
                     case result of
                         Ok suggestions ->
-                            ( typeaheadState
-                                |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> RegistrerYrke
+                            ( let
+                                nyTypeaheadState =
+                                    TypeaheadState.updateSuggestions "" suggestions typeaheadState
+                              in
+                              nyTypeaheadState
+                                |> RegistrerYrke (registrerYrkeInfoEtterUpdate nyTypeaheadState info)
                                 |> oppdaterSamtalesteg model
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
@@ -393,7 +432,7 @@ update msg (Model model) =
                 RedigerOppsummering skjema ->
                     case result of
                         Ok suggestions ->
-                            ( TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
+                            ( TypeaheadState.updateSuggestions "" suggestions
                                 |> ArbeidserfaringSkjema.mapTypeaheadState skjema
                                 |> RedigerOppsummering
                                 |> oppdaterSamtalesteg model
@@ -411,13 +450,13 @@ update msg (Model model) =
 
         BrukerHovrerOverTypeaheadSuggestion yrkeTypeahead ->
             case model.aktivSamtale of
-                RegistrerYrke typeaheadState ->
+                RegistrerYrke info typeaheadState ->
                     ( Model
                         { model
                             | aktivSamtale =
                                 typeaheadState
                                     |> TypeaheadState.updateActive yrkeTypeahead
-                                    |> RegistrerYrke
+                                    |> RegistrerYrke info
                         }
                     , Cmd.none
                     )
@@ -429,7 +468,7 @@ update msg (Model model) =
 
         BrukerTrykkerTypeaheadTast operation ->
             case model.aktivSamtale of
-                RegistrerYrke typeaheadState ->
+                RegistrerYrke info typeaheadState ->
                     case operation of
                         Typeahead.ArrowUp ->
                             ( Model
@@ -437,7 +476,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.arrowUp
-                                            |> RegistrerYrke
+                                            |> RegistrerYrke info
                                 }
                             , Cmd.none
                             )
@@ -449,7 +488,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.arrowDown
-                                            |> RegistrerYrke
+                                            |> RegistrerYrke info
                                 }
                             , Cmd.none
                             )
@@ -463,7 +502,7 @@ update msg (Model model) =
                                 Nothing ->
                                     ( Model
                                         { model
-                                            | aktivSamtale = RegistrerYrke typeaheadState
+                                            | aktivSamtale = RegistrerYrke info typeaheadState
                                         }
                                     , Cmd.none
                                     )
@@ -475,7 +514,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         typeaheadState
                                             |> TypeaheadState.removeActive
-                                            |> RegistrerYrke
+                                            |> RegistrerYrke info
                                 }
                             , Cmd.none
                             )
@@ -485,17 +524,24 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerVelgerYrke yrkesTypeahead ->
+        BrukerVelgerYrke yrke ->
             case model.aktivSamtale of
-                RegistrerYrke _ ->
-                    brukerVelgerYrke model yrkesTypeahead
+                RegistrerYrke info typeaheadState ->
+                    ( typeaheadState
+                        |> TypeaheadState.hideSuggestions
+                        |> TypeaheadState.updateValue (Yrke.label yrke)
+                        |> RegistrerYrke { valgtYrke = Just yrke, feilmelding = Nothing }
+                        |> oppdaterSamtalesteg model
+                    , Api.getYrkeTypeahead HentetYrkeTypeahead (Yrke.label yrke)
+                    )
+                        |> IkkeFerdig
 
                 RedigerOppsummering _ ->
                     ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
                 _ ->
-                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
+                    ( Model model, Cmd.none )
                         |> IkkeFerdig
 
         BrukerVilEndreJobbtittel jobbtittelInfo ->
@@ -1074,6 +1120,38 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
+updateEtterOppdatertYrke : ModelInfo -> String -> TypeaheadState Yrke -> RegistrerYrkeInfo -> SamtaleStatus
+updateEtterOppdatertYrke model string typeaheadState info =
+    ( let
+        nyTypeaheadState =
+            TypeaheadState.updateValue string typeaheadState
+      in
+      nyTypeaheadState
+        |> RegistrerYrke (registrerYrkeInfoEtterUpdate nyTypeaheadState info)
+        |> oppdaterSamtalesteg model
+    , Api.getYrkeTypeahead HentetYrkeTypeahead string
+    )
+        |> IkkeFerdig
+
+
+registrerYrkeInfoEtterUpdate : TypeaheadState Yrke -> RegistrerYrkeInfo -> RegistrerYrkeInfo
+registrerYrkeInfoEtterUpdate typeaheadState info =
+    case TypeaheadState.findSuggestionMatchingInputValue Yrke.label typeaheadState of
+        Just yrke ->
+            { feilmelding = Nothing
+            , valgtYrke =
+                case info.valgtYrke of
+                    Just alleredeValgt ->
+                        Just alleredeValgt
+
+                    Nothing ->
+                        Just yrke
+            }
+
+        Nothing ->
+            { info | valgtYrke = Nothing }
+
+
 oppdaterSkjema : SkjemaEndring -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
 oppdaterSkjema endring skjema =
     case endring of
@@ -1130,7 +1208,7 @@ updateEtterFullførtMelding info nyMeldingsLogg =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
-        RegistrerYrke _ ->
+        RegistrerYrke _ _ ->
             settFokusCmd YrkeTypeaheadId
 
         EndreJobbtittel _ ->
@@ -1188,7 +1266,7 @@ brukerVelgerYrke info yrkesTypeahead =
 visAaregResultat : List Arbeidserfaring -> ModelInfo -> Model
 visAaregResultat list info =
     if List.isEmpty list then
-        RegistrerYrke (TypeaheadState.init "")
+        RegistrerYrke { valgtYrke = Nothing, feilmelding = Nothing } (TypeaheadState.init "")
             |> oppdaterSamtalesteg info
 
     else
@@ -1312,7 +1390,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         VisArbeidserfaringFraAareg _ ->
             [ Melding.spørsmål [ "" ] ]
 
-        RegistrerYrke _ ->
+        RegistrerYrke _ _ ->
             [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
             , Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
             , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
@@ -1436,12 +1514,12 @@ datoRad skjema =
 
 
 viewBrukerInput : Model -> Html Msg
-viewBrukerInput (Model info) =
-    case MeldingsLogg.ferdigAnimert info.seksjonsMeldingsLogg of
+viewBrukerInput (Model model) =
+    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         MeldingsLogg.FerdigAnimert _ ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 Intro ->
-                    if List.isEmpty info.arbeidserfaringListe then
+                    if List.isEmpty model.arbeidserfaringListe then
                         Containers.knapper Flytende
                             [ "Ja, jeg har arbeidserfaring"
                                 |> Knapp.knapp (BrukerVilLeggeTilNyArbeidserfaring "Ja, jeg har arbeidserfaring")
@@ -1463,7 +1541,7 @@ viewBrukerInput (Model info) =
 
                 VelgEnArbeidserfaringÅRedigere ->
                     Containers.knapper Kolonne
-                        (List.map lagArbeidserfaringKnapp info.arbeidserfaringListe)
+                        (List.map lagArbeidserfaringKnapp model.arbeidserfaringListe)
 
                 HenterFraAareg ->
                     div [] []
@@ -1481,11 +1559,9 @@ viewBrukerInput (Model info) =
                 VisArbeidserfaringFraAareg _ ->
                     div [] []
 
-                RegistrerYrke typeaheadState ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ viewTypeaheadRegistrerYrke typeaheadState
-                            ]
+                RegistrerYrke info typeaheadState ->
+                    Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
+                        [ viewTypeaheadRegistrerYrke info typeaheadState
                         ]
 
                 SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
@@ -1665,7 +1741,7 @@ viewBrukerInput (Model info) =
                 StartNyArbeidserfaring typeaheadState ->
                     div [ class "skjema-wrapper" ]
                         [ div [ class "skjema" ]
-                            [ viewTypeaheadRegistrerYrke typeaheadState
+                            [ viewTypeaheadRegistrerYrke { valgtYrke = Nothing, feilmelding = Nothing } typeaheadState
                             ]
                         ]
 
@@ -1720,19 +1796,22 @@ inputIdTilString inputId =
             "arbeidserfaring-registrer-til-år"
 
 
-viewTypeaheadRegistrerYrke : TypeaheadState Yrke -> Html Msg
-viewTypeaheadRegistrerYrke typeaheadState =
+viewTypeaheadRegistrerYrke : RegistrerYrkeInfo -> TypeaheadState Yrke -> Html Msg
+viewTypeaheadRegistrerYrke { feilmelding } typeaheadState =
     typeaheadState
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = "Hvilken stilling/yrke har du?", onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = inputIdTilString YrkeTypeaheadId }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke typeaheadState)
+        |> Typeahead.withFeilmelding feilmelding
+        |> Typeahead.withOnFocus RegistrerYrkeTypeaheadFikkFokus
+        |> Typeahead.withOnBlur RegistrerYrkeTypeaheadMisterFokus
         |> Typeahead.toHtml
 
 
 typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke : TypeaheadState Yrke -> List (Typeahead.Suggestion Msg)
 typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke typeaheadState =
     typeaheadState
-        |> TypeaheadState.map
+        |> TypeaheadState.mapSuggestions
             (\activeState suggestion ->
                 { innhold = Yrke.label suggestion
                 , onClick = BrukerVelgerYrke suggestion
@@ -1760,7 +1839,7 @@ viewTypeaheadOppsummering typeaheadState =
 typeaheadStateSuggestionsTilViewSuggestionOppsummering : TypeaheadState Yrke -> List (Typeahead.Suggestion Msg)
 typeaheadStateSuggestionsTilViewSuggestionOppsummering typeaheadState =
     typeaheadState
-        |> TypeaheadState.map
+        |> TypeaheadState.mapSuggestions
             (\activeState suggestion ->
                 { innhold = Yrke.label suggestion
                 , onClick = BrukerVelgerYrkeIOppsummering suggestion
