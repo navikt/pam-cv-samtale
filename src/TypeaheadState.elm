@@ -10,6 +10,7 @@ module TypeaheadState exposing
     , mapSuggestions
     , removeActive
     , showSuggestions
+    , suggestionsAreShown
     , updateActive
     , updateSuggestions
     , updateValue
@@ -56,7 +57,11 @@ getActive (TypeaheadState info) =
 
 updateValue : String -> TypeaheadState a -> TypeaheadState a
 updateValue value_ (TypeaheadState info) =
-    TypeaheadState { info | value = value_ }
+    TypeaheadState
+        { info
+            | value = value_
+            , showSuggestions = True
+        }
 
 
 updateSuggestions : String -> List a -> TypeaheadState a -> TypeaheadState a
@@ -231,6 +236,11 @@ showSuggestions (TypeaheadState info) =
 hideSuggestions : TypeaheadState a -> TypeaheadState a
 hideSuggestions (TypeaheadState info) =
     TypeaheadState { info | showSuggestions = False }
+
+
+suggestionsAreShown : TypeaheadState a -> Bool
+suggestionsAreShown (TypeaheadState info) =
+    info.showSuggestions
 
 
 findSuggestionMatchingInputValue : (a -> String) -> TypeaheadState a -> Maybe a

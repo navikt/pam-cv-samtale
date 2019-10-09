@@ -2,41 +2,37 @@ module Skjema.Arbeidserfaring exposing
     ( ArbeidserfaringSkjema
     , Felt(..)
     , SkjemaInfo
-    , TypeaheadFelt(..)
     , ValidertArbeidserfaringSkjema
     , encode
     , feilmeldingFraÅr
     , feilmeldingTilÅr
+    , feilmeldingYrke
     , fraArbeidserfaring
     , fraMåned
     , fraÅrValidert
     , gjørAlleFeilmeldingerSynlig
     , gjørFeilmeldingFraÅrSynlig
     , gjørFeilmeldingTilÅrSynlig
+    , gjørFeilmeldingYrkeSynlig
     , id
     , initValidertSkjema
     , innholdTekstFelt
-    , mapTypeaheadState
     , nåværende
     , oppdaterFraMåned
     , oppdaterStringFelt
     , oppdaterTilMåned
-    , oppdaterYrkeFelt
-    , setYrkeFeltTilYrke
+    , oppdaterYrke
     , tilDatoValidert
     , tilMåned
     , tilUvalidertSkjema
     , toggleNåværende
     , valider
-    , velgAktivYrkeITypeahead
     , yrke
-    , yrkeTypeahead
     )
 
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Dato exposing (Måned(..), TilDato(..), År)
 import Json.Encode
-import TypeaheadState exposing (TypeaheadState)
 import Yrke exposing (Yrke)
 
 
@@ -45,7 +41,8 @@ type ArbeidserfaringSkjema
 
 
 type alias SkjemaInfo =
-    { yrke : TypeaheadFelt
+    { yrke : Maybe Yrke
+    , visYrkeFeilmelding : Bool
     , jobbTittel : String
     , bedriftsnavn : String
     , sted : String
@@ -61,11 +58,6 @@ type alias SkjemaInfo =
     }
 
 
-type TypeaheadFelt
-    = Yrke Yrke
-    | Typeahead (TypeaheadState Yrke)
-
-
 
 --- INIT ---
 
@@ -78,11 +70,8 @@ initValidertSkjema skjemaInfo =
 fraArbeidserfaring : Arbeidserfaring -> ArbeidserfaringSkjema
 fraArbeidserfaring arbeidserfaring =
     ArbeidserfaringSkjema
-        { yrke =
-            arbeidserfaring
-                |> Arbeidserfaring.yrke
-                |> Maybe.map Yrke
-                |> Maybe.withDefault (Typeahead (TypeaheadState.init ""))
+        { yrke = Arbeidserfaring.yrke arbeidserfaring
+        , visYrkeFeilmelding = False
         , jobbTittel = (Arbeidserfaring.yrkeFritekst >> Maybe.withDefault "") arbeidserfaring
         , bedriftsnavn = (Arbeidserfaring.arbeidsgiver >> Maybe.withDefault "") arbeidserfaring
         , sted = (Arbeidserfaring.sted >> Maybe.withDefault "") arbeidserfaring
@@ -101,7 +90,8 @@ fraArbeidserfaring arbeidserfaring =
 tilUvalidertSkjema : ValidertArbeidserfaringSkjema -> ArbeidserfaringSkjema
 tilUvalidertSkjema (ValidertArbeidserfaringSkjema info) =
     ArbeidserfaringSkjema
-        { yrke = Yrke info.yrke
+        { yrke = Just info.yrke
+        , visYrkeFeilmelding = True
         , jobbTittel = info.jobbTittel
         , bedriftsnavn = info.bedriftNavn
         , sted = info.lokasjon
@@ -148,11 +138,6 @@ type Felt
     | Arbeidsoppgaver
     | FraÅr
     | TilÅr
-
-
-yrkeTypeahead : ArbeidserfaringSkjema -> TypeaheadFelt
-yrkeTypeahead (ArbeidserfaringSkjema info) =
-    info.yrke
 
 
 innholdTekstFelt : Felt -> ArbeidserfaringSkjema -> String
@@ -253,66 +238,22 @@ oppdaterTilMåned (ArbeidserfaringSkjema skjema) tilMåned_ =
     ArbeidserfaringSkjema { skjema | tilMåned = tilMåned_ }
 
 
-oppdaterYrkeFelt : ArbeidserfaringSkjema -> String -> ArbeidserfaringSkjema
-oppdaterYrkeFelt (ArbeidserfaringSkjema skjema) string =
-    case skjema.yrke of
-        Yrke _ ->
-            ArbeidserfaringSkjema
-                { skjema
-                    | yrke =
-                        TypeaheadState.init string
-                            |> Typeahead
-                }
-
-        Typeahead typeaheadState ->
-            ArbeidserfaringSkjema
-                { skjema
-                    | yrke =
-                        typeaheadState
-                            |> TypeaheadState.updateValue string
-                            |> Typeahead
-                }
-
-
-mapTypeaheadState : ArbeidserfaringSkjema -> (TypeaheadState Yrke -> TypeaheadState Yrke) -> ArbeidserfaringSkjema
-mapTypeaheadState (ArbeidserfaringSkjema skjema) funksjon =
-    case skjema.yrke of
-        Yrke _ ->
-            ArbeidserfaringSkjema
-                skjema
-
-        Typeahead typeaheadState ->
-            ArbeidserfaringSkjema
-                { skjema
-                    | yrke =
-                        typeaheadState
-                            |> funksjon
-                            |> Typeahead
-                }
-
-
-velgAktivYrkeITypeahead : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
-velgAktivYrkeITypeahead (ArbeidserfaringSkjema info) =
-    case info.yrke of
-        Yrke _ ->
-            ArbeidserfaringSkjema info
-
-        Typeahead typeaheadState ->
-            case TypeaheadState.getActive typeaheadState of
-                Just active ->
-                    ArbeidserfaringSkjema { info | yrke = Yrke active }
-
-                Nothing ->
-                    ArbeidserfaringSkjema info
-
-
-setYrkeFeltTilYrke : Yrke -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
-setYrkeFeltTilYrke yrke_ (ArbeidserfaringSkjema info) =
-    ArbeidserfaringSkjema { info | yrke = Yrke yrke_ }
+oppdaterYrke : ArbeidserfaringSkjema -> Maybe Yrke -> ArbeidserfaringSkjema
+oppdaterYrke (ArbeidserfaringSkjema skjema) yrke_ =
+    ArbeidserfaringSkjema { skjema | yrke = yrke_ }
 
 
 
 --- FEILMELDINGER ---
+
+
+feilmeldingYrke : ArbeidserfaringSkjema -> Maybe String
+feilmeldingYrke (ArbeidserfaringSkjema skjema) =
+    if skjema.visYrkeFeilmelding && skjema.yrke == Nothing then
+        Just "Velg et yrke fra listen med forslag som kommer opp"
+
+    else
+        Nothing
 
 
 feilmeldingFraÅr : ArbeidserfaringSkjema -> Maybe String
@@ -333,6 +274,11 @@ feilmeldingTilÅr (ArbeidserfaringSkjema skjema) =
         Nothing
 
 
+gjørFeilmeldingYrkeSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+gjørFeilmeldingYrkeSynlig (ArbeidserfaringSkjema skjema) =
+    ArbeidserfaringSkjema { skjema | visYrkeFeilmelding = True }
+
+
 gjørFeilmeldingFraÅrSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
 gjørFeilmeldingFraÅrSynlig (ArbeidserfaringSkjema skjema) =
     ArbeidserfaringSkjema { skjema | visFraÅrFeilmelding = True }
@@ -346,6 +292,7 @@ gjørFeilmeldingTilÅrSynlig (ArbeidserfaringSkjema skjema) =
 gjørAlleFeilmeldingerSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
 gjørAlleFeilmeldingerSynlig skjema =
     skjema
+        |> gjørFeilmeldingYrkeSynlig
         |> gjørFeilmeldingFraÅrSynlig
         |> gjørFeilmeldingTilÅrSynlig
 
@@ -373,31 +320,30 @@ type alias ValidertSkjemaInfo =
 
 valider : ArbeidserfaringSkjema -> Maybe ValidertArbeidserfaringSkjema
 valider (ArbeidserfaringSkjema info) =
-    case info.yrke of
-        Yrke yrkefelt ->
-            if Yrke.label yrkefelt /= "" then
-                Maybe.map2
-                    (\tilDato fraÅr_ ->
-                        ValidertArbeidserfaringSkjema
-                            { yrke = yrkefelt
-                            , jobbTittel = info.jobbTittel
-                            , bedriftNavn = info.bedriftsnavn
-                            , lokasjon = info.sted
-                            , arbeidsoppgaver = info.arbeidsoppgaver
-                            , fraMåned = info.fraMåned
-                            , fraÅr = fraÅr_
-                            , tilDato = tilDato
-                            , id = info.id
-                            }
-                    )
-                    (validerTilDato info.nåværende info.tilMåned info.tilÅr)
-                    (Dato.stringTilÅr info.fraÅr)
+    -- TODO: Hvorfor sjekker man om Yrke.label er tom streng?
+    --            if Yrke.label yrkefelt /= "" then
+    Maybe.map3
+        (\yrke_ tilDato fraÅr_ ->
+            ValidertArbeidserfaringSkjema
+                { yrke = yrke_
+                , jobbTittel = info.jobbTittel
+                , bedriftNavn = info.bedriftsnavn
+                , lokasjon = info.sted
+                , arbeidsoppgaver = info.arbeidsoppgaver
+                , fraMåned = info.fraMåned
+                , fraÅr = fraÅr_
+                , tilDato = tilDato
+                , id = info.id
+                }
+        )
+        info.yrke
+        (validerTilDato info.nåværende info.tilMåned info.tilÅr)
+        (Dato.stringTilÅr info.fraÅr)
 
-            else
-                Nothing
 
-        Typeahead _ ->
-            Nothing
+
+--            else
+--                Nothing
 
 
 validerTilDato : Bool -> Måned -> String -> Maybe TilDato
