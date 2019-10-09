@@ -17,6 +17,7 @@ import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onInput)
 import Http
 import Json.Encode
 import Melding exposing (Melding(..))
@@ -418,11 +419,7 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                                 |> Input.input { label = "E-post*", msg = PersonaliaSkjemaEndret Skjema.Personalia.Epost }
                                 |> Input.withMaybeFeilmelding (Skjema.Personalia.epostFeilmelding personaliaSkjema)
                                 |> Input.toHtml
-                            , personaliaSkjema
-                                |> Skjema.Personalia.telefon
-                                |> Input.input { label = "Telefon*", msg = PersonaliaSkjemaEndret Skjema.Personalia.Telefon }
-                                |> Input.withMaybeFeilmelding (Skjema.Personalia.telefonFeilmelding personaliaSkjema)
-                                |> Input.toHtml
+                            , viewTelefonISkjema personaliaSkjema
                             , personaliaSkjema
                                 |> Skjema.Personalia.gateadresse
                                 |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Personalia.Gateadresse }
@@ -466,6 +463,34 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
 
         MeldingerGjenstår ->
             text ""
+
+
+viewTelefonISkjema : PersonaliaSkjema -> Html Msg
+viewTelefonISkjema personaliaSkjema =
+    div [ class "skjemaelement" ]
+        [ label []
+            [ span [ class "skjemaelement__label" ] [ text "Telefon*" ]
+            , div [ class "PersonaliaSeksjon--telefonnummer" ]
+                [ p [ class "PersonaliaSeksjon--telefonnummer--country-code" ] [ text "+47" ]
+                , input
+                    [ value (Skjema.Personalia.telefon personaliaSkjema)
+                    , onInput (PersonaliaSkjemaEndret Skjema.Personalia.Telefon)
+                    , classList
+                        [ ( "skjemaelement__input", True )
+                        , ( "PersonaliaSeksjon--telefonnummer--input", True )
+                        , ( "skjemaelement__input--harFeil", Skjema.Personalia.telefonFeilmelding personaliaSkjema /= Nothing )
+                        ]
+                    ]
+                    []
+                ]
+            , case Skjema.Personalia.telefonFeilmelding personaliaSkjema of
+                Just feilmelding ->
+                    div [ class "skjemaelement__feilmelding" ] [ text feilmelding ]
+
+                Nothing ->
+                    text ""
+            ]
+        ]
 
 
 

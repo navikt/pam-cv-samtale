@@ -1,11 +1,13 @@
 @import '../node_modules/pam-frontend-core/less/variables';
 
 
-@meldingBredde: 30rem;
+@meldingBredde: 27rem;
 @meldingBreddeMobil: 80%;
 
-@storSkjermSkjema: 580px;
-@litenSkjermSkjema: 579px;
+@storSkjermSkjema: 432px;
+@litenSkjermSkjema: 431px;
+
+@skjemaBredde: 25rem;
 
 body {
   margin: 0;
@@ -246,7 +248,7 @@ html {
   .knapper--måneder {
     display: grid;
     @media (min-width: @meldingBredde) {
-      width: @meldingBredde;
+      width: 30rem;
     }
     @media (max-width: 479px) {
       width: 100%;
@@ -258,6 +260,10 @@ html {
     @media (max-width: 359px) {
       grid-template-columns: 50% 50%;
       grid-template-rows: auto auto auto auto auto auto;
+    }
+
+    .Knapp {
+      margin-left: 0.5rem;
     }
   }
 
@@ -293,7 +299,7 @@ html {
   flex-direction: column;
 
   @media (min-width: @storSkjermSkjema) {
-    width: @meldingBredde;
+    width: @skjemaBredde;
   }
 
   @media (max-width: @litenSkjermSkjema) {
@@ -322,6 +328,19 @@ html {
   height: 20rem;
 }
 
+.PersonaliaSeksjon--telefonnummer {
+  display: flex;
+  align-items: center;
+  .PersonaliaSeksjon--telefonnummer--country-code {
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-right: 1rem;
+  }
+  .PersonaliaSeksjon--telefonnummer--input {
+    max-width: 6rem;
+  }
+}
+
 .PersonaliaSeksjon-poststed {
   display: flex;
 
@@ -344,16 +363,14 @@ html {
   overflow: auto;
 }
 
+.skjemaelement--checkbox-label {
+  user-select: none;
+}
+
 .DatoInput-fra-til-rad {
   display: flex;
   justify-content: space-between;
-  @media (min-width: @storSkjermSkjema) {
-    flex-direction: row;
-  }
-
-  @media (max-width: @litenSkjermSkjema) {
-    flex-direction: column;
-  }
+  flex-direction: column;
 }
 
 .DatoInput-wrapper {
