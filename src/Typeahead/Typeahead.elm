@@ -16,7 +16,7 @@ module Typeahead.Typeahead exposing
 
 import FrontendModuler.Typeahead as Typeahead
 import Html exposing (..)
-import TypeaheadState exposing (TypeaheadState)
+import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
 

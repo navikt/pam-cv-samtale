@@ -22,7 +22,7 @@ module Skjema.Fagdokumentasjon exposing
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import Json.Encode
 import Konsept exposing (Konsept)
-import TypeaheadState exposing (TypeaheadState)
+import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
 type FagdokumentasjonSkjema

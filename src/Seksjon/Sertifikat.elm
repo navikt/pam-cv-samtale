@@ -31,7 +31,7 @@ import SamtaleAnimasjon
 import SertifikatTypeahead exposing (SertifikatTypeahead)
 import Skjema.Sertifikat as SertifikatSkjema exposing (SertifikatSkjema, TypeaheadFelt(..), Utløpsdato(..), ValidertSertifikatSkjema)
 import Task
-import TypeaheadState exposing (TypeaheadState)
+import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
 

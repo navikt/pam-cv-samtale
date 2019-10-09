@@ -30,7 +30,7 @@ import Process
 import SamtaleAnimasjon
 import Skjema.Fagdokumentasjon as Skjema exposing (FagdokumentasjonSkjema, TypeaheadFelt(..), ValidertFagdokumentasjonSkjema)
 import Task
-import TypeaheadState exposing (TypeaheadState)
+import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
 

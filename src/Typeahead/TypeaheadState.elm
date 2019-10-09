@@ -1,4 +1,4 @@
-module TypeaheadState exposing
+module Typeahead.TypeaheadState exposing
     ( ActiveState(..)
     , TypeaheadState
     , arrowDown

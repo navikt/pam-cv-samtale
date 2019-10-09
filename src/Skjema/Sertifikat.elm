@@ -38,7 +38,7 @@ module Skjema.Sertifikat exposing
 import Dato exposing (Måned(..), År)
 import Json.Encode
 import SertifikatTypeahead exposing (SertifikatTypeahead)
-import TypeaheadState exposing (TypeaheadState)
+import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
 type SertifikatSkjema
