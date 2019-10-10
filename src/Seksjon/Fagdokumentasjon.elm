@@ -222,22 +222,10 @@ update msg (Model model) =
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering validertSkjema ->
-                    ( validertSkjema
-                        |> Skjema.tilSkjema
-                        |> EndrerOppsummering (initSkjemaTypeaheadFraValidertSkjema validertSkjema)
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    initRedigeringAvValidertSkjema model validertSkjema
 
                 OppsummeringEtterEndring validertSkjema ->
-                    ( validertSkjema
-                        |> Skjema.tilSkjema
-                        |> EndrerOppsummering (initSkjemaTypeaheadFraValidertSkjema validertSkjema)
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    initRedigeringAvValidertSkjema model validertSkjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -369,6 +357,27 @@ update msg (Model model) =
 
         ErrorLogget _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+initRedigeringAvValidertSkjema : ModelInfo -> ValidertFagdokumentasjonSkjema -> SamtaleStatus
+initRedigeringAvValidertSkjema model validertSkjema =
+    ( validertSkjema
+        |> Skjema.tilSkjema
+        |> EndrerOppsummering (initSkjemaTypeaheadFraValidertSkjema validertSkjema)
+        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+    , Cmd.batch
+        [ lagtTilSpørsmålCmd model.debugStatus
+        , validertSkjema
+            |> Skjema.tilSkjema
+            |> Skjema.fagdokumentasjonType
+            |> hentTypeaheadSuggestions
+                (validertSkjema
+                    |> Skjema.konseptFraValidertSkjema
+                    |> Konsept.label
+                )
+        ]
+    )
+        |> IkkeFerdig
 
 
 initSamtaleTypeahead : FagdokumentasjonType -> Typeahead.Model Konsept

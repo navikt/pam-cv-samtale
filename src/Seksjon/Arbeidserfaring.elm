@@ -288,7 +288,14 @@ update msg (Model model) =
                 |> ArbeidserfaringSkjema.fraArbeidserfaring
                 |> RedigerOppsummering (initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring)
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-            , lagtTilSpørsmålCmd model.debugStatus
+            , Cmd.batch
+                [ lagtTilSpørsmålCmd model.debugStatus
+                , arbeidserfaring
+                    |> Cv.Arbeidserfaring.yrke
+                    |> Maybe.map Yrke.label
+                    |> Maybe.map (Api.getYrkeTypeahead HentetYrkeTypeahead)
+                    |> Maybe.withDefault Cmd.none
+                ]
             )
                 |> IkkeFerdig
 
@@ -709,7 +716,13 @@ update msg (Model model) =
                         |> ArbeidserfaringSkjema.tilUvalidertSkjema
                         |> RedigerOppsummering (initSkjemaTypeaheadFraYrke (ArbeidserfaringSkjema.yrke skjema))
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd model.debugStatus
+                        , skjema
+                            |> ArbeidserfaringSkjema.yrke
+                            |> Yrke.label
+                            |> Api.getYrkeTypeahead HentetYrkeTypeahead
+                        ]
                     )
                         |> IkkeFerdig
 
