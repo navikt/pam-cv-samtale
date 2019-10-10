@@ -1,23 +1,30 @@
-module TypeaheadState exposing
+module Typeahead.TypeaheadState exposing
     ( ActiveState(..)
     , TypeaheadState
     , arrowDown
     , arrowUp
+    , findSuggestionMatchingInputValue
     , getActive
+    , hideSuggestions
     , init
-    , map
+    , mapSuggestions
     , removeActive
+    , showSuggestions
+    , suggestionsAreShown
     , updateActive
     , updateSuggestions
     , updateValue
     , value
     )
 
+import List.Extra as List
+
 
 type TypeaheadState a
     = TypeaheadState
         { value : String
         , suggestions : SuggestionList a
+        , showSuggestions : Bool
         }
 
 
@@ -26,6 +33,7 @@ init value_ =
     TypeaheadState
         { value = value_
         , suggestions = TomListe
+        , showSuggestions = True
         }
 
 
@@ -49,7 +57,11 @@ getActive (TypeaheadState info) =
 
 updateValue : String -> TypeaheadState a -> TypeaheadState a
 updateValue value_ (TypeaheadState info) =
-    TypeaheadState { info | value = value_ }
+    TypeaheadState
+        { info
+            | value = value_
+            , showSuggestions = True
+        }
 
 
 updateSuggestions : String -> List a -> TypeaheadState a -> TypeaheadState a
@@ -216,26 +228,67 @@ removeActiveFromSuggestions suggestionList =
                 |> IngenMarkert
 
 
+showSuggestions : TypeaheadState a -> TypeaheadState a
+showSuggestions (TypeaheadState info) =
+    TypeaheadState { info | showSuggestions = True }
+
+
+hideSuggestions : TypeaheadState a -> TypeaheadState a
+hideSuggestions (TypeaheadState info) =
+    TypeaheadState { info | showSuggestions = False }
+
+
+suggestionsAreShown : TypeaheadState a -> Bool
+suggestionsAreShown (TypeaheadState info) =
+    info.showSuggestions
+
+
+findSuggestionMatchingInputValue : (a -> String) -> TypeaheadState a -> Maybe a
+findSuggestionMatchingInputValue toString (TypeaheadState info) =
+    let
+        predicate suggestion =
+            (toString >> String.trim >> String.toLower) suggestion == (String.trim >> String.toLower) info.value
+    in
+    case info.suggestions of
+        TomListe ->
+            Nothing
+
+        IngenMarkert suggestions ->
+            List.find predicate suggestions
+
+        SuggestionMarkert { before, active, after } ->
+            [ before
+            , [ active ]
+            , after
+            ]
+                |> List.concat
+                |> List.find predicate
+
+
 type ActiveState
     = Active
     | NotActive
 
 
-map : (ActiveState -> a -> b) -> TypeaheadState a -> List b
-map function (TypeaheadState info) =
-    case info.suggestions of
-        TomListe ->
-            []
+mapSuggestions : (ActiveState -> a -> b) -> TypeaheadState a -> List b
+mapSuggestions function (TypeaheadState info) =
+    if info.showSuggestions then
+        case info.suggestions of
+            TomListe ->
+                []
 
-        IngenMarkert suggestions ->
-            List.map (function NotActive) suggestions
+            IngenMarkert suggestions ->
+                List.map (function NotActive) suggestions
 
-        SuggestionMarkert { before, active, after } ->
-            List.concat
-                [ List.map (function NotActive) before
-                , [ function Active active ]
-                , List.map (function NotActive) after
-                ]
+            SuggestionMarkert { before, active, after } ->
+                List.concat
+                    [ List.map (function NotActive) before
+                    , [ function Active active ]
+                    , List.map (function NotActive) after
+                    ]
+
+    else
+        []
 
 
 type SuggestionList a

@@ -331,11 +331,13 @@ html {
 .PersonaliaSeksjon--telefonnummer {
   display: flex;
   align-items: center;
+
   .PersonaliaSeksjon--telefonnummer--country-code {
     margin-top: 0;
     margin-bottom: 0;
     margin-right: 1rem;
   }
+
   .PersonaliaSeksjon--telefonnummer--input {
     max-width: 6rem;
   }
@@ -352,6 +354,10 @@ html {
     width: 100%;
     padding-left: 1rem;
   }
+}
+
+.typeahead-skjema-height-wrapper {
+  min-height: 12rem;
 }
 
 .avslutt-knapp {
@@ -391,10 +397,12 @@ html {
 }
 
 // TYPEAHEAD
+.typeahead-wrapper {
+  margin-bottom: 1rem;
+}
 
 .typeahead {
   position: relative;
-  margin-bottom: 1rem;
 
   ul {
     position: absolute;
@@ -409,7 +417,7 @@ html {
     border-top: none;
     box-shadow: 0 5px 15px -5px @navGra60;
     overflow: auto;
-    max-height: 242px;
+    max-height: 122px;
   }
 
   ul li {

@@ -3,6 +3,7 @@ module FrontendModuler.Containers exposing
     , inputMedGåVidereKnapp
     , knapper
     , skjema
+    , typeaheadMedGåVidereKnapp
     )
 
 import FrontendModuler.Knapp as Knapp
@@ -30,6 +31,22 @@ inputMedGåVidereKnapp : msg -> List (Html msg) -> Html msg
 inputMedGåVidereKnapp gåVidereMsg inputelementer =
     div [ class "skjema-wrapper" ]
         [ div [ class "skjema" ]
+            (List.concat
+                [ inputelementer
+                , [ div [ class "gå-videre-knapp" ]
+                        [ Knapp.knapp gåVidereMsg "Gå videre"
+                            |> Knapp.toHtml
+                        ]
+                  ]
+                ]
+            )
+        ]
+
+
+typeaheadMedGåVidereKnapp : msg -> List (Html msg) -> Html msg
+typeaheadMedGåVidereKnapp gåVidereMsg inputelementer =
+    div [ class "skjema-wrapper" ]
+        [ div [ class "skjema typeahead-skjema-height-wrapper" ]
             (List.concat
                 [ inputelementer
                 , [ div [ class "gå-videre-knapp" ]

@@ -20,7 +20,6 @@ import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
 import FrontendModuler.ManedKnapper as MånedKnapper
-import FrontendModuler.Typeahead as Typeahead
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
@@ -29,13 +28,13 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Process
 import SamtaleAnimasjon
 import SertifikatTypeahead exposing (SertifikatTypeahead)
-import Skjema.Sertifikat as SertifikatSkjema exposing (SertifikatSkjema, TypeaheadFelt(..), Utløpsdato(..), ValidertSertifikatSkjema)
+import Skjema.Sertifikat as SertifikatSkjema exposing (SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import Task
-import TypeaheadState exposing (TypeaheadState)
+import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
 
 
 
--- MODEL --
+--- MODEL ---
 
 
 type Model
@@ -61,7 +60,7 @@ type SamtaleStatus
 
 
 type Samtale
-    = RegistrerSertifikatFelt (TypeaheadState SertifikatTypeahead)
+    = RegistrerSertifikatFelt (Typeahead.Model SertifikatTypeahead)
     | RegistrerUtsteder UtstederInfo
     | RegistrerFullførtMåned FullførtDatoInfo
     | RegistrerFullførtÅr FullførtDatoInfo
@@ -69,7 +68,7 @@ type Samtale
     | RegistrerUtløperMåned UtløpsdatoInfo
     | RegistrerUtløperÅr UtløpsdatoInfo
     | VisOppsummering ValidertSertifikatSkjema
-    | EndreOpplysninger SertifikatSkjema
+    | EndreOpplysninger (Typeahead.Model SertifikatTypeahead) SertifikatSkjema
     | VisOppsummeringEtterEndring ValidertSertifikatSkjema
     | LagrerSkjema ValidertSertifikatSkjema
     | LagringFeilet Http.Error ValidertSertifikatSkjema
@@ -169,15 +168,13 @@ utløpsdatoTilSkjema info år =
 
 
 
---UPDATE--
+--- UPDATE ---
 
 
 type Msg
-    = VilOppdatereSertifikatFelt String
+    = TypeaheadMsg (Typeahead.Msg SertifikatTypeahead)
     | HentetTypeahead (Result Http.Error (List SertifikatTypeahead))
-    | HovrerOverTypeaheadSuggestion SertifikatTypeahead
-    | TrykkerTypeaheadTast Typeahead.Operation
-    | VelgerSertifikatFraTypeahead SertifikatTypeahead
+    | VilRegistrereSertifikat
     | VilRegistrereUtsteder
     | OppdaterUtsteder String
     | FullførtMånedValgt Dato.Måned
@@ -205,36 +202,40 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        VilOppdatereSertifikatFelt string ->
+        TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadState ->
-                    ( typeaheadState
-                        |> TypeaheadState.updateValue string
-                        |> RegistrerSertifikatFelt
-                        |> oppdaterSamtaleSteg model
-                    , Api.getSertifikatTypeahead HentetTypeahead string
-                    )
-                        |> IkkeFerdig
+                RegistrerSertifikatFelt typeaheadModel ->
+                    updateSamtaleTypeahead model typeaheadMsg typeaheadModel
 
-                EndreOpplysninger skjema ->
-                    ( string
-                        |> SertifikatSkjema.oppdaterSertifikatFelt skjema
-                        |> EndreOpplysninger
-                        |> oppdaterSamtaleSteg model
-                    , Api.getSertifikatTypeahead HentetTypeahead string
-                    )
-                        |> IkkeFerdig
+                EndreOpplysninger typeaheadModel skjema ->
+                    let
+                        ( nyTypeaheadModel, getSuggestionsStatus, _ ) =
+                            Typeahead.update SertifikatTypeahead.label typeaheadMsg typeaheadModel
+                    in
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> Typeahead.selected
+                            |> SertifikatSkjema.oppdaterSertifikat skjema
+                            |> EndreOpplysninger nyTypeaheadModel
+                            |> oppdaterSamtaleSteg model
+                        , case getSuggestionsStatus of
+                            GetSuggestionsForInput query ->
+                                Api.getSertifikatTypeahead HentetTypeahead query
+
+                            DoNothing ->
+                                Cmd.none
+                        )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         HentetTypeahead result ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadState ->
+                RegistrerSertifikatFelt typeaheadModel ->
                     case result of
                         Ok suggestions ->
-                            ( typeaheadState
-                                |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
+                            ( suggestions
+                                |> Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel
                                 |> RegistrerSertifikatFelt
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
@@ -245,12 +246,10 @@ update msg (Model model) =
                             ( Model model, logFeilmelding error "Hent SertifikatTypeahead" )
                                 |> IkkeFerdig
 
-                EndreOpplysninger skjema ->
+                EndreOpplysninger typeaheadModel skjema ->
                     case result of
                         Ok suggestions ->
-                            ( TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> SertifikatSkjema.mapTypeaheadState skjema
-                                |> EndreOpplysninger
+                            ( EndreOpplysninger (Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel suggestions) skjema
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
@@ -263,122 +262,18 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        HovrerOverTypeaheadSuggestion typeahead ->
+        VilRegistrereSertifikat ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadState ->
-                    ( typeaheadState
-                        |> TypeaheadState.updateActive typeahead
-                        |> RegistrerSertifikatFelt
-                        |> oppdaterSamtaleSteg model
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
+                RegistrerSertifikatFelt typeaheadModel ->
+                    case Typeahead.selected typeaheadModel of
+                        Just sertifikat ->
+                            brukerVelgerSertifikatFelt model sertifikat
+
+                        Nothing ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        TrykkerTypeaheadTast operation ->
-            case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadState ->
-                    case operation of
-                        Typeahead.ArrowUp ->
-                            ( typeaheadState
-                                |> TypeaheadState.arrowUp
-                                |> RegistrerSertifikatFelt
-                                |> oppdaterSamtaleSteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.ArrowDown ->
-                            ( typeaheadState
-                                |> TypeaheadState.arrowDown
-                                |> RegistrerSertifikatFelt
-                                |> oppdaterSamtaleSteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.Enter ->
-                            case TypeaheadState.getActive typeaheadState of
-                                Just active ->
-                                    brukerVelgerSertifikatFelt model active
-
-                                Nothing ->
-                                    ( Model model
-                                    , Cmd.none
-                                    )
-                                        |> IkkeFerdig
-
-                        Typeahead.MouseLeaveSuggestions ->
-                            ( typeaheadState
-                                |> TypeaheadState.removeActive
-                                |> RegistrerSertifikatFelt
-                                |> oppdaterSamtaleSteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                EndreOpplysninger skjema ->
-                    case operation of
-                        Typeahead.ArrowUp ->
-                            ( TypeaheadState.arrowUp
-                                |> SertifikatSkjema.mapTypeaheadState skjema
-                                |> EndreOpplysninger
-                                |> oppdaterSamtaleSteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.ArrowDown ->
-                            ( TypeaheadState.arrowDown
-                                |> SertifikatSkjema.mapTypeaheadState skjema
-                                |> EndreOpplysninger
-                                |> oppdaterSamtaleSteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.Enter ->
-                            ( skjema
-                                |> SertifikatSkjema.velgAktivtSertifikatITypeahead
-                                |> EndreOpplysninger
-                                |> oppdaterSamtaleSteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.MouseLeaveSuggestions ->
-                            ( TypeaheadState.removeActive
-                                |> SertifikatSkjema.mapTypeaheadState skjema
-                                |> EndreOpplysninger
-                                |> oppdaterSamtaleSteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        VelgerSertifikatFraTypeahead typeahead ->
-            case model.aktivSamtale of
-                RegistrerSertifikatFelt _ ->
-                    brukerVelgerSertifikatFelt model typeahead
-
-                EndreOpplysninger skjema ->
-                    ( skjema
-                        |> SertifikatSkjema.setSertifikatFelt typeahead
-                        |> EndreOpplysninger
-                        |> oppdaterSamtaleSteg model
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
-                        |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
 
         VilRegistrereUtsteder ->
             case model.aktivSamtale of
@@ -583,10 +478,10 @@ update msg (Model model) =
 
         SkjemaEndret skjemaEndring ->
             case model.aktivSamtale of
-                EndreOpplysninger sertifikatSkjema ->
+                EndreOpplysninger typeaheadModel sertifikatSkjema ->
                     ( sertifikatSkjema
                         |> oppdaterSkjema skjemaEndring
-                        |> EndreOpplysninger
+                        |> EndreOpplysninger typeaheadModel
                         |> oppdaterSamtalesteg model
                     , Cmd.none
                     )
@@ -598,7 +493,7 @@ update msg (Model model) =
 
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
-                EndreOpplysninger skjema ->
+                EndreOpplysninger typeaheadModel skjema ->
                     case SertifikatSkjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
@@ -611,7 +506,7 @@ update msg (Model model) =
                         Nothing ->
                             ( skjema
                                 |> SertifikatSkjema.visAlleFeilmeldinger
-                                |> EndreOpplysninger
+                                |> EndreOpplysninger typeaheadModel
                                 |> oppdaterSamtalesteg model
                             , Cmd.none
                             )
@@ -716,6 +611,50 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
+initSamtaleTypeahead : Typeahead.Model SertifikatTypeahead
+initSamtaleTypeahead =
+    Typeahead.init
+        { value = ""
+        , label = "Sertifisering eller sertifikat"
+        , id = inputIdTilString SertifikatTypeaheadId
+        , toString = SertifikatTypeahead.label
+        }
+
+
+initSkjemaTypeahead : ValidertSertifikatSkjema -> Typeahead.Model SertifikatTypeahead
+initSkjemaTypeahead skjema =
+    Typeahead.initWithSelected
+        { selected = SertifikatSkjema.sertifikatFeltValidert skjema
+        , label = "Sertifisering eller sertifikat"
+        , id = inputIdTilString SertifikatTypeaheadId
+        , toString = SertifikatTypeahead.label
+        }
+
+
+updateSamtaleTypeahead : ModelInfo -> Typeahead.Msg SertifikatTypeahead -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
+updateSamtaleTypeahead model msg typeaheadModel =
+    let
+        ( nyTypeaheadModel, getSuggestionsStatus, proceedStatus ) =
+            Typeahead.update SertifikatTypeahead.label msg typeaheadModel
+    in
+    case proceedStatus of
+        Typeahead.UserWantsToProceed sertifikat ->
+            brukerVelgerSertifikatFelt model sertifikat
+
+        Typeahead.UserDoesNotWantToProceed ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerSertifikatFelt
+                    |> oppdaterSamtaleSteg model
+                , case getSuggestionsStatus of
+                    GetSuggestionsForInput string ->
+                        Api.getSertifikatTypeahead HentetTypeahead string
+
+                    DoNothing ->
+                        Cmd.none
+                )
+
+
 setFullførtMåned : FullførtDatoInfo -> Dato.Måned -> FullførtDatoInfo
 setFullførtMåned fullførtDatoInfo måned =
     { fullførtDatoInfo | fullførtMåned = måned }
@@ -808,9 +747,15 @@ updateEtterVilEndreSkjema : ModelInfo -> ValidertSertifikatSkjema -> SamtaleStat
 updateEtterVilEndreSkjema model skjema =
     ( skjema
         |> SertifikatSkjema.tilUvalidertSkjema
-        |> EndreOpplysninger
+        |> EndreOpplysninger (initSkjemaTypeahead skjema)
         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-    , lagtTilSpørsmålCmd model.debugStatus
+    , Cmd.batch
+        [ lagtTilSpørsmålCmd model.debugStatus
+        , skjema
+            |> SertifikatSkjema.sertifikatFeltValidert
+            |> SertifikatTypeahead.label
+            |> Api.getSertifikatTypeahead HentetTypeahead
+        ]
     )
         |> IkkeFerdig
 
@@ -923,7 +868,7 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
                 )
             ]
 
-        EndreOpplysninger _ ->
+        EndreOpplysninger _ _ ->
             []
 
         VisOppsummeringEtterEndring _ ->
@@ -992,7 +937,7 @@ settFokusCmd inputId =
 
 
 
--- View --
+--- VIEW ---
 
 
 type InputId
@@ -1018,44 +963,15 @@ inputIdTilString inputId =
             "sertifikat-utløperår-id"
 
 
-viewTypeaheadSertifikatFelt : TypeaheadState SertifikatTypeahead -> Html Msg
-viewTypeaheadSertifikatFelt typeaheadState =
-    typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikatFelt, onTypeaheadChange = TrykkerTypeaheadTast, inputId = inputIdTilString SertifikatTypeaheadId }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSertifikatFelt typeaheadState)
-        |> Typeahead.toHtml
-
-
-typeaheadStateSuggestionsTilViewSertifikatFelt : TypeaheadState SertifikatTypeahead -> List (Typeahead.Suggestion Msg)
-typeaheadStateSuggestionsTilViewSertifikatFelt typeaheadState =
-    typeaheadState
-        |> TypeaheadState.map
-            (\activeState suggestion ->
-                { innhold = SertifikatTypeahead.label suggestion
-                , onClick = VelgerSertifikatFraTypeahead suggestion
-                , onActive = HovrerOverTypeaheadSuggestion suggestion
-                , active =
-                    case activeState of
-                        TypeaheadState.Active ->
-                            True
-
-                        TypeaheadState.NotActive ->
-                            False
-                }
-            )
-
-
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
     case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         FerdigAnimert _ ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadState ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ viewTypeaheadSertifikatFelt typeaheadState
-                            ]
+                RegistrerSertifikatFelt typeaheadModel ->
+                    Containers.typeaheadMedGåVidereKnapp VilRegistrereSertifikat
+                        [ Typeahead.view SertifikatTypeahead.label Nothing typeaheadModel
+                            |> Html.map TypeaheadMsg
                         ]
 
                 RegistrerUtsteder input ->
@@ -1121,17 +1037,10 @@ viewBrukerInput (Model model) =
                 VisOppsummeringEtterEndring _ ->
                     viewBekreftOppsummering
 
-                EndreOpplysninger skjema ->
+                EndreOpplysninger typeaheadModel skjema ->
                     Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
-                        [ case SertifikatSkjema.sertifikatTypeahed skjema of
-                            SuggestionValgt sertifikat ->
-                                sertifikat
-                                    |> SertifikatTypeahead.label
-                                    |> Input.input { label = "Sertifisering", msg = VilOppdatereSertifikatFelt }
-                                    |> Input.toHtml
-
-                            SuggestionIkkeValgt typeaheadState ->
-                                viewTypeahead typeaheadState
+                        [ Typeahead.view SertifikatTypeahead.label Nothing typeaheadModel
+                            |> Html.map TypeaheadMsg
                         , skjema
                             |> SertifikatSkjema.utsteder
                             |> Input.input { label = "Utsteder", msg = Utsteder >> SkjemaEndret }
@@ -1186,15 +1095,6 @@ viewBrukerInput (Model model) =
             text ""
 
 
-viewTypeahead : TypeaheadState SertifikatTypeahead -> Html Msg
-viewTypeahead typeaheadState =
-    typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Sertifisering eller sertifikat", onInput = VilOppdatereSertifikatFelt, onTypeaheadChange = TrykkerTypeaheadTast, inputId = inputIdTilString SertifikatTypeaheadId }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
-        |> Typeahead.toHtml
-
-
 viewBekreftOppsummering : Html Msg
 viewBekreftOppsummering =
     Containers.knapper Flytende
@@ -1203,25 +1103,6 @@ viewBekreftOppsummering =
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
             |> Knapp.toHtml
         ]
-
-
-typeaheadStateSuggestionsTilViewSuggestion : TypeaheadState SertifikatTypeahead -> List (Typeahead.Suggestion Msg)
-typeaheadStateSuggestionsTilViewSuggestion typeaheadState =
-    typeaheadState
-        |> TypeaheadState.map
-            (\activeState suggestion ->
-                { innhold = SertifikatTypeahead.label suggestion
-                , onClick = VelgerSertifikatFraTypeahead suggestion
-                , onActive = HovrerOverTypeaheadSuggestion suggestion
-                , active =
-                    case activeState of
-                        TypeaheadState.Active ->
-                            True
-
-                        TypeaheadState.NotActive ->
-                            False
-                }
-            )
 
 
 maybeHvisTrue : Bool -> Maybe a -> Maybe a
@@ -1244,16 +1125,14 @@ postEllerPutSertifikat msgConstructor skjema =
 
 
 
--- INIT --
+--- INIT ---
 
 
 init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Sertifikat -> ( Model, Cmd Msg )
 init debugStatus gammelMeldingsLogg sertifikatListe =
     let
         aktivSamtale =
-            ""
-                |> TypeaheadState.init
-                |> RegistrerSertifikatFelt
+            RegistrerSertifikatFelt initSamtaleTypeahead
     in
     ( Model
         { seksjonsMeldingsLogg =

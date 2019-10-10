@@ -16,21 +16,18 @@ import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
-import FrontendModuler.Input as Input
-import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
+import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Textarea as Textarea
-import FrontendModuler.Typeahead as Typeahead
-import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html exposing (Html, text)
 import Http
 import Konsept exposing (Konsept)
-import Melding exposing (Melding(..))
+import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Fagdokumentasjon as Skjema exposing (FagdokumentasjonSkjema, TypeaheadFelt(..), ValidertFagdokumentasjonSkjema)
+import Skjema.Fagdokumentasjon as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Task
-import TypeaheadState exposing (TypeaheadState)
+import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
 
 
 
@@ -50,10 +47,10 @@ type alias ModelInfo =
 
 
 type Samtale
-    = RegistrerKonsept FagdokumentasjonType (TypeaheadState Konsept)
+    = RegistrerKonsept FagdokumentasjonType (Maybe String) (Typeahead.Model Konsept)
     | RegistrerBeskrivelse FagdokumentasjonType BeskrivelseInfo
     | Oppsummering ValidertFagdokumentasjonSkjema
-    | EndrerOppsummering FagdokumentasjonSkjema
+    | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
     | OppsummeringEtterEndring ValidertFagdokumentasjonSkjema
     | Lagrer ValidertFagdokumentasjonSkjema
     | LagringFeilet ValidertFagdokumentasjonSkjema Http.Error
@@ -90,16 +87,9 @@ forrigetilBeskrivelseInfo konseptTypeahead =
 
 
 type Msg
-    = BrukerVilRegistrereFagdokumentasjon
-    | FerdigMedFagdokumentasjon String
-    | BrukerVilRegistrereFagbrev
-    | BrukerOppdatererFagdokumentasjon String
+    = TypeaheadMsg (Typeahead.Msg Konsept)
     | HentetTypeahead (Result Http.Error (List Konsept))
-    | BrukerHovrerOverTypeaheadSuggestion Konsept
-    | BrukerVelgerKonseptFraTypeahead Konsept
-    | BrukerTrykkerTypeaheadTast Typeahead.Operation
-    | BrukerVilRegistrereMesterbrev
-    | BrukerVilRegistrereAutorisasjon
+    | BrukerVilRegistrereKonsept
     | BrukerVilRegistrereFagbrevBeskrivelse
     | OppdaterFagdokumentasjonBeskrivelse String
     | BrukerVilLagreIOppsummeringen
@@ -118,85 +108,48 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        BrukerVilRegistrereFagdokumentasjon ->
+        TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
+                RegistrerKonsept fagdokumentasjonType feilmelding typeaheadModel ->
+                    updateSamtaleTypeahead model fagdokumentasjonType feilmelding typeaheadMsg typeaheadModel
 
-        FerdigMedFagdokumentasjon _ ->
-            case model.aktivSamtale of
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
+                EndrerOppsummering typeaheadModel skjema ->
+                    let
+                        ( nyTypeaheadModel, getSuggestionsStatus, _ ) =
+                            Typeahead.update Konsept.label typeaheadMsg typeaheadModel
+                    in
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> Typeahead.selected
+                            |> Skjema.oppdaterKonsept skjema
+                            |> EndrerOppsummering nyTypeaheadModel
+                            |> oppdaterSamtaleSteg model
+                        , case getSuggestionsStatus of
+                            GetSuggestionsForInput string ->
+                                skjema
+                                    |> Skjema.fagdokumentasjonType
+                                    |> hentTypeaheadSuggestions string
 
-        BrukerVilRegistrereFagbrev ->
-            ( ""
-                |> TypeaheadState.init
-                |> RegistrerKonsept SvennebrevFagbrev
-                |> nesteSamtaleSteg model (Melding.svar [ "Registrer Fagbrev/Svennebrev" ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
-        BrukerVilRegistrereMesterbrev ->
-            ( ""
-                |> TypeaheadState.init
-                |> RegistrerKonsept Mesterbrev
-                |> nesteSamtaleSteg model (Melding.svar [ "Registrer Mesterbrev/Svennebrev" ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
-        BrukerVilRegistrereAutorisasjon ->
-            ( ""
-                |> TypeaheadState.init
-                |> RegistrerKonsept Autorisasjon
-                |> nesteSamtaleSteg model (Melding.svar [ "Registrer en Autorisasjon" ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
-        BrukerOppdatererFagdokumentasjon query ->
-            case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue query
-                                    |> RegistrerKonsept fagdokumentasjonType
-                        }
-                    , hentTypeaheadSuggestions query fagdokumentasjonType
-                    )
-                        |> IkkeFerdig
-
-                EndrerOppsummering skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                query
-                                    |> Skjema.oppdaterKonseptFelt skjema
-                                    |> EndrerOppsummering
-                        }
-                    , skjema
-                        |> Skjema.fagdokumentasjonType
-                        |> hentTypeaheadSuggestions query
-                    )
-                        |> IkkeFerdig
+                            DoNothing ->
+                                Cmd.none
+                        )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         HentetTypeahead result ->
             case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType typeaheadState ->
+                RegistrerKonsept fagdokumentasjonType feilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
-                            ( typeaheadState
-                                |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> RegistrerKonsept fagdokumentasjonType
+                            ( let
+                                nyTypeaheadModel =
+                                    Typeahead.updateSuggestions Konsept.label typeaheadModel suggestions
+                              in
+                              nyTypeaheadModel
+                                |> RegistrerKonsept fagdokumentasjonType (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
                                 |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
@@ -204,14 +157,12 @@ update msg (Model model) =
                             ( Model model, logFeilmelding error "Hente FagbrevTypeahead" )
                                 |> IkkeFerdig
 
-                EndrerOppsummering skjema ->
+                EndrerOppsummering typeaheadModel skjema ->
                     case result of
                         Ok suggestions ->
-                            ( TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> Skjema.mapTypeaheadState skjema
-                                |> EndrerOppsummering
+                            ( EndrerOppsummering (Typeahead.updateSuggestions Konsept.label typeaheadModel suggestions) skjema
                                 |> oppdaterSamtaleSteg model
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
@@ -222,169 +173,22 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        BrukerHovrerOverTypeaheadSuggestion typeahead ->
+        BrukerVilRegistrereKonsept ->
             case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateActive typeahead
-                                    |> RegistrerKonsept fagdokumentasjonType
-                        }
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
+                RegistrerKonsept fagdokumentasjonType _ typeaheadModel ->
+                    case Typeahead.selected typeaheadModel of
+                        Just konsept ->
+                            brukerVilRegistrereKonsept model fagdokumentasjonType konsept
 
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerTrykkerTypeaheadTast operation ->
-            case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType typeaheadState ->
-                    case operation of
-                        Typeahead.ArrowUp ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowUp
-                                            |> RegistrerKonsept fagdokumentasjonType
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.ArrowDown ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowDown
-                                            |> RegistrerKonsept fagdokumentasjonType
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.Enter ->
-                            case TypeaheadState.getActive typeaheadState of
-                                Just active ->
-                                    ( active
-                                        |> forrigetilBeskrivelseInfo
-                                        |> RegistrerBeskrivelse fagdokumentasjonType
-                                        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label active ])
-                                    , lagtTilSpørsmålCmd model.debugStatus
-                                    )
-                                        |> IkkeFerdig
-
-                                Nothing ->
-                                    ( Model
-                                        { model
-                                            | aktivSamtale = RegistrerKonsept fagdokumentasjonType typeaheadState
-                                        }
-                                    , Cmd.none
-                                    )
-                                        |> IkkeFerdig
-
-                        Typeahead.MouseLeaveSuggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.removeActive
-                                            |> RegistrerKonsept fagdokumentasjonType
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                EndrerOppsummering skjema ->
-                    case operation of
-                        Typeahead.ArrowUp ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.arrowUp
-                                            |> Skjema.mapTypeaheadState skjema
-                                            |> EndrerOppsummering
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.ArrowDown ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.arrowDown
-                                            |> Skjema.mapTypeaheadState skjema
-                                            |> EndrerOppsummering
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.Enter ->
-                            case Skjema.konsept skjema of
-                                KonseptIkkeValgt _ ->
-                                    ( Model
-                                        { model
-                                            | aktivSamtale =
-                                                skjema
-                                                    |> Skjema.velgAktivtKonseptITypeahead
-                                                    |> EndrerOppsummering
-                                        }
-                                    , Cmd.none
-                                    )
-                                        |> IkkeFerdig
-
-                                KonseptValgt _ ->
-                                    IkkeFerdig ( Model model, Cmd.none )
-
-                        Typeahead.MouseLeaveSuggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.removeActive
-                                            |> Skjema.mapTypeaheadState skjema
-                                            |> EndrerOppsummering
-                                }
+                        Nothing ->
+                            ( RegistrerKonsept fagdokumentasjonType (feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType |> Just) typeaheadModel
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                 _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerVelgerKonseptFraTypeahead konsept ->
-            case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType _ ->
-                    ( konsept
-                        |> forrigetilBeskrivelseInfo
-                        |> RegistrerBeskrivelse fagdokumentasjonType
-                        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                EndrerOppsummering skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                skjema
-                                    |> Skjema.velgKonsept konsept
-                                    |> EndrerOppsummering
-                        }
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
-                        |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerVilRegistrereFagbrevBeskrivelse ->
             case model.aktivSamtale of
@@ -418,29 +222,17 @@ update msg (Model model) =
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering validertSkjema ->
-                    ( validertSkjema
-                        |> Skjema.tilSkjema
-                        |> EndrerOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    initRedigeringAvValidertSkjema model validertSkjema
 
                 OppsummeringEtterEndring validertSkjema ->
-                    ( validertSkjema
-                        |> Skjema.tilSkjema
-                        |> EndrerOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    initRedigeringAvValidertSkjema model validertSkjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         BrukerLagrerSkjema ->
             case model.aktivSamtale of
-                EndrerOppsummering skjema ->
+                EndrerOppsummering typeaheadModel skjema ->
                     case Skjema.validertSkjema skjema of
                         Just validertSkjema ->
                             IkkeFerdig
@@ -448,7 +240,7 @@ update msg (Model model) =
                                     |> OppsummeringEtterEndring
                                     |> nesteSamtaleSteg model
                                         (Melding.svar
-                                            [ Skjema.konseptFraValidertSkjema validertSkjema
+                                            [ Skjema.konseptStringFraValidertSkjema validertSkjema
                                             , Skjema.beskrivelseFraValidertSkjema validertSkjema
                                             ]
                                         )
@@ -458,7 +250,8 @@ update msg (Model model) =
                         Nothing ->
                             IkkeFerdig
                                 ( skjema
-                                    |> EndrerOppsummering
+                                    |> Skjema.gjørFeilmeldingKonseptSynlig
+                                    |> EndrerOppsummering typeaheadModel
                                     |> oppdaterSamtaleSteg model
                                 , Cmd.none
                                 )
@@ -474,13 +267,13 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndrerOppsummering skjema ->
+                EndrerOppsummering typeaheadModel skjema ->
                     ( Model
                         { model
                             | aktivSamtale =
                                 skjema
                                     |> Skjema.oppdaterBeskrivelse beskrivelse
-                                    |> EndrerOppsummering
+                                    |> EndrerOppsummering typeaheadModel
                         }
                     , Cmd.none
                     )
@@ -564,6 +357,112 @@ update msg (Model model) =
 
         ErrorLogget _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+initRedigeringAvValidertSkjema : ModelInfo -> ValidertFagdokumentasjonSkjema -> SamtaleStatus
+initRedigeringAvValidertSkjema model validertSkjema =
+    ( validertSkjema
+        |> Skjema.tilSkjema
+        |> EndrerOppsummering (initSkjemaTypeaheadFraValidertSkjema validertSkjema)
+        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+    , Cmd.batch
+        [ lagtTilSpørsmålCmd model.debugStatus
+        , validertSkjema
+            |> Skjema.tilSkjema
+            |> Skjema.fagdokumentasjonType
+            |> hentTypeaheadSuggestions
+                (validertSkjema
+                    |> Skjema.konseptFraValidertSkjema
+                    |> Konsept.label
+                )
+        ]
+    )
+        |> IkkeFerdig
+
+
+initSamtaleTypeahead : FagdokumentasjonType -> Typeahead.Model Konsept
+initSamtaleTypeahead fagdokumentasjonType =
+    Typeahead.init
+        { value = ""
+        , label = typeaheadLabel fagdokumentasjonType
+        , id = inputIdTilString RegistrerKonseptInput
+        , toString = Konsept.label
+        }
+
+
+initSkjemaTypeaheadFraValidertSkjema : ValidertFagdokumentasjonSkjema -> Typeahead.Model Konsept
+initSkjemaTypeaheadFraValidertSkjema skjema =
+    skjema
+        |> Skjema.konseptFraValidertSkjema
+        |> initSkjemaTypeaheadFraKonsept (skjema |> Skjema.tilSkjema |> Skjema.fagdokumentasjonType)
+
+
+initSkjemaTypeaheadFraKonsept : FagdokumentasjonType -> Konsept -> Typeahead.Model Konsept
+initSkjemaTypeaheadFraKonsept fagdokumentasjonType konsept =
+    Typeahead.initWithSelected
+        { selected = konsept
+        , label = typeaheadLabel fagdokumentasjonType
+        , id = inputIdTilString RegistrerKonseptInput
+        , toString = Konsept.label
+        }
+
+
+updateSamtaleTypeahead : ModelInfo -> FagdokumentasjonType -> Maybe String -> Typeahead.Msg Konsept -> Typeahead.Model Konsept -> SamtaleStatus
+updateSamtaleTypeahead model fagdokumentasjonType feilmelding msg typeaheadModel =
+    let
+        ( nyTypeaheadModel, getSuggestionsStatus, proceedStatus ) =
+            Typeahead.update Konsept.label msg typeaheadModel
+    in
+    case proceedStatus of
+        Typeahead.UserWantsToProceed konsept ->
+            brukerVilRegistrereKonsept model fagdokumentasjonType konsept
+
+        Typeahead.UserDoesNotWantToProceed ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerKonsept fagdokumentasjonType (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
+                    |> oppdaterSamtaleSteg model
+                , case getSuggestionsStatus of
+                    GetSuggestionsForInput string ->
+                        hentTypeaheadSuggestions string fagdokumentasjonType
+
+                    DoNothing ->
+                        Cmd.none
+                )
+
+
+brukerVilRegistrereKonsept : ModelInfo -> FagdokumentasjonType -> Konsept -> SamtaleStatus
+brukerVilRegistrereKonsept model fagdokumentasjonType konsept =
+    ( konsept
+        |> forrigetilBeskrivelseInfo
+        |> RegistrerBeskrivelse fagdokumentasjonType
+        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
+
+
+typeaheadFeilmeldingEtterUpdate : Maybe String -> Maybe Konsept -> Maybe String
+typeaheadFeilmeldingEtterUpdate feilmelding valgtYrke =
+    case valgtYrke of
+        Just _ ->
+            Nothing
+
+        Nothing ->
+            feilmelding
+
+
+feilmeldingstekstIkkeValgtKonsept : FagdokumentasjonType -> String
+feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType =
+    case fagdokumentasjonType of
+        SvennebrevFagbrev ->
+            "Velg et svennebrev/fagbrev fra listen med forslag som kommer opp"
+
+        Mesterbrev ->
+            "Velg et mesterbrev fra listen med forslag som kommer opp"
+
+        Autorisasjon ->
+            "Velg en autorisasjon fra listen med forslag som kommer opp"
 
 
 hentTypeaheadSuggestions : String -> FagdokumentasjonType -> Cmd Msg
@@ -676,7 +575,7 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg fagbrevSeksjon =
     case fagbrevSeksjon of
-        RegistrerKonsept fagdokumentasjonType _ ->
+        RegistrerKonsept fagdokumentasjonType _ _ ->
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
                     [ Melding.spørsmål [ "Hva er navnet på fagbrevet/svennebrevet ditt?" ]
@@ -700,7 +599,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             [ Melding.spørsmål
                 [ "Du har lagt inn dette:"
                 , Melding.tomLinje
-                , Skjema.konseptFraValidertSkjema skjema
+                , Skjema.konseptStringFraValidertSkjema skjema
                 , Skjema.beskrivelseFraValidertSkjema skjema
                 , Melding.tomLinje
                 , "Er informasjonen riktig?"
@@ -719,14 +618,14 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
         Lagrer _ ->
             []
 
-        EndrerOppsummering _ ->
+        EndrerOppsummering _ _ ->
             []
 
 
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
-        RegistrerKonsept _ _ ->
+        RegistrerKonsept _ _ _ ->
             settFokusCmd RegistrerKonseptInput
 
         RegistrerBeskrivelse _ _ ->
@@ -753,11 +652,10 @@ viewBrukerInput (Model model) =
     case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         FerdigAnimert _ ->
             case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType typeaheadState ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ viewTypeahead typeaheadState fagdokumentasjonType
-                            ]
+                RegistrerKonsept _ feilmelding typeaheadModel ->
+                    Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereKonsept
+                        [ Typeahead.view Konsept.label feilmelding typeaheadModel
+                            |> Html.map TypeaheadMsg
                         ]
 
                 RegistrerBeskrivelse _ beskrivelseinfo ->
@@ -777,25 +675,10 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         ]
 
-                EndrerOppsummering skjema ->
+                EndrerOppsummering typeaheadModel skjema ->
                     Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre" }
-                        [ case Skjema.konsept skjema of
-                            KonseptValgt konsept ->
-                                konsept
-                                    |> Konsept.label
-                                    |> Input.input
-                                        { msg = BrukerOppdatererFagdokumentasjon
-                                        , label =
-                                            skjema
-                                                |> Skjema.fagdokumentasjonType
-                                                |> typeaheadLabel
-                                        }
-                                    |> Input.toHtml
-
-                            KonseptIkkeValgt typeaheadState ->
-                                skjema
-                                    |> Skjema.fagdokumentasjonType
-                                    |> viewTypeahead typeaheadState
+                        [ Typeahead.view Konsept.label (Skjema.feilmeldingTypeahead skjema) typeaheadModel
+                            |> Html.map TypeaheadMsg
                         , skjema
                             |> Skjema.beskrivelse
                             |> Textarea.textarea { label = "Beskrivelse", msg = OppdaterFagdokumentasjonBeskrivelse }
@@ -858,15 +741,6 @@ feilmeldingBeskrivelsesfelt innhold =
         Just ("Du har " ++ tallTekst ++ " tegn for mye")
 
 
-viewTypeahead : TypeaheadState Konsept -> FagdokumentasjonType -> Html Msg
-viewTypeahead typeaheadState fagdokumentasjonType =
-    typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = typeaheadLabel fagdokumentasjonType, onInput = BrukerOppdatererFagdokumentasjon, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = inputIdTilString RegistrerKonseptInput }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestion typeaheadState)
-        |> Typeahead.toHtml
-
-
 typeaheadLabel : FagdokumentasjonType -> String
 typeaheadLabel fagdokumentasjonType =
     case fagdokumentasjonType of
@@ -880,25 +754,6 @@ typeaheadLabel fagdokumentasjonType =
             "Autorisasjon"
 
 
-typeaheadStateSuggestionsTilViewSuggestion : TypeaheadState Konsept -> List (Typeahead.Suggestion Msg)
-typeaheadStateSuggestionsTilViewSuggestion typeaheadState =
-    typeaheadState
-        |> TypeaheadState.map
-            (\activeState suggestion ->
-                { innhold = Konsept.label suggestion
-                , onClick = BrukerVelgerKonseptFraTypeahead suggestion
-                , onActive = BrukerHovrerOverTypeaheadSuggestion suggestion
-                , active =
-                    case activeState of
-                        TypeaheadState.Active ->
-                            True
-
-                        TypeaheadState.NotActive ->
-                            False
-                }
-            )
-
-
 
 --- INIT ---
 
@@ -907,9 +762,8 @@ init : FagdokumentasjonType -> DebugStatus -> FerdigAnimertMeldingsLogg -> List 
 init fagdokumentasjonType debugStatus gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
-            ""
-                |> TypeaheadState.init
-                |> RegistrerKonsept fagdokumentasjonType
+            initSamtaleTypeahead fagdokumentasjonType
+                |> RegistrerKonsept fagdokumentasjonType Nothing
     in
     ( Model
         { seksjonsMeldingsLogg =

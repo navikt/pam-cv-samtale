@@ -21,7 +21,6 @@ import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Textarea as Textarea
-import FrontendModuler.Typeahead as Typeahead
 import Html exposing (Attribute, Html, div, text)
 import Html.Attributes exposing (class)
 import Http exposing (Error)
@@ -29,9 +28,9 @@ import Melding exposing (Melding)
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Arbeidserfaring as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, Felt(..), TypeaheadFelt(..), ValidertArbeidserfaringSkjema)
+import Skjema.Arbeidserfaring as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, Felt(..), ValidertArbeidserfaringSkjema)
 import Task
-import TypeaheadState exposing (TypeaheadState)
+import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
 import Yrke exposing (Yrke)
 
 
@@ -61,6 +60,29 @@ type SamtaleStatus
     | Ferdig FerdigAnimertMeldingsLogg
 
 
+type Samtale
+    = Intro
+    | VelgEnArbeidserfaringÅRedigere
+    | RegistrerYrke (Maybe String) (Typeahead.Model Yrke)
+    | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
+    | EndreJobbtittel JobbtittelInfo
+    | RegistrereBedriftsnavn BedriftnavnInfo
+    | RegistrereSted StedInfo
+    | RegistrereArbeidsoppgaver ArbeidsoppgaverInfo
+    | RegistrereFraMåned FraDatoInfo
+    | RegistrereFraÅr FraDatoInfo
+    | RegistrereNåværende NåværendeInfo
+    | RegistrereTilMåned TilDatoInfo
+    | RegistrereTilÅr TilDatoInfo
+    | VisOppsummering ValidertArbeidserfaringSkjema
+    | RedigerOppsummering (Typeahead.Model Yrke) ArbeidserfaringSkjema
+    | LagrerArbeidserfaring ValidertArbeidserfaringSkjema
+    | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
+    | SpørOmBrukerVilLeggeInnMer
+    | StartNyArbeidserfaring (Typeahead.Model Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
+    | VenterPåAnimasjonFørFullføring String
+
+
 
 --- UPDATE ---
 
@@ -70,13 +92,9 @@ type Msg
     | BrukerVilRedigereArbeidserfaring String
     | BrukerHarValgtArbeidserfaringÅRedigere Arbeidserfaring String
     | BrukerHopperOverArbeidserfaring
-    | HentAAregArbeidserfaring
-    | HentetAAregArbeidserfaring (Result Http.Error (List Arbeidserfaring))
-    | BrukerOppdatererYrke String
-    | BrukerTrykkerTypeaheadTast Typeahead.Operation
-    | BrukerHovrerOverTypeaheadSuggestion Yrke
-    | BrukerVelgerYrke Yrke
+    | TypeaheadMsg (Typeahead.Msg Yrke)
     | HentetYrkeTypeahead (Result Http.Error (List Yrke))
+    | BrukerVilRegistrereYrke
     | BrukerVilEndreJobbtittel JobbtittelInfo
     | BrukerVilIkkeEndreJobbtittel
     | BrukerOppdatererJobbtittelFelt String
@@ -98,10 +116,6 @@ type Msg
     | TilÅrMisterFokus
     | BrukerVilRegistrereTilÅr
     | BrukerVilRedigereOppsummering
-    | YrkeRedigeringsfeltEndret String
-    | BrukerTrykkerTypeaheadTastIOppsummering Typeahead.Operation
-    | BrukerHovrerOverTypeaheadSuggestionIOppsummering Yrke
-    | BrukerVelgerYrkeIOppsummering Yrke
     | SkjemaEndret SkjemaEndring
     | BrukerVilLagreArbeidserfaringIOppsummering
     | BrukerVilLagreArbeidserfaringSkjema
@@ -125,32 +139,10 @@ type SkjemaEndring
     | TilÅrBlurred
 
 
-type Samtale
-    = Intro
-    | VelgEnArbeidserfaringÅRedigere
-    | HenterFraAareg
-    | HentetFraAAreg
-    | IkkeHentetFraAAreg
-    | IngenArbeidserfaringFraAareg (List Arbeidserfaring)
-    | VisArbeidserfaringFraAareg (List Arbeidserfaring)
-    | RegistrerYrke (TypeaheadState Yrke)
-    | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
-    | EndreJobbtittel JobbtittelInfo
-    | RegistrereBedriftsnavn BedriftnavnInfo
-    | RegistrereSted StedInfo
-    | RegistrereArbeidsoppgaver ArbeidsoppgaverInfo
-    | RegistrereFraMåned FraDatoInfo
-    | RegistrereFraÅr FraDatoInfo
-    | RegistrereNåværende NåværendeInfo
-    | RegistrereTilMåned TilDatoInfo
-    | RegistrereTilÅr TilDatoInfo
-    | VisOppsummering ValidertArbeidserfaringSkjema
-    | RedigerOppsummering ArbeidserfaringSkjema
-    | LagrerArbeidserfaring ValidertArbeidserfaringSkjema
-    | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
-    | SpørOmBrukerVilLeggeInnMer
-    | StartNyArbeidserfaring (TypeaheadState Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
-    | VenterPåAnimasjonFørFullføring String
+type alias RegistrerYrkeInfo =
+    { valgtYrke : Maybe Yrke
+    , feilmelding : Maybe String
+    }
 
 
 type alias JobbtittelInfo =
@@ -294,209 +286,110 @@ update msg (Model model) =
         BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring knappeTekst ->
             ( arbeidserfaring
                 |> ArbeidserfaringSkjema.fraArbeidserfaring
-                |> RedigerOppsummering
+                |> RedigerOppsummering (initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring)
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-            , lagtTilSpørsmålCmd model.debugStatus
+            , Cmd.batch
+                [ lagtTilSpørsmålCmd model.debugStatus
+                , arbeidserfaring
+                    |> Cv.Arbeidserfaring.yrke
+                    |> Maybe.map Yrke.label
+                    |> Maybe.map (Api.getYrkeTypeahead HentetYrkeTypeahead)
+                    |> Maybe.withDefault Cmd.none
+                ]
             )
                 |> IkkeFerdig
-
-        HentAAregArbeidserfaring ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        model.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
-                    , aktivSamtale = HenterFraAareg
-                }
-            , Api.getAAreg HentetAAregArbeidserfaring
-            )
-                |> IkkeFerdig
-
-        HentetAAregArbeidserfaring result ->
-            case result of
-                Ok arbeidserfaringFraAAreg ->
-                    ( model
-                        |> visAaregResultat arbeidserfaringFraAAreg
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                Err error ->
-                    ( IkkeHentetFraAAreg
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg har arbeidserfaring" ])
-                    , logFeilmelding error "Hente fra Aareg"
-                    )
-                        |> IkkeFerdig
 
         BrukerVilLeggeTilNyArbeidserfaring knappeTekst ->
-            ( ""
-                |> TypeaheadState.init
-                |> RegistrerYrke
+            ( initSamtaleTypeahead
+                |> RegistrerYrke Nothing
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
-        BrukerOppdatererYrke string ->
+        TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                RegistrerYrke typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue string
-                                    |> RegistrerYrke
-                        }
-                    , Cmd.batch
-                        [ Api.getYrkeTypeahead HentetYrkeTypeahead string
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
-                    )
-                        |> IkkeFerdig
+                RegistrerYrke feilmelding typeaheadModel ->
+                    updateSamtaleTypeahead model feilmelding typeaheadMsg typeaheadModel
 
-                StartNyArbeidserfaring typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateValue string
-                                    |> RegistrerYrke
-                        }
-                    , Cmd.batch
-                        [ Api.getYrkeTypeahead HentetYrkeTypeahead string
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
-                    )
-                        |> IkkeFerdig
+                StartNyArbeidserfaring typeaheadModel ->
+                    updateSamtaleTypeahead model Nothing typeaheadMsg typeaheadModel
+
+                RedigerOppsummering typeaheadModel skjema ->
+                    let
+                        ( nyTypeaheadModel, getSuggestionsStatus, _ ) =
+                            Typeahead.update Yrke.label typeaheadMsg typeaheadModel
+                    in
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> Typeahead.selected
+                            |> ArbeidserfaringSkjema.oppdaterYrke skjema
+                            |> RedigerOppsummering nyTypeaheadModel
+                            |> oppdaterSamtalesteg model
+                        , case getSuggestionsStatus of
+                            GetSuggestionsForInput string ->
+                                Api.getYrkeTypeahead HentetYrkeTypeahead string
+
+                            DoNothing ->
+                                Cmd.none
+                        )
 
                 _ ->
-                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
-                        |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
 
         HentetYrkeTypeahead result ->
             case model.aktivSamtale of
-                RegistrerYrke typeaheadState ->
+                RegistrerYrke feilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
-                            ( typeaheadState
-                                |> TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> RegistrerYrke
-                                |> oppdaterSamtalesteg model
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( Model model, logFeilmelding error "Hente Yrketypeahed" )
-                                |> IkkeFerdig
-
-                RedigerOppsummering skjema ->
-                    case result of
-                        Ok suggestions ->
-                            ( TypeaheadState.updateSuggestions "" (List.take 10 suggestions)
-                                |> ArbeidserfaringSkjema.mapTypeaheadState skjema
-                                |> RedigerOppsummering
+                            ( let
+                                nyTypeaheadModel =
+                                    Typeahead.updateSuggestions Yrke.label typeaheadModel suggestions
+                              in
+                              nyTypeaheadModel
+                                |> RegistrerYrke (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
                                 |> oppdaterSamtalesteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model model, logFeilmelding error "Hente Yrketypeahed" )
+                            ( Model model, logFeilmelding error "Hente Yrketypeahead" )
+                                |> IkkeFerdig
+
+                RedigerOppsummering typeaheadModel skjema ->
+                    case result of
+                        Ok suggestions ->
+                            ( RedigerOppsummering (Typeahead.updateSuggestions Yrke.label typeaheadModel suggestions) skjema
+                                |> oppdaterSamtalesteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            ( Model model, logFeilmelding error "Hente Yrketypeahead" )
                                 |> IkkeFerdig
 
                 _ ->
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        BrukerHovrerOverTypeaheadSuggestion yrkeTypeahead ->
+        BrukerVilRegistrereYrke ->
             case model.aktivSamtale of
-                RegistrerYrke typeaheadState ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                typeaheadState
-                                    |> TypeaheadState.updateActive yrkeTypeahead
-                                    |> RegistrerYrke
-                        }
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
+                RegistrerYrke _ typeaheadModel ->
+                    case Typeahead.selected typeaheadModel of
+                        Just yrke ->
+                            brukerVelgerYrke model yrke
 
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerTrykkerTypeaheadTast operation ->
-            case model.aktivSamtale of
-                RegistrerYrke typeaheadState ->
-                    case operation of
-                        Typeahead.ArrowUp ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowUp
-                                            |> RegistrerYrke
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.ArrowDown ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.arrowDown
-                                            |> RegistrerYrke
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.Enter ->
-                            case TypeaheadState.getActive typeaheadState of
-                                Just active ->
-                                    brukerVelgerYrke model active
-
-                                Nothing ->
-                                    ( Model
-                                        { model
-                                            | aktivSamtale = RegistrerYrke typeaheadState
-                                        }
-                                    , Cmd.none
-                                    )
-                                        |> IkkeFerdig
-
-                        Typeahead.MouseLeaveSuggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        typeaheadState
-                                            |> TypeaheadState.removeActive
-                                            |> RegistrerYrke
-                                }
+                        Nothing ->
+                            ( RegistrerYrke (Just "Velg et yrke fra listen med forslag som kommer opp") typeaheadModel
+                                |> oppdaterSamtalesteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                 _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerVelgerYrke yrkesTypeahead ->
-            case model.aktivSamtale of
-                RegistrerYrke _ ->
-                    brukerVelgerYrke model yrkesTypeahead
-
-                RedigerOppsummering _ ->
-                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
-                        |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerVilEndreJobbtittel jobbtittelInfo ->
             ( EndreJobbtittel jobbtittelInfo
@@ -821,104 +714,15 @@ update msg (Model model) =
                 VisOppsummering skjema ->
                     ( skjema
                         |> ArbeidserfaringSkjema.tilUvalidertSkjema
-                        |> RedigerOppsummering
+                        |> RedigerOppsummering (initSkjemaTypeaheadFraYrke (ArbeidserfaringSkjema.yrke skjema))
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        YrkeRedigeringsfeltEndret string ->
-            case model.aktivSamtale of
-                RedigerOppsummering skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                ArbeidserfaringSkjema.oppdaterYrkeFelt skjema string
-                                    |> RedigerOppsummering
-                        }
-                    , Api.getYrkeTypeahead HentetYrkeTypeahead string
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerTrykkerTypeaheadTastIOppsummering operation ->
-            case model.aktivSamtale of
-                RedigerOppsummering skjema ->
-                    case operation of
-                        Typeahead.ArrowUp ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.arrowUp
-                                            |> ArbeidserfaringSkjema.mapTypeaheadState skjema
-                                            |> RedigerOppsummering
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.ArrowDown ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.arrowDown
-                                            |> ArbeidserfaringSkjema.mapTypeaheadState skjema
-                                            |> RedigerOppsummering
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.Enter ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        skjema
-                                            |> ArbeidserfaringSkjema.velgAktivYrkeITypeahead
-                                            |> RedigerOppsummering
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Typeahead.MouseLeaveSuggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        TypeaheadState.removeActive
-                                            |> ArbeidserfaringSkjema.mapTypeaheadState skjema
-                                            |> RedigerOppsummering
-                                }
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerHovrerOverTypeaheadSuggestionIOppsummering _ ->
-            ( Model model, Cmd.none )
-                |> IkkeFerdig
-
-        BrukerVelgerYrkeIOppsummering yrke ->
-            case model.aktivSamtale of
-                RedigerOppsummering skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                skjema
-                                    |> ArbeidserfaringSkjema.setYrkeFeltTilYrke yrke
-                                    |> RedigerOppsummering
-                        }
-                    , Cmd.none
+                    , Cmd.batch
+                        [ lagtTilSpørsmålCmd model.debugStatus
+                        , skjema
+                            |> ArbeidserfaringSkjema.yrke
+                            |> Yrke.label
+                            |> Api.getYrkeTypeahead HentetYrkeTypeahead
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -928,10 +732,10 @@ update msg (Model model) =
 
         SkjemaEndret skjemaEndring ->
             case model.aktivSamtale of
-                RedigerOppsummering arbeidserfaringSkjema ->
+                RedigerOppsummering typeaheadModel arbeidserfaringSkjema ->
                     ( arbeidserfaringSkjema
                         |> oppdaterSkjema skjemaEndring
-                        |> RedigerOppsummering
+                        |> RedigerOppsummering typeaheadModel
                         |> oppdaterSamtalesteg model
                     , Cmd.none
                     )
@@ -960,7 +764,7 @@ update msg (Model model) =
 
         BrukerVilLagreArbeidserfaringSkjema ->
             case model.aktivSamtale of
-                RedigerOppsummering skjema ->
+                RedigerOppsummering typeaheadModel skjema ->
                     case ArbeidserfaringSkjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
@@ -976,7 +780,7 @@ update msg (Model model) =
                         Nothing ->
                             ( skjema
                                 |> ArbeidserfaringSkjema.gjørAlleFeilmeldingerSynlig
-                                |> RedigerOppsummering
+                                |> RedigerOppsummering typeaheadModel
                                 |> oppdaterSamtalesteg model
                             , Cmd.none
                             )
@@ -1009,8 +813,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         NyArbeidserfaring ->
-            ( ""
-                |> TypeaheadState.init
+            ( initSamtaleTypeahead
                 |> StartNyArbeidserfaring
                 |> nesteSamtaleSteg model (Melding.svar [ "Ja, legg til en arbeidserfaring" ])
             , lagtTilSpørsmålCmd model.debugStatus
@@ -1074,6 +877,75 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
+updateSamtaleTypeahead : ModelInfo -> Maybe String -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
+updateSamtaleTypeahead model feilmelding msg typeaheadModel =
+    let
+        ( nyTypeaheadModel, getSuggestionsStatus, proceedStatus ) =
+            Typeahead.update Yrke.label msg typeaheadModel
+    in
+    case proceedStatus of
+        Typeahead.UserWantsToProceed yrke ->
+            brukerVelgerYrke model yrke
+
+        Typeahead.UserDoesNotWantToProceed ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerYrke (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
+                    |> oppdaterSamtalesteg model
+                , case getSuggestionsStatus of
+                    GetSuggestionsForInput string ->
+                        Api.getYrkeTypeahead HentetYrkeTypeahead string
+
+                    DoNothing ->
+                        Cmd.none
+                )
+
+
+typeaheadFeilmeldingEtterUpdate : Maybe String -> Maybe Yrke -> Maybe String
+typeaheadFeilmeldingEtterUpdate feilmelding valgtYrke =
+    case valgtYrke of
+        Just _ ->
+            Nothing
+
+        Nothing ->
+            feilmelding
+
+
+initSamtaleTypeahead : Typeahead.Model Yrke
+initSamtaleTypeahead =
+    Typeahead.init
+        { value = ""
+        , label = "Hvilken stilling/yrke har du?"
+        , id = inputIdTilString YrkeTypeaheadId
+        , toString = Yrke.label
+        }
+
+
+initSkjemaTypeaheadFraArbeidserfaring : Arbeidserfaring -> Typeahead.Model Yrke
+initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring =
+    arbeidserfaring
+        |> Cv.Arbeidserfaring.yrke
+        |> Maybe.map initSkjemaTypeaheadFraYrke
+        |> Maybe.withDefault
+            (Typeahead.init
+                { value = ""
+                , label = "Stilling/yrke"
+                , id = inputIdTilString YrkeTypeaheadId
+                , toString = Yrke.label
+                }
+            )
+
+
+initSkjemaTypeaheadFraYrke : Yrke -> Typeahead.Model Yrke
+initSkjemaTypeaheadFraYrke yrke =
+    Typeahead.initWithSelected
+        { selected = yrke
+        , label = "Stilling/yrke"
+        , id = inputIdTilString YrkeTypeaheadId
+        , toString = Yrke.label
+        }
+
+
 oppdaterSkjema : SkjemaEndring -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
 oppdaterSkjema endring skjema =
     case endring of
@@ -1130,7 +1002,7 @@ updateEtterFullførtMelding info nyMeldingsLogg =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
-        RegistrerYrke _ ->
+        RegistrerYrke _ _ ->
             settFokusCmd YrkeTypeaheadId
 
         EndreJobbtittel _ ->
@@ -1185,42 +1057,9 @@ brukerVelgerYrke info yrkesTypeahead =
         |> IkkeFerdig
 
 
-visAaregResultat : List Arbeidserfaring -> ModelInfo -> Model
-visAaregResultat list info =
-    if List.isEmpty list then
-        RegistrerYrke (TypeaheadState.init "")
-            |> oppdaterSamtalesteg info
-
-    else
-        list
-            ++ info.arbeidserfaringListe
-            |> VisArbeidserfaringFraAareg
-            |> oppdaterSamtalesteg info
-
-
 oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
 oppdaterSamtalesteg modelInfo samtaleSeksjon =
     case samtaleSeksjon of
-        IngenArbeidserfaringFraAareg list ->
-            Model
-                { modelInfo
-                    | aktivSamtale = samtaleSeksjon
-                    , arbeidserfaringListe = list
-                    , seksjonsMeldingsLogg =
-                        modelInfo.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-                }
-
-        VisArbeidserfaringFraAareg list ->
-            Model
-                { modelInfo
-                    | aktivSamtale = samtaleSeksjon
-                    , arbeidserfaringListe = list
-                    , seksjonsMeldingsLogg =
-                        modelInfo.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-                }
-
         SpørOmBrukerVilLeggeInnMer ->
             Model
                 { modelInfo
@@ -1268,51 +1107,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         VelgEnArbeidserfaringÅRedigere ->
             [ Melding.spørsmål [ "Hvilken registrerte arbeidserfaring ønsker du å redigere?" ] ]
 
-        HenterFraAareg ->
-            -- TODO: fiks dette etter at vi har skjekket om det funker
-            []
-
-        HentetFraAAreg ->
-            [ Melding.spørsmål
-                [ "Da har vi hentet arbeidserfaringen fra Aa-registeret."
-                , "Informasjonen er registrert av arbeidsgiverene dine. "
-                ]
-            , Melding.spørsmål
-                [ "Dessverre finnes det bare informasjon om arbeidsforhold etter 2015."
-                , "Jeg håper det kan hjelpe deg litt "
-                ]
-            ]
-
-        IkkeHentetFraAAreg ->
-            [ Melding.spørsmål
-                [ "Normalt ville jeg hentet informasjon om arbeidserfaringen dine fra Aa-reg."
-                , "Dessverre fikk jeg ikke kontakt med dem nå, så vi må fylle ut arbeidserfaringen selv."
-                ]
-            , Melding.spørsmål [ "Da må vi registrere arbeidserfaringen selv, men det går heldigvis ganske kjapt!" ]
-            , Melding.spørsmål
-                [ "Vi begynner med å registrere yrke,"
-                , "det er viktig at du velger et yrke fra listen."
-                , "Hvis ikke navnet passer helt, så kan du endre det senere."
-                ]
-            ]
-
-        IngenArbeidserfaringFraAareg _ ->
-            [ Melding.spørsmål
-                [ "Normalt ville jeg hentet informasjon om arbeidserfaringen dine fra Aa-reg."
-                , "Dessverre ser det ut til at du ikke har noen registrerte jobber der."
-                ]
-            , Melding.spørsmål [ "Da må vi registrere arbeidserfaringen selv, men det går heldigvis ganske kjapt!" ]
-            , Melding.spørsmål
-                [ "Vi begynner med å registrere yrke,"
-                , "det er viktig at du velger et yrke fra listen."
-                , "Hvis ikke navnet passer helt, så kan du endre det senere."
-                ]
-            ]
-
-        VisArbeidserfaringFraAareg _ ->
-            [ Melding.spørsmål [ "" ] ]
-
-        RegistrerYrke _ ->
+        RegistrerYrke _ _ ->
             [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
             , Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
             , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
@@ -1370,7 +1165,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                 )
             ]
 
-        RedigerOppsummering _ ->
+        RedigerOppsummering _ _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
         LagrerArbeidserfaring _ ->
@@ -1436,12 +1231,12 @@ datoRad skjema =
 
 
 viewBrukerInput : Model -> Html Msg
-viewBrukerInput (Model info) =
-    case MeldingsLogg.ferdigAnimert info.seksjonsMeldingsLogg of
+viewBrukerInput (Model model) =
+    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         MeldingsLogg.FerdigAnimert _ ->
-            case info.aktivSamtale of
+            case model.aktivSamtale of
                 Intro ->
-                    if List.isEmpty info.arbeidserfaringListe then
+                    if List.isEmpty model.arbeidserfaringListe then
                         Containers.knapper Flytende
                             [ "Ja, jeg har arbeidserfaring"
                                 |> Knapp.knapp (BrukerVilLeggeTilNyArbeidserfaring "Ja, jeg har arbeidserfaring")
@@ -1463,29 +1258,12 @@ viewBrukerInput (Model info) =
 
                 VelgEnArbeidserfaringÅRedigere ->
                     Containers.knapper Kolonne
-                        (List.map lagArbeidserfaringKnapp info.arbeidserfaringListe)
+                        (List.map lagArbeidserfaringKnapp model.arbeidserfaringListe)
 
-                HenterFraAareg ->
-                    div [] []
-
-                HentetFraAAreg ->
-                    div [] []
-
-                IkkeHentetFraAAreg ->
-                    div []
-                        []
-
-                IngenArbeidserfaringFraAareg _ ->
-                    div [] []
-
-                VisArbeidserfaringFraAareg _ ->
-                    div [] []
-
-                RegistrerYrke typeaheadState ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ viewTypeaheadRegistrerYrke typeaheadState
-                            ]
+                RegistrerYrke feilmelding typeaheadModel ->
+                    Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
+                        [ Typeahead.view Yrke.label feilmelding typeaheadModel
+                            |> Html.map TypeaheadMsg
                         ]
 
                 SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
@@ -1583,17 +1361,10 @@ viewBrukerInput (Model info) =
                             |> Knapp.toHtml
                         ]
 
-                RedigerOppsummering skjema ->
+                RedigerOppsummering typeaheadModel skjema ->
                     Containers.skjema { lagreMsg = BrukerVilLagreArbeidserfaringSkjema, lagreKnappTekst = "Lagre endringer" }
-                        [ case ArbeidserfaringSkjema.yrkeTypeahead skjema of
-                            Yrke yrke ->
-                                yrke
-                                    |> Yrke.label
-                                    |> Input.input { label = "Stilling/yrke", msg = YrkeRedigeringsfeltEndret }
-                                    |> Input.toHtml
-
-                            Typeahead typeaheadState ->
-                                viewTypeaheadOppsummering typeaheadState
+                        [ Typeahead.view Yrke.label (ArbeidserfaringSkjema.feilmeldingYrke skjema) typeaheadModel
+                            |> Html.map TypeaheadMsg
                         , if ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema == "" then
                             text ""
 
@@ -1662,11 +1433,10 @@ viewBrukerInput (Model info) =
                             |> Knapp.toHtml
                         ]
 
-                StartNyArbeidserfaring typeaheadState ->
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
-                            [ viewTypeaheadRegistrerYrke typeaheadState
-                            ]
+                StartNyArbeidserfaring typeaheadModel ->
+                    Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
+                        [ Typeahead.view Yrke.label Nothing typeaheadModel
+                            |> Html.map TypeaheadMsg
                         ]
 
                 VenterPåAnimasjonFørFullføring _ ->
@@ -1718,62 +1488,6 @@ inputIdTilString inputId =
 
         TilÅrInput ->
             "arbeidserfaring-registrer-til-år"
-
-
-viewTypeaheadRegistrerYrke : TypeaheadState Yrke -> Html Msg
-viewTypeaheadRegistrerYrke typeaheadState =
-    typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Hvilken stilling/yrke har du?", onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = inputIdTilString YrkeTypeaheadId }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke typeaheadState)
-        |> Typeahead.toHtml
-
-
-typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke : TypeaheadState Yrke -> List (Typeahead.Suggestion Msg)
-typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke typeaheadState =
-    typeaheadState
-        |> TypeaheadState.map
-            (\activeState suggestion ->
-                { innhold = Yrke.label suggestion
-                , onClick = BrukerVelgerYrke suggestion
-                , onActive = BrukerHovrerOverTypeaheadSuggestion suggestion
-                , active =
-                    case activeState of
-                        TypeaheadState.Active ->
-                            True
-
-                        TypeaheadState.NotActive ->
-                            False
-                }
-            )
-
-
-viewTypeaheadOppsummering : TypeaheadState Yrke -> Html Msg
-viewTypeaheadOppsummering typeaheadState =
-    typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = "Stilling/yrke", onInput = YrkeRedigeringsfeltEndret, onTypeaheadChange = BrukerTrykkerTypeaheadTastIOppsummering, inputId = inputIdTilString YrkeTypeaheadId }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionOppsummering typeaheadState)
-        |> Typeahead.toHtml
-
-
-typeaheadStateSuggestionsTilViewSuggestionOppsummering : TypeaheadState Yrke -> List (Typeahead.Suggestion Msg)
-typeaheadStateSuggestionsTilViewSuggestionOppsummering typeaheadState =
-    typeaheadState
-        |> TypeaheadState.map
-            (\activeState suggestion ->
-                { innhold = Yrke.label suggestion
-                , onClick = BrukerVelgerYrkeIOppsummering suggestion
-                , onActive = BrukerHovrerOverTypeaheadSuggestionIOppsummering suggestion
-                , active =
-                    case activeState of
-                        TypeaheadState.Active ->
-                            True
-
-                        TypeaheadState.NotActive ->
-                            False
-                }
-            )
 
 
 lagArbeidserfaringKnapp : Arbeidserfaring -> Html Msg
