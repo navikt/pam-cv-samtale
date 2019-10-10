@@ -1,28 +1,25 @@
 module Skjema.Fagdokumentasjon exposing
     ( FagdokumentasjonSkjema
-    , TypeaheadFelt(..)
     , ValidertFagdokumentasjonSkjema
     , beskrivelse
     , beskrivelseFraValidertSkjema
     , encode
     , fagdokumentasjonType
+    , feilmeldingTypeahead
+    , gjørFeilmeldingKonseptSynlig
     , init
     , initValidertSkjema
-    , konsept
     , konseptFraValidertSkjema
-    , mapTypeaheadState
+    , konseptStringFraValidertSkjema
     , oppdaterBeskrivelse
-    , oppdaterKonseptFelt
+    , oppdaterKonsept
     , tilSkjema
     , validertSkjema
-    , velgAktivtKonseptITypeahead
-    , velgKonsept
     )
 
-import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
+import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import Json.Encode
 import Konsept exposing (Konsept)
-import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
 type FagdokumentasjonSkjema
@@ -31,14 +28,127 @@ type FagdokumentasjonSkjema
 
 type alias UvalidertSkjemaInfo =
     { fagdokumentasjonType : FagdokumentasjonType
-    , konsept : TypeaheadFelt
+    , visFeilmeldingTypeahead : Bool
+    , konsept : Maybe Konsept
     , beskrivelse : String
     }
 
 
-type TypeaheadFelt
-    = KonseptIkkeValgt (TypeaheadState Konsept)
-    | KonseptValgt Konsept
+
+--INIT --
+
+
+init : FagdokumentasjonType -> Konsept -> String -> FagdokumentasjonSkjema
+init skjemaType konsept_ beskrivelse_ =
+    UvalidertSkjema
+        { konsept = Just konsept_
+        , visFeilmeldingTypeahead = False
+        , beskrivelse = beskrivelse_
+        , fagdokumentasjonType = skjemaType
+        }
+
+
+initValidertSkjema : FagdokumentasjonType -> Konsept -> String -> ValidertFagdokumentasjonSkjema
+initValidertSkjema skjemaType konsept_ beskrivelse_ =
+    ValidertSkjema
+        { konsept = konsept_
+        , beskrivelse = beskrivelse_
+        , fagdokumentasjonType = skjemaType
+        }
+
+
+tilSkjema : ValidertFagdokumentasjonSkjema -> FagdokumentasjonSkjema
+tilSkjema (ValidertSkjema info) =
+    UvalidertSkjema
+        { konsept = Just info.konsept
+        , visFeilmeldingTypeahead = False
+        , beskrivelse = info.beskrivelse
+        , fagdokumentasjonType = info.fagdokumentasjonType
+        }
+
+
+
+--- INNHOLD ---
+
+
+beskrivelse : FagdokumentasjonSkjema -> String
+beskrivelse (UvalidertSkjema info) =
+    info.beskrivelse
+
+
+beskrivelseFraValidertSkjema : ValidertFagdokumentasjonSkjema -> String
+beskrivelseFraValidertSkjema (ValidertSkjema info) =
+    info.beskrivelse
+
+
+konseptStringFraValidertSkjema : ValidertFagdokumentasjonSkjema -> String
+konseptStringFraValidertSkjema (ValidertSkjema info) =
+    Konsept.label info.konsept
+
+
+konseptFraValidertSkjema : ValidertFagdokumentasjonSkjema -> Konsept
+konseptFraValidertSkjema (ValidertSkjema info) =
+    info.konsept
+
+
+fagdokumentasjonType : FagdokumentasjonSkjema -> FagdokumentasjonType
+fagdokumentasjonType (UvalidertSkjema info) =
+    info.fagdokumentasjonType
+
+
+
+--- OPPDATERING ---
+
+
+oppdaterBeskrivelse : String -> FagdokumentasjonSkjema -> FagdokumentasjonSkjema
+oppdaterBeskrivelse beskrivelse_ (UvalidertSkjema info) =
+    UvalidertSkjema { info | beskrivelse = beskrivelse_ }
+
+
+oppdaterKonsept : FagdokumentasjonSkjema -> Maybe Konsept -> FagdokumentasjonSkjema
+oppdaterKonsept (UvalidertSkjema info) konsept_ =
+    UvalidertSkjema
+        { info
+            | konsept = konsept_
+            , visFeilmeldingTypeahead = False
+        }
+
+
+
+--- FEILMELDINGER ---
+
+
+feilmeldingTypeahead : FagdokumentasjonSkjema -> Maybe String
+feilmeldingTypeahead (UvalidertSkjema info) =
+    if info.visFeilmeldingTypeahead && info.konsept == Nothing then
+        info.fagdokumentasjonType
+            |> feilmeldingstekstIkkeValgtKonsept
+            |> Just
+
+    else
+        Nothing
+
+
+feilmeldingstekstIkkeValgtKonsept : FagdokumentasjonType -> String
+feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType_ =
+    case fagdokumentasjonType_ of
+        SvennebrevFagbrev ->
+            "Velg et svennebrev/fagbrev fra listen med forslag som kommer opp"
+
+        Mesterbrev ->
+            "Velg et mesterbrev fra listen med forslag som kommer opp"
+
+        Autorisasjon ->
+            "Velg en autorisasjon fra listen med forslag som kommer opp"
+
+
+gjørFeilmeldingKonseptSynlig : FagdokumentasjonSkjema -> FagdokumentasjonSkjema
+gjørFeilmeldingKonseptSynlig (UvalidertSkjema info) =
+    UvalidertSkjema { info | visFeilmeldingTypeahead = True }
+
+
+
+--- VALIDERING ---
 
 
 type ValidertFagdokumentasjonSkjema
@@ -52,100 +162,13 @@ type alias ValidertSkjemaInfo =
     }
 
 
-beskrivelse : FagdokumentasjonSkjema -> String
-beskrivelse (UvalidertSkjema info) =
-    info.beskrivelse
-
-
-beskrivelseFraValidertSkjema : ValidertFagdokumentasjonSkjema -> String
-beskrivelseFraValidertSkjema (ValidertSkjema info) =
-    info.beskrivelse
-
-
-konsept : FagdokumentasjonSkjema -> TypeaheadFelt
-konsept (UvalidertSkjema info) =
-    info.konsept
-
-
-konseptFraValidertSkjema : ValidertFagdokumentasjonSkjema -> String
-konseptFraValidertSkjema (ValidertSkjema info) =
-    Konsept.label info.konsept
-
-
-fagdokumentasjonType : FagdokumentasjonSkjema -> FagdokumentasjonType
-fagdokumentasjonType (UvalidertSkjema info) =
-    info.fagdokumentasjonType
-
-
-oppdaterBeskrivelse : String -> FagdokumentasjonSkjema -> FagdokumentasjonSkjema
-oppdaterBeskrivelse beskrivelse_ (UvalidertSkjema info) =
-    UvalidertSkjema { info | beskrivelse = beskrivelse_ }
-
-
-oppdaterKonseptFelt : FagdokumentasjonSkjema -> String -> FagdokumentasjonSkjema
-oppdaterKonseptFelt (UvalidertSkjema info) konseptTekst =
-    case info.konsept of
-        KonseptIkkeValgt typeaheadState ->
-            UvalidertSkjema
-                { info
-                    | konsept =
-                        typeaheadState
-                            |> TypeaheadState.updateValue konseptTekst
-                            |> KonseptIkkeValgt
-                }
-
-        KonseptValgt _ ->
-            UvalidertSkjema
-                { info
-                    | konsept =
-                        TypeaheadState.init konseptTekst
-                            |> KonseptIkkeValgt
-                }
-
-
-mapTypeaheadState : FagdokumentasjonSkjema -> (TypeaheadState Konsept -> TypeaheadState Konsept) -> FagdokumentasjonSkjema
-mapTypeaheadState (UvalidertSkjema info) funksjon =
-    case info.konsept of
-        KonseptValgt _ ->
-            UvalidertSkjema info
-
-        KonseptIkkeValgt typeaheadState ->
-            UvalidertSkjema
-                { info
-                    | konsept =
-                        typeaheadState
-                            |> funksjon
-                            |> KonseptIkkeValgt
-                }
-
-
-velgAktivtKonseptITypeahead : FagdokumentasjonSkjema -> FagdokumentasjonSkjema
-velgAktivtKonseptITypeahead (UvalidertSkjema info) =
-    case info.konsept of
-        KonseptValgt _ ->
-            UvalidertSkjema info
-
-        KonseptIkkeValgt typeaheadState ->
-            case TypeaheadState.getActive typeaheadState of
-                Just active ->
-                    UvalidertSkjema { info | konsept = KonseptValgt active }
-
-                Nothing ->
-                    UvalidertSkjema info
-
-
-velgKonsept : Konsept -> FagdokumentasjonSkjema -> FagdokumentasjonSkjema
-velgKonsept konsept_ (UvalidertSkjema info) =
-    UvalidertSkjema { info | konsept = KonseptValgt konsept_ }
-
-
 validertSkjema : FagdokumentasjonSkjema -> Maybe ValidertFagdokumentasjonSkjema
 validertSkjema (UvalidertSkjema info) =
     case info.konsept of
-        KonseptIkkeValgt _ ->
+        Nothing ->
             Nothing
 
-        KonseptValgt konsept_ ->
+        Just konsept_ ->
             if String.length info.beskrivelse > 200 then
                 Nothing
 
@@ -157,15 +180,6 @@ validertSkjema (UvalidertSkjema info) =
                         , beskrivelse = info.beskrivelse
                         }
                     )
-
-
-tilSkjema : ValidertFagdokumentasjonSkjema -> FagdokumentasjonSkjema
-tilSkjema (ValidertSkjema info) =
-    UvalidertSkjema
-        { fagdokumentasjonType = info.fagdokumentasjonType
-        , konsept = KonseptValgt info.konsept
-        , beskrivelse = info.beskrivelse
-        }
 
 
 
@@ -198,25 +212,3 @@ encodeFagdokumentasjonType fagtype =
 
         Autorisasjon ->
             Json.Encode.string "AUTORISASJON"
-
-
-
---INIT --
-
-
-init : FagdokumentasjonType -> Konsept -> String -> FagdokumentasjonSkjema
-init skjemaType konsept_ beskrivelse_ =
-    UvalidertSkjema
-        { konsept = KonseptValgt konsept_
-        , beskrivelse = beskrivelse_
-        , fagdokumentasjonType = skjemaType
-        }
-
-
-initValidertSkjema : FagdokumentasjonType -> Konsept -> String -> ValidertFagdokumentasjonSkjema
-initValidertSkjema skjemaType konsept_ beskrivelse_ =
-    ValidertSkjema
-        { konsept = konsept_
-        , beskrivelse = beskrivelse_
-        , fagdokumentasjonType = skjemaType
-        }
