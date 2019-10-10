@@ -151,7 +151,17 @@ updateTypeaheadState toString model typeaheadState =
     Model
         { model
             | typeaheadState = typeaheadState
-            , selected = TypeaheadState.findSuggestionMatchingInputValue toString typeaheadState
+            , selected =
+                case model.selected of
+                    Just selected_ ->
+                        if toString selected_ == TypeaheadState.value model.typeaheadState then
+                            Just selected_
+
+                        else
+                            TypeaheadState.findSuggestionMatchingInputValue toString typeaheadState
+
+                    Nothing ->
+                        TypeaheadState.findSuggestionMatchingInputValue toString typeaheadState
         }
 
 
