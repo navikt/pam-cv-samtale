@@ -211,15 +211,15 @@ view toString feilmelding (Model model) =
     model.typeaheadState
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererInput, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
-        |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke toString model.typeaheadState)
+        |> Typeahead.withSuggestions (viewSuggestion toString model.typeaheadState)
         |> Typeahead.withFeilmelding feilmelding
         |> Typeahead.withOnFocus TypeaheadFikkFokus
         |> Typeahead.withOnBlur TypeaheadMistetFokus
         |> Typeahead.toHtml
 
 
-typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke : (a -> String) -> TypeaheadState a -> List (Typeahead.Suggestion (Msg a))
-typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke toString typeaheadState =
+viewSuggestion : (a -> String) -> TypeaheadState a -> List (Typeahead.Suggestion (Msg a))
+viewSuggestion toString typeaheadState =
     typeaheadState
         |> TypeaheadState.mapSuggestions
             (\activeState suggestion ->
