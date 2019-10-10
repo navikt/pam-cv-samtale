@@ -670,18 +670,18 @@ viewBrukerInput (Model model) =
 
                 LeggTilMuntlig språkKode ->
                     Containers.knapper Kolonne
-                        [ muntligKnapp språkKode Førstespråk
-                        , muntligKnapp språkKode Nybegynner
+                        [ muntligKnapp språkKode Nybegynner
                         , muntligKnapp språkKode Godt
                         , muntligKnapp språkKode VeldigGodt
+                        , muntligKnapp språkKode Førstespråk
                         ]
 
                 LeggTilSkriftlig språkKode ->
                     Containers.knapper Kolonne
-                        [ skriftligKnapp språkKode.språk Førstespråk
-                        , skriftligKnapp språkKode.språk Nybegynner
+                        [ skriftligKnapp språkKode.språk Nybegynner
                         , skriftligKnapp språkKode.språk Godt
                         , skriftligKnapp språkKode.språk VeldigGodt
+                        , skriftligKnapp språkKode.språk Førstespråk
                         ]
 
                 VelgNyttSpråk velgNyttSpråkInfo ->
