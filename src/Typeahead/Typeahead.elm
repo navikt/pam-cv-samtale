@@ -267,4 +267,5 @@ initWithSelected input =
             input.selected
                 |> input.toString
                 |> TypeaheadState.init
+                |> TypeaheadState.hideSuggestions
         }

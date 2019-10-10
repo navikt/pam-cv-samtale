@@ -1,6 +1,5 @@
 module Skjema.Sertifikat exposing
     ( SertifikatSkjema
-    , TypeaheadFelt(..)
     , Utløpsdato(..)
     , ValidertSertifikatSkjema
     , encode
@@ -11,16 +10,13 @@ module Skjema.Sertifikat exposing
     , fullførtÅrValidert
     , id
     , initValidertSkjema
-    , mapTypeaheadState
     , oppdaterFullførtMåned
     , oppdaterFullførtÅr
-    , oppdaterSertifikatFelt
+    , oppdaterSertifikat
     , oppdaterUtløperMåned
     , oppdaterUtløperÅr
     , oppdaterUtsteder
     , sertifikatFeltValidert
-    , sertifikatTypeahed
-    , setSertifikatFelt
     , tilUvalidertSkjema
     , toggleUtløperIkke
     , utløperIkke
@@ -29,7 +25,6 @@ module Skjema.Sertifikat exposing
     , utløpsdatoValidert
     , utsteder
     , valider
-    , velgAktivtSertifikatITypeahead
     , visAlleFeilmeldinger
     , visFeilmeldingFullførtÅr
     , visFeilmeldingUtløperÅr
@@ -38,7 +33,6 @@ module Skjema.Sertifikat exposing
 import Dato exposing (Måned(..), År)
 import Json.Encode
 import SertifikatTypeahead exposing (SertifikatTypeahead)
-import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
 type SertifikatSkjema
@@ -54,13 +48,8 @@ type Utløpsdato
     | Oppgitt Måned År
 
 
-type TypeaheadFelt
-    = SuggestionValgt SertifikatTypeahead
-    | SuggestionIkkeValgt (TypeaheadState SertifikatTypeahead)
-
-
 type alias UvalidertSkjemaInfo =
-    { sertifikatFelt : TypeaheadFelt
+    { sertifikatFelt : Maybe SertifikatTypeahead
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : String
@@ -99,11 +88,6 @@ initValidertSkjema skjema =
 utsteder : SertifikatSkjema -> String
 utsteder (UvalidertSkjema skjema) =
     skjema.utsteder
-
-
-sertifikatTypeahed : SertifikatSkjema -> TypeaheadFelt
-sertifikatTypeahed (UvalidertSkjema skjema) =
-    skjema.sertifikatFelt
 
 
 sertifikatFeltValidert : ValidertSertifikatSkjema -> SertifikatTypeahead
@@ -155,25 +139,9 @@ id (ValidertSkjema validert) =
 --- OPPDATERING ---
 
 
-oppdaterSertifikatFelt : SertifikatSkjema -> String -> SertifikatSkjema
-oppdaterSertifikatFelt (UvalidertSkjema skjema) feltInnhold =
-    case skjema.sertifikatFelt of
-        SuggestionValgt _ ->
-            UvalidertSkjema
-                { skjema
-                    | sertifikatFelt =
-                        TypeaheadState.init feltInnhold
-                            |> SuggestionIkkeValgt
-                }
-
-        SuggestionIkkeValgt typeaheadState ->
-            UvalidertSkjema
-                { skjema
-                    | sertifikatFelt =
-                        typeaheadState
-                            |> TypeaheadState.updateValue feltInnhold
-                            |> SuggestionIkkeValgt
-                }
+oppdaterSertifikat : SertifikatSkjema -> Maybe SertifikatTypeahead -> SertifikatSkjema
+oppdaterSertifikat (UvalidertSkjema skjema) sertifikat =
+    UvalidertSkjema { skjema | sertifikatFelt = sertifikat }
 
 
 oppdaterUtsteder : SertifikatSkjema -> String -> SertifikatSkjema
@@ -204,42 +172,6 @@ oppdaterUtløperÅr (UvalidertSkjema skjema) oppdatering =
 toggleUtløperIkke : SertifikatSkjema -> SertifikatSkjema
 toggleUtløperIkke (UvalidertSkjema skjema) =
     UvalidertSkjema { skjema | utløperIkke = not skjema.utløperIkke }
-
-
-setSertifikatFelt : SertifikatTypeahead -> SertifikatSkjema -> SertifikatSkjema
-setSertifikatFelt typeahaedSugestion (UvalidertSkjema skjema) =
-    UvalidertSkjema { skjema | sertifikatFelt = SuggestionValgt typeahaedSugestion }
-
-
-mapTypeaheadState : SertifikatSkjema -> (TypeaheadState SertifikatTypeahead -> TypeaheadState SertifikatTypeahead) -> SertifikatSkjema
-mapTypeaheadState (UvalidertSkjema skjema) funksjon =
-    case skjema.sertifikatFelt of
-        SuggestionValgt _ ->
-            UvalidertSkjema skjema
-
-        SuggestionIkkeValgt typeaheadState ->
-            UvalidertSkjema
-                { skjema
-                    | sertifikatFelt =
-                        typeaheadState
-                            |> funksjon
-                            |> SuggestionIkkeValgt
-                }
-
-
-velgAktivtSertifikatITypeahead : SertifikatSkjema -> SertifikatSkjema
-velgAktivtSertifikatITypeahead (UvalidertSkjema skjema) =
-    case skjema.sertifikatFelt of
-        SuggestionValgt _ ->
-            UvalidertSkjema skjema
-
-        SuggestionIkkeValgt typeaheadState ->
-            case TypeaheadState.getActive typeaheadState of
-                Just active ->
-                    UvalidertSkjema { skjema | sertifikatFelt = SuggestionValgt active }
-
-                Nothing ->
-                    UvalidertSkjema skjema
 
 
 
@@ -287,28 +219,20 @@ visAlleFeilmeldinger skjema =
 
 valider : SertifikatSkjema -> Maybe ValidertSertifikatSkjema
 valider (UvalidertSkjema uvalidert) =
-    case uvalidert.sertifikatFelt of
-        SuggestionValgt sertifikatfelt ->
-            if SertifikatTypeahead.label sertifikatfelt /= "" then
-                Maybe.map2
-                    (\utlopsdato fullføtÅr_ ->
-                        ValidertSkjema
-                            { sertifikatFelt = sertifikatfelt
-                            , utsteder = uvalidert.utsteder
-                            , fullførtMåned = uvalidert.fullførtMåned
-                            , fullførtÅr = fullføtÅr_
-                            , utløpsdato = utlopsdato
-                            , id = uvalidert.id
-                            }
-                    )
-                    (validerUtløpsdato uvalidert.utløperIkke uvalidert.utløperMåned uvalidert.utløperÅr)
-                    (Dato.stringTilÅr uvalidert.fullførtÅr)
-
-            else
-                Nothing
-
-        SuggestionIkkeValgt _ ->
-            Nothing
+    Maybe.map3
+        (\sertifikatfelt utlopsdato fullføtÅr_ ->
+            ValidertSkjema
+                { sertifikatFelt = sertifikatfelt
+                , utsteder = uvalidert.utsteder
+                , fullførtMåned = uvalidert.fullførtMåned
+                , fullførtÅr = fullføtÅr_
+                , utløpsdato = utlopsdato
+                , id = uvalidert.id
+                }
+        )
+        uvalidert.sertifikatFelt
+        (validerUtløpsdato uvalidert.utløperIkke uvalidert.utløperMåned uvalidert.utløperÅr)
+        (Dato.stringTilÅr uvalidert.fullførtÅr)
 
 
 validerUtløpsdato : Bool -> Måned -> String -> Maybe Utløpsdato
@@ -325,7 +249,7 @@ validerUtløpsdato utløperIkke_ måned år =
 tilUvalidertSkjema : ValidertSertifikatSkjema -> SertifikatSkjema
 tilUvalidertSkjema (ValidertSkjema validert) =
     UvalidertSkjema
-        { sertifikatFelt = SuggestionValgt validert.sertifikatFelt
+        { sertifikatFelt = Just validert.sertifikatFelt
         , utsteder = validert.utsteder
         , fullførtMåned = validert.fullførtMåned
         , fullførtÅr = Dato.årTilString validert.fullførtÅr
