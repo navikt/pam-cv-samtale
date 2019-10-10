@@ -50,12 +50,12 @@ selected (Model model) =
 
 
 type Msg a
-    = BrukerOppdatererYrke String
+    = BrukerOppdatererInput String
     | BrukerTrykkerTypeaheadTast Typeahead.Operation
     | BrukerHovrerOverTypeaheadSuggestion a
-    | BrukerVelgerYrke a
-    | RegistrerYrkeTypeaheadFikkFokus
-    | RegistrerYrkeTypeaheadMisterFokus
+    | BrukerVelgerElement a
+    | TypeaheadFikkFokus
+    | TypeaheadMistetFokus
 
 
 type GetSuggestionStatus
@@ -71,7 +71,7 @@ type ProceedStatus a
 update : (a -> String) -> Msg a -> Model a -> ( Model a, GetSuggestionStatus, ProceedStatus a )
 update toString msg (Model model) =
     case msg of
-        BrukerOppdatererYrke string ->
+        BrukerOppdatererInput string ->
             ( model.typeaheadState
                 |> TypeaheadState.updateValue string
                 |> updateTypeaheadState toString model
@@ -126,10 +126,10 @@ update toString msg (Model model) =
             , UserDoesNotWantToProceed
             )
 
-        BrukerVelgerYrke selected_ ->
+        BrukerVelgerElement selected_ ->
             updateAfterSelect toString selected_ model
 
-        RegistrerYrkeTypeaheadFikkFokus ->
+        TypeaheadFikkFokus ->
             ( model.typeaheadState
                 |> TypeaheadState.showSuggestions
                 |> updateTypeaheadState toString model
@@ -137,7 +137,7 @@ update toString msg (Model model) =
             , UserDoesNotWantToProceed
             )
 
-        RegistrerYrkeTypeaheadMisterFokus ->
+        TypeaheadMistetFokus ->
             ( model.typeaheadState
                 |> TypeaheadState.hideSuggestions
                 |> updateTypeaheadState toString model
@@ -200,11 +200,11 @@ view : (a -> String) -> Maybe String -> Model a -> Html (Msg a)
 view toString feilmelding (Model model) =
     model.typeaheadState
         |> TypeaheadState.value
-        |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererYrke, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
+        |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererInput, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
         |> Typeahead.withSuggestions (typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke toString model.typeaheadState)
         |> Typeahead.withFeilmelding feilmelding
-        |> Typeahead.withOnFocus RegistrerYrkeTypeaheadFikkFokus
-        |> Typeahead.withOnBlur RegistrerYrkeTypeaheadMisterFokus
+        |> Typeahead.withOnFocus TypeaheadFikkFokus
+        |> Typeahead.withOnBlur TypeaheadMistetFokus
         |> Typeahead.toHtml
 
 
@@ -214,7 +214,7 @@ typeaheadStateSuggestionsTilViewSuggestionRegistrerYrke toString typeaheadState 
         |> TypeaheadState.mapSuggestions
             (\activeState suggestion ->
                 { innhold = toString suggestion
-                , onClick = BrukerVelgerYrke suggestion
+                , onClick = BrukerVelgerElement suggestion
                 , onActive = BrukerHovrerOverTypeaheadSuggestion suggestion
                 , active =
                     case activeState of
