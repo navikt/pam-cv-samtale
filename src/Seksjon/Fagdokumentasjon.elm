@@ -87,14 +87,9 @@ forrigetilBeskrivelseInfo konseptTypeahead =
 
 
 type Msg
-    = BrukerVilRegistrereFagdokumentasjon
-    | FerdigMedFagdokumentasjon String
-    | BrukerVilRegistrereFagbrev
-    | TypeaheadMsg (Typeahead.Msg Konsept)
+    = TypeaheadMsg (Typeahead.Msg Konsept)
     | HentetTypeahead (Result Http.Error (List Konsept))
     | BrukerVilRegistrereKonsept
-    | BrukerVilRegistrereMesterbrev
-    | BrukerVilRegistrereAutorisasjon
     | BrukerVilRegistrereFagbrevBeskrivelse
     | OppdaterFagdokumentasjonBeskrivelse String
     | BrukerVilLagreIOppsummeringen
@@ -113,41 +108,6 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        BrukerVilRegistrereFagdokumentasjon ->
-            case model.aktivSamtale of
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        FerdigMedFagdokumentasjon _ ->
-            case model.aktivSamtale of
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerVilRegistrereFagbrev ->
-            ( initSamtaleTypeahead SvennebrevFagbrev
-                |> RegistrerKonsept SvennebrevFagbrev Nothing
-                |> nesteSamtaleSteg model (Melding.svar [ "Registrer Fagbrev/Svennebrev" ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
-        BrukerVilRegistrereMesterbrev ->
-            ( initSamtaleTypeahead Mesterbrev
-                |> RegistrerKonsept Mesterbrev Nothing
-                |> nesteSamtaleSteg model (Melding.svar [ "Registrer Mesterbrev/Svennebrev" ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
-        BrukerVilRegistrereAutorisasjon ->
-            ( initSamtaleTypeahead Autorisasjon
-                |> RegistrerKonsept Autorisasjon Nothing
-                |> nesteSamtaleSteg model (Melding.svar [ "Registrer en Autorisasjon" ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
         TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
                 RegistrerKonsept fagdokumentasjonType feilmelding typeaheadModel ->
