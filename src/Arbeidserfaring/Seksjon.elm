@@ -382,11 +382,7 @@ update msg (Model model) =
                             brukerVelgerYrke model yrke
 
                         Nothing ->
-                            ( RegistrerYrke (Just "Velg et yrke fra listen med forslag som kommer opp") typeaheadModel
-                                |> oppdaterSamtalesteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
+                            brukerVilRegistrereMenHarIkkeValgtYrke model typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -880,14 +876,19 @@ update msg (Model model) =
 updateSamtaleTypeahead : ModelInfo -> Maybe String -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
 updateSamtaleTypeahead model feilmelding msg typeaheadModel =
     let
-        ( nyTypeaheadModel, getSuggestionsStatus, proceedStatus ) =
+        ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
             Typeahead.update Yrke.label msg typeaheadModel
     in
-    case proceedStatus of
-        Typeahead.UserWantsToProceed yrke ->
-            brukerVelgerYrke model yrke
+    case submitStatus of
+        Typeahead.Submit ->
+            case Typeahead.selected typeaheadModel of
+                Just yrke ->
+                    brukerVelgerYrke model yrke
 
-        Typeahead.UserDoesNotWantToProceed ->
+                Nothing ->
+                    brukerVilRegistrereMenHarIkkeValgtYrke model nyTypeaheadModel
+
+        Typeahead.NoSubmit ->
             IkkeFerdig
                 ( nyTypeaheadModel
                     |> RegistrerYrke (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
@@ -1053,6 +1054,15 @@ brukerVelgerYrke info yrkesTypeahead =
         |> SpørOmBrukerVilEndreJobbtittel
         |> nesteSamtaleSteg info (Melding.svar [ Yrke.label yrkesTypeahead ])
     , lagtTilSpørsmålCmd info.debugStatus
+    )
+        |> IkkeFerdig
+
+
+brukerVilRegistrereMenHarIkkeValgtYrke : ModelInfo -> Typeahead.Model Yrke -> SamtaleStatus
+brukerVilRegistrereMenHarIkkeValgtYrke model typeaheadModel =
+    ( RegistrerYrke (Just "Velg et yrke fra listen med forslag som kommer opp") typeaheadModel
+        |> oppdaterSamtalesteg model
+    , Cmd.none
     )
         |> IkkeFerdig
 

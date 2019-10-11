@@ -1,5 +1,6 @@
 module Sertifikat.Skjema exposing
-    ( SertifikatSkjema
+    ( SertifikatFelt(..)
+    , SertifikatSkjema
     , Utløpsdato(..)
     , ValidertSertifikatSkjema
     , encode
@@ -17,6 +18,7 @@ module Sertifikat.Skjema exposing
     , oppdaterUtløperÅr
     , oppdaterUtsteder
     , sertifikatFeltValidert
+    , sertifikatString
     , tilUvalidertSkjema
     , toggleUtløperIkke
     , utløperIkke
@@ -48,8 +50,13 @@ type Utløpsdato
     | Oppgitt Måned År
 
 
+type SertifikatFelt
+    = SertifikatFraTypeahead SertifikatTypeahead
+    | Egendefinert String
+
+
 type alias UvalidertSkjemaInfo =
-    { sertifikatFelt : Maybe SertifikatTypeahead
+    { sertifikatFelt : SertifikatFelt
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : String
@@ -63,7 +70,7 @@ type alias UvalidertSkjemaInfo =
 
 
 type alias ValidertSkjemaInfo =
-    { sertifikatFelt : SertifikatTypeahead
+    { sertifikatFelt : SertifikatFelt
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : År
@@ -90,9 +97,19 @@ utsteder (UvalidertSkjema skjema) =
     skjema.utsteder
 
 
-sertifikatFeltValidert : ValidertSertifikatSkjema -> SertifikatTypeahead
+sertifikatFeltValidert : ValidertSertifikatSkjema -> SertifikatFelt
 sertifikatFeltValidert (ValidertSkjema validert) =
     validert.sertifikatFelt
+
+
+sertifikatString : ValidertSertifikatSkjema -> String
+sertifikatString (ValidertSkjema validert) =
+    case validert.sertifikatFelt of
+        SertifikatFraTypeahead sertifikatTypeahead ->
+            SertifikatTypeahead.label sertifikatTypeahead
+
+        Egendefinert inputValue ->
+            inputValue
 
 
 fullførtMåned : SertifikatSkjema -> Måned
@@ -139,7 +156,7 @@ id (ValidertSkjema validert) =
 --- OPPDATERING ---
 
 
-oppdaterSertifikat : SertifikatSkjema -> Maybe SertifikatTypeahead -> SertifikatSkjema
+oppdaterSertifikat : SertifikatSkjema -> SertifikatFelt -> SertifikatSkjema
 oppdaterSertifikat (UvalidertSkjema skjema) sertifikat =
     UvalidertSkjema { skjema | sertifikatFelt = sertifikat }
 
@@ -219,10 +236,10 @@ visAlleFeilmeldinger skjema =
 
 valider : SertifikatSkjema -> Maybe ValidertSertifikatSkjema
 valider (UvalidertSkjema uvalidert) =
-    Maybe.map3
-        (\sertifikatfelt utlopsdato fullføtÅr_ ->
+    Maybe.map2
+        (\utlopsdato fullføtÅr_ ->
             ValidertSkjema
-                { sertifikatFelt = sertifikatfelt
+                { sertifikatFelt = uvalidert.sertifikatFelt
                 , utsteder = uvalidert.utsteder
                 , fullførtMåned = uvalidert.fullførtMåned
                 , fullførtÅr = fullføtÅr_
@@ -230,7 +247,6 @@ valider (UvalidertSkjema uvalidert) =
                 , id = uvalidert.id
                 }
         )
-        uvalidert.sertifikatFelt
         (validerUtløpsdato uvalidert.utløperIkke uvalidert.utløperMåned uvalidert.utløperÅr)
         (Dato.stringTilÅr uvalidert.fullførtÅr)
 
@@ -249,7 +265,7 @@ validerUtløpsdato utløperIkke_ måned år =
 tilUvalidertSkjema : ValidertSertifikatSkjema -> SertifikatSkjema
 tilUvalidertSkjema (ValidertSkjema validert) =
     UvalidertSkjema
-        { sertifikatFelt = Just validert.sertifikatFelt
+        { sertifikatFelt = validert.sertifikatFelt
         , utsteder = validert.utsteder
         , fullførtMåned = validert.fullførtMåned
         , fullførtÅr = Dato.årTilString validert.fullførtÅr
@@ -283,13 +299,24 @@ encode (ValidertSkjema skjema) =
     [ [ ( "fradato", Dato.encodeMonthYear skjema.fullførtMåned skjema.fullførtÅr )
       , ( "tildato", encodeTilDato skjema.utløpsdato )
       , ( "utsteder", Json.Encode.string skjema.utsteder )
-      , ( "sertifikatnavn", (SertifikatTypeahead.label >> Json.Encode.string) skjema.sertifikatFelt )
-      , ( "konseptId", (SertifikatTypeahead.konseptId >> Json.Encode.int) skjema.sertifikatFelt )
       , ( "sertifikatnavnFritekst", Json.Encode.null )
       ]
+    , encodeSertifikatFelt skjema.sertifikatFelt
     ]
         |> List.concat
         |> Json.Encode.object
+
+
+encodeSertifikatFelt : SertifikatFelt -> List ( String, Json.Encode.Value )
+encodeSertifikatFelt sertifikatFelt =
+    case sertifikatFelt of
+        SertifikatFraTypeahead sertifikatTypeahead ->
+            [ ( "sertifikatnavn", (SertifikatTypeahead.label >> Json.Encode.string) sertifikatTypeahead )
+            , ( "konseptId", (SertifikatTypeahead.konseptId >> Json.Encode.int) sertifikatTypeahead )
+            ]
+
+        Egendefinert string ->
+            [ ( "sertifikatnavn", Json.Encode.string string ) ]
 
 
 encodeTilDato : Utløpsdato -> Json.Encode.Value

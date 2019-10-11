@@ -2,7 +2,7 @@ module Typeahead.Typeahead exposing
     ( GetSuggestionStatus(..)
     , Model
     , Msg
-    , ProceedStatus(..)
+    , SubmitStatus(..)
     , TypeaheadInitInfo
     , TypeaheadInitWithSelectedInfo
     , init
@@ -63,20 +63,21 @@ type GetSuggestionStatus
     | GetSuggestionsForInput String
 
 
-type ProceedStatus a
-    = UserWantsToProceed a
-    | UserDoesNotWantToProceed
+type SubmitStatus
+    = Submit
+    | NoSubmit
 
 
-update : (a -> String) -> Msg a -> Model a -> ( Model a, GetSuggestionStatus, ProceedStatus a )
+update : (a -> String) -> Msg a -> Model a -> ( Model a, GetSuggestionStatus, SubmitStatus )
 update toString msg (Model model) =
     case msg of
         BrukerOppdatererInput string ->
             ( model.typeaheadState
                 |> TypeaheadState.updateValue string
+                |> TypeaheadState.showSuggestions
                 |> updateTypeaheadState toString model
             , GetSuggestionsForInput string
-            , UserDoesNotWantToProceed
+            , NoSubmit
             )
 
         BrukerTrykkerTypeaheadTast operation ->
@@ -86,7 +87,7 @@ update toString msg (Model model) =
                         |> TypeaheadState.arrowUp
                         |> updateTypeaheadState toString model
                     , DoNothing
-                    , UserDoesNotWantToProceed
+                    , NoSubmit
                     )
 
                 Typeahead.ArrowDown ->
@@ -94,28 +95,28 @@ update toString msg (Model model) =
                         |> TypeaheadState.arrowDown
                         |> updateTypeaheadState toString model
                     , DoNothing
-                    , UserDoesNotWantToProceed
+                    , NoSubmit
                     )
 
                 Typeahead.Enter ->
-                    case TypeaheadState.getActive model.typeaheadState of
+                    case TypeaheadState.active model.typeaheadState of
                         Just active ->
-                            updateAfterEnter toString active model
+                            updateAfterSelect toString active model
 
                         Nothing ->
-                            case model.selected of
-                                Just selected_ ->
-                                    updateAfterEnter toString selected_ model
-
-                                Nothing ->
-                                    ( Model model, DoNothing, UserDoesNotWantToProceed )
+                            ( model.typeaheadState
+                                |> TypeaheadState.hideSuggestions
+                                |> updateTypeaheadState toString model
+                            , DoNothing
+                            , Submit
+                            )
 
                 Typeahead.MouseLeaveSuggestions ->
                     ( model.typeaheadState
                         |> TypeaheadState.removeActive
                         |> updateTypeaheadState toString model
                     , DoNothing
-                    , UserDoesNotWantToProceed
+                    , NoSubmit
                     )
 
         BrukerHovrerOverTypeaheadSuggestion active ->
@@ -123,7 +124,7 @@ update toString msg (Model model) =
                 |> TypeaheadState.updateActive active
                 |> updateTypeaheadState toString model
             , DoNothing
-            , UserDoesNotWantToProceed
+            , NoSubmit
             )
 
         BrukerVelgerElement selected_ ->
@@ -134,7 +135,7 @@ update toString msg (Model model) =
                 |> TypeaheadState.showSuggestions
                 |> updateTypeaheadState toString model
             , DoNothing
-            , UserDoesNotWantToProceed
+            , NoSubmit
             )
 
         TypeaheadMistetFokus ->
@@ -142,7 +143,7 @@ update toString msg (Model model) =
                 |> TypeaheadState.hideSuggestions
                 |> updateTypeaheadState toString model
             , DoNothing
-            , UserDoesNotWantToProceed
+            , NoSubmit
             )
 
 
@@ -165,20 +166,7 @@ updateTypeaheadState toString model typeaheadState =
         }
 
 
-updateAfterEnter : (a -> String) -> a -> ModelInfo a -> ( Model a, GetSuggestionStatus, ProceedStatus a )
-updateAfterEnter toString selected_ model =
-    let
-        ( newModel, getSuggestionStatus, proceedStatus ) =
-            updateAfterSelect toString selected_ model
-    in
-    if toString selected_ == TypeaheadState.value model.typeaheadState && not (TypeaheadState.suggestionsAreShown model.typeaheadState) then
-        ( newModel, getSuggestionStatus, UserWantsToProceed selected_ )
-
-    else
-        ( newModel, getSuggestionStatus, proceedStatus )
-
-
-updateAfterSelect : (a -> String) -> a -> ModelInfo a -> ( Model a, GetSuggestionStatus, ProceedStatus a )
+updateAfterSelect : (a -> String) -> a -> ModelInfo a -> ( Model a, GetSuggestionStatus, SubmitStatus )
 updateAfterSelect toString selected_ model =
     ( Model
         { model
@@ -191,7 +179,7 @@ updateAfterSelect toString selected_ model =
     , selected_
         |> toString
         |> GetSuggestionsForInput
-    , UserDoesNotWantToProceed
+    , NoSubmit
     )
 
 
