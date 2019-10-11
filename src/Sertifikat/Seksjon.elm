@@ -18,7 +18,7 @@ import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
-import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
+import FrontendModuler.Knapp as Knapp
 import FrontendModuler.ManedKnapper as MånedKnapper
 import Html exposing (..)
 import Html.Attributes exposing (..)
