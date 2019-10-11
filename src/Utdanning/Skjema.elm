@@ -1,4 +1,4 @@
-module Skjema.Utdanning exposing
+module Utdanning.Skjema exposing
     ( Felt(..)
     , UtdanningSkjema
     , ValidertUtdanningSkjema

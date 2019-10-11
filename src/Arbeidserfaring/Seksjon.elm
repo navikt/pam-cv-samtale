@@ -1,4 +1,4 @@
-module Seksjon.Arbeidserfaring exposing
+module Arbeidserfaring.Seksjon exposing
     ( Model
     , Msg
     , SamtaleStatus(..)
@@ -9,6 +9,7 @@ module Seksjon.Arbeidserfaring exposing
     )
 
 import Api
+import Arbeidserfaring.Skjema as Skjema exposing (ArbeidserfaringSkjema, Felt(..), ValidertArbeidserfaringSkjema)
 import Browser.Dom as Dom
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
 import Dato exposing (Måned(..), TilDato(..), År)
@@ -28,7 +29,6 @@ import Melding exposing (Melding)
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Arbeidserfaring as ArbeidserfaringSkjema exposing (ArbeidserfaringSkjema, Felt(..), ValidertArbeidserfaringSkjema)
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
 import Yrke exposing (Yrke)
@@ -238,7 +238,7 @@ fraDatoInfoTilTilDatoInfo nåværendeInfo =
 
 nåværendeInfoTilSkjema : NåværendeInfo -> ValidertArbeidserfaringSkjema
 nåværendeInfoTilSkjema nåværendeInfo =
-    ArbeidserfaringSkjema.initValidertSkjema
+    Skjema.initValidertSkjema
         { yrke = nåværendeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
         , jobbTittel = nåværendeInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel
         , bedriftNavn = nåværendeInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn
@@ -253,7 +253,7 @@ nåværendeInfoTilSkjema nåværendeInfo =
 
 tilDatoTilSkjema : TilDatoInfo -> År -> ValidertArbeidserfaringSkjema
 tilDatoTilSkjema tilDatoInfo år =
-    ArbeidserfaringSkjema.initValidertSkjema
+    Skjema.initValidertSkjema
         { yrke = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo
         , jobbTittel = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.jobbtittel
         , bedriftNavn = tilDatoInfo.tidligereInfo.tidligereInfo.tidligereInfo.tidligereInfo.bedriftNavn
@@ -285,7 +285,7 @@ update msg (Model model) =
 
         BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring knappeTekst ->
             ( arbeidserfaring
-                |> ArbeidserfaringSkjema.fraArbeidserfaring
+                |> Skjema.fraArbeidserfaring
                 |> RedigerOppsummering (initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring)
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
             , Cmd.batch
@@ -323,7 +323,7 @@ update msg (Model model) =
                     IkkeFerdig
                         ( nyTypeaheadModel
                             |> Typeahead.selected
-                            |> ArbeidserfaringSkjema.oppdaterYrke skjema
+                            |> Skjema.oppdaterYrke skjema
                             |> RedigerOppsummering nyTypeaheadModel
                             |> oppdaterSamtalesteg model
                         , case getSuggestionsStatus of
@@ -713,13 +713,13 @@ update msg (Model model) =
             case model.aktivSamtale of
                 VisOppsummering skjema ->
                     ( skjema
-                        |> ArbeidserfaringSkjema.tilUvalidertSkjema
-                        |> RedigerOppsummering (initSkjemaTypeaheadFraYrke (ArbeidserfaringSkjema.yrke skjema))
+                        |> Skjema.tilUvalidertSkjema
+                        |> RedigerOppsummering (initSkjemaTypeaheadFraYrke (Skjema.yrke skjema))
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
                     , Cmd.batch
                         [ lagtTilSpørsmålCmd model.debugStatus
                         , skjema
-                            |> ArbeidserfaringSkjema.yrke
+                            |> Skjema.yrke
                             |> Yrke.label
                             |> Api.getYrkeTypeahead HentetYrkeTypeahead
                         ]
@@ -765,7 +765,7 @@ update msg (Model model) =
         BrukerVilLagreArbeidserfaringSkjema ->
             case model.aktivSamtale of
                 RedigerOppsummering typeaheadModel skjema ->
-                    case ArbeidserfaringSkjema.valider skjema of
+                    case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
                                 |> LagrerArbeidserfaring
@@ -779,7 +779,7 @@ update msg (Model model) =
 
                         Nothing ->
                             ( skjema
-                                |> ArbeidserfaringSkjema.gjørAlleFeilmeldingerSynlig
+                                |> Skjema.gjørAlleFeilmeldingerSynlig
                                 |> RedigerOppsummering typeaheadModel
                                 |> oppdaterSamtalesteg model
                             , Cmd.none
@@ -803,7 +803,7 @@ update msg (Model model) =
                             ( LagringFeilet error arbeidserfaringSkjema
                                 |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt med lagringen" ])
                             , arbeidserfaringSkjema
-                                |> ArbeidserfaringSkjema.encode
+                                |> Skjema.encode
                                 |> Api.logErrorWithRequestBody ErrorLogget "Lagre arbeidserfaring" error
                             )
                                 |> IkkeFerdig
@@ -950,26 +950,26 @@ oppdaterSkjema : SkjemaEndring -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
 oppdaterSkjema endring skjema =
     case endring of
         Tekst felt string ->
-            ArbeidserfaringSkjema.oppdaterStringFelt felt string skjema
+            Skjema.oppdaterStringFelt felt string skjema
 
         NåværendeToggled ->
-            ArbeidserfaringSkjema.toggleNåværende skjema
+            Skjema.toggleNåværende skjema
 
         FraMåned månedString ->
             månedString
                 |> Dato.stringTilMåned
-                |> ArbeidserfaringSkjema.oppdaterFraMåned skjema
+                |> Skjema.oppdaterFraMåned skjema
 
         TilMåned månedString ->
             månedString
                 |> Dato.stringTilMåned
-                |> ArbeidserfaringSkjema.oppdaterTilMåned skjema
+                |> Skjema.oppdaterTilMåned skjema
 
         FraÅrBlurred ->
-            ArbeidserfaringSkjema.gjørFeilmeldingFraÅrSynlig skjema
+            Skjema.gjørFeilmeldingFraÅrSynlig skjema
 
         TilÅrBlurred ->
-            ArbeidserfaringSkjema.gjørFeilmeldingTilÅrSynlig skjema
+            Skjema.gjørFeilmeldingTilÅrSynlig skjema
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -1190,16 +1190,16 @@ validertSkjemaTilSetninger : ValidertArbeidserfaringSkjema -> List String
 validertSkjemaTilSetninger validertSkjema =
     let
         skjema =
-            ArbeidserfaringSkjema.tilUvalidertSkjema validertSkjema
+            Skjema.tilUvalidertSkjema validertSkjema
     in
     [ datoRad validertSkjema
     , Melding.tomLinje
     , "Stilling/Yrke: " ++ hentStilling validertSkjema
-    , "Bedriftnavn: " ++ ArbeidserfaringSkjema.innholdTekstFelt Bedriftsnavn skjema
-    , "Sted: " ++ ArbeidserfaringSkjema.innholdTekstFelt Sted skjema
+    , "Bedriftnavn: " ++ Skjema.innholdTekstFelt Bedriftsnavn skjema
+    , "Sted: " ++ Skjema.innholdTekstFelt Sted skjema
     , Melding.tomLinje
     , "Arbeidsoppgaver: "
-    , ArbeidserfaringSkjema.innholdTekstFelt Arbeidsoppgaver skjema
+    , Skjema.innholdTekstFelt Arbeidsoppgaver skjema
     ]
 
 
@@ -1207,23 +1207,23 @@ hentStilling : ValidertArbeidserfaringSkjema -> String
 hentStilling validertSkjema =
     let
         skjema =
-            ArbeidserfaringSkjema.tilUvalidertSkjema validertSkjema
+            Skjema.tilUvalidertSkjema validertSkjema
     in
-    if ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema == "" then
+    if Skjema.innholdTekstFelt Jobbtittel skjema == "" then
         validertSkjema
-            |> ArbeidserfaringSkjema.yrke
+            |> Skjema.yrke
             |> Yrke.label
 
     else
-        ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema
+        Skjema.innholdTekstFelt Jobbtittel skjema
 
 
 datoRad : ValidertArbeidserfaringSkjema -> String
 datoRad skjema =
     Dato.periodeTilString
-        ((ArbeidserfaringSkjema.tilUvalidertSkjema >> ArbeidserfaringSkjema.fraMåned) skjema)
-        (ArbeidserfaringSkjema.fraÅrValidert skjema)
-        (ArbeidserfaringSkjema.tilDatoValidert skjema)
+        ((Skjema.tilUvalidertSkjema >> Skjema.fraMåned) skjema)
+        (Skjema.fraÅrValidert skjema)
+        (Skjema.tilDatoValidert skjema)
 
 
 
@@ -1363,48 +1363,48 @@ viewBrukerInput (Model model) =
 
                 RedigerOppsummering typeaheadModel skjema ->
                     Containers.skjema { lagreMsg = BrukerVilLagreArbeidserfaringSkjema, lagreKnappTekst = "Lagre endringer" }
-                        [ Typeahead.view Yrke.label (ArbeidserfaringSkjema.feilmeldingYrke skjema) typeaheadModel
+                        [ Typeahead.view Yrke.label (Skjema.feilmeldingYrke skjema) typeaheadModel
                             |> Html.map TypeaheadMsg
-                        , if ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel skjema == "" then
+                        , if Skjema.innholdTekstFelt Jobbtittel skjema == "" then
                             text ""
 
                           else
                             skjema
-                                |> ArbeidserfaringSkjema.innholdTekstFelt Jobbtittel
+                                |> Skjema.innholdTekstFelt Jobbtittel
                                 |> Input.input { label = "Jobbtittel", msg = Tekst Jobbtittel >> SkjemaEndret }
                                 |> Input.toHtml
                         , skjema
-                            |> ArbeidserfaringSkjema.innholdTekstFelt Bedriftsnavn
+                            |> Skjema.innholdTekstFelt Bedriftsnavn
                             |> Input.input { label = "Bedriftens navn", msg = Tekst Bedriftsnavn >> SkjemaEndret }
                             |> Input.toHtml
                         , skjema
-                            |> ArbeidserfaringSkjema.innholdTekstFelt Sted
+                            |> Skjema.innholdTekstFelt Sted
                             |> Input.input { label = "By, sted eller land", msg = Tekst Sted >> SkjemaEndret }
                             |> Input.toHtml
                         , skjema
-                            |> ArbeidserfaringSkjema.innholdTekstFelt Arbeidsoppgaver
+                            |> Skjema.innholdTekstFelt Arbeidsoppgaver
                             |> Textarea.textarea { label = "Arbeidsoppgaver", msg = Tekst Arbeidsoppgaver >> SkjemaEndret }
                             |> Textarea.toHtml
                         , div [ class "DatoInput-fra-til-rad" ]
                             [ DatoInput.datoInput
                                 { label = "Fra"
                                 , onMånedChange = FraMåned >> SkjemaEndret
-                                , måned = ArbeidserfaringSkjema.fraMåned skjema
+                                , måned = Skjema.fraMåned skjema
                                 , onÅrChange = Tekst FraÅr >> SkjemaEndret
-                                , år = ArbeidserfaringSkjema.innholdTekstFelt FraÅr skjema
+                                , år = Skjema.innholdTekstFelt FraÅr skjema
                                 }
-                                |> DatoInput.withMaybeFeilmeldingÅr (ArbeidserfaringSkjema.feilmeldingFraÅr skjema)
+                                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
                                 |> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
                                 |> DatoInput.toHtml
-                            , if not (ArbeidserfaringSkjema.nåværende skjema) then
+                            , if not (Skjema.nåværende skjema) then
                                 DatoInput.datoInput
                                     { label = "Til"
                                     , onMånedChange = TilMåned >> SkjemaEndret
-                                    , måned = ArbeidserfaringSkjema.tilMåned skjema
+                                    , måned = Skjema.tilMåned skjema
                                     , onÅrChange = Tekst TilÅr >> SkjemaEndret
-                                    , år = ArbeidserfaringSkjema.innholdTekstFelt TilÅr skjema
+                                    , år = Skjema.innholdTekstFelt TilÅr skjema
                                     }
-                                    |> DatoInput.withMaybeFeilmeldingÅr (ArbeidserfaringSkjema.feilmeldingTilÅr skjema)
+                                    |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
                                     |> DatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
                                     |> DatoInput.toHtml
 
@@ -1412,7 +1412,7 @@ viewBrukerInput (Model model) =
                                 text ""
                             ]
                         , skjema
-                            |> ArbeidserfaringSkjema.nåværende
+                            |> Skjema.nåværende
                             |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
                             |> Checkbox.toHtml
                         ]
@@ -1502,9 +1502,9 @@ lagArbeidserfaringKnapp arbeidserfaring =
         |> Knapp.toHtml
 
 
-postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> ArbeidserfaringSkjema.ValidertArbeidserfaringSkjema -> Cmd msg
+postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ValidertArbeidserfaringSkjema -> Cmd msg
 postEllerPutArbeidserfaring msgConstructor skjema =
-    case ArbeidserfaringSkjema.id skjema of
+    case Skjema.id skjema of
         Just id ->
             Api.putArbeidserfaring msgConstructor skjema id
 

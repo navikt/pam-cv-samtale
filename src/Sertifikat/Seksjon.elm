@@ -1,4 +1,4 @@
-module Seksjon.Sertifikat exposing
+module Sertifikat.Seksjon exposing
     ( Model
     , Msg
     , SamtaleStatus(..)
@@ -27,8 +27,8 @@ import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
+import Sertifikat.Skjema as Skjema exposing (SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import SertifikatTypeahead exposing (SertifikatTypeahead)
-import Skjema.Sertifikat as SertifikatSkjema exposing (SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
 
@@ -145,7 +145,7 @@ validertFullførtDatoTilUtløpsdato input =
 
 validertFullførtDatoTilSkjema : ValidertFullførtDatoInfo -> ValidertSertifikatSkjema
 validertFullførtDatoTilSkjema input =
-    SertifikatSkjema.initValidertSkjema
+    Skjema.initValidertSkjema
         { sertifikatFelt = input.sertifikat
         , utsteder = input.utsteder
         , fullførtMåned = input.fullførtMåned
@@ -157,7 +157,7 @@ validertFullførtDatoTilSkjema input =
 
 utløpsdatoTilSkjema : UtløpsdatoInfo -> År -> ValidertSertifikatSkjema
 utløpsdatoTilSkjema info år =
-    SertifikatSkjema.initValidertSkjema
+    Skjema.initValidertSkjema
         { sertifikatFelt = info.forrigeFeltInfo.sertifikat
         , utsteder = info.forrigeFeltInfo.utsteder
         , fullførtMåned = info.forrigeFeltInfo.fullførtMåned
@@ -215,7 +215,7 @@ update msg (Model model) =
                     IkkeFerdig
                         ( nyTypeaheadModel
                             |> Typeahead.selected
-                            |> SertifikatSkjema.oppdaterSertifikat skjema
+                            |> Skjema.oppdaterSertifikat skjema
                             |> EndreOpplysninger nyTypeaheadModel
                             |> oppdaterSamtaleSteg model
                         , case getSuggestionsStatus of
@@ -494,7 +494,7 @@ update msg (Model model) =
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
                 EndreOpplysninger typeaheadModel skjema ->
-                    case SertifikatSkjema.valider skjema of
+                    case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
                                 |> VisOppsummeringEtterEndring
@@ -505,7 +505,7 @@ update msg (Model model) =
 
                         Nothing ->
                             ( skjema
-                                |> SertifikatSkjema.visAlleFeilmeldinger
+                                |> Skjema.visAlleFeilmeldinger
                                 |> EndreOpplysninger typeaheadModel
                                 |> oppdaterSamtalesteg model
                             , Cmd.none
@@ -549,7 +549,7 @@ update msg (Model model) =
                             ( LagringFeilet error sertifikatSkjema
                                 |> nesteSamtaleStegUtenMelding model
                             , sertifikatSkjema
-                                |> SertifikatSkjema.encode
+                                |> Skjema.encode
                                 |> Api.logErrorWithRequestBody ErrorLogget "Lagre sertifikat" error
                             )
                                 |> IkkeFerdig
@@ -624,7 +624,7 @@ initSamtaleTypeahead =
 initSkjemaTypeahead : ValidertSertifikatSkjema -> Typeahead.Model SertifikatTypeahead
 initSkjemaTypeahead skjema =
     Typeahead.initWithSelected
-        { selected = SertifikatSkjema.sertifikatFeltValidert skjema
+        { selected = Skjema.sertifikatFeltValidert skjema
         , label = "Sertifisering eller sertifikat"
         , id = inputIdTilString SertifikatTypeaheadId
         , toString = SertifikatTypeahead.label
@@ -672,32 +672,32 @@ oppdaterSkjema : SkjemaEndring -> SertifikatSkjema -> SertifikatSkjema
 oppdaterSkjema endring skjema =
     case endring of
         Utsteder string ->
-            SertifikatSkjema.oppdaterUtsteder skjema string
+            Skjema.oppdaterUtsteder skjema string
 
         FullførtMåned månedString ->
             månedString
                 |> Dato.stringTilMåned
-                |> SertifikatSkjema.oppdaterFullførtMåned skjema
+                |> Skjema.oppdaterFullførtMåned skjema
 
         FullførtÅr string ->
-            SertifikatSkjema.oppdaterFullførtÅr skjema string
+            Skjema.oppdaterFullførtÅr skjema string
 
         UtløperMåned månedString ->
             månedString
                 |> Dato.stringTilMåned
-                |> SertifikatSkjema.oppdaterUtløperMåned skjema
+                |> Skjema.oppdaterUtløperMåned skjema
 
         UtløperÅr string ->
-            SertifikatSkjema.oppdaterUtløperÅr skjema string
+            Skjema.oppdaterUtløperÅr skjema string
 
         UtløperIkkeToggled ->
-            SertifikatSkjema.toggleUtløperIkke skjema
+            Skjema.toggleUtløperIkke skjema
 
         FullførtÅrMistetFokus ->
-            SertifikatSkjema.visFeilmeldingFullførtÅr skjema
+            Skjema.visFeilmeldingFullførtÅr skjema
 
         UtløperÅrMistetFokus ->
-            SertifikatSkjema.visFeilmeldingUtløperÅr skjema
+            Skjema.visFeilmeldingUtløperÅr skjema
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -746,13 +746,13 @@ brukerVelgerSertifikatFelt info sertifikatTypeahead =
 updateEtterVilEndreSkjema : ModelInfo -> ValidertSertifikatSkjema -> SamtaleStatus
 updateEtterVilEndreSkjema model skjema =
     ( skjema
-        |> SertifikatSkjema.tilUvalidertSkjema
+        |> Skjema.tilUvalidertSkjema
         |> EndreOpplysninger (initSkjemaTypeahead skjema)
         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
         , skjema
-            |> SertifikatSkjema.sertifikatFeltValidert
+            |> Skjema.sertifikatFeltValidert
             |> SertifikatTypeahead.label
             |> Api.getSertifikatTypeahead HentetTypeahead
         ]
@@ -890,12 +890,12 @@ validertSkjemaTilSetninger : ValidertSertifikatSkjema -> List String
 validertSkjemaTilSetninger validertSkjema =
     let
         skjema =
-            SertifikatSkjema.tilUvalidertSkjema validertSkjema
+            Skjema.tilUvalidertSkjema validertSkjema
     in
-    [ "Sertifisering/sertifikat: " ++ (validertSkjema |> SertifikatSkjema.sertifikatFeltValidert |> SertifikatTypeahead.label)
-    , "Utsteder: " ++ SertifikatSkjema.utsteder skjema
-    , "Fullført: " ++ Dato.datoTilString (SertifikatSkjema.fullførtMåned skjema) (SertifikatSkjema.fullførtÅrValidert validertSkjema)
-    , "Utløper: " ++ utløpsdatoTilString (SertifikatSkjema.utløpsdatoValidert validertSkjema)
+    [ "Sertifisering/sertifikat: " ++ (validertSkjema |> Skjema.sertifikatFeltValidert |> SertifikatTypeahead.label)
+    , "Utsteder: " ++ Skjema.utsteder skjema
+    , "Fullført: " ++ Dato.datoTilString (Skjema.fullførtMåned skjema) (Skjema.fullførtÅrValidert validertSkjema)
+    , "Utløper: " ++ utløpsdatoTilString (Skjema.utløpsdatoValidert validertSkjema)
     ]
 
 
@@ -1042,29 +1042,29 @@ viewBrukerInput (Model model) =
                         [ Typeahead.view SertifikatTypeahead.label Nothing typeaheadModel
                             |> Html.map TypeaheadMsg
                         , skjema
-                            |> SertifikatSkjema.utsteder
+                            |> Skjema.utsteder
                             |> Input.input { label = "Utsteder", msg = Utsteder >> SkjemaEndret }
                             |> Input.toHtml
                         , div [ class "DatoInput-fra-til-rad" ]
                             [ DatoInput.datoInput
                                 { label = "Fullført"
                                 , onMånedChange = FullførtMåned >> SkjemaEndret
-                                , måned = SertifikatSkjema.fullførtMåned skjema
+                                , måned = Skjema.fullførtMåned skjema
                                 , onÅrChange = FullførtÅr >> SkjemaEndret
-                                , år = SertifikatSkjema.fullførtÅr skjema
+                                , år = Skjema.fullførtÅr skjema
                                 }
-                                |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingFullførtÅr skjema)
+                                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
                                 |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
                                 |> DatoInput.toHtml
-                            , if not (SertifikatSkjema.utløperIkke skjema) then
+                            , if not (Skjema.utløperIkke skjema) then
                                 DatoInput.datoInput
                                     { label = "Utløper"
                                     , onMånedChange = UtløperMåned >> SkjemaEndret
-                                    , måned = SertifikatSkjema.utløperMåned skjema
+                                    , måned = Skjema.utløperMåned skjema
                                     , onÅrChange = UtløperÅr >> SkjemaEndret
-                                    , år = SertifikatSkjema.utløperÅr skjema
+                                    , år = Skjema.utløperÅr skjema
                                     }
-                                    |> DatoInput.withMaybeFeilmeldingÅr (SertifikatSkjema.feilmeldingUtløperÅr skjema)
+                                    |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
                                     |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
                                     |> DatoInput.toHtml
 
@@ -1072,7 +1072,7 @@ viewBrukerInput (Model model) =
                                 text ""
                             ]
                         , skjema
-                            |> SertifikatSkjema.utløperIkke
+                            |> Skjema.utløperIkke
                             |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
                             |> Checkbox.toHtml
                         ]
@@ -1114,9 +1114,9 @@ maybeHvisTrue bool maybe =
         Nothing
 
 
-postEllerPutSertifikat : (Result Error (List Sertifikat) -> msg) -> SertifikatSkjema.ValidertSertifikatSkjema -> Cmd msg
+postEllerPutSertifikat : (Result Error (List Sertifikat) -> msg) -> Skjema.ValidertSertifikatSkjema -> Cmd msg
 postEllerPutSertifikat msgConstructor skjema =
-    case SertifikatSkjema.id skjema of
+    case Skjema.id skjema of
         Just id ->
             Api.putSertifikat msgConstructor skjema id
 

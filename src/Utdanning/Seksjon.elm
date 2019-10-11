@@ -1,4 +1,4 @@
-module Seksjon.Utdanning exposing
+module Utdanning.Seksjon exposing
     ( Model
     , Msg
     , SamtaleStatus(..)
@@ -28,8 +28,8 @@ import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Utdanning as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
 import Task
+import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
 
 
 

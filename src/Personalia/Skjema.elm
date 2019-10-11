@@ -1,4 +1,4 @@
-module Skjema.Personalia exposing
+module Personalia.Skjema exposing
     ( Felt(..)
     , PersonaliaSkjema
     , ValidertPersonaliaSkjema

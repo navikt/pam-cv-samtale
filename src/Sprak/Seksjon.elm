@@ -1,4 +1,4 @@
-module Seksjon.Sprak exposing
+module Sprak.Seksjon exposing
     ( Model
     , Msg
     , SamtaleStatus(..)
@@ -24,7 +24,7 @@ import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Sprak as SpråkSkjema exposing (Ferdighet(..), SpråkSkjema)
+import Sprak.Skjema as Skjema exposing (Ferdighet(..), SpråkSkjema)
 import SpråkKode exposing (SpråkKode)
 import String.Extra as String
 import Task
@@ -115,9 +115,9 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         NorskErFørstespråk ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerNorsk SpråkSkjema.norskFørstespråk)
+            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerNorsk Skjema.norskFørstespråk)
             , Cmd.batch
-                [ leggTilSpråkAPI SpråkSkjema.norskFørstespråk
+                [ leggTilSpråkAPI Skjema.norskFørstespråk
                 , lagtTilSpørsmålCmd model.debugStatus
                 ]
             )
@@ -156,7 +156,7 @@ update msg (Model model) =
                 LeggTilSkriftlig språkMedMuntlig ->
                     let
                         skjema =
-                            SpråkSkjema.init
+                            Skjema.init
                                 { språk = språkMedMuntlig.språk
                                 , muntlig = språkMedMuntlig.muntlig
                                 , skriftlig = skriftligNivå
@@ -175,7 +175,7 @@ update msg (Model model) =
                 LeggTilNorskSkriftlig muntligNivå ->
                     let
                         skjema =
-                            SpråkSkjema.init
+                            Skjema.init
                                 { språk = SpråkKode.norsk
                                 , muntlig = muntligNivå
                                 , skriftlig = skriftligNivå
@@ -281,7 +281,7 @@ update msg (Model model) =
                             ( nesteSamtaleStegUtenMelding model (LagreNorskFeilet skjema error)
                             , Cmd.batch
                                 [ lagtTilSpørsmålCmd model.debugStatus
-                                , logFeilmeldingMedRequestBody error "Lagre språk" (SpråkSkjema.encode skjema)
+                                , logFeilmeldingMedRequestBody error "Lagre språk" (Skjema.encode skjema)
                                 ]
                             )
                                 |> IkkeFerdig
@@ -290,7 +290,7 @@ update msg (Model model) =
                             ( nesteSamtaleStegUtenMelding model (LagringFeilet skjema error)
                             , Cmd.batch
                                 [ lagtTilSpørsmålCmd model.debugStatus
-                                , logFeilmeldingMedRequestBody error "Lagre språk" (SpråkSkjema.encode skjema)
+                                , logFeilmeldingMedRequestBody error "Lagre språk" (Skjema.encode skjema)
                                 ]
                             )
                                 |> IkkeFerdig
@@ -549,7 +549,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
             []
 
         LagringFeilet skjema _ ->
-            [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre " ++ String.toLower (SpråkSkjema.språkNavn skjema) ++ ".", "Vil du prøve på nytt?" ] ]
+            [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre " ++ String.toLower (Skjema.språkNavn skjema) ++ ".", "Vil du prøve på nytt?" ] ]
 
         LeggTilFlereSpråk ->
             [ Melding.spørsmål

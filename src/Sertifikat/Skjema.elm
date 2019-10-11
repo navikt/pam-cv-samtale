@@ -1,4 +1,4 @@
-module Skjema.Sertifikat exposing
+module Sertifikat.Skjema exposing
     ( SertifikatSkjema
     , Utløpsdato(..)
     , ValidertSertifikatSkjema

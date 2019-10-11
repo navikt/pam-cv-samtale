@@ -1,4 +1,4 @@
-module Seksjon.Fagdokumentasjon exposing
+module Fagdokumentasjon.Seksjon exposing
     ( Model
     , Msg
     , SamtaleStatus(..)
@@ -14,6 +14,7 @@ import Api
 import Browser.Dom as Dom
 import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
+import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
@@ -25,7 +26,6 @@ import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Skjema.Fagdokumentasjon as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
 

@@ -1,4 +1,4 @@
-module Skjema.Fagdokumentasjon exposing
+module Fagdokumentasjon.Skjema exposing
     ( FagdokumentasjonSkjema
     , ValidertFagdokumentasjonSkjema
     , beskrivelse

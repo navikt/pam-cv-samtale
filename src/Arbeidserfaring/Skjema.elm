@@ -1,4 +1,4 @@
-module Skjema.Arbeidserfaring exposing
+module Arbeidserfaring.Skjema exposing
     ( ArbeidserfaringSkjema
     , Felt(..)
     , SkjemaInfo

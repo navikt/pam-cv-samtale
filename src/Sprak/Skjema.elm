@@ -1,4 +1,4 @@
-module Skjema.Sprak exposing
+module Sprak.Skjema exposing
     ( Ferdighet(..)
     , SpråkSkjema
     , SpråkSkjemaInfo
