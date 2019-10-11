@@ -17,7 +17,7 @@ import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onInput)
+import Html.Events exposing (onBlur, onInput)
 import Http
 import Json.Encode
 import Melding exposing (Melding(..))
@@ -72,10 +72,10 @@ type Msg
     = OriginalPersonaliaBekreftet
     | BrukerVilEndreOriginalPersonalia
     | PersonaliaSkjemaEndret Skjema.Felt String
+    | PersonaliaSkjemaFeltMistetFokus Skjema.Felt
     | PoststedHentet String (Result Http.Error Poststed)
     | PoststedfeltEndretSelvOmDetErDisabled String
-    | PersonaliaskjemaLagreknappTrykket ValidertPersonaliaSkjema
-    | PersonaliaskjemaLagreknappTrykketSelvOmDenErDisabled
+    | PersonaliaskjemaLagreknappTrykket
     | PersonaliaOppdatert (Result Http.Error Personalia)
     | ViewportSatt (Result Dom.Error ())
     | StartÅSkrive
@@ -134,6 +134,21 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
+        PersonaliaSkjemaFeltMistetFokus felt ->
+            case model.aktivSamtale of
+                EndreOriginal skjema ->
+                    ( felt
+                        |> Skjema.gjørFeilmeldingSynligForFelt skjema
+                        |> EndreOriginal
+                        |> oppdaterSamtaleSteg model
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
         PoststedHentet postnummer result ->
             case result of
                 Ok poststed ->
@@ -167,31 +182,39 @@ update msg (Model model) =
         PoststedfeltEndretSelvOmDetErDisabled _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        PersonaliaskjemaLagreknappTrykket validertSkjema ->
+        PersonaliaskjemaLagreknappTrykket ->
             case model.aktivSamtale of
                 EndreOriginal skjema ->
-                    ( skjema
-                        |> LagrerEndring
-                        |> nesteSamtaleSteg model
-                            (skjema
-                                |> personaliaSkjemaOppsummering
-                                |> Melding.svar
+                    case Skjema.validerSkjema skjema of
+                        Just validertSkjema ->
+                            ( skjema
+                                |> LagrerEndring
+                                |> nesteSamtaleSteg model
+                                    (skjema
+                                        |> personaliaSkjemaOppsummering
+                                        |> Melding.svar
+                                    )
+                            , Cmd.batch
+                                [ model.personalia
+                                    |> Personalia.id
+                                    |> Api.putPersonalia PersonaliaOppdatert validertSkjema
+                                , lagtTilSpørsmålCmd model.debugStatus
+                                ]
                             )
-                    , Cmd.batch
-                        [ model.personalia
-                            |> Personalia.id
-                            |> Api.putPersonalia PersonaliaOppdatert validertSkjema
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
-                    )
-                        |> IkkeFerdig
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            ( skjema
+                                |> Skjema.gjørAlleFeilmeldingerSynlig
+                                |> EndreOriginal
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
 
                 _ ->
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
-
-        PersonaliaskjemaLagreknappTrykketSelvOmDenErDisabled ->
-            IkkeFerdig ( Model model, Cmd.none )
 
         PersonaliaOppdatert result ->
             case model.aktivSamtale of
@@ -401,54 +424,42 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                         ]
 
                 EndreOriginal personaliaSkjema ->
-                    -- TODO: Endre til og bruke Container og til at feilmeldinger kun kommer etter blur/lagring
-                    div [ class "skjema-wrapper" ]
-                        [ div [ class "skjema" ]
+                    Containers.skjema { lagreMsg = PersonaliaskjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
+                        [ personaliaSkjema
+                            |> Skjema.fornavn
+                            |> Input.input { label = "Fornavn*", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
+                            |> Input.withMaybeFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
+                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Fornavn)
+                            |> Input.toHtml
+                        , personaliaSkjema
+                            |> Skjema.etternavn
+                            |> Input.input { label = "Etternavn*", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
+                            |> Input.withMaybeFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
+                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Etternavn)
+                            |> Input.toHtml
+                        , personaliaSkjema
+                            |> Skjema.epost
+                            |> Input.input { label = "E-post*", msg = PersonaliaSkjemaEndret Skjema.Epost }
+                            |> Input.withMaybeFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
+                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Epost)
+                            |> Input.toHtml
+                        , viewTelefonISkjema personaliaSkjema
+                        , personaliaSkjema
+                            |> Skjema.gateadresse
+                            |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Gateadresse }
+                            |> Input.toHtml
+                        , div [ class "PersonaliaSeksjon-poststed" ]
                             [ personaliaSkjema
-                                |> Skjema.fornavn
-                                |> Input.input { label = "Fornavn*", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
-                                |> Input.withMaybeFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
+                                |> Skjema.postnummer
+                                |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Postnummer }
+                                |> Input.withMaybeFeilmelding (Skjema.postnummerFeilmelding personaliaSkjema)
+                                |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Postnummer)
                                 |> Input.toHtml
                             , personaliaSkjema
-                                |> Skjema.etternavn
-                                |> Input.input { label = "Etternavn*", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
-                                |> Input.withMaybeFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
+                                |> Skjema.poststed
+                                |> Input.input { label = "Poststed", msg = PoststedfeltEndretSelvOmDetErDisabled }
+                                |> Input.withEnabled Input.Disabled
                                 |> Input.toHtml
-                            , personaliaSkjema
-                                |> Skjema.epost
-                                |> Input.input { label = "E-post*", msg = PersonaliaSkjemaEndret Skjema.Epost }
-                                |> Input.withMaybeFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
-                                |> Input.toHtml
-                            , viewTelefonISkjema personaliaSkjema
-                            , personaliaSkjema
-                                |> Skjema.gateadresse
-                                |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Gateadresse }
-                                |> Input.toHtml
-                            , div [ class "PersonaliaSeksjon-poststed" ]
-                                [ personaliaSkjema
-                                    |> Skjema.postnummer
-                                    |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Postnummer }
-                                    |> Input.withMaybeFeilmelding (Skjema.postnummerFeilmelding personaliaSkjema)
-                                    |> Input.toHtml
-                                , personaliaSkjema
-                                    |> Skjema.poststed
-                                    |> Input.input { label = "Poststed", msg = PoststedfeltEndretSelvOmDetErDisabled }
-                                    |> Input.withEnabled Input.Disabled
-                                    |> Input.toHtml
-                                ]
-                            , case Skjema.validerSkjema personaliaSkjema of
-                                Just validertSkjema ->
-                                    div []
-                                        [ Knapp.knapp (PersonaliaskjemaLagreknappTrykket validertSkjema) "Lagre endringer"
-                                            |> Knapp.toHtml
-                                        ]
-
-                                Nothing ->
-                                    div []
-                                        [ Knapp.knapp PersonaliaskjemaLagreknappTrykketSelvOmDenErDisabled "Lagre endringer"
-                                            |> Knapp.withEnabled Knapp.Disabled
-                                            |> Knapp.toHtml
-                                        ]
                             ]
                         ]
 
@@ -475,6 +486,7 @@ viewTelefonISkjema personaliaSkjema =
                 , input
                     [ value (Skjema.telefon personaliaSkjema)
                     , onInput (PersonaliaSkjemaEndret Skjema.Telefon)
+                    , onBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Postnummer)
                     , classList
                         [ ( "skjemaelement__input", True )
                         , ( "PersonaliaSeksjon--telefonnummer--input", True )

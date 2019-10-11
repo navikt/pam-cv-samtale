@@ -11,6 +11,8 @@ module Personalia.Skjema exposing
     , fornavn
     , fornavnFeilmelding
     , gateadresse
+    , gjørAlleFeilmeldingerSynlig
+    , gjørFeilmeldingSynligForFelt
     , init
     , oppdaterFelt
     , oppdaterPoststed
@@ -31,10 +33,6 @@ type PersonaliaSkjema
     = PersonaliaSkjema SkjemaInfo
 
 
-type ValidertPersonaliaSkjema
-    = ValidertPersonaliaSkjema SkjemaInfo
-
-
 type alias SkjemaInfo =
     { fornavn : String
     , etternavn : String
@@ -44,17 +42,39 @@ type alias SkjemaInfo =
     , gateadresse : String
     , postnummer : String
     , poststed : Maybe Poststed
+    , visFeilmeldingFornavn : Bool
+    , visFeilmeldingEtternavn : Bool
+    , visFeilmeldingEpost : Bool
+    , visFeilmeldingTelefon : Bool
+    , visFeilmeldingPostnummer : Bool
     }
 
 
-type Felt
-    = Fornavn
-    | Etternavn
-    | Fodelsdato
-    | Epost
-    | Telefon
-    | Gateadresse
-    | Postnummer
+
+--- INIT ---
+
+
+init : Personalia -> PersonaliaSkjema
+init personalia =
+    PersonaliaSkjema
+        { fornavn = Personalia.fornavn personalia |> Maybe.withDefault ""
+        , etternavn = Personalia.etternavn personalia |> Maybe.withDefault ""
+        , fodselsdato = Personalia.fodselsdato personalia |> Maybe.withDefault ""
+        , epost = Personalia.epost personalia |> Maybe.withDefault ""
+        , telefon = Personalia.telefon personalia |> Maybe.withDefault ""
+        , gateadresse = Personalia.gateadresse personalia |> Maybe.withDefault ""
+        , postnummer = Personalia.postnummer personalia |> Maybe.withDefault ""
+        , poststed = Poststed.fraPersonalia personalia
+        , visFeilmeldingFornavn = False
+        , visFeilmeldingEtternavn = False
+        , visFeilmeldingEpost = False
+        , visFeilmeldingTelefon = False
+        , visFeilmeldingPostnummer = False
+        }
+
+
+
+--- INNHOLD ---
 
 
 fornavn : PersonaliaSkjema -> String
@@ -106,6 +126,19 @@ poststed (PersonaliaSkjema info) =
             ""
 
 
+
+--- OPPDATERING ---
+
+
+type Felt
+    = Fornavn
+    | Etternavn
+    | Epost
+    | Telefon
+    | Gateadresse
+    | Postnummer
+
+
 oppdaterFelt : Felt -> PersonaliaSkjema -> String -> PersonaliaSkjema
 oppdaterFelt felt (PersonaliaSkjema info) input =
     case felt of
@@ -114,9 +147,6 @@ oppdaterFelt felt (PersonaliaSkjema info) input =
 
         Etternavn ->
             PersonaliaSkjema { info | etternavn = input }
-
-        Fodelsdato ->
-            PersonaliaSkjema { info | fodselsdato = input }
 
         Epost ->
             PersonaliaSkjema { info | epost = input }
@@ -141,12 +171,21 @@ oppdaterPoststed poststed_ (PersonaliaSkjema info) =
 
 
 
---- VALIDERING ---
+--- FEILMELDINGER ---
 
 
 fornavnFeilmelding : PersonaliaSkjema -> Maybe String
 fornavnFeilmelding (PersonaliaSkjema info) =
-    if String.length (String.trim info.fornavn) == 0 then
+    if info.visFeilmeldingFornavn then
+        validerFornavn info.fornavn
+
+    else
+        Nothing
+
+
+validerFornavn : String -> Maybe String
+validerFornavn fornavn_ =
+    if String.length (String.trim fornavn_) == 0 then
         Just "Vennligst fyll inn et fornavn"
 
     else
@@ -155,7 +194,16 @@ fornavnFeilmelding (PersonaliaSkjema info) =
 
 etternavnFeilmelding : PersonaliaSkjema -> Maybe String
 etternavnFeilmelding (PersonaliaSkjema info) =
-    if String.length (String.trim info.etternavn) == 0 then
+    if info.visFeilmeldingEtternavn then
+        validerEtternavn info.etternavn
+
+    else
+        Nothing
+
+
+validerEtternavn : String -> Maybe String
+validerEtternavn etternavn_ =
+    if String.length (String.trim etternavn_) == 0 then
         Just "Vennligst fyll inn et etternavn"
 
     else
@@ -164,10 +212,19 @@ etternavnFeilmelding (PersonaliaSkjema info) =
 
 epostFeilmelding : PersonaliaSkjema -> Maybe String
 epostFeilmelding (PersonaliaSkjema info) =
-    if String.length (String.trim info.epost) == 0 then
+    if info.visFeilmeldingEpost then
+        validerEpost info.epost
+
+    else
+        Nothing
+
+
+validerEpost : String -> Maybe String
+validerEpost epost_ =
+    if String.length (String.trim epost_) == 0 then
         Just "Vennligst fyll inn en e-postadresse"
 
-    else if not (String.contains "@" info.epost && String.contains "." info.epost) then
+    else if not (String.contains "@" epost_ && String.contains "." epost_) then
         Just "E-post er ikke gyldig. Sjekk om den inneholder @ og punktum."
 
     else
@@ -176,9 +233,18 @@ epostFeilmelding (PersonaliaSkjema info) =
 
 telefonFeilmelding : PersonaliaSkjema -> Maybe String
 telefonFeilmelding (PersonaliaSkjema info) =
+    if info.visFeilmeldingTelefon then
+        validerTelefon info.telefon
+
+    else
+        Nothing
+
+
+validerTelefon : String -> Maybe String
+validerTelefon telefon_ =
     let
         trimmedTelefon =
-            String.replace " " "" info.telefon
+            String.replace " " "" telefon_
     in
     if String.length trimmedTelefon == 0 then
         Just "Vennligst fyll inn et telefonnummer"
@@ -195,31 +261,94 @@ telefonFeilmelding (PersonaliaSkjema info) =
 
 postnummerFeilmelding : PersonaliaSkjema -> Maybe String
 postnummerFeilmelding (PersonaliaSkjema info) =
-    if String.length info.postnummer == 0 then
+    if info.visFeilmeldingPostnummer then
+        validerPostnummer info.postnummer
+
+    else
         Nothing
 
-    else if String.length info.postnummer /= 4 || String.toInt info.postnummer == Nothing then
+
+validerPostnummer : String -> Maybe String
+validerPostnummer postnummer_ =
+    if String.length postnummer_ == 0 then
+        Nothing
+
+    else if String.length postnummer_ /= 4 || String.toInt postnummer_ == Nothing then
         Just "Kun 4 siffer"
 
     else
         Nothing
 
 
+gjørFeilmeldingSynligForFelt : PersonaliaSkjema -> Felt -> PersonaliaSkjema
+gjørFeilmeldingSynligForFelt (PersonaliaSkjema info) felt =
+    case felt of
+        Fornavn ->
+            PersonaliaSkjema { info | visFeilmeldingFornavn = True }
+
+        Etternavn ->
+            PersonaliaSkjema { info | visFeilmeldingEtternavn = True }
+
+        Epost ->
+            PersonaliaSkjema { info | visFeilmeldingEpost = True }
+
+        Telefon ->
+            PersonaliaSkjema { info | visFeilmeldingTelefon = True }
+
+        Gateadresse ->
+            PersonaliaSkjema info
+
+        Postnummer ->
+            PersonaliaSkjema { info | visFeilmeldingPostnummer = True }
+
+
+gjørAlleFeilmeldingerSynlig : PersonaliaSkjema -> PersonaliaSkjema
+gjørAlleFeilmeldingerSynlig (PersonaliaSkjema info) =
+    PersonaliaSkjema
+        { info
+            | visFeilmeldingFornavn = True
+            , visFeilmeldingEtternavn = True
+            , visFeilmeldingEpost = True
+            , visFeilmeldingTelefon = True
+            , visFeilmeldingPostnummer = True
+        }
+
+
+
+--- VALIDERING ---
+
+
+type ValidertPersonaliaSkjema
+    = ValidertPersonaliaSkjema ValidertSkjemaInfo
+
+
+type alias ValidertSkjemaInfo =
+    { fornavn : String
+    , etternavn : String
+    , fodselsdato : String
+    , epost : String
+    , telefon : String
+    , gateadresse : String
+    , postnummer : String
+    , poststed : Maybe Poststed
+    }
+
+
 validerSkjema : PersonaliaSkjema -> Maybe ValidertPersonaliaSkjema
-validerSkjema ((PersonaliaSkjema info) as skjema) =
-    if fornavnFeilmelding skjema /= Nothing then
+validerSkjema (PersonaliaSkjema info) =
+    if validerFornavn info.fornavn /= Nothing then
         Nothing
 
-    else if etternavnFeilmelding skjema /= Nothing then
+    else if validerEtternavn info.etternavn /= Nothing then
         Nothing
 
-    else if telefonFeilmelding skjema /= Nothing then
+    else if validerTelefon info.telefon /= Nothing then
         Nothing
 
-    else if epostFeilmelding skjema /= Nothing then
+    else if validerEpost info.epost /= Nothing then
         Nothing
 
-    else if postnummerFeilmelding skjema /= Nothing then
+    else if validerPostnummer info.postnummer /= Nothing then
         Nothing
 
     else
@@ -248,21 +377,7 @@ validerSkjema ((PersonaliaSkjema info) as skjema) =
 
 
 
---- INIT OG ENCODING ---
-
-
-init : Personalia -> PersonaliaSkjema
-init personalia =
-    PersonaliaSkjema
-        { fornavn = Personalia.fornavn personalia |> Maybe.withDefault ""
-        , etternavn = Personalia.etternavn personalia |> Maybe.withDefault ""
-        , fodselsdato = Personalia.fodselsdato personalia |> Maybe.withDefault ""
-        , epost = Personalia.epost personalia |> Maybe.withDefault ""
-        , telefon = Personalia.telefon personalia |> Maybe.withDefault ""
-        , gateadresse = Personalia.gateadresse personalia |> Maybe.withDefault ""
-        , postnummer = Personalia.postnummer personalia |> Maybe.withDefault ""
-        , poststed = Poststed.fraPersonalia personalia
-        }
+--- ENCODING ---
 
 
 encode : ValidertPersonaliaSkjema -> String -> Json.Encode.Value
