@@ -181,11 +181,7 @@ update msg (Model model) =
                             brukerVilRegistrereKonsept model fagdokumentasjonType konsept
 
                         Nothing ->
-                            ( RegistrerKonsept fagdokumentasjonType (feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType |> Just) typeaheadModel
-                                |> oppdaterSamtaleSteg model
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
+                            brukerVilRegisetrereMenHarIkkeValgtKonsept model fagdokumentasjonType typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -410,14 +406,19 @@ initSkjemaTypeaheadFraKonsept fagdokumentasjonType konsept =
 updateSamtaleTypeahead : ModelInfo -> FagdokumentasjonType -> Maybe String -> Typeahead.Msg Konsept -> Typeahead.Model Konsept -> SamtaleStatus
 updateSamtaleTypeahead model fagdokumentasjonType feilmelding msg typeaheadModel =
     let
-        ( nyTypeaheadModel, getSuggestionsStatus, proceedStatus ) =
+        ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
             Typeahead.update Konsept.label msg typeaheadModel
     in
-    case proceedStatus of
-        Typeahead.UserWantsToProceed konsept ->
-            brukerVilRegistrereKonsept model fagdokumentasjonType konsept
+    case submitStatus of
+        Typeahead.Submit ->
+            case Typeahead.selected nyTypeaheadModel of
+                Just konsept ->
+                    brukerVilRegistrereKonsept model fagdokumentasjonType konsept
 
-        Typeahead.UserDoesNotWantToProceed ->
+                Nothing ->
+                    brukerVilRegisetrereMenHarIkkeValgtKonsept model fagdokumentasjonType nyTypeaheadModel
+
+        Typeahead.NoSubmit ->
             IkkeFerdig
                 ( nyTypeaheadModel
                     |> RegistrerKonsept fagdokumentasjonType (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
@@ -438,6 +439,15 @@ brukerVilRegistrereKonsept model fagdokumentasjonType konsept =
         |> RegistrerBeskrivelse fagdokumentasjonType
         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
     , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
+
+
+brukerVilRegisetrereMenHarIkkeValgtKonsept : ModelInfo -> FagdokumentasjonType -> Typeahead.Model Konsept -> SamtaleStatus
+brukerVilRegisetrereMenHarIkkeValgtKonsept model fagdokumentasjonType typeaheadModel =
+    ( RegistrerKonsept fagdokumentasjonType (feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType |> Just) typeaheadModel
+        |> oppdaterSamtaleSteg model
+    , Cmd.none
     )
         |> IkkeFerdig
 

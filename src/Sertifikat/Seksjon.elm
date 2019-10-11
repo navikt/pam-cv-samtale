@@ -27,7 +27,7 @@ import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
-import Sertifikat.Skjema as Skjema exposing (SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
+import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import SertifikatTypeahead exposing (SertifikatTypeahead)
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
@@ -75,25 +75,14 @@ type Samtale
     | VenterPåAnimasjonFørFullføring (List Sertifikat)
 
 
-type SkjemaEndring
-    = Utsteder String
-    | FullførtMåned String
-    | FullførtÅr String
-    | FullførtÅrMistetFokus
-    | UtløperIkkeToggled
-    | UtløperMåned String
-    | UtløperÅr String
-    | UtløperÅrMistetFokus
-
-
 type alias UtstederInfo =
-    { sertifikatFelt : SertifikatTypeahead
+    { sertifikatFelt : SertifikatFelt
     , utsteder : String
     }
 
 
 type alias FullførtDatoInfo =
-    { sertifikat : SertifikatTypeahead
+    { sertifikat : SertifikatFelt
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : String
@@ -102,7 +91,7 @@ type alias FullførtDatoInfo =
 
 
 type alias ValidertFullførtDatoInfo =
-    { sertifikat : SertifikatTypeahead
+    { sertifikat : SertifikatFelt
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : År
@@ -117,9 +106,9 @@ type alias UtløpsdatoInfo =
     }
 
 
-sertifikatFeltTilUtsteder : SertifikatTypeahead -> UtstederInfo
-sertifikatFeltTilUtsteder input =
-    { sertifikatFelt = input
+sertifikatFeltTilUtsteder : SertifikatFelt -> UtstederInfo
+sertifikatFeltTilUtsteder sertifikatFelt =
+    { sertifikatFelt = sertifikatFelt
     , utsteder = ""
     }
 
@@ -199,6 +188,17 @@ type Msg
     | ErrorLogget
 
 
+type SkjemaEndring
+    = Utsteder String
+    | FullførtMåned String
+    | FullførtÅr String
+    | FullførtÅrMistetFokus
+    | UtløperIkkeToggled
+    | UtløperMåned String
+    | UtløperÅr String
+    | UtløperÅrMistetFokus
+
+
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
@@ -214,7 +214,7 @@ update msg (Model model) =
                     in
                     IkkeFerdig
                         ( nyTypeaheadModel
-                            |> Typeahead.selected
+                            |> tilSertifikatFelt
                             |> Skjema.oppdaterSertifikat skjema
                             |> EndreOpplysninger nyTypeaheadModel
                             |> oppdaterSamtaleSteg model
@@ -267,7 +267,9 @@ update msg (Model model) =
                 RegistrerSertifikatFelt typeaheadModel ->
                     case Typeahead.selected typeaheadModel of
                         Just sertifikat ->
-                            brukerVelgerSertifikatFelt model sertifikat
+                            sertifikat
+                                |> SertifikatFraTypeahead
+                                |> brukerVelgerSertifikatFelt model
 
                         Nothing ->
                             IkkeFerdig ( Model model, Cmd.none )
@@ -623,25 +625,55 @@ initSamtaleTypeahead =
 
 initSkjemaTypeahead : ValidertSertifikatSkjema -> Typeahead.Model SertifikatTypeahead
 initSkjemaTypeahead skjema =
-    Typeahead.initWithSelected
-        { selected = Skjema.sertifikatFeltValidert skjema
-        , label = "Sertifisering eller sertifikat"
-        , id = inputIdTilString SertifikatTypeaheadId
-        , toString = SertifikatTypeahead.label
-        }
+    case Skjema.sertifikatFeltValidert skjema of
+        SertifikatFraTypeahead sertifikatTypeahead ->
+            Typeahead.initWithSelected
+                { selected = sertifikatTypeahead
+                , label = "Sertifisering eller sertifikat"
+                , id = inputIdTilString SertifikatTypeaheadId
+                , toString = SertifikatTypeahead.label
+                }
+
+        Egendefinert inputValue ->
+            Typeahead.init
+                { value = inputValue
+                , label = "Sertifisering eller sertifikat"
+                , id = inputIdTilString SertifikatTypeaheadId
+                , toString = SertifikatTypeahead.label
+                }
+
+
+tilSertifikatFelt : Typeahead.Model SertifikatTypeahead -> SertifikatFelt
+tilSertifikatFelt typeaheadModel =
+    case Typeahead.selected typeaheadModel of
+        Just sertifikatTypeahead ->
+            SertifikatFraTypeahead sertifikatTypeahead
+
+        Nothing ->
+            Egendefinert (Typeahead.inputValue typeaheadModel)
 
 
 updateSamtaleTypeahead : ModelInfo -> Typeahead.Msg SertifikatTypeahead -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
 updateSamtaleTypeahead model msg typeaheadModel =
     let
-        ( nyTypeaheadModel, getSuggestionsStatus, proceedStatus ) =
+        ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
             Typeahead.update SertifikatTypeahead.label msg typeaheadModel
     in
-    case proceedStatus of
-        Typeahead.UserWantsToProceed sertifikat ->
-            brukerVelgerSertifikatFelt model sertifikat
+    case submitStatus of
+        Typeahead.Submit ->
+            case Typeahead.selected typeaheadModel of
+                Just sertifikat ->
+                    sertifikat
+                        |> SertifikatFraTypeahead
+                        |> brukerVelgerSertifikatFelt model
 
-        Typeahead.UserDoesNotWantToProceed ->
+                Nothing ->
+                    typeaheadModel
+                        |> Typeahead.inputValue
+                        |> Egendefinert
+                        |> brukerVelgerSertifikatFelt model
+
+        Typeahead.NoSubmit ->
             IkkeFerdig
                 ( nyTypeaheadModel
                     |> RegistrerSertifikatFelt
@@ -732,15 +764,25 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                 |> IkkeFerdig
 
 
-brukerVelgerSertifikatFelt : ModelInfo -> SertifikatTypeahead -> SamtaleStatus
-brukerVelgerSertifikatFelt info sertifikatTypeahead =
-    ( sertifikatTypeahead
+brukerVelgerSertifikatFelt : ModelInfo -> SertifikatFelt -> SamtaleStatus
+brukerVelgerSertifikatFelt info sertifikatFelt =
+    ( sertifikatFelt
         |> sertifikatFeltTilUtsteder
         |> RegistrerUtsteder
-        |> nesteSamtaleSteg info (Melding.svar [ SertifikatTypeahead.label sertifikatTypeahead ])
+        |> nesteSamtaleSteg info (Melding.svar [ sertifikatFeltTilString sertifikatFelt ])
     , lagtTilSpørsmålCmd info.debugStatus
     )
         |> IkkeFerdig
+
+
+sertifikatFeltTilString : SertifikatFelt -> String
+sertifikatFeltTilString sertifikatFelt =
+    case sertifikatFelt of
+        SertifikatFraTypeahead sertifikatTypeahead ->
+            SertifikatTypeahead.label sertifikatTypeahead
+
+        Egendefinert inputValue ->
+            inputValue
 
 
 updateEtterVilEndreSkjema : ModelInfo -> ValidertSertifikatSkjema -> SamtaleStatus
@@ -752,8 +794,7 @@ updateEtterVilEndreSkjema model skjema =
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
         , skjema
-            |> Skjema.sertifikatFeltValidert
-            |> SertifikatTypeahead.label
+            |> Skjema.sertifikatString
             |> Api.getSertifikatTypeahead HentetTypeahead
         ]
     )
@@ -892,7 +933,7 @@ validertSkjemaTilSetninger validertSkjema =
         skjema =
             Skjema.tilUvalidertSkjema validertSkjema
     in
-    [ "Sertifisering/sertifikat: " ++ (validertSkjema |> Skjema.sertifikatFeltValidert |> SertifikatTypeahead.label)
+    [ "Sertifisering/sertifikat: " ++ (validertSkjema |> Skjema.sertifikatString)
     , "Utsteder: " ++ Skjema.utsteder skjema
     , "Fullført: " ++ Dato.datoTilString (Skjema.fullførtMåned skjema) (Skjema.fullførtÅrValidert validertSkjema)
     , "Utløper: " ++ utløpsdatoTilString (Skjema.utløpsdatoValidert validertSkjema)

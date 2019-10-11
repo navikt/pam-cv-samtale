@@ -91,7 +91,7 @@ tilUvalidertSkjema : ValidertArbeidserfaringSkjema -> ArbeidserfaringSkjema
 tilUvalidertSkjema (ValidertArbeidserfaringSkjema info) =
     ArbeidserfaringSkjema
         { yrke = Just info.yrke
-        , visYrkeFeilmelding = True
+        , visYrkeFeilmelding = False
         , jobbTittel = info.jobbTittel
         , bedriftsnavn = info.bedriftNavn
         , sted = info.lokasjon

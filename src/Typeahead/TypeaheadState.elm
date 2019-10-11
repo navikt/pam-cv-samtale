@@ -1,16 +1,15 @@
 module Typeahead.TypeaheadState exposing
     ( ActiveState(..)
     , TypeaheadState
+    , active
     , arrowDown
     , arrowUp
     , findSuggestionMatchingInputValue
-    , getActive
     , hideSuggestions
     , init
     , mapSuggestions
     , removeActive
     , showSuggestions
-    , suggestionsAreShown
     , updateActive
     , updateSuggestions
     , updateValue
@@ -24,7 +23,16 @@ type TypeaheadState a
     = TypeaheadState
         { value : String
         , suggestions : SuggestionList a
-        , showSuggestions : Bool
+        }
+
+
+type SuggestionList a
+    = HideSuggestions (List a)
+    | NoneActive (List a)
+    | SuggestionActive
+        { before : List a
+        , active_ : a
+        , after : List a
         }
 
 
@@ -32,8 +40,7 @@ init : String -> TypeaheadState a
 init value_ =
     TypeaheadState
         { value = value_
-        , suggestions = TomListe
-        , showSuggestions = True
+        , suggestions = NoneActive []
         }
 
 
@@ -42,33 +49,39 @@ value (TypeaheadState info) =
     info.value
 
 
-getActive : TypeaheadState a -> Maybe a
-getActive (TypeaheadState info) =
+active : TypeaheadState a -> Maybe a
+active (TypeaheadState info) =
     case info.suggestions of
-        TomListe ->
+        HideSuggestions _ ->
             Nothing
 
-        IngenMarkert _ ->
+        NoneActive _ ->
             Nothing
 
-        SuggestionMarkert { active } ->
-            Just active
+        SuggestionActive { active_ } ->
+            Just active_
 
 
 updateValue : String -> TypeaheadState a -> TypeaheadState a
 updateValue value_ (TypeaheadState info) =
-    TypeaheadState
-        { info
-            | value = value_
-            , showSuggestions = True
-        }
+    TypeaheadState { info | value = value_ }
 
 
 updateSuggestions : String -> List a -> TypeaheadState a -> TypeaheadState a
 updateSuggestions value_ suggestions (TypeaheadState info) =
     TypeaheadState
         { info
-            | suggestions = IngenMarkert suggestions
+            | suggestions =
+                case info.suggestions of
+                    HideSuggestions _ ->
+                        HideSuggestions suggestions
+
+                    NoneActive _ ->
+                        NoneActive suggestions
+
+                    SuggestionActive record ->
+                        -- TODO: Denne burde ta vare på aktivt element
+                        NoneActive suggestions
         }
 
 
@@ -80,14 +93,14 @@ updateActive newActive (TypeaheadState info) =
 updateActiveSuggestion : a -> SuggestionList a -> SuggestionList a
 updateActiveSuggestion newActive suggestionList =
     case suggestionList of
-        TomListe ->
-            TomListe
-
-        IngenMarkert list ->
+        HideSuggestions list ->
             makeActive newActive list
 
-        SuggestionMarkert { before, active, after } ->
-            [ before, [ active ], after ]
+        NoneActive list ->
+            makeActive newActive list
+
+        SuggestionActive { before, active_, after } ->
+            [ before, [ active_ ], after ]
                 |> List.concat
                 |> makeActive newActive
 
@@ -100,7 +113,7 @@ makeActive newActive suggestions =
             case maybeActive of
                 Just a ->
                     { before = before
-                    , maybeActive = maybeActive
+                    , maybeActive = Just a
                     , after = after ++ [ elem ]
                     }
 
@@ -122,18 +135,14 @@ makeActive newActive suggestions =
     in
     case maybeMarkertState.maybeActive of
         Just elem ->
-            SuggestionMarkert
+            SuggestionActive
                 { before = maybeMarkertState.before
-                , active = elem
+                , active_ = elem
                 , after = maybeMarkertState.after
                 }
 
         Nothing ->
-            if List.isEmpty maybeMarkertState.before then
-                TomListe
-
-            else
-                IngenMarkert maybeMarkertState.before
+            NoneActive maybeMarkertState.before
 
 
 arrowDown : TypeaheadState a -> TypeaheadState a
@@ -142,33 +151,40 @@ arrowDown (TypeaheadState info) =
         { info
             | suggestions =
                 case info.suggestions of
-                    TomListe ->
-                        TomListe
+                    HideSuggestions list ->
+                        arrowDownOnNoneActive list
 
-                    IngenMarkert [] ->
-                        TomListe
+                    NoneActive list ->
+                        arrowDownOnNoneActive list
 
-                    IngenMarkert (first :: rest) ->
-                        SuggestionMarkert
-                            { before = []
-                            , active = first
-                            , after = rest
-                            }
-
-                    SuggestionMarkert { before, active, after } ->
+                    SuggestionActive { before, active_, after } ->
                         case after of
                             first :: rest ->
-                                SuggestionMarkert
-                                    { before = before ++ [ active ]
-                                    , active = first
+                                SuggestionActive
+                                    { before = before ++ [ active_ ]
+                                    , active_ = first
                                     , after = rest
                                     }
 
                             [] ->
-                                [ before, [ active ], after ]
+                                [ before, [ active_ ], after ]
                                     |> List.concat
-                                    |> IngenMarkert
+                                    |> NoneActive
         }
+
+
+arrowDownOnNoneActive : List a -> SuggestionList a
+arrowDownOnNoneActive list =
+    case list of
+        first :: rest ->
+            SuggestionActive
+                { before = []
+                , active_ = first
+                , after = rest
+                }
+
+        [] ->
+            NoneActive []
 
 
 arrowUp : TypeaheadState a -> TypeaheadState a
@@ -177,35 +193,40 @@ arrowUp (TypeaheadState info) =
         { info
             | suggestions =
                 case info.suggestions of
-                    TomListe ->
-                        TomListe
+                    HideSuggestions list ->
+                        arrowUpOnNoneActive list
 
-                    IngenMarkert list ->
-                        case List.reverse list of
-                            last :: rest ->
-                                SuggestionMarkert
-                                    { before = List.reverse rest
-                                    , active = last
-                                    , after = []
-                                    }
+                    NoneActive list ->
+                        arrowUpOnNoneActive list
 
-                            [] ->
-                                TomListe
-
-                    SuggestionMarkert { before, active, after } ->
+                    SuggestionActive { before, active_, after } ->
                         case List.reverse before of
                             last :: rest ->
-                                SuggestionMarkert
+                                SuggestionActive
                                     { before = List.reverse rest
-                                    , active = last
-                                    , after = active :: after
+                                    , active_ = last
+                                    , after = active_ :: after
                                     }
 
                             [] ->
-                                [ before, [ active ], after ]
+                                [ before, [ active_ ], after ]
                                     |> List.concat
-                                    |> IngenMarkert
+                                    |> NoneActive
         }
+
+
+arrowUpOnNoneActive : List a -> SuggestionList a
+arrowUpOnNoneActive list =
+    case List.reverse list of
+        last :: rest ->
+            SuggestionActive
+                { before = List.reverse rest
+                , active_ = last
+                , after = []
+                }
+
+        [] ->
+            NoneActive []
 
 
 removeActive : TypeaheadState a -> TypeaheadState a
@@ -216,31 +237,52 @@ removeActive (TypeaheadState info) =
 removeActiveFromSuggestions : SuggestionList a -> SuggestionList a
 removeActiveFromSuggestions suggestionList =
     case suggestionList of
-        TomListe ->
-            TomListe
+        HideSuggestions suggestions ->
+            NoneActive suggestions
 
-        IngenMarkert suggestions ->
-            IngenMarkert suggestions
+        NoneActive suggestions ->
+            NoneActive suggestions
 
-        SuggestionMarkert { before, active, after } ->
-            [ before, [ active ], after ]
+        SuggestionActive { before, active_, after } ->
+            [ before, [ active_ ], after ]
                 |> List.concat
-                |> IngenMarkert
+                |> NoneActive
 
 
 showSuggestions : TypeaheadState a -> TypeaheadState a
 showSuggestions (TypeaheadState info) =
-    TypeaheadState { info | showSuggestions = True }
+    TypeaheadState
+        { info
+            | suggestions =
+                case info.suggestions of
+                    HideSuggestions list ->
+                        NoneActive list
+
+                    NoneActive list ->
+                        NoneActive list
+
+                    SuggestionActive record ->
+                        SuggestionActive record
+        }
 
 
 hideSuggestions : TypeaheadState a -> TypeaheadState a
 hideSuggestions (TypeaheadState info) =
-    TypeaheadState { info | showSuggestions = False }
+    TypeaheadState
+        { info
+            | suggestions =
+                case info.suggestions of
+                    HideSuggestions list ->
+                        HideSuggestions list
 
+                    NoneActive list ->
+                        HideSuggestions list
 
-suggestionsAreShown : TypeaheadState a -> Bool
-suggestionsAreShown (TypeaheadState info) =
-    info.showSuggestions
+                    SuggestionActive { before, active_, after } ->
+                        [ before, [ active_ ], after ]
+                            |> List.concat
+                            |> HideSuggestions
+        }
 
 
 findSuggestionMatchingInputValue : (a -> String) -> TypeaheadState a -> Maybe a
@@ -250,15 +292,15 @@ findSuggestionMatchingInputValue toString (TypeaheadState info) =
             (toString >> String.trim >> String.toLower) suggestion == (String.trim >> String.toLower) info.value
     in
     case info.suggestions of
-        TomListe ->
-            Nothing
-
-        IngenMarkert suggestions ->
+        HideSuggestions suggestions ->
             List.find predicate suggestions
 
-        SuggestionMarkert { before, active, after } ->
+        NoneActive suggestions ->
+            List.find predicate suggestions
+
+        SuggestionActive { before, active_, after } ->
             [ before
-            , [ active ]
+            , [ active_ ]
             , after
             ]
                 |> List.concat
@@ -272,30 +314,16 @@ type ActiveState
 
 mapSuggestions : (ActiveState -> a -> b) -> TypeaheadState a -> List b
 mapSuggestions function (TypeaheadState info) =
-    if info.showSuggestions then
-        case info.suggestions of
-            TomListe ->
-                []
+    case info.suggestions of
+        HideSuggestions _ ->
+            []
 
-            IngenMarkert suggestions ->
-                List.map (function NotActive) suggestions
+        NoneActive suggestions ->
+            List.map (function NotActive) suggestions
 
-            SuggestionMarkert { before, active, after } ->
-                List.concat
-                    [ List.map (function NotActive) before
-                    , [ function Active active ]
-                    , List.map (function NotActive) after
-                    ]
-
-    else
-        []
-
-
-type SuggestionList a
-    = TomListe
-    | IngenMarkert (List a)
-    | SuggestionMarkert
-        { before : List a
-        , active : a
-        , after : List a
-        }
+        SuggestionActive { before, active_, after } ->
+            List.concat
+                [ List.map (function NotActive) before
+                , [ function Active active_ ]
+                , List.map (function NotActive) after
+                ]
