@@ -5,6 +5,7 @@ module Sertifikat.Skjema exposing
     , ValidertSertifikatSkjema
     , encode
     , feilmeldingFullførtÅr
+    , feilmeldingSertifikatFelt
     , feilmeldingUtløperÅr
     , fullførtMåned
     , fullførtÅr
@@ -29,6 +30,7 @@ module Sertifikat.Skjema exposing
     , valider
     , visAlleFeilmeldinger
     , visFeilmeldingFullførtÅr
+    , visFeilmeldingSertifikatFelt
     , visFeilmeldingUtløperÅr
     )
 
@@ -57,6 +59,7 @@ type SertifikatFelt
 
 type alias UvalidertSkjemaInfo =
     { sertifikatFelt : SertifikatFelt
+    , visSertifikatFeltFeilmelding : Bool
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : String
@@ -195,6 +198,20 @@ toggleUtløperIkke (UvalidertSkjema skjema) =
 --- FEILMELDINGER ---
 
 
+feilmeldingSertifikatFelt : SertifikatSkjema -> Maybe String
+feilmeldingSertifikatFelt (UvalidertSkjema skjema) =
+    if skjema.visSertifikatFeltFeilmelding then
+        case validerSertifikatFelt skjema.sertifikatFelt of
+            Just _ ->
+                Nothing
+
+            Nothing ->
+                Just "Velg eller skriv inn sertifisering eller sertifikat"
+
+    else
+        Nothing
+
+
 feilmeldingFullførtÅr : SertifikatSkjema -> Maybe String
 feilmeldingFullførtÅr (UvalidertSkjema skjema) =
     if skjema.visFullførtÅrFeilmelding then
@@ -213,6 +230,11 @@ feilmeldingUtløperÅr (UvalidertSkjema skjema) =
         Nothing
 
 
+visFeilmeldingSertifikatFelt : SertifikatSkjema -> SertifikatSkjema
+visFeilmeldingSertifikatFelt (UvalidertSkjema skjema) =
+    UvalidertSkjema { skjema | visSertifikatFeltFeilmelding = True }
+
+
 visFeilmeldingFullførtÅr : SertifikatSkjema -> SertifikatSkjema
 visFeilmeldingFullførtÅr (UvalidertSkjema skjema) =
     UvalidertSkjema { skjema | visFullførtÅrFeilmelding = True }
@@ -228,6 +250,7 @@ visAlleFeilmeldinger skjema =
     skjema
         |> visFeilmeldingFullførtÅr
         |> visFeilmeldingUtløperÅr
+        |> visFeilmeldingSertifikatFelt
 
 
 
@@ -236,10 +259,10 @@ visAlleFeilmeldinger skjema =
 
 valider : SertifikatSkjema -> Maybe ValidertSertifikatSkjema
 valider (UvalidertSkjema uvalidert) =
-    Maybe.map2
-        (\utlopsdato fullføtÅr_ ->
+    Maybe.map3
+        (\sertifikatFelt utlopsdato fullføtÅr_ ->
             ValidertSkjema
-                { sertifikatFelt = uvalidert.sertifikatFelt
+                { sertifikatFelt = sertifikatFelt
                 , utsteder = uvalidert.utsteder
                 , fullførtMåned = uvalidert.fullførtMåned
                 , fullførtÅr = fullføtÅr_
@@ -247,6 +270,7 @@ valider (UvalidertSkjema uvalidert) =
                 , id = uvalidert.id
                 }
         )
+        (validerSertifikatFelt uvalidert.sertifikatFelt)
         (validerUtløpsdato uvalidert.utløperIkke uvalidert.utløperMåned uvalidert.utløperÅr)
         (Dato.stringTilÅr uvalidert.fullførtÅr)
 
@@ -262,10 +286,25 @@ validerUtløpsdato utløperIkke_ måned år =
             |> Maybe.map (Oppgitt måned)
 
 
+validerSertifikatFelt : SertifikatFelt -> Maybe SertifikatFelt
+validerSertifikatFelt sertifikatFelt =
+    case sertifikatFelt of
+        SertifikatFraTypeahead typeaheadSertifikat ->
+            Just (SertifikatFraTypeahead typeaheadSertifikat)
+
+        Egendefinert inputString ->
+            if String.length (String.trim inputString) == 0 then
+                Nothing
+
+            else
+                Just (Egendefinert inputString)
+
+
 tilUvalidertSkjema : ValidertSertifikatSkjema -> SertifikatSkjema
 tilUvalidertSkjema (ValidertSkjema validert) =
     UvalidertSkjema
         { sertifikatFelt = validert.sertifikatFelt
+        , visSertifikatFeltFeilmelding = False
         , utsteder = validert.utsteder
         , fullførtMåned = validert.fullførtMåned
         , fullførtÅr = Dato.årTilString validert.fullførtÅr

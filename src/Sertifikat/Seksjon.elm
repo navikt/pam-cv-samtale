@@ -60,7 +60,7 @@ type SamtaleStatus
 
 
 type Samtale
-    = RegistrerSertifikatFelt (Typeahead.Model SertifikatTypeahead)
+    = RegistrerSertifikatFelt (Maybe String) (Typeahead.Model SertifikatTypeahead)
     | RegistrerUtsteder UtstederInfo
     | RegistrerFullførtMåned FullførtDatoInfo
     | RegistrerFullførtÅr FullførtDatoInfo
@@ -204,8 +204,8 @@ update msg (Model model) =
     case msg of
         TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadModel ->
-                    updateSamtaleTypeahead model typeaheadMsg typeaheadModel
+                RegistrerSertifikatFelt feilmelding typeaheadModel ->
+                    updateSamtaleTypeahead model feilmelding typeaheadMsg typeaheadModel
 
                 EndreOpplysninger typeaheadModel skjema ->
                     let
@@ -231,12 +231,15 @@ update msg (Model model) =
 
         HentetTypeahead result ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadModel ->
+                RegistrerSertifikatFelt feilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
-                            ( suggestions
-                                |> Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel
-                                |> RegistrerSertifikatFelt
+                            let
+                                nyTypeaheadModel =
+                                    Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel suggestions
+                            in
+                            ( nyTypeaheadModel
+                                |> RegistrerSertifikatFelt (typeaheadFeilmeldingEtterUpdate feilmelding nyTypeaheadModel)
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
@@ -264,7 +267,7 @@ update msg (Model model) =
 
         VilRegistrereSertifikat ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadModel ->
+                RegistrerSertifikatFelt _ typeaheadModel ->
                     case Typeahead.selected typeaheadModel of
                         Just sertifikat ->
                             sertifikat
@@ -272,10 +275,7 @@ update msg (Model model) =
                                 |> brukerVelgerSertifikatFelt model
 
                         Nothing ->
-                            typeaheadModel
-                                |> Typeahead.inputValue
-                                |> Egendefinert
-                                |> brukerVelgerSertifikatFelt model
+                            brukerVilRegistrereFritekstSertifikat model typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -565,14 +565,6 @@ update msg (Model model) =
 
         FerdigMedSertifikat knappeTekst ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt _ ->
-                    ( model.sertifikatListe
-                        |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
                 LagringFeilet _ _ ->
                     ( model.sertifikatListe
                         |> VenterPåAnimasjonFørFullføring
@@ -646,6 +638,28 @@ initSkjemaTypeahead skjema =
                 }
 
 
+brukerVilRegistrereFritekstSertifikat : ModelInfo -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
+brukerVilRegistrereFritekstSertifikat model typeaheadModel =
+    let
+        trimmedInputString =
+            typeaheadModel
+                |> Typeahead.inputValue
+                |> String.trim
+    in
+    if String.length trimmedInputString > 0 then
+        typeaheadModel
+            |> Typeahead.inputValue
+            |> Egendefinert
+            |> brukerVelgerSertifikatFelt model
+
+    else
+        ( RegistrerSertifikatFelt (Just "Velg eller skriv inn sertifisering eller sertifikat") typeaheadModel
+            |> oppdaterSamtaleSteg model
+        , Cmd.none
+        )
+            |> IkkeFerdig
+
+
 tilSertifikatFelt : Typeahead.Model SertifikatTypeahead -> SertifikatFelt
 tilSertifikatFelt typeaheadModel =
     case Typeahead.selected typeaheadModel of
@@ -656,8 +670,8 @@ tilSertifikatFelt typeaheadModel =
             Egendefinert (Typeahead.inputValue typeaheadModel)
 
 
-updateSamtaleTypeahead : ModelInfo -> Typeahead.Msg SertifikatTypeahead -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
-updateSamtaleTypeahead model msg typeaheadModel =
+updateSamtaleTypeahead : ModelInfo -> Maybe String -> Typeahead.Msg SertifikatTypeahead -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
+updateSamtaleTypeahead model feilmelding msg typeaheadModel =
     let
         ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
             Typeahead.update SertifikatTypeahead.label msg typeaheadModel
@@ -671,15 +685,12 @@ updateSamtaleTypeahead model msg typeaheadModel =
                         |> brukerVelgerSertifikatFelt model
 
                 Nothing ->
-                    typeaheadModel
-                        |> Typeahead.inputValue
-                        |> Egendefinert
-                        |> brukerVelgerSertifikatFelt model
+                    brukerVilRegistrereFritekstSertifikat model typeaheadModel
 
         Typeahead.NoSubmit ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> RegistrerSertifikatFelt
+                    |> RegistrerSertifikatFelt (typeaheadFeilmeldingEtterUpdate feilmelding nyTypeaheadModel)
                     |> oppdaterSamtaleSteg model
                 , case getSuggestionsStatus of
                     GetSuggestionsForInput string ->
@@ -688,6 +699,16 @@ updateSamtaleTypeahead model msg typeaheadModel =
                     DoNothing ->
                         Cmd.none
                 )
+
+
+typeaheadFeilmeldingEtterUpdate : Maybe String -> Typeahead.Model SertifikatTypeahead -> Maybe String
+typeaheadFeilmeldingEtterUpdate feilmelding typeaheadModel =
+    case Typeahead.selected typeaheadModel of
+        Just _ ->
+            Nothing
+
+        Nothing ->
+            feilmelding
 
 
 setFullførtMåned : FullførtDatoInfo -> Dato.Måned -> FullførtDatoInfo
@@ -866,7 +887,7 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg sertifikatSeksjon =
     case sertifikatSeksjon of
-        RegistrerSertifikatFelt _ ->
+        RegistrerSertifikatFelt _ _ ->
             [ Melding.spørsmål [ "Hva slags sertifikat eller sertifisering har du?" ]
             , Melding.spørsmål
                 [ "Kanskje du har truckførerbevis T1, eller noe helt annet? :)" ]
@@ -956,7 +977,7 @@ utløpsdatoTilString utløpsdato =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
-        RegistrerSertifikatFelt _ ->
+        RegistrerSertifikatFelt _ _ ->
             settFokusCmd SertifikatTypeaheadId
 
         RegistrerUtsteder _ ->
@@ -1012,9 +1033,9 @@ viewBrukerInput (Model model) =
     case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         FerdigAnimert _ ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt typeaheadModel ->
+                RegistrerSertifikatFelt feilmelding typeaheadModel ->
                     Containers.typeaheadMedGåVidereKnapp VilRegistrereSertifikat
-                        [ Typeahead.view SertifikatTypeahead.label Nothing typeaheadModel
+                        [ Typeahead.view SertifikatTypeahead.label feilmelding typeaheadModel
                             |> Html.map TypeaheadMsg
                         ]
 
@@ -1083,7 +1104,7 @@ viewBrukerInput (Model model) =
 
                 EndreOpplysninger typeaheadModel skjema ->
                     Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
-                        [ Typeahead.view SertifikatTypeahead.label Nothing typeaheadModel
+                        [ Typeahead.view SertifikatTypeahead.label (Skjema.feilmeldingSertifikatFelt skjema) typeaheadModel
                             |> Html.map TypeaheadMsg
                         , skjema
                             |> Skjema.utsteder
@@ -1176,7 +1197,7 @@ init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Sertifikat -> ( Model, C
 init debugStatus gammelMeldingsLogg sertifikatListe =
     let
         aktivSamtale =
-            RegistrerSertifikatFelt initSamtaleTypeahead
+            RegistrerSertifikatFelt Nothing initSamtaleTypeahead
     in
     ( Model
         { seksjonsMeldingsLogg =

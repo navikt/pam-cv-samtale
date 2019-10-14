@@ -241,9 +241,12 @@ init : TypeaheadInitInfo a -> Model a
 init input =
     Model
         { selected = Nothing
-        , typeaheadState = TypeaheadState.init input.value
         , id = input.id
         , label = input.label
+        , typeaheadState =
+            input.value
+                |> TypeaheadState.init
+                |> TypeaheadState.hideSuggestions
         }
 
 
