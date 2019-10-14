@@ -272,7 +272,10 @@ update msg (Model model) =
                                 |> brukerVelgerSertifikatFelt model
 
                         Nothing ->
-                            IkkeFerdig ( Model model, Cmd.none )
+                            typeaheadModel
+                                |> Typeahead.inputValue
+                                |> Egendefinert
+                                |> brukerVelgerSertifikatFelt model
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
