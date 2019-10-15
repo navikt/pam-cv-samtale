@@ -317,7 +317,7 @@ update msg (Model model) =
 
                 RedigerOppsummering typeaheadModel skjema ->
                     let
-                        ( nyTypeaheadModel, getSuggestionsStatus, _ ) =
+                        ( nyTypeaheadModel, status ) =
                             Typeahead.update Yrke.label typeaheadMsg typeaheadModel
                     in
                     IkkeFerdig
@@ -326,7 +326,7 @@ update msg (Model model) =
                             |> Skjema.oppdaterYrke skjema
                             |> RedigerOppsummering nyTypeaheadModel
                             |> oppdaterSamtalesteg model
-                        , case getSuggestionsStatus of
+                        , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput string ->
                                 Api.getYrkeTypeahead HentetYrkeTypeahead string
 
@@ -876,10 +876,10 @@ update msg (Model model) =
 updateSamtaleTypeahead : ModelInfo -> Maybe String -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
 updateSamtaleTypeahead model feilmelding msg typeaheadModel =
     let
-        ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
+        ( nyTypeaheadModel, status ) =
             Typeahead.update Yrke.label msg typeaheadModel
     in
-    case submitStatus of
+    case Typeahead.submitStatus status of
         Typeahead.Submit ->
             case Typeahead.selected typeaheadModel of
                 Just yrke ->
@@ -893,7 +893,7 @@ updateSamtaleTypeahead model feilmelding msg typeaheadModel =
                 ( nyTypeaheadModel
                     |> RegistrerYrke (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
                     |> oppdaterSamtalesteg model
-                , case getSuggestionsStatus of
+                , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         Api.getYrkeTypeahead HentetYrkeTypeahead string
 

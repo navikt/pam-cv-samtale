@@ -115,7 +115,7 @@ update msg (Model model) =
 
                 EndrerOppsummering typeaheadModel skjema ->
                     let
-                        ( nyTypeaheadModel, getSuggestionsStatus, _ ) =
+                        ( nyTypeaheadModel, status ) =
                             Typeahead.update Konsept.label typeaheadMsg typeaheadModel
                     in
                     IkkeFerdig
@@ -124,7 +124,7 @@ update msg (Model model) =
                             |> Skjema.oppdaterKonsept skjema
                             |> EndrerOppsummering nyTypeaheadModel
                             |> oppdaterSamtaleSteg model
-                        , case getSuggestionsStatus of
+                        , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput string ->
                                 skjema
                                     |> Skjema.fagdokumentasjonType
@@ -406,10 +406,10 @@ initSkjemaTypeaheadFraKonsept fagdokumentasjonType konsept =
 updateSamtaleTypeahead : ModelInfo -> FagdokumentasjonType -> Maybe String -> Typeahead.Msg Konsept -> Typeahead.Model Konsept -> SamtaleStatus
 updateSamtaleTypeahead model fagdokumentasjonType feilmelding msg typeaheadModel =
     let
-        ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
+        ( nyTypeaheadModel, status ) =
             Typeahead.update Konsept.label msg typeaheadModel
     in
-    case submitStatus of
+    case Typeahead.submitStatus status of
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just konsept ->
@@ -423,7 +423,7 @@ updateSamtaleTypeahead model fagdokumentasjonType feilmelding msg typeaheadModel
                 ( nyTypeaheadModel
                     |> RegistrerKonsept fagdokumentasjonType (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
                     |> oppdaterSamtaleSteg model
-                , case getSuggestionsStatus of
+                , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         hentTypeaheadSuggestions string fagdokumentasjonType
 

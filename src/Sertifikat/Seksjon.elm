@@ -209,7 +209,7 @@ update msg (Model model) =
 
                 EndreOpplysninger typeaheadModel skjema ->
                     let
-                        ( nyTypeaheadModel, getSuggestionsStatus, _ ) =
+                        ( nyTypeaheadModel, status ) =
                             Typeahead.update SertifikatTypeahead.label typeaheadMsg typeaheadModel
                     in
                     IkkeFerdig
@@ -218,7 +218,7 @@ update msg (Model model) =
                             |> Skjema.oppdaterSertifikat skjema
                             |> EndreOpplysninger nyTypeaheadModel
                             |> oppdaterSamtaleSteg model
-                        , case getSuggestionsStatus of
+                        , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput query ->
                                 Api.getSertifikatTypeahead HentetTypeahead query
 
@@ -673,10 +673,10 @@ tilSertifikatFelt typeaheadModel =
 updateSamtaleTypeahead : ModelInfo -> Maybe String -> Typeahead.Msg SertifikatTypeahead -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
 updateSamtaleTypeahead model feilmelding msg typeaheadModel =
     let
-        ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
+        ( nyTypeaheadModel, status ) =
             Typeahead.update SertifikatTypeahead.label msg typeaheadModel
     in
-    case submitStatus of
+    case Typeahead.submitStatus status of
         Typeahead.Submit ->
             case Typeahead.selected typeaheadModel of
                 Just sertifikat ->
@@ -692,7 +692,7 @@ updateSamtaleTypeahead model feilmelding msg typeaheadModel =
                 ( nyTypeaheadModel
                     |> RegistrerSertifikatFelt (typeaheadFeilmeldingEtterUpdate feilmelding nyTypeaheadModel)
                     |> oppdaterSamtaleSteg model
-                , case getSuggestionsStatus of
+                , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         Api.getSertifikatTypeahead HentetTypeahead string
 
