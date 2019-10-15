@@ -191,7 +191,7 @@ updateTypeaheadState toString model typeaheadState =
             , selected =
                 case model.selected of
                     Just selected_ ->
-                        if toString selected_ == TypeaheadState.value model.typeaheadState then
+                        if toString selected_ == TypeaheadState.value typeaheadState then
                             Just selected_
 
                         else
