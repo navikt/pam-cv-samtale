@@ -709,10 +709,10 @@ nivåToString nivå =
             "Folkehøyskole"
 
         HøyereUtdanning1til4 ->
-            "Høyere Utdanning (1-4 år)"
+            "Høyere utdanning (1-4 år)"
 
         HøyereUtdanning4pluss ->
-            "Høyere Utdanning (mer enn 4 år)"
+            "Høyere utdanning (mer enn 4 år)"
 
         Phd ->
             "PhD"
@@ -1287,8 +1287,8 @@ selectNivåListe =
     , ( tilNivåKey VideregåendeYrkesskole, "Videregående/Yrkesskole" )
     , ( tilNivåKey Fagskole, "Fagskole" )
     , ( tilNivåKey Folkehøyskole, "Folkehøyskole" )
-    , ( tilNivåKey HøyereUtdanning1til4, "Høyere Utdanning (1-4 år)" )
-    , ( tilNivåKey HøyereUtdanning4pluss, "Høyere Utdanning (mer enn 4 år)" )
+    , ( tilNivåKey HøyereUtdanning1til4, "Høyere utdanning (1-4 år)" )
+    , ( tilNivåKey HøyereUtdanning4pluss, "Høyere utdanning (mer enn 4 år)" )
     , ( tilNivåKey Phd, "PhD" )
     ]
 
