@@ -274,9 +274,10 @@ feilmeldingTilÅr (ArbeidserfaringSkjema skjema) =
         Nothing
 
 
-gjørFeilmeldingYrkeSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
-gjørFeilmeldingYrkeSynlig (ArbeidserfaringSkjema skjema) =
-    ArbeidserfaringSkjema { skjema | visYrkeFeilmelding = True }
+gjørFeilmeldingYrkeSynlig : Bool -> ArbeidserfaringSkjema -> ArbeidserfaringSkjema
+gjørFeilmeldingYrkeSynlig synlig (ArbeidserfaringSkjema skjema) =
+    -- Skal alltid vises etter onBlur/onSubmit, så hvis den noen gang har vært True, skal den alltid fortsette å være True
+    ArbeidserfaringSkjema { skjema | visYrkeFeilmelding = synlig || skjema.visYrkeFeilmelding }
 
 
 gjørFeilmeldingFraÅrSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
@@ -292,7 +293,7 @@ gjørFeilmeldingTilÅrSynlig (ArbeidserfaringSkjema skjema) =
 gjørAlleFeilmeldingerSynlig : ArbeidserfaringSkjema -> ArbeidserfaringSkjema
 gjørAlleFeilmeldingerSynlig skjema =
     skjema
-        |> gjørFeilmeldingYrkeSynlig
+        |> gjørFeilmeldingYrkeSynlig True
         |> gjørFeilmeldingFraÅrSynlig
         |> gjørFeilmeldingTilÅrSynlig
 

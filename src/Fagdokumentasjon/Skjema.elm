@@ -107,11 +107,7 @@ oppdaterBeskrivelse beskrivelse_ (UvalidertSkjema info) =
 
 oppdaterKonsept : FagdokumentasjonSkjema -> Maybe Konsept -> FagdokumentasjonSkjema
 oppdaterKonsept (UvalidertSkjema info) konsept_ =
-    UvalidertSkjema
-        { info
-            | konsept = konsept_
-            , visFeilmeldingTypeahead = False
-        }
+    UvalidertSkjema { info | konsept = konsept_ }
 
 
 
@@ -142,9 +138,10 @@ feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType_ =
             "Velg en autorisasjon fra listen med forslag som kommer opp"
 
 
-gjørFeilmeldingKonseptSynlig : FagdokumentasjonSkjema -> FagdokumentasjonSkjema
-gjørFeilmeldingKonseptSynlig (UvalidertSkjema info) =
-    UvalidertSkjema { info | visFeilmeldingTypeahead = True }
+gjørFeilmeldingKonseptSynlig : Bool -> FagdokumentasjonSkjema -> FagdokumentasjonSkjema
+gjørFeilmeldingKonseptSynlig synlig (UvalidertSkjema info) =
+    -- Skal alltid vises etter onBlur/onSubmit, så hvis den noen gang har vært True, skal den alltid fortsette å være True
+    UvalidertSkjema { info | visFeilmeldingTypeahead = synlig || info.visFeilmeldingTypeahead }
 
 
 

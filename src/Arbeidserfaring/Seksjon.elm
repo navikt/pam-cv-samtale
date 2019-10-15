@@ -30,7 +30,7 @@ import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigA
 import Process
 import SamtaleAnimasjon
 import Task
-import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
+import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 import Yrke exposing (Yrke)
 
 
@@ -315,15 +315,16 @@ update msg (Model model) =
                 StartNyArbeidserfaring typeaheadModel ->
                     updateSamtaleTypeahead model False typeaheadMsg typeaheadModel
 
-                RedigerOppsummering typeaheadModel skjema ->
+                RedigerOppsummering gammelTypeaheadModel skjema ->
                     let
                         ( nyTypeaheadModel, status ) =
-                            Typeahead.update Yrke.label typeaheadMsg typeaheadModel
+                            Typeahead.update Yrke.label typeaheadMsg gammelTypeaheadModel
                     in
                     IkkeFerdig
                         ( nyTypeaheadModel
                             |> Typeahead.selected
                             |> Skjema.oppdaterYrke skjema
+                            |> Skjema.gjørFeilmeldingYrkeSynlig (Typeahead.inputStatus status == InputBlurred)
                             |> RedigerOppsummering nyTypeaheadModel
                             |> oppdaterSamtalesteg model
                         , case Typeahead.getSuggestionsStatus status of

@@ -27,7 +27,7 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Process
 import SamtaleAnimasjon
 import Task
-import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
+import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 
 
 
@@ -122,6 +122,7 @@ update msg (Model model) =
                         ( nyTypeaheadModel
                             |> Typeahead.selected
                             |> Skjema.oppdaterKonsept skjema
+                            |> Skjema.gjørFeilmeldingKonseptSynlig (Typeahead.inputStatus status == InputBlurred)
                             |> EndrerOppsummering nyTypeaheadModel
                             |> oppdaterSamtaleSteg model
                         , case Typeahead.getSuggestionsStatus status of
@@ -246,7 +247,7 @@ update msg (Model model) =
                         Nothing ->
                             IkkeFerdig
                                 ( skjema
-                                    |> Skjema.gjørFeilmeldingKonseptSynlig
+                                    |> Skjema.gjørFeilmeldingKonseptSynlig True
                                     |> EndrerOppsummering typeaheadModel
                                     |> oppdaterSamtaleSteg model
                                 , Cmd.none

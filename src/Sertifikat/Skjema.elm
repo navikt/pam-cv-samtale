@@ -230,9 +230,10 @@ feilmeldingUtløperÅr (UvalidertSkjema skjema) =
         Nothing
 
 
-visFeilmeldingSertifikatFelt : SertifikatSkjema -> SertifikatSkjema
-visFeilmeldingSertifikatFelt (UvalidertSkjema skjema) =
-    UvalidertSkjema { skjema | visSertifikatFeltFeilmelding = True }
+visFeilmeldingSertifikatFelt : Bool -> SertifikatSkjema -> SertifikatSkjema
+visFeilmeldingSertifikatFelt synlig (UvalidertSkjema skjema) =
+    -- Skal alltid vises etter onBlur/onSubmit, så hvis den noen gang har vært True, skal den alltid fortsette å være True
+    UvalidertSkjema { skjema | visSertifikatFeltFeilmelding = synlig || skjema.visSertifikatFeltFeilmelding }
 
 
 visFeilmeldingFullførtÅr : SertifikatSkjema -> SertifikatSkjema
@@ -248,9 +249,9 @@ visFeilmeldingUtløperÅr (UvalidertSkjema skjema) =
 visAlleFeilmeldinger : SertifikatSkjema -> SertifikatSkjema
 visAlleFeilmeldinger skjema =
     skjema
+        |> visFeilmeldingSertifikatFelt True
         |> visFeilmeldingFullførtÅr
         |> visFeilmeldingUtløperÅr
-        |> visFeilmeldingSertifikatFelt
 
 
 

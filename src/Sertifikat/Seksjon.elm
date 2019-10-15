@@ -30,7 +30,7 @@ import SamtaleAnimasjon
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import SertifikatTypeahead exposing (SertifikatTypeahead)
 import Task
-import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
+import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 
 
 
@@ -179,7 +179,7 @@ type Msg
     | SkjemaEndret SkjemaEndring
     | VilLagreEndretSkjema
     | SertifikatLagret (Result Http.Error (List Sertifikat))
-    | FerdigMedSertifikat String
+    | FerdigMedSertifikat
     | StartÅSkrive
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
@@ -216,6 +216,7 @@ update msg (Model model) =
                         ( nyTypeaheadModel
                             |> tilSertifikatFelt
                             |> Skjema.oppdaterSertifikat skjema
+                            |> Skjema.visFeilmeldingSertifikatFelt (Typeahead.inputStatus status == InputBlurred)
                             |> EndreOpplysninger nyTypeaheadModel
                             |> oppdaterSamtaleSteg model
                         , case Typeahead.getSuggestionsStatus status of
@@ -563,7 +564,7 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        FerdigMedSertifikat knappeTekst ->
+        FerdigMedSertifikat ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
                     ( model.sertifikatListe
@@ -1175,7 +1176,7 @@ viewBrukerInput (Model model) =
                     Containers.knapper Flytende
                         [ Knapp.knapp VilLagreSertifikat "Ja, prøv på nytt"
                             |> Knapp.toHtml
-                        , Knapp.knapp (FerdigMedSertifikat "Nei, gå videre") "Nei, gå videre"
+                        , Knapp.knapp FerdigMedSertifikat "Nei, gå videre"
                             |> Knapp.toHtml
                         ]
 
