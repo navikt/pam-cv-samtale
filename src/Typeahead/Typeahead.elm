@@ -1,17 +1,16 @@
 module Typeahead.Typeahead exposing
     ( GetSuggestionStatus(..)
+    , InputStatus(..)
     , Model
     , Msg
-    , SubmitStatus(..)
     , TypeaheadInitInfo
     , TypeaheadInitWithSelectedInfo
-    , blurStatus
     , getSuggestionsStatus
     , init
     , initWithSelected
+    , inputStatus
     , inputValue
     , selected
-    , submitStatus
     , update
     , updateSuggestions
     , view
@@ -53,21 +52,16 @@ type GetSuggestionStatus
     | GetSuggestionsForInput String
 
 
-type SubmitStatus
+type InputStatus
     = Submit
-    | NoSubmit
-
-
-type BlurStatus
-    = InputBlurred
-    | NoBlur
+    | InputBlurred
+    | NoChange
 
 
 type Status
     = Status
         { getSuggestionStatus : GetSuggestionStatus
-        , submitStatus : SubmitStatus
-        , blurStatus : BlurStatus
+        , inputStatus : InputStatus
         }
 
 
@@ -76,14 +70,9 @@ getSuggestionsStatus (Status info) =
     info.getSuggestionStatus
 
 
-submitStatus : Status -> SubmitStatus
-submitStatus (Status info) =
-    info.submitStatus
-
-
-blurStatus : Status -> BlurStatus
-blurStatus (Status info) =
-    info.blurStatus
+inputStatus : Status -> InputStatus
+inputStatus (Status info) =
+    info.inputStatus
 
 
 
@@ -109,8 +98,7 @@ update toString msg (Model model) =
                 |> updateTypeaheadState toString model
             , Status
                 { getSuggestionStatus = GetSuggestionsForInput string
-                , submitStatus = NoSubmit
-                , blurStatus = NoBlur
+                , inputStatus = NoChange
                 }
             )
 
@@ -122,8 +110,7 @@ update toString msg (Model model) =
                         |> updateTypeaheadState toString model
                     , Status
                         { getSuggestionStatus = DoNothing
-                        , submitStatus = NoSubmit
-                        , blurStatus = NoBlur
+                        , inputStatus = NoChange
                         }
                     )
 
@@ -133,8 +120,7 @@ update toString msg (Model model) =
                         |> updateTypeaheadState toString model
                     , Status
                         { getSuggestionStatus = DoNothing
-                        , submitStatus = NoSubmit
-                        , blurStatus = NoBlur
+                        , inputStatus = NoChange
                         }
                     )
 
@@ -149,8 +135,7 @@ update toString msg (Model model) =
                                 |> updateTypeaheadState toString model
                             , Status
                                 { getSuggestionStatus = DoNothing
-                                , submitStatus = Submit
-                                , blurStatus = NoBlur
+                                , inputStatus = Submit
                                 }
                             )
 
@@ -160,8 +145,7 @@ update toString msg (Model model) =
                         |> updateTypeaheadState toString model
                     , Status
                         { getSuggestionStatus = DoNothing
-                        , submitStatus = NoSubmit
-                        , blurStatus = NoBlur
+                        , inputStatus = NoChange
                         }
                     )
 
@@ -171,8 +155,7 @@ update toString msg (Model model) =
                 |> updateTypeaheadState toString model
             , Status
                 { getSuggestionStatus = DoNothing
-                , submitStatus = NoSubmit
-                , blurStatus = NoBlur
+                , inputStatus = NoChange
                 }
             )
 
@@ -185,8 +168,7 @@ update toString msg (Model model) =
                 |> updateTypeaheadState toString model
             , Status
                 { getSuggestionStatus = DoNothing
-                , submitStatus = NoSubmit
-                , blurStatus = NoBlur
+                , inputStatus = NoChange
                 }
             )
 
@@ -196,8 +178,7 @@ update toString msg (Model model) =
                 |> updateTypeaheadState toString model
             , Status
                 { getSuggestionStatus = DoNothing
-                , submitStatus = NoSubmit
-                , blurStatus = InputBlurred
+                , inputStatus = InputBlurred
                 }
             )
 
@@ -236,8 +217,7 @@ updateAfterSelect toString selected_ model =
             selected_
                 |> toString
                 |> GetSuggestionsForInput
-        , submitStatus = NoSubmit
-        , blurStatus = NoBlur
+        , inputStatus = NoChange
         }
     )
 
@@ -253,8 +233,8 @@ updateSuggestions toString (Model model) suggestions =
 --- VIEW ---
 
 
-view : (a -> String) -> Maybe String -> Model a -> Html (Msg a)
-view toString feilmelding (Model model) =
+view : (a -> String) -> Model a -> Maybe String -> Html (Msg a)
+view toString (Model model) feilmelding =
     model.typeaheadState
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererInput, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
