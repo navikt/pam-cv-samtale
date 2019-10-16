@@ -24,7 +24,7 @@ import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
-import Melding exposing (Melding(..))
+import Melding exposing (Melding(..), Tekstområde(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
 import SamtaleAnimasjon
@@ -885,21 +885,21 @@ oppdaterSamtaleSteg model samtaleSeksjon =
         }
 
 
-utdanningslisteTilString : List Utdanning -> List String
+utdanningslisteTilString : List Utdanning -> List Tekstområde
 utdanningslisteTilString utdanninger =
     utdanninger
-        |> List.map utdanningTilStrings
-        |> List.intersperse [ Melding.tomLinje ]
-        |> List.concat
+        |> List.map utdanningTilTekstområde
+        |> List.intersperse (Avsnitt Melding.tomLinje)
 
 
-utdanningTilStrings : Utdanning -> List String
-utdanningTilStrings utdanning =
-    [ Dato.periodeTilString (Utdanning.fraMåned utdanning) (Utdanning.fraÅr utdanning) (Utdanning.tilDato utdanning)
-    , (Utdanning.utdanningsretning utdanning |> Maybe.withDefault "")
-        ++ " ved  "
-        ++ (Utdanning.studiested utdanning |> Maybe.withDefault "")
-    ]
+utdanningTilTekstområde : Utdanning -> Tekstområde
+utdanningTilTekstområde utdanning =
+    Seksjon (Utdanning.utdanningsretning utdanning |> Maybe.withDefault "")
+        [ Dato.periodeTilString (Utdanning.fraMåned utdanning) (Utdanning.fraÅr utdanning) (Utdanning.tilDato utdanning)
+        , (Utdanning.utdanningsretning utdanning |> Maybe.withDefault "")
+            ++ " ved  "
+            ++ (Utdanning.studiested utdanning |> Maybe.withDefault "")
+        ]
 
 
 samtaleTilMeldingsLogg : Samtale -> List Melding
@@ -913,7 +913,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
             else
                 [ Melding.spørsmål [ "Nå skal vi legge til utdanning. Vi ser at du allerede har lagt inn disse utdanningene: " ]
-                , Melding.spørsmål (utdanningslisteTilString utdanninger)
+                , Melding.spørsmålMedTekstområder (utdanningslisteTilString utdanninger)
                 , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
                 ]
 
