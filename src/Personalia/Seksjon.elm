@@ -486,7 +486,7 @@ viewTelefonISkjema personaliaSkjema =
                 , input
                     [ value (Skjema.telefon personaliaSkjema)
                     , onInput (PersonaliaSkjemaEndret Skjema.Telefon)
-                    , onBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Postnummer)
+                    , onBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Telefon)
                     , classList
                         [ ( "skjemaelement__input", True )
                         , ( "PersonaliaSeksjon--telefonnummer--input", True )

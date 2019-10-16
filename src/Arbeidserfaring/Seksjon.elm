@@ -30,7 +30,7 @@ import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigA
 import Process
 import SamtaleAnimasjon
 import Task
-import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
+import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 import Yrke exposing (Yrke)
 
 
@@ -63,7 +63,7 @@ type SamtaleStatus
 type Samtale
     = Intro
     | VelgEnArbeidserfaringÅRedigere
-    | RegistrerYrke (Maybe String) (Typeahead.Model Yrke)
+    | RegistrerYrke Bool (Typeahead.Model Yrke)
     | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
     | EndreJobbtittel JobbtittelInfo
     | RegistrereBedriftsnavn BedriftnavnInfo
@@ -301,7 +301,7 @@ update msg (Model model) =
 
         BrukerVilLeggeTilNyArbeidserfaring knappeTekst ->
             ( initSamtaleTypeahead
-                |> RegistrerYrke Nothing
+                |> RegistrerYrke False
                 |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -309,24 +309,25 @@ update msg (Model model) =
 
         TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                RegistrerYrke feilmelding typeaheadModel ->
-                    updateSamtaleTypeahead model feilmelding typeaheadMsg typeaheadModel
+                RegistrerYrke visFeilmelding typeaheadModel ->
+                    updateSamtaleTypeahead model visFeilmelding typeaheadMsg typeaheadModel
 
                 StartNyArbeidserfaring typeaheadModel ->
-                    updateSamtaleTypeahead model Nothing typeaheadMsg typeaheadModel
+                    updateSamtaleTypeahead model False typeaheadMsg typeaheadModel
 
-                RedigerOppsummering typeaheadModel skjema ->
+                RedigerOppsummering gammelTypeaheadModel skjema ->
                     let
-                        ( nyTypeaheadModel, getSuggestionsStatus, _ ) =
-                            Typeahead.update Yrke.label typeaheadMsg typeaheadModel
+                        ( nyTypeaheadModel, status ) =
+                            Typeahead.update Yrke.label typeaheadMsg gammelTypeaheadModel
                     in
                     IkkeFerdig
                         ( nyTypeaheadModel
                             |> Typeahead.selected
                             |> Skjema.oppdaterYrke skjema
+                            |> Skjema.gjørFeilmeldingYrkeSynlig (Typeahead.inputStatus status == InputBlurred)
                             |> RedigerOppsummering nyTypeaheadModel
                             |> oppdaterSamtalesteg model
-                        , case getSuggestionsStatus of
+                        , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput string ->
                                 Api.getYrkeTypeahead HentetYrkeTypeahead string
 
@@ -339,7 +340,7 @@ update msg (Model model) =
 
         HentetYrkeTypeahead result ->
             case model.aktivSamtale of
-                RegistrerYrke feilmelding typeaheadModel ->
+                RegistrerYrke visFeilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
                             ( let
@@ -347,7 +348,7 @@ update msg (Model model) =
                                     Typeahead.updateSuggestions Yrke.label typeaheadModel suggestions
                               in
                               nyTypeaheadModel
-                                |> RegistrerYrke (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
+                                |> RegistrerYrke visFeilmelding
                                 |> oppdaterSamtalesteg model
                             , Cmd.none
                             )
@@ -382,7 +383,7 @@ update msg (Model model) =
                             brukerVelgerYrke model yrke
 
                         Nothing ->
-                            brukerVilRegistrereMenHarIkkeValgtYrke model typeaheadModel
+                            visFeilmeldingRegistrerYrke model typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -873,43 +874,36 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
-updateSamtaleTypeahead : ModelInfo -> Maybe String -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
-updateSamtaleTypeahead model feilmelding msg typeaheadModel =
+updateSamtaleTypeahead : ModelInfo -> Bool -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
+updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
     let
-        ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
+        ( nyTypeaheadModel, status ) =
             Typeahead.update Yrke.label msg typeaheadModel
     in
-    case submitStatus of
+    case Typeahead.inputStatus status of
         Typeahead.Submit ->
             case Typeahead.selected typeaheadModel of
                 Just yrke ->
                     brukerVelgerYrke model yrke
 
                 Nothing ->
-                    brukerVilRegistrereMenHarIkkeValgtYrke model nyTypeaheadModel
+                    visFeilmeldingRegistrerYrke model nyTypeaheadModel
 
-        Typeahead.NoSubmit ->
+        Typeahead.InputBlurred ->
+            visFeilmeldingRegistrerYrke model nyTypeaheadModel
+
+        Typeahead.NoChange ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> RegistrerYrke (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
+                    |> RegistrerYrke visFeilmelding
                     |> oppdaterSamtalesteg model
-                , case getSuggestionsStatus of
+                , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         Api.getYrkeTypeahead HentetYrkeTypeahead string
 
                     DoNothing ->
                         Cmd.none
                 )
-
-
-typeaheadFeilmeldingEtterUpdate : Maybe String -> Maybe Yrke -> Maybe String
-typeaheadFeilmeldingEtterUpdate feilmelding valgtYrke =
-    case valgtYrke of
-        Just _ ->
-            Nothing
-
-        Nothing ->
-            feilmelding
 
 
 initSamtaleTypeahead : Typeahead.Model Yrke
@@ -1058,9 +1052,19 @@ brukerVelgerYrke info yrkesTypeahead =
         |> IkkeFerdig
 
 
-brukerVilRegistrereMenHarIkkeValgtYrke : ModelInfo -> Typeahead.Model Yrke -> SamtaleStatus
-brukerVilRegistrereMenHarIkkeValgtYrke model typeaheadModel =
-    ( RegistrerYrke (Just "Velg et yrke fra listen med forslag som kommer opp") typeaheadModel
+feilmeldingTypeahead : Typeahead.Model Yrke -> Maybe String
+feilmeldingTypeahead typeaheadModel =
+    case Typeahead.selected typeaheadModel of
+        Just _ ->
+            Nothing
+
+        Nothing ->
+            Just "Velg et yrke fra listen med forslag som kommer opp"
+
+
+visFeilmeldingRegistrerYrke : ModelInfo -> Typeahead.Model Yrke -> SamtaleStatus
+visFeilmeldingRegistrerYrke model typeaheadModel =
+    ( RegistrerYrke True typeaheadModel
         |> oppdaterSamtalesteg model
     , Cmd.none
     )
@@ -1270,9 +1274,12 @@ viewBrukerInput (Model model) =
                     Containers.knapper Kolonne
                         (List.map lagArbeidserfaringKnapp model.arbeidserfaringListe)
 
-                RegistrerYrke feilmelding typeaheadModel ->
+                RegistrerYrke visFeilmelding typeaheadModel ->
                     Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
-                        [ Typeahead.view Yrke.label feilmelding typeaheadModel
+                        [ typeaheadModel
+                            |> feilmeldingTypeahead
+                            |> maybeHvisTrue visFeilmelding
+                            |> Typeahead.view Yrke.label typeaheadModel
                             |> Html.map TypeaheadMsg
                         ]
 
@@ -1373,7 +1380,9 @@ viewBrukerInput (Model model) =
 
                 RedigerOppsummering typeaheadModel skjema ->
                     Containers.skjema { lagreMsg = BrukerVilLagreArbeidserfaringSkjema, lagreKnappTekst = "Lagre endringer" }
-                        [ Typeahead.view Yrke.label (Skjema.feilmeldingYrke skjema) typeaheadModel
+                        [ skjema
+                            |> Skjema.feilmeldingYrke
+                            |> Typeahead.view Yrke.label typeaheadModel
                             |> Html.map TypeaheadMsg
                         , if Skjema.innholdTekstFelt Jobbtittel skjema == "" then
                             text ""
@@ -1445,7 +1454,7 @@ viewBrukerInput (Model model) =
 
                 StartNyArbeidserfaring typeaheadModel ->
                     Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
-                        [ Typeahead.view Yrke.label Nothing typeaheadModel
+                        [ Typeahead.view Yrke.label typeaheadModel Nothing
                             |> Html.map TypeaheadMsg
                         ]
 

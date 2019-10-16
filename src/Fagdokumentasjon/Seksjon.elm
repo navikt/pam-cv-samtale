@@ -27,7 +27,7 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Process
 import SamtaleAnimasjon
 import Task
-import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..))
+import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 
 
 
@@ -47,7 +47,7 @@ type alias ModelInfo =
 
 
 type Samtale
-    = RegistrerKonsept FagdokumentasjonType (Maybe String) (Typeahead.Model Konsept)
+    = RegistrerKonsept FagdokumentasjonType Bool (Typeahead.Model Konsept)
     | RegistrerBeskrivelse FagdokumentasjonType BeskrivelseInfo
     | Oppsummering ValidertFagdokumentasjonSkjema
     | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
@@ -110,21 +110,22 @@ update msg (Model model) =
     case msg of
         TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType feilmelding typeaheadModel ->
-                    updateSamtaleTypeahead model fagdokumentasjonType feilmelding typeaheadMsg typeaheadModel
+                RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
+                    updateSamtaleTypeahead model fagdokumentasjonType visFeilmelding typeaheadMsg typeaheadModel
 
                 EndrerOppsummering typeaheadModel skjema ->
                     let
-                        ( nyTypeaheadModel, getSuggestionsStatus, _ ) =
+                        ( nyTypeaheadModel, status ) =
                             Typeahead.update Konsept.label typeaheadMsg typeaheadModel
                     in
                     IkkeFerdig
                         ( nyTypeaheadModel
                             |> Typeahead.selected
                             |> Skjema.oppdaterKonsept skjema
+                            |> Skjema.gjørFeilmeldingKonseptSynlig (Typeahead.inputStatus status == InputBlurred)
                             |> EndrerOppsummering nyTypeaheadModel
                             |> oppdaterSamtaleSteg model
-                        , case getSuggestionsStatus of
+                        , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput string ->
                                 skjema
                                     |> Skjema.fagdokumentasjonType
@@ -139,7 +140,7 @@ update msg (Model model) =
 
         HentetTypeahead result ->
             case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType feilmelding typeaheadModel ->
+                RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
                             ( let
@@ -147,7 +148,7 @@ update msg (Model model) =
                                     Typeahead.updateSuggestions Konsept.label typeaheadModel suggestions
                               in
                               nyTypeaheadModel
-                                |> RegistrerKonsept fagdokumentasjonType (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
+                                |> RegistrerKonsept fagdokumentasjonType visFeilmelding
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
@@ -181,7 +182,7 @@ update msg (Model model) =
                             brukerVilRegistrereKonsept model fagdokumentasjonType konsept
 
                         Nothing ->
-                            brukerVilRegisetrereMenHarIkkeValgtKonsept model fagdokumentasjonType typeaheadModel
+                            visFeilmeldingRegistrerKonsept model fagdokumentasjonType typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -246,7 +247,7 @@ update msg (Model model) =
                         Nothing ->
                             IkkeFerdig
                                 ( skjema
-                                    |> Skjema.gjørFeilmeldingKonseptSynlig
+                                    |> Skjema.gjørFeilmeldingKonseptSynlig True
                                     |> EndrerOppsummering typeaheadModel
                                     |> oppdaterSamtaleSteg model
                                 , Cmd.none
@@ -403,33 +404,45 @@ initSkjemaTypeaheadFraKonsept fagdokumentasjonType konsept =
         }
 
 
-updateSamtaleTypeahead : ModelInfo -> FagdokumentasjonType -> Maybe String -> Typeahead.Msg Konsept -> Typeahead.Model Konsept -> SamtaleStatus
-updateSamtaleTypeahead model fagdokumentasjonType feilmelding msg typeaheadModel =
+updateSamtaleTypeahead : ModelInfo -> FagdokumentasjonType -> Bool -> Typeahead.Msg Konsept -> Typeahead.Model Konsept -> SamtaleStatus
+updateSamtaleTypeahead model fagdokumentasjonType visFeilmelding msg typeaheadModel =
     let
-        ( nyTypeaheadModel, getSuggestionsStatus, submitStatus ) =
+        ( nyTypeaheadModel, status ) =
             Typeahead.update Konsept.label msg typeaheadModel
     in
-    case submitStatus of
+    case Typeahead.inputStatus status of
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just konsept ->
                     brukerVilRegistrereKonsept model fagdokumentasjonType konsept
 
                 Nothing ->
-                    brukerVilRegisetrereMenHarIkkeValgtKonsept model fagdokumentasjonType nyTypeaheadModel
+                    visFeilmeldingRegistrerKonsept model fagdokumentasjonType nyTypeaheadModel
 
-        Typeahead.NoSubmit ->
+        Typeahead.InputBlurred ->
+            visFeilmeldingRegistrerKonsept model fagdokumentasjonType nyTypeaheadModel
+
+        Typeahead.NoChange ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> RegistrerKonsept fagdokumentasjonType (typeaheadFeilmeldingEtterUpdate feilmelding (Typeahead.selected nyTypeaheadModel))
+                    |> RegistrerKonsept fagdokumentasjonType visFeilmelding
                     |> oppdaterSamtaleSteg model
-                , case getSuggestionsStatus of
+                , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         hentTypeaheadSuggestions string fagdokumentasjonType
 
                     DoNothing ->
                         Cmd.none
                 )
+
+
+visFeilmeldingRegistrerKonsept : ModelInfo -> FagdokumentasjonType -> Typeahead.Model Konsept -> SamtaleStatus
+visFeilmeldingRegistrerKonsept model fagdokumentasjonType typeaheadModel =
+    ( RegistrerKonsept fagdokumentasjonType True typeaheadModel
+        |> oppdaterSamtaleSteg model
+    , Cmd.none
+    )
+        |> IkkeFerdig
 
 
 brukerVilRegistrereKonsept : ModelInfo -> FagdokumentasjonType -> Konsept -> SamtaleStatus
@@ -441,25 +454,6 @@ brukerVilRegistrereKonsept model fagdokumentasjonType konsept =
     , lagtTilSpørsmålCmd model.debugStatus
     )
         |> IkkeFerdig
-
-
-brukerVilRegisetrereMenHarIkkeValgtKonsept : ModelInfo -> FagdokumentasjonType -> Typeahead.Model Konsept -> SamtaleStatus
-brukerVilRegisetrereMenHarIkkeValgtKonsept model fagdokumentasjonType typeaheadModel =
-    ( RegistrerKonsept fagdokumentasjonType (feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType |> Just) typeaheadModel
-        |> oppdaterSamtaleSteg model
-    , Cmd.none
-    )
-        |> IkkeFerdig
-
-
-typeaheadFeilmeldingEtterUpdate : Maybe String -> Maybe Konsept -> Maybe String
-typeaheadFeilmeldingEtterUpdate feilmelding valgtYrke =
-    case valgtYrke of
-        Just _ ->
-            Nothing
-
-        Nothing ->
-            feilmelding
 
 
 feilmeldingstekstIkkeValgtKonsept : FagdokumentasjonType -> String
@@ -662,9 +656,12 @@ viewBrukerInput (Model model) =
     case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         FerdigAnimert _ ->
             case model.aktivSamtale of
-                RegistrerKonsept _ feilmelding typeaheadModel ->
+                RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
                     Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereKonsept
-                        [ Typeahead.view Konsept.label feilmelding typeaheadModel
+                        [ typeaheadModel
+                            |> feilmeldingTypeahead fagdokumentasjonType
+                            |> maybeHvisTrue visFeilmelding
+                            |> Typeahead.view Konsept.label typeaheadModel
                             |> Html.map TypeaheadMsg
                         ]
 
@@ -687,7 +684,9 @@ viewBrukerInput (Model model) =
 
                 EndrerOppsummering typeaheadModel skjema ->
                     Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre" }
-                        [ Typeahead.view Konsept.label (Skjema.feilmeldingTypeahead skjema) typeaheadModel
+                        [ skjema
+                            |> Skjema.feilmeldingTypeahead
+                            |> Typeahead.view Konsept.label typeaheadModel
                             |> Html.map TypeaheadMsg
                         , skjema
                             |> Skjema.beskrivelse
@@ -737,6 +736,25 @@ inputIdTilString inputId =
             "fagdokumentasjon-registrer-beskrivelse"
 
 
+feilmeldingTypeahead : FagdokumentasjonType -> Typeahead.Model Konsept -> Maybe String
+feilmeldingTypeahead fagdokumentasjonType typeaheadModel =
+    case Typeahead.selected typeaheadModel of
+        Just _ ->
+            Nothing
+
+        Nothing ->
+            Just (feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType)
+
+
+maybeHvisTrue : Bool -> Maybe a -> Maybe a
+maybeHvisTrue bool maybe =
+    if bool then
+        maybe
+
+    else
+        Nothing
+
+
 feilmeldingBeskrivelsesfelt : String -> Maybe String
 feilmeldingBeskrivelsesfelt innhold =
     if String.length innhold <= 200 then
@@ -773,7 +791,7 @@ init fagdokumentasjonType debugStatus gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
             initSamtaleTypeahead fagdokumentasjonType
-                |> RegistrerKonsept fagdokumentasjonType Nothing
+                |> RegistrerKonsept fagdokumentasjonType False
     in
     ( Model
         { seksjonsMeldingsLogg =

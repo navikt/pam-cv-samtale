@@ -1,12 +1,14 @@
 module Typeahead.Typeahead exposing
     ( GetSuggestionStatus(..)
+    , InputStatus(..)
     , Model
     , Msg
-    , SubmitStatus(..)
     , TypeaheadInitInfo
     , TypeaheadInitWithSelectedInfo
+    , getSuggestionsStatus
     , init
     , initWithSelected
+    , inputStatus
     , inputValue
     , selected
     , update
@@ -45,6 +47,34 @@ selected (Model model) =
     model.selected
 
 
+type GetSuggestionStatus
+    = DoNothing
+    | GetSuggestionsForInput String
+
+
+type InputStatus
+    = Submit
+    | InputBlurred
+    | NoChange
+
+
+type Status
+    = Status
+        { getSuggestionStatus : GetSuggestionStatus
+        , inputStatus : InputStatus
+        }
+
+
+getSuggestionsStatus : Status -> GetSuggestionStatus
+getSuggestionsStatus (Status info) =
+    info.getSuggestionStatus
+
+
+inputStatus : Status -> InputStatus
+inputStatus (Status info) =
+    info.inputStatus
+
+
 
 --- UPDATE ---
 
@@ -58,17 +88,7 @@ type Msg a
     | TypeaheadMistetFokus
 
 
-type GetSuggestionStatus
-    = DoNothing
-    | GetSuggestionsForInput String
-
-
-type SubmitStatus
-    = Submit
-    | NoSubmit
-
-
-update : (a -> String) -> Msg a -> Model a -> ( Model a, GetSuggestionStatus, SubmitStatus )
+update : (a -> String) -> Msg a -> Model a -> ( Model a, Status )
 update toString msg (Model model) =
     case msg of
         BrukerOppdatererInput string ->
@@ -76,8 +96,10 @@ update toString msg (Model model) =
                 |> TypeaheadState.updateValue string
                 |> TypeaheadState.showSuggestions
                 |> updateTypeaheadState toString model
-            , GetSuggestionsForInput string
-            , NoSubmit
+            , Status
+                { getSuggestionStatus = GetSuggestionsForInput string
+                , inputStatus = NoChange
+                }
             )
 
         BrukerTrykkerTypeaheadTast operation ->
@@ -86,16 +108,20 @@ update toString msg (Model model) =
                     ( model.typeaheadState
                         |> TypeaheadState.arrowUp
                         |> updateTypeaheadState toString model
-                    , DoNothing
-                    , NoSubmit
+                    , Status
+                        { getSuggestionStatus = DoNothing
+                        , inputStatus = NoChange
+                        }
                     )
 
                 Typeahead.ArrowDown ->
                     ( model.typeaheadState
                         |> TypeaheadState.arrowDown
                         |> updateTypeaheadState toString model
-                    , DoNothing
-                    , NoSubmit
+                    , Status
+                        { getSuggestionStatus = DoNothing
+                        , inputStatus = NoChange
+                        }
                     )
 
                 Typeahead.Enter ->
@@ -107,24 +133,30 @@ update toString msg (Model model) =
                             ( model.typeaheadState
                                 |> TypeaheadState.hideSuggestions
                                 |> updateTypeaheadState toString model
-                            , DoNothing
-                            , Submit
+                            , Status
+                                { getSuggestionStatus = DoNothing
+                                , inputStatus = Submit
+                                }
                             )
 
                 Typeahead.MouseLeaveSuggestions ->
                     ( model.typeaheadState
                         |> TypeaheadState.removeActive
                         |> updateTypeaheadState toString model
-                    , DoNothing
-                    , NoSubmit
+                    , Status
+                        { getSuggestionStatus = DoNothing
+                        , inputStatus = NoChange
+                        }
                     )
 
         BrukerHovrerOverTypeaheadSuggestion active ->
             ( model.typeaheadState
                 |> TypeaheadState.updateActive active
                 |> updateTypeaheadState toString model
-            , DoNothing
-            , NoSubmit
+            , Status
+                { getSuggestionStatus = DoNothing
+                , inputStatus = NoChange
+                }
             )
 
         BrukerVelgerElement selected_ ->
@@ -134,16 +166,20 @@ update toString msg (Model model) =
             ( model.typeaheadState
                 |> TypeaheadState.showSuggestions
                 |> updateTypeaheadState toString model
-            , DoNothing
-            , NoSubmit
+            , Status
+                { getSuggestionStatus = DoNothing
+                , inputStatus = NoChange
+                }
             )
 
         TypeaheadMistetFokus ->
             ( model.typeaheadState
                 |> TypeaheadState.hideSuggestions
                 |> updateTypeaheadState toString model
-            , DoNothing
-            , NoSubmit
+            , Status
+                { getSuggestionStatus = DoNothing
+                , inputStatus = InputBlurred
+                }
             )
 
 
@@ -155,7 +191,7 @@ updateTypeaheadState toString model typeaheadState =
             , selected =
                 case model.selected of
                     Just selected_ ->
-                        if toString selected_ == TypeaheadState.value model.typeaheadState then
+                        if toString selected_ == TypeaheadState.value typeaheadState then
                             Just selected_
 
                         else
@@ -166,7 +202,7 @@ updateTypeaheadState toString model typeaheadState =
         }
 
 
-updateAfterSelect : (a -> String) -> a -> ModelInfo a -> ( Model a, GetSuggestionStatus, SubmitStatus )
+updateAfterSelect : (a -> String) -> a -> ModelInfo a -> ( Model a, Status )
 updateAfterSelect toString selected_ model =
     ( Model
         { model
@@ -176,10 +212,13 @@ updateAfterSelect toString selected_ model =
                     |> TypeaheadState.updateValue (toString selected_)
                     |> TypeaheadState.hideSuggestions
         }
-    , selected_
-        |> toString
-        |> GetSuggestionsForInput
-    , NoSubmit
+    , Status
+        { getSuggestionStatus =
+            selected_
+                |> toString
+                |> GetSuggestionsForInput
+        , inputStatus = NoChange
+        }
     )
 
 
@@ -194,8 +233,8 @@ updateSuggestions toString (Model model) suggestions =
 --- VIEW ---
 
 
-view : (a -> String) -> Maybe String -> Model a -> Html (Msg a)
-view toString feilmelding (Model model) =
+view : (a -> String) -> Model a -> Maybe String -> Html (Msg a)
+view toString (Model model) feilmelding =
     model.typeaheadState
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererInput, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
