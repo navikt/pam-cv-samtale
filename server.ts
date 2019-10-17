@@ -93,6 +93,13 @@ server.use(
     }
 );
 
+server.use(
+    '/lukksiden*',
+    (req: express.Request, res: express.Response) => {
+        res.sendFile(path.resolve(__dirname, 'dist', 'lukkSiden.html'));
+    }
+);
+
 const port = process.env.PORT || 8080;
 server.listen(port, () => {
     console.log('Server listening on port', port);

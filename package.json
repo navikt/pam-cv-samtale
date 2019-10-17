@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node server-dev.js",
-    "build": "parcel build src/index.html --public-url /cv-samtale/static",
+    "build-samtale": "parcel build src/index.html --public-url /cv-samtale/static",
+    "start-lukksiden": "parcel src/lukkSiden.html --public-url /cv-samtale/static",
+    "build-lukksiden": "parcel build src/lukkSiden.html --public-url /cv-samtale/static",
+    "build": "npm run build-samtale && npm run build-lukksiden",
     "start:server": "node server.js",
     "build:server": "tsc"
   },
