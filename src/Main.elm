@@ -1038,7 +1038,7 @@ main =
         { init = init
         , update = update
         , view = viewDocument
-        , subscriptions = always (Browser.Events.onResize WindowResized)
+        , subscriptions = subscriptions
         , onUrlChange = UrlChanged
         , onUrlRequest = UrlRequestChanged
         }
@@ -1057,3 +1057,55 @@ init _ url navigationKey =
             |> Task.perform ViewportHentet
         ]
     )
+
+
+subscriptions : ExtendedModel -> Sub Msg
+subscriptions { model } =
+    Sub.batch
+        [ Browser.Events.onResize WindowResized
+        , seksjonSubscriptions model
+        ]
+
+
+seksjonSubscriptions : Model -> Sub Msg
+seksjonSubscriptions model =
+    case model of
+        Loading _ ->
+            Sub.none
+
+        Failure _ ->
+            Sub.none
+
+        Success successModel ->
+            case successModel.aktivSamtale of
+                Introduksjon _ ->
+                    Sub.none
+
+                PersonaliaSeksjon personaliaModel ->
+                    personaliaModel
+                        |> Personalia.Seksjon.subscriptions
+                        |> Sub.map (PersonaliaMsg >> SuccessMsg)
+
+                UtdanningSeksjon _ ->
+                    Sub.none
+
+                ArbeidsErfaringSeksjon _ ->
+                    Sub.none
+
+                SpråkSeksjon _ ->
+                    Sub.none
+
+                FagdokumentasjonSeksjon _ ->
+                    Sub.none
+
+                SertifikatSeksjon _ ->
+                    Sub.none
+
+                SeksjonsvalgSeksjon _ ->
+                    Sub.none
+
+                AvslutningSeksjon _ ->
+                    Sub.none
+
+                SammendragSeksjon _ ->
+                    Sub.none

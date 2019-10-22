@@ -7,8 +7,11 @@ const server = express();
 
 
 server.get('/cv-samtale/login', (req, res) => {
-    const redirectTo = req.query.redirect || 'http://localhost:1234';
-    res.redirect(`http://localhost:1337/pam-cv-api/local/cookie?redirect=${redirectTo}`);
+    if (req.query.redirect) {
+        res.redirect(`http://localhost:1337/pam-cv-api/local/cookie?redirect=http://localhost:1234${req.query.redirect}`);
+    } else {
+        res.redirect('http://localhost:1337/pam-cv-api/local/cookie?redirect=http://localhost:1234');
+    }
 });
 
 server.post('/cv-samtale/log', express.json(), (req, res) => {

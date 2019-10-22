@@ -4,6 +4,7 @@ module Personalia.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , subscriptions
     , update
     , viewBrukerInput
     )
@@ -11,19 +12,23 @@ module Personalia.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import DebugStatus exposing (DebugStatus)
+import ErrorMelding exposing (OperasjonEtterError(..))
 import Feilmelding
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Lenke as Lenke
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onBlur, onInput)
-import Http
+import Http exposing (Error(..))
+import Json.Decode
 import Json.Encode
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Personalia exposing (Personalia)
 import Personalia.Skjema as Skjema exposing (PersonaliaSkjema, ValidertPersonaliaSkjema)
+import Ports exposing (MsgFromJavascript(..))
 import Poststed exposing (Poststed)
 import Process
 import SamtaleAnimasjon
@@ -49,9 +54,22 @@ type alias ModelInfo =
 type Samtale
     = BekreftOriginal Personalia
     | EndreOriginal PersonaliaSkjema
-    | LagrerEndring PersonaliaSkjema
-    | LagringFeilet Http.Error PersonaliaSkjema
-    | VenterPåAnimasjonFørFullføring Personalia
+    | LagrerEndring LagreStatus ValidertPersonaliaSkjema
+    | LagringFeilet Http.Error ValidertPersonaliaSkjema
+    | VenterPåAnimasjonFørFullføring Personalia FullføringStatus
+
+
+type LagreStatus
+    = LagrerFørsteGang
+    | LagrerPåNyttEtterError Http.Error
+    | ForsøkÅLagrePåNyttEtterDetteForsøket
+
+
+type FullføringStatus
+    = BekreftetOriginal
+    | LagringLyktesFørsteGang
+    | LagringLyktesEtterFlereForsøk
+    | BrukerGikkVidere
 
 
 type SamtaleStatus
@@ -77,6 +95,9 @@ type Msg
     | PoststedfeltEndretSelvOmDetErDisabled String
     | PersonaliaskjemaLagreknappTrykket
     | PersonaliaOppdatert (Result Http.Error Personalia)
+    | BrukerVilGåVidereUtenÅLagre
+    | BrukerVilPrøveÅLagrePåNytt
+    | FraJavascript (Result Json.Decode.Error MsgFromJavascript)
     | ViewportSatt (Result Dom.Error ())
     | StartÅSkrive
     | FullførMelding
@@ -87,20 +108,10 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         OriginalPersonaliaBekreftet ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        model.seksjonsMeldingsLogg
-                            |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, informasjonen er riktig" ])
-                            |> MeldingsLogg.leggTilSpørsmål
-                                [ Melding.spørsmål [ "Så bra! 😊 Nå kan arbeidsgivere kontakte deg." ]
-                                , Melding.spørsmål [ "Da kan vi gå videre til utfylling av CV-en." ]
-                                ]
-                    , aktivSamtale = VenterPåAnimasjonFørFullføring model.personalia
-                }
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
+            BekreftetOriginal
+                |> VenterPåAnimasjonFørFullføring model.personalia
+                |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
+                |> fullførSeksjonHvisMeldingsloggErFerdig model.personalia
 
         BrukerVilEndreOriginalPersonalia ->
             ( model.personalia
@@ -187,8 +198,8 @@ update msg (Model model) =
                 EndreOriginal skjema ->
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
-                            ( skjema
-                                |> LagrerEndring
+                            ( validertSkjema
+                                |> LagrerEndring LagrerFørsteGang
                                 |> nesteSamtaleSteg model
                                     (skjema
                                         |> personaliaSkjemaOppsummering
@@ -218,34 +229,111 @@ update msg (Model model) =
 
         PersonaliaOppdatert result ->
             case model.aktivSamtale of
-                LagrerEndring skjema ->
+                LagrerEndring lagreStatus skjema ->
                     case result of
                         Ok personalia ->
-                            fullførSeksjonHvisMeldingsloggErFerdig model personalia
+                            lagreStatus
+                                |> fullførtStatusEtterOkLagring
+                                |> VenterPåAnimasjonFørFullføring personalia
+                                |> nesteSamtaleStegUtenSvar model
+                                |> fullførSeksjonHvisMeldingsloggErFerdig personalia
 
                         Err error ->
-                            ( LagringFeilet error skjema
-                                |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt" ])
-                            , Cmd.batch
-                                [ lagtTilSpørsmålCmd model.debugStatus
-                                , model.personalia
-                                    |> Personalia.id
-                                    |> Json.Encode.string
-                                    |> Tuple.pair "id"
-                                    |> List.singleton
-                                    |> Json.Encode.object
-                                    |> Api.logErrorWithRequestBody ErrorLogget "Lagre personalia" error
-                                ]
-                            )
-                                |> IkkeFerdig
+                            case lagreStatus of
+                                LagrerPåNyttEtterError (BadStatus 401) ->
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtaleSteg model
+                                    , Cmd.none
+                                    )
+                                        |> IkkeFerdig
+
+                                ForsøkÅLagrePåNyttEtterDetteForsøket ->
+                                    ( skjema
+                                        |> LagrerEndring (LagrerPåNyttEtterError error)
+                                        |> oppdaterSamtaleSteg model
+                                    , model.personalia
+                                        |> Personalia.id
+                                        |> Api.putPersonalia PersonaliaOppdatert skjema
+                                    )
+                                        |> IkkeFerdig
+
+                                _ ->
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> nesteSamtaleStegUtenSvar model
+                                    , Cmd.batch
+                                        [ lagtTilSpørsmålCmd model.debugStatus
+                                        , model.personalia
+                                            |> Personalia.id
+                                            |> Json.Encode.string
+                                            |> Tuple.pair "id"
+                                            |> List.singleton
+                                            |> Json.Encode.object
+                                            |> Api.logErrorWithRequestBody ErrorLogget "Lagre personalia" error
+                                        ]
+                                    )
+                                        |> IkkeFerdig
 
                 _ ->
-                    ( Model model, Cmd.none )
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilPrøveÅLagrePåNytt ->
+            case model.aktivSamtale of
+                LagringFeilet error skjema ->
+                    ( skjema
+                        |> LagrerEndring (LagrerPåNyttEtterError error)
+                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv på nytt" ])
+                    , Cmd.batch
+                        [ model.personalia
+                            |> Personalia.id
+                            |> Api.putPersonalia PersonaliaOppdatert skjema
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        ]
+                    )
                         |> IkkeFerdig
 
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilGåVidereUtenÅLagre ->
+            VenterPåAnimasjonFørFullføring model.personalia BrukerGikkVidere
+                |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
+                |> fullførSeksjonHvisMeldingsloggErFerdig model.personalia
+
+        FraJavascript result ->
+            case result of
+                Ok msgFraJavascript ->
+                    case msgFraJavascript of
+                        WindowInFocus ->
+                            case model.aktivSamtale of
+                                LagringFeilet ((BadStatus 401) as error) skjema ->
+                                    ( skjema
+                                        |> LagrerEndring (LagrerPåNyttEtterError error)
+                                        |> nesteSamtaleStegUtenSvar model
+                                    , model.personalia
+                                        |> Personalia.id
+                                        |> Api.putPersonalia PersonaliaOppdatert skjema
+                                    )
+                                        |> IkkeFerdig
+
+                                LagrerEndring (LagrerPåNyttEtterError (BadStatus 401)) skjema ->
+                                    ( skjema
+                                        |> LagrerEndring ForsøkÅLagrePåNyttEtterDetteForsøket
+                                        |> oppdaterSamtaleSteg model
+                                    , Cmd.none
+                                    )
+                                        |> IkkeFerdig
+
+                                _ ->
+                                    IkkeFerdig ( Model model, Cmd.none )
+
+                Err decodeError ->
+                    -- TODO: Feilmelding.fromPortError/decodeError
+                    IkkeFerdig ( Model model, Cmd.none )
+
         ViewportSatt _ ->
-            ( Model model, Cmd.none )
-                |> IkkeFerdig
+            IkkeFerdig ( Model model, Cmd.none )
 
         StartÅSkrive ->
             ( Model
@@ -273,12 +361,25 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
+fullførtStatusEtterOkLagring : LagreStatus -> FullføringStatus
+fullførtStatusEtterOkLagring lagreStatus =
+    case lagreStatus of
+        LagrerFørsteGang ->
+            LagringLyktesFørsteGang
+
+        LagrerPåNyttEtterError error ->
+            LagringLyktesEtterFlereForsøk
+
+        ForsøkÅLagrePåNyttEtterDetteForsøket ->
+            LagringLyktesEtterFlereForsøk
+
+
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
 updateEtterFullførtMelding model nyMeldingsLogg =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring personalia ->
+                VenterPåAnimasjonFørFullføring personalia _ ->
                     Ferdig personalia ferdigAnimertSamtale
 
                 _ ->
@@ -302,14 +403,14 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                 |> IkkeFerdig
 
 
-fullførSeksjonHvisMeldingsloggErFerdig : ModelInfo -> Personalia -> SamtaleStatus
-fullførSeksjonHvisMeldingsloggErFerdig modelInfo personalia =
-    case MeldingsLogg.ferdigAnimert modelInfo.seksjonsMeldingsLogg of
+fullførSeksjonHvisMeldingsloggErFerdig : Personalia -> Model -> SamtaleStatus
+fullførSeksjonHvisMeldingsloggErFerdig personalia (Model model) =
+    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         FerdigAnimert ferdigAnimertMeldingsLogg ->
             Ferdig personalia ferdigAnimertMeldingsLogg
 
         MeldingerGjenstår ->
-            ( Model { modelInfo | aktivSamtale = VenterPåAnimasjonFørFullføring personalia }, Cmd.none )
+            ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                 |> IkkeFerdig
 
 
@@ -332,6 +433,17 @@ nesteSamtaleSteg model melding samtaleSeksjon =
             , seksjonsMeldingsLogg =
                 model.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSvar melding
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+        }
+
+
+nesteSamtaleStegUtenSvar : ModelInfo -> Samtale -> Model
+nesteSamtaleStegUtenSvar model samtaleSeksjon =
+    Model
+        { model
+            | aktivSamtale = samtaleSeksjon
+            , seksjonsMeldingsLogg =
+                model.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
         }
 
@@ -363,22 +475,30 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             ]
 
         EndreOriginal _ ->
-            [ Melding.spørsmål
-                [ "Ok! Vennligst skriv inn riktig informasjon i feltene under:" ]
-            ]
+            [ Melding.spørsmål [ "Ok! Vennligst skriv inn riktig informasjon i feltene under:" ] ]
 
-        LagrerEndring _ ->
-            [ Melding.spørsmål
-                [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ]
-            ]
-
-        LagringFeilet _ _ ->
-            [ Melding.spørsmål
-                [ "Oops.. Noe gikk galt!" ]
-            ]
-
-        VenterPåAnimasjonFørFullføring _ ->
+        LagrerEndring _ _ ->
             []
+
+        LagringFeilet error _ ->
+            [ ErrorMelding.errorMelding { operasjon = "lagre personalia", error = error } ]
+
+        VenterPåAnimasjonFørFullføring _ fullføringStatus ->
+            case fullføringStatus of
+                BekreftetOriginal ->
+                    [ Melding.spørsmål [ "Så bra! 😊 Nå kan arbeidsgivere kontakte deg." ]
+                    , Melding.spørsmål [ "Da kan vi gå videre til utfylling av CV-en." ]
+                    ]
+
+                LagringLyktesFørsteGang ->
+                    [ Melding.spørsmål [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ] ]
+
+                LagringLyktesEtterFlereForsøk ->
+                    [ Melding.spørsmål [ "Nå gikk det! Da tar jeg vare på den nye infoen!" ] ]
+
+                BrukerGikkVidere ->
+                    -- TODO: Endre
+                    [ Melding.spørsmål [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ] ]
 
 
 personaliaSkjemaOppsummering : PersonaliaSkjema -> List String
@@ -463,17 +583,50 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                             ]
                         ]
 
-                LagrerEndring _ ->
+                -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
+                LagrerEndring (LagrerPåNyttEtterError error) _ ->
+                    if ErrorMelding.errorOperasjon error == LoggInn then
+                        viewLoggInnLenke
+
+                    else
+                        text ""
+
+                LagrerEndring _ _ ->
                     text ""
 
-                LagringFeilet _ _ ->
-                    text ""
+                LagringFeilet error _ ->
+                    case ErrorMelding.errorOperasjon error of
+                        GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
 
-                VenterPåAnimasjonFørFullføring _ ->
+                        PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        LoggInn ->
+                            viewLoggInnLenke
+
+                VenterPåAnimasjonFørFullføring _ _ ->
                     text ""
 
         MeldingerGjenstår ->
             text ""
+
+
+viewLoggInnLenke : Html msg
+viewLoggInnLenke =
+    Containers.lenke
+        (Lenke.lenke { tekst = "Ja, jeg vil logge inn ", url = "/cv-samtale/login?redirect=/logget-inn" }
+            |> Lenke.withTargetBlank
+            |> Lenke.toHtml
+        )
 
 
 viewTelefonISkjema : PersonaliaSkjema -> Html Msg
@@ -526,3 +679,8 @@ init debugStatus personalia gammelMeldingsLogg =
         }
     , lagtTilSpørsmålCmd debugStatus
     )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Ports.fromJavascript FraJavascript
