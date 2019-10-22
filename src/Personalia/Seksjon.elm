@@ -11,6 +11,7 @@ module Personalia.Seksjon exposing
 
 import Api
 import Browser.Dom as Dom
+import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorMelding exposing (OperasjonEtterError(..))
 import Feilmelding
@@ -22,13 +23,11 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onBlur, onInput)
 import Http exposing (Error(..))
-import Json.Decode
 import Json.Encode
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Personalia exposing (Personalia)
 import Personalia.Skjema as Skjema exposing (PersonaliaSkjema, ValidertPersonaliaSkjema)
-import Ports exposing (MsgFromJavascript(..))
 import Poststed exposing (Poststed)
 import Process
 import SamtaleAnimasjon
@@ -97,7 +96,7 @@ type Msg
     | PersonaliaOppdatert (Result Http.Error Personalia)
     | BrukerVilGåVidereUtenÅLagre
     | BrukerVilPrøveÅLagrePåNytt
-    | FraJavascript (Result Json.Decode.Error MsgFromJavascript)
+    | WindowEndrerVisibility Visibility
     | ViewportSatt (Result Dom.Error ())
     | StartÅSkrive
     | FullførMelding
@@ -301,35 +300,32 @@ update msg (Model model) =
                 |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
                 |> fullførSeksjonHvisMeldingsloggErFerdig model.personalia
 
-        FraJavascript result ->
-            case result of
-                Ok msgFraJavascript ->
-                    case msgFraJavascript of
-                        WindowInFocus ->
-                            case model.aktivSamtale of
-                                LagringFeilet ((BadStatus 401) as error) skjema ->
-                                    ( skjema
-                                        |> LagrerEndring (LagrerPåNyttEtterError error)
-                                        |> nesteSamtaleStegUtenSvar model
-                                    , model.personalia
-                                        |> Personalia.id
-                                        |> Api.putPersonalia PersonaliaOppdatert skjema
-                                    )
-                                        |> IkkeFerdig
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagringFeilet ((BadStatus 401) as error) skjema ->
+                            ( skjema
+                                |> LagrerEndring (LagrerPåNyttEtterError error)
+                                |> nesteSamtaleStegUtenSvar model
+                            , model.personalia
+                                |> Personalia.id
+                                |> Api.putPersonalia PersonaliaOppdatert skjema
+                            )
+                                |> IkkeFerdig
 
-                                LagrerEndring (LagrerPåNyttEtterError (BadStatus 401)) skjema ->
-                                    ( skjema
-                                        |> LagrerEndring ForsøkÅLagrePåNyttEtterDetteForsøket
-                                        |> oppdaterSamtaleSteg model
-                                    , Cmd.none
-                                    )
-                                        |> IkkeFerdig
+                        LagrerEndring (LagrerPåNyttEtterError (BadStatus 401)) skjema ->
+                            ( skjema
+                                |> LagrerEndring ForsøkÅLagrePåNyttEtterDetteForsøket
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
 
-                                _ ->
-                                    IkkeFerdig ( Model model, Cmd.none )
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
-                Err decodeError ->
-                    -- TODO: Feilmelding.fromPortError/decodeError
+                Hidden ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         ViewportSatt _ ->
@@ -683,4 +679,4 @@ init debugStatus personalia gammelMeldingsLogg =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Ports.fromJavascript FraJavascript
+    Browser.Events.onVisibilityChange WindowEndrerVisibility
