@@ -33,7 +33,7 @@
     "pam-frontend-header": "^4.6.0",
     "pam-frontend-knapper": "^1.0.2",
     "pam-frontend-typografi": "^2.0.2",
-    "parcel-bundler": "^1.12.3",
+    "parcel-bundler": "^1.12.4",
     "typescript": "^3.5.2"
   },
   "dependencies": {
@@ -41,6 +41,6 @@
     "express": "^4.16.0",
     "express-http-proxy": "^1.5.1",
     "fs": "0.0.1-security",
-    "helmet": "^3.18.0"
+    "helmet": "^3.21.2"
   }
 }
