@@ -14,15 +14,15 @@ errorMelding { operasjon, error } =
         -- Selve URLen ikke gyldig (inneholder linjeskift eller lignende)
         Http.BadUrl string ->
             -- GiOpp
-            Melding.spørsmål [ "Oi! Nå skjedde det en feil, som gjorde at jeg ikke klarte å " ++ operasjon ++ ". Det kommer dessverre ikke til å fungerere å prøve på nytt, så du må gå videre." ]
+            Melding.spørsmål [ "Oi! Nå skjedde det en feil, jeg klarte ikke å " ++ operasjon ++ ". Jeg beklager 😔 Du må gå videre til neste seksjon." ]
 
         Http.Timeout ->
             -- PrøvPåNytt
-            Melding.spørsmål [ "Hm, nå klarte jeg ikke å " ++ operasjon ++ ". Kan det være at du ikke er koblet til internett? Eventuelt så har det skjedd noe galt hos oss. Sjekk om du har internett, prøv igjen, og se om det fungerer." ]
+            Melding.spørsmål [ "Hmm, nå klarte jeg ikke å " ++ operasjon ++ ". 😔 Det kan ha skjedd noe galt hos oss, eller kanskje du ikke er på nett. Sjekk om du er koblet til Internett og prøv igjen." ]
 
         Http.NetworkError ->
             -- PrøvPåNytt
-            Melding.spørsmål [ "Hm, nå klarte jeg ikke å " ++ operasjon ++ ". Kan det være at du ikke er koblet til internett? Sjekk om du har internett, prøv igjen, og se om det fungerer." ]
+            Melding.spørsmål [ "Hmm, nå klarte jeg ikke å " ++ operasjon ++ " 😔 Du er ikke på nett. Koble til Internett og prøv igjen." ]
 
         Http.BadStatus 401 ->
             -- LoggInn
