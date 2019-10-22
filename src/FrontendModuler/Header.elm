@@ -1,5 +1,6 @@
 module FrontendModuler.Header exposing (Header, header, toHtml)
 
+import FrontendModuler.Lenke as Lenke
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabel)
@@ -30,11 +31,8 @@ toHtml (Header options) =
 
         -- TODO: Endre til å vise burger-meny på mobil og evt. iPad
         , if options.windowWidth > 410 then
-            a [ href "/cv" ]
-                [ div [ class "header-hoyre" ]
-                    [ text "Avslutt CV-registreringen"
-                    ]
-                ]
+            Lenke.lenke { tekst = "Avslutt CV-registreringen", url = "/cv" }
+                |> Lenke.toHtml
 
           else
             text ""

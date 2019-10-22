@@ -1,22 +1,23 @@
 const express = require('express');
 const proxy = require('express-http-proxy');
-const Bundler  = require('parcel-bundler');
-const path  = require('path');
+const Bundler = require('parcel-bundler');
+const path = require('path');
 
 const server = express();
 
-const entryFile = path.join(__dirname, './src/index.html');
-const bundler = new Bundler(entryFile, {});
 
 server.get('/cv-samtale/login', (req, res) => {
-    const redirectTo = req.query.redirect || 'http://localhost:1234';
-    res.redirect(`http://localhost:1337/pam-cv-api/local/cookie?redirect=${redirectTo}`);
+    if (req.query.redirect) {
+        res.redirect(`http://localhost:1337/pam-cv-api/local/cookie?redirect=http://localhost:1234${req.query.redirect}`);
+    } else {
+        res.redirect('http://localhost:1337/pam-cv-api/local/cookie?redirect=http://localhost:1234');
+    }
 });
 
 server.post('/cv-samtale/log', express.json(), (req, res) => {
     console.log({
         ...req.body,
-        level: "Error"
+        level: 'Error'
     });
     res.sendStatus(200);
 });
@@ -29,13 +30,15 @@ server.use(
         ),
         proxyErrorHandler: (err, res, next) => {
             if (err && err.code) {
-                console.log({ level: "Error", message: err.code});
+                console.log({ level: 'Error', message: err.code });
             }
             next(err);
         }
     })
 );
 
+const entryFile = path.join(__dirname, './src/index.html');
+const bundler = new Bundler(entryFile, {});
 server.use(bundler.middleware());
 
 

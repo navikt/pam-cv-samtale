@@ -2,6 +2,7 @@ module FrontendModuler.Containers exposing
     ( KnapperLayout(..)
     , inputMedGåVidereKnapp
     , knapper
+    , lenke
     , skjema
     , typeaheadMedGåVidereKnapp
     )
@@ -78,3 +79,11 @@ knapper layout knappeElementer =
                 [ div [ class "knapper--kolonne" ]
                     knappeElementer
                 ]
+
+
+lenke : Html msg -> Html msg
+lenke lenkeElement =
+    div [ class "knapperad" ]
+        [ div [ class "knapper--flytende" ]
+            [ lenkeElement ]
+        ]
