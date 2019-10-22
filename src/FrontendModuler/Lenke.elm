@@ -35,7 +35,7 @@ toHtml (Lenke options) =
                 , class "lenke"
                 , target "_blank"
                 ]
-                [ text options.tekst
+                [ span [] [ text options.tekst ]
                 , i [ class "ForlateSiden__icon" ] []
                 ]
             ]
