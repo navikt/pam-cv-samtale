@@ -493,8 +493,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                     [ Melding.spørsmål [ "Nå gikk det! Da tar jeg vare på den nye infoen!" ] ]
 
                 BrukerGikkVidere ->
-                    -- TODO: Endre
-                    [ Melding.spørsmål [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ] ]
+                    [ Melding.spørsmål [ "Da går vi videre" ] ]
 
 
 personaliaSkjemaOppsummering : PersonaliaSkjema -> List String
