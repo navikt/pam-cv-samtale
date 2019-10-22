@@ -1,7 +1,8 @@
 {
   "image": "{{{ image }}}",
   "namespace": "default",
-  "ingress": "https://arbeidsplassen.nav.no/cv-samtale",
+  "ingress-samtale": "https://arbeidsplassen.nav.no/cv-samtale",
+  "ingress-logget-inn": "https://arbeidsplassen.nav.no/logget-inn",
   "apiGatewayHost": "https://api-gw.oera.no",
   "loginservice": "https://loginservice.nav.no/login"
 }

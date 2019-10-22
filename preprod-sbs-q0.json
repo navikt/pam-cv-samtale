@@ -1,7 +1,8 @@
 {
   "image": "{{{ image }}}",
   "namespace": "q0",
-  "ingress": "https://arbeidsplassen-q.nav.no/cv-samtale",
+  "ingress-samtale": "https://arbeidsplassen-q.nav.no/cv-samtale",
+  "ingress-logget-inn": "https://arbeidsplassen-q.nav.no/logget-inn",
   "apiGatewayHost": "https://api-gw-q0.oera.no",
   "loginservice": "https://loginservice-q.nav.no/login"
 }
