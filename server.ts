@@ -98,7 +98,7 @@ server.use(
 );
 
 server.use(
-    '/lukksiden*',
+    '/logget-inn*',
     (req: express.Request, res: express.Response) => {
         res.sendFile(path.resolve(__dirname, 'dist', 'lukkSiden.html'));
     }
