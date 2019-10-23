@@ -477,7 +477,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             []
 
         LagringFeilet error _ ->
-            [ ErrorMelding.errorMelding { operasjon = "lagre personalia", error = error } ]
+            [ ErrorMelding.errorMelding { operasjon = "lagre kontaktinformasjonen", error = error } ]
 
         VenterPåAnimasjonFørFullføring _ fullføringStatus ->
             case fullføringStatus of
@@ -490,7 +490,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                     [ Melding.spørsmål [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ] ]
 
                 LagringLyktesEtterFlereForsøk ->
-                    [ Melding.spørsmål [ "Nå gikk det! Da tar jeg vare på den nye infoen!" ] ]
+                    [ Melding.spørsmål [ "Supert! Nå fikk jeg det til. Kontaktinformasjonen er lagret. La oss fortsette 😊" ] ]
 
                 BrukerGikkVidere ->
                     [ Melding.spørsmål [ "Da går vi videre" ] ]
