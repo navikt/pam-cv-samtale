@@ -3,8 +3,9 @@ module Seksjon.Seksjonsvalg exposing
     , Msg
     , SamtaleStatus(..)
     , Seksjonsvalg(..)
-    , initLeggTil
-    , initLeggTilFlere
+    , initLeggTilAutorisasjoner
+    , initLeggTilFlereAnnet
+    , initLeggTilFlereAutorisasjoner
     , meldingsLogg
     , update
     , viewBrukerInput
@@ -52,6 +53,7 @@ type Samtale
     = LeggTilAutorisasjoner
     | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
+    | LeggTilFlereAnnet
     | VenterPåAnimasjonFørFullføring Seksjonsvalg
 
 
@@ -205,6 +207,8 @@ samtaleTilMeldingsLogg avslutningsSeksjon =
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
+        LeggTilFlereAnnet ->
+            [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
 
 
 --- VIEW ---
@@ -225,12 +229,10 @@ viewBrukerInput (Model model) =
                     viewLeggTilAutorisasjoner
 
                 LeggTilAnnet ->
-                    Containers.knapper Kolonne
-                        [ seksjonsvalgKnapp AnnenErfaringSeksjon
-                        , seksjonsvalgKnapp KursSeksjon
-                        , seksjonsvalgKnapp FørerkortSeksjon
-                        , seksjonsvalgKnapp IngenAvSeksjonene
-                        ]
+                    viewLeggTilAnnet
+
+                LeggTilFlereAnnet ->
+                    viewLeggTilAnnet
 
         MeldingerGjenstår ->
             text ""
@@ -245,6 +247,16 @@ viewLeggTilAutorisasjoner =
         , seksjonsvalgKnapp SertifiseringSeksjon
         , Knapp.knapp (BrukerVilGåTilNesteDel "Nei, gå videre") "Nei, gå videre"
             |> Knapp.toHtml
+        ]
+
+
+viewLeggTilAnnet : Html Msg
+viewLeggTilAnnet =
+    Containers.knapper Kolonne
+        [ seksjonsvalgKnapp AnnenErfaringSeksjon
+        , seksjonsvalgKnapp KursSeksjon
+        , seksjonsvalgKnapp FørerkortSeksjon
+        , seksjonsvalgKnapp IngenAvSeksjonene
         ]
 
 
@@ -275,7 +287,7 @@ seksjonsvalgDisabled seksjonsvalg =
             Enabled
 
         AnnenErfaringSeksjon ->
-            Disabled
+            Enabled
 
         KursSeksjon ->
             Disabled
@@ -335,11 +347,16 @@ init aktivSamtale_ debugStatus gammelMeldingsLogg =
     )
 
 
-initLeggTilFlere : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-initLeggTilFlere =
+initLeggTilFlereAutorisasjoner : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+initLeggTilFlereAutorisasjoner =
     init LeggTilFlereAutorisasjoner
 
 
-initLeggTil : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-initLeggTil =
+initLeggTilFlereAnnet : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+initLeggTilFlereAnnet =
+    init LeggTilFlereAnnet
+
+
+initLeggTilAutorisasjoner : DebugStatus -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+initLeggTilAutorisasjoner =
     init LeggTilAutorisasjoner
