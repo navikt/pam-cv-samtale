@@ -231,11 +231,19 @@ update msg (Model model) =
                 LagrerEndring lagreStatus skjema ->
                     case result of
                         Ok personalia ->
-                            lagreStatus
-                                |> fullførtStatusEtterOkLagring
-                                |> VenterPåAnimasjonFørFullføring personalia
-                                |> nesteSamtaleStegUtenSvar model
-                                |> fullførSeksjonHvisMeldingsloggErFerdig personalia
+                            if lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus then
+                                lagreStatus
+                                    |> fullførtStatusEtterOkLagring
+                                    |> VenterPåAnimasjonFørFullføring personalia
+                                    |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil logge inn" ])
+                                    |> fullførSeksjonHvisMeldingsloggErFerdig personalia
+
+                            else
+                                lagreStatus
+                                    |> fullførtStatusEtterOkLagring
+                                    |> VenterPåAnimasjonFørFullføring personalia
+                                    |> nesteSamtaleStegUtenSvar model
+                                    |> fullførSeksjonHvisMeldingsloggErFerdig personalia
 
                         Err error ->
                             case lagreStatus of
@@ -452,6 +460,19 @@ oppdaterSamtaleSteg model samtaleSeksjon =
         }
 
 
+lagringFeiletTidligerePåGrunnAvInnlogging : LagreStatus -> Bool
+lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus =
+    case lagreStatus of
+        LagrerFørsteGang ->
+            False
+
+        LagrerPåNyttEtterError error ->
+            ErrorMelding.errorOperasjon error == LoggInn
+
+        ForsøkÅLagrePåNyttEtterDetteForsøket ->
+            True
+
+
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
@@ -579,15 +600,12 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                         ]
 
                 -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
-                LagrerEndring (LagrerPåNyttEtterError error) _ ->
-                    if ErrorMelding.errorOperasjon error == LoggInn then
+                LagrerEndring error _ ->
+                    if lagringFeiletTidligerePåGrunnAvInnlogging error then
                         viewLoggInnLenke
 
                     else
                         text ""
-
-                LagrerEndring _ _ ->
-                    text ""
 
                 LagringFeilet error _ ->
                     case ErrorMelding.errorOperasjon error of
