@@ -15,6 +15,7 @@ import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorMelding exposing (OperasjonEtterError(..))
 import Feilmelding
+import FrontendModuler.Common as Common
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
@@ -602,7 +603,7 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                 -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
                 LagrerEndring error _ ->
                     if lagringFeiletTidligerePåGrunnAvInnlogging error then
-                        viewLoggInnLenke
+                        Common.viewLoggInnLenke
 
                     else
                         text ""
@@ -624,22 +625,13 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                                 ]
 
                         LoggInn ->
-                            viewLoggInnLenke
+                            Common.viewLoggInnLenke
 
                 VenterPåAnimasjonFørFullføring _ _ ->
                     text ""
 
         MeldingerGjenstår ->
             text ""
-
-
-viewLoggInnLenke : Html msg
-viewLoggInnLenke =
-    Containers.lenke
-        (Lenke.lenke { tekst = "Ja, jeg vil logge inn ", url = "/cv-samtale/login?redirect=/logget-inn" }
-            |> Lenke.withTargetBlank
-            |> Lenke.toHtml
-        )
 
 
 viewTelefonISkjema : PersonaliaSkjema -> Html Msg

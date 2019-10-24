@@ -1095,8 +1095,10 @@ seksjonSubscriptions model =
                 SpråkSeksjon _ ->
                     Sub.none
 
-                FagdokumentasjonSeksjon _ ->
-                    Sub.none
+                FagdokumentasjonSeksjon fagdokumentasjonModel ->
+                    fagdokumentasjonModel
+                        |> Fagdokumentasjon.Seksjon.subscriptions
+                        |> Sub.map (FagdokumentasjonMsg >> SuccessMsg)
 
                 SertifikatSeksjon _ ->
                     Sub.none
