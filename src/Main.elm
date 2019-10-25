@@ -88,14 +88,13 @@ type alias SuccessModel =
     { cv : Cv
     , personalia : Personalia
     , registreringsProgresjon : RegistreringsProgresjon
-    , aktivSamtale : SamtaleSeksjon
+    , aktivSeksjon : SamtaleSeksjon
     , debugStatus : DebugStatus
     }
 
 
 type SamtaleSeksjon
-    = Introduksjon MeldingsLogg
-    | PersonaliaSeksjon Personalia.Seksjon.Model
+    = PersonaliaSeksjon Personalia.Seksjon.Model
     | UtdanningSeksjon Utdanning.Seksjon.Model
     | ArbeidsErfaringSeksjon Arbeidserfaring.Seksjon.Model
     | SpråkSeksjon Sprak.Seksjon.Model
@@ -104,6 +103,17 @@ type SamtaleSeksjon
     | SeksjonsvalgSeksjon Seksjon.Seksjonsvalg.Model
     | AvslutningSeksjon Seksjon.Avslutning.Model
     | SammendragSeksjon Seksjon.Sammendrag.Model
+    | AndreSamtaleSteg AndreSamtaleStegInfo
+
+
+type alias AndreSamtaleStegInfo =
+    { aktivSamtale : Samtale
+    , meldingsLogg : MeldingsLogg
+    }
+
+
+type Samtale
+    = Introduksjon
 
 
 
@@ -131,8 +141,7 @@ type LoadingMsg
 
 
 type SuccessMsg
-    = BrukerSierHeiIIntroduksjonen
-    | ViewportSatt (Result Dom.Error ())
+    = ViewportSatt (Result Dom.Error ())
     | PersonaliaMsg Personalia.Seksjon.Msg
     | UtdanningsMsg Utdanning.Seksjon.Msg
     | ArbeidserfaringsMsg Arbeidserfaring.Seksjon.Msg
@@ -142,6 +151,11 @@ type SuccessMsg
     | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
     | SertifikatMsg Sertifikat.Seksjon.Msg
     | AvslutningMsg Seksjon.Avslutning.Msg
+    | AndreSamtaleStegMsg AndreSamtaleStegMsg
+
+
+type AndreSamtaleStegMsg
+    = BrukerSierHeiIIntroduksjonen2
     | StartÅSkrive
     | FullførMelding
 
@@ -156,7 +170,11 @@ update msg extendedModel =
         SuccessMsg successMsg ->
             case extendedModel.model of
                 Success successModel ->
-                    updateSuccess successMsg successModel
+                    let
+                        ( nyModel, successCmd ) =
+                            updateSuccess successMsg successModel
+                    in
+                    ( nyModel, Cmd.map SuccessMsg successCmd )
                         |> mapTilExtendedModel extendedModel
 
                 _ ->
@@ -330,13 +348,13 @@ modelFraLoadingState debugStatus state =
                 { cv = cv
                 , personalia = state.personalia
                 , registreringsProgresjon = registreringsProgresjon
-                , aktivSamtale = initialiserSamtale state.personalia
+                , aktivSeksjon = initialiserSamtale state.personalia
                 , debugStatus = debugStatus
                 }
             , 200
                 |> DebugStatus.meldingsTimeout debugStatus
                 |> Process.sleep
-                |> Task.perform (always (SuccessMsg StartÅSkrive))
+                |> Task.perform (always (SuccessMsg (AndreSamtaleStegMsg StartÅSkrive)))
             )
 
         _ ->
@@ -345,14 +363,17 @@ modelFraLoadingState debugStatus state =
 
 initialiserSamtale : Personalia -> SamtaleSeksjon
 initialiserSamtale personalia =
-    MeldingsLogg.init
-        |> MeldingsLogg.leggTilSpørsmål
-            [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten Cvert, og jeg kan hjelpe deg å lage en CV." ]
-            , Melding.spørsmål [ "Først skal du legge inn utdanning, arbeidserfaring, språk og sammendrag. Etter det kan du legge til kurs, fagbrev, sertifisering og førerkort." ]
-            , Melding.spørsmål [ "Husk at du ikke skal legge inn noe om helse, religion eller politiske oppfatning." ]
-            , Melding.spørsmål [ "Er du klar til å begynne?" ]
-            ]
-        |> Introduksjon
+    AndreSamtaleSteg
+        { aktivSamtale = Introduksjon
+        , meldingsLogg =
+            MeldingsLogg.init
+                |> MeldingsLogg.leggTilSpørsmål
+                    [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten Cvert, og jeg kan hjelpe deg å lage en CV." ]
+                    , Melding.spørsmål [ "Først skal du legge inn utdanning, arbeidserfaring, språk og sammendrag. Etter det kan du legge til kurs, fagbrev, sertifisering og førerkort." ]
+                    , Melding.spørsmål [ "Husk at du ikke skal legge inn noe om helse, religion eller politiske oppfatning." ]
+                    , Melding.spørsmål [ "Er du klar til å begynne?" ]
+                    ]
+        }
 
 
 initVenterPåResten : Personalia -> ( Model, Cmd Msg )
@@ -378,38 +399,18 @@ initVenterPåResten personalia =
 --- Success ---
 
 
-updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd Msg )
+updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd SuccessMsg )
 updateSuccess successMsg model =
     case successMsg of
-        BrukerSierHeiIIntroduksjonen ->
-            case model.aktivSamtale of
-                Introduksjon meldingsLogg ->
-                    let
-                        ( personaliaModel, personaliaCmd ) =
-                            meldingsLogg
-                                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
-                                |> Personalia.Seksjon.init model.debugStatus model.personalia
-                    in
-                    ( personaliaModel
-                        |> PersonaliaSeksjon
-                        |> oppdaterSamtaleSteg model
-                        |> Success
-                    , Cmd.map (PersonaliaMsg >> SuccessMsg) personaliaCmd
-                    )
-
-                _ ->
-                    ( Success model, Cmd.none )
-
         PersonaliaMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 PersonaliaSeksjon personaliaModel ->
                     case Personalia.Seksjon.update msg personaliaModel of
                         Personalia.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> PersonaliaSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (PersonaliaMsg >> SuccessMsg) cmd
+                            , Cmd.map PersonaliaMsg cmd
                             )
 
                         Personalia.Seksjon.Ferdig personalia personaliaMeldingsLogg ->
@@ -419,15 +420,14 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
         UtdanningsMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 UtdanningSeksjon utdanningModel ->
                     case Utdanning.Seksjon.update msg utdanningModel of
                         Utdanning.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> UtdanningSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (UtdanningsMsg >> SuccessMsg) cmd
+                            , Cmd.map UtdanningsMsg cmd
                             )
 
                         Utdanning.Seksjon.Ferdig utdanning meldingsLogg ->
@@ -437,15 +437,14 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
         ArbeidserfaringsMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 ArbeidsErfaringSeksjon arbeidserfaringsModel ->
                     case Arbeidserfaring.Seksjon.update msg arbeidserfaringsModel of
                         Arbeidserfaring.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> ArbeidsErfaringSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) cmd
+                            , Cmd.map ArbeidserfaringsMsg cmd
                             )
 
                         Arbeidserfaring.Seksjon.Ferdig ferdigAnimertMeldingsLogg ->
@@ -457,65 +456,15 @@ updateSuccess successMsg model =
         ViewportSatt _ ->
             ( Success model, Cmd.none )
 
-        StartÅSkrive ->
-            case model.aktivSamtale of
-                Introduksjon meldingsLogg ->
-                    ( meldingsLogg
-                        |> MeldingsLogg.startÅSkrive
-                        |> Introduksjon
-                        |> oppdaterSamtaleSteg model
-                        |> Success
-                    , Cmd.batch
-                        [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
-                        , MeldingsLogg.nesteMeldingToString meldingsLogg
-                            * 1000.0
-                            |> DebugStatus.meldingsTimeout model.debugStatus
-                            |> Process.sleep
-                            |> Task.perform (always (SuccessMsg FullførMelding))
-                        ]
-                    )
-
-                _ ->
-                    ( Success model, Cmd.none )
-
-        FullførMelding ->
-            case model.aktivSamtale of
-                Introduksjon meldingsLogg ->
-                    let
-                        nyMeldingslogg =
-                            MeldingsLogg.fullførMelding meldingsLogg
-                    in
-                    ( nyMeldingslogg
-                        |> Introduksjon
-                        |> oppdaterSamtaleSteg model
-                        |> Success
-                    , Cmd.batch
-                        [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> SuccessMsg)
-                        , case MeldingsLogg.ferdigAnimert nyMeldingslogg of
-                            FerdigAnimert _ ->
-                                Cmd.none
-
-                            MeldingerGjenstår ->
-                                200
-                                    |> DebugStatus.meldingsTimeout model.debugStatus
-                                    |> Process.sleep
-                                    |> Task.perform (always (SuccessMsg StartÅSkrive))
-                        ]
-                    )
-
-                _ ->
-                    ( Success model, Cmd.none )
-
         SpråkMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 SpråkSeksjon språkModel ->
                     case Sprak.Seksjon.update msg språkModel of
                         Sprak.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> SpråkSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (SpråkMsg >> SuccessMsg) cmd
+                            , Cmd.map SpråkMsg cmd
                             )
 
                         Sprak.Seksjon.Ferdig meldingsLogg ->
@@ -525,15 +474,14 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
         SammendragMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 SammendragSeksjon sammendragModel ->
                     case Seksjon.Sammendrag.update msg sammendragModel of
                         Seksjon.Sammendrag.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> SammendragSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (SammendragMsg >> SuccessMsg) cmd
+                            , Cmd.map SammendragMsg cmd
                             )
 
                         Seksjon.Sammendrag.Ferdig meldingsLogg ->
@@ -543,15 +491,14 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
         AvslutningMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 AvslutningSeksjon avslutningModel ->
                     case Seksjon.Avslutning.update msg avslutningModel of
                         Seksjon.Avslutning.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> AvslutningSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (AvslutningMsg >> SuccessMsg) cmd
+                            , Cmd.map AvslutningMsg cmd
                             )
 
                         Seksjon.Avslutning.Ferdig nyModel meldingsLogg ->
@@ -561,15 +508,14 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
         SeksjonsvalgMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 SeksjonsvalgSeksjon seksjonsvalgModel ->
                     case Seksjon.Seksjonsvalg.update msg seksjonsvalgModel of
                         Seksjon.Seksjonsvalg.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> SeksjonsvalgSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) cmd
+                            , Cmd.map SeksjonsvalgMsg cmd
                             )
 
                         Seksjon.Seksjonsvalg.Ferdig seksjon meldingsLogg ->
@@ -604,15 +550,14 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
         FagdokumentasjonMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 FagdokumentasjonSeksjon fagdokumentasjonModel ->
                     case Fagdokumentasjon.Seksjon.update msg fagdokumentasjonModel of
                         Fagdokumentasjon.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> FagdokumentasjonSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) cmd
+                            , Cmd.map FagdokumentasjonMsg cmd
                             )
 
                         Fagdokumentasjon.Seksjon.Ferdig fagdokumentasjonListe meldingsLogg ->
@@ -622,15 +567,14 @@ updateSuccess successMsg model =
                     ( Success model, Cmd.none )
 
         SertifikatMsg msg ->
-            case model.aktivSamtale of
+            case model.aktivSeksjon of
                 SertifikatSeksjon sertifikatModel ->
                     case Sertifikat.Seksjon.update msg sertifikatModel of
                         Sertifikat.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
                             ( nyModel
                                 |> SertifikatSeksjon
                                 |> oppdaterSamtaleSteg model
-                                |> Success
-                            , Cmd.map (SertifikatMsg >> SuccessMsg) cmd
+                            , Cmd.map SertifikatMsg cmd
                             )
 
                         Sertifikat.Seksjon.Ferdig sertifikatListe meldingsLogg ->
@@ -639,26 +583,87 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        AndreSamtaleStegMsg andreSamtaleStegMsg ->
+            case model.aktivSeksjon of
+                AndreSamtaleSteg andreSamtaleStegInfo ->
+                    updateAndreSamtaleSteg model andreSamtaleStegMsg andreSamtaleStegInfo
 
-oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> SuccessModel
+                _ ->
+                    ( Success model, Cmd.none )
+
+
+updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( Model, Cmd SuccessMsg )
+updateAndreSamtaleSteg model msg info =
+    case msg of
+        BrukerSierHeiIIntroduksjonen2 ->
+            case info.aktivSamtale of
+                Introduksjon ->
+                    let
+                        ( personaliaModel, personaliaCmd ) =
+                            info.meldingsLogg
+                                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
+                                |> Personalia.Seksjon.init model.debugStatus model.personalia
+                    in
+                    ( personaliaModel
+                        |> PersonaliaSeksjon
+                        |> oppdaterSamtaleSteg model
+                    , Cmd.map PersonaliaMsg personaliaCmd
+                    )
+
+        StartÅSkrive ->
+            ( { info | meldingsLogg = MeldingsLogg.startÅSkrive info.meldingsLogg }
+                |> AndreSamtaleSteg
+                |> oppdaterSamtaleSteg model
+            , Cmd.batch
+                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                , MeldingsLogg.nesteMeldingToString info.meldingsLogg
+                    * 1000.0
+                    |> DebugStatus.meldingsTimeout model.debugStatus
+                    |> Process.sleep
+                    |> Task.perform (always (AndreSamtaleStegMsg FullførMelding))
+                ]
+            )
+
+        FullførMelding ->
+            let
+                nyMeldingslogg =
+                    MeldingsLogg.fullførMelding info.meldingsLogg
+            in
+            ( { info | meldingsLogg = nyMeldingslogg }
+                |> AndreSamtaleSteg
+                |> oppdaterSamtaleSteg model
+            , Cmd.batch
+                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                , case MeldingsLogg.ferdigAnimert nyMeldingslogg of
+                    FerdigAnimert _ ->
+                        Cmd.none
+
+                    MeldingerGjenstår ->
+                        200
+                            |> DebugStatus.meldingsTimeout model.debugStatus
+                            |> Process.sleep
+                            |> Task.perform (always (AndreSamtaleStegMsg StartÅSkrive))
+                ]
+            )
+
+
+oppdaterSamtaleSteg : SuccessModel -> SamtaleSeksjon -> Model
 oppdaterSamtaleSteg model samtaleSeksjon =
-    { model
-        | aktivSamtale = samtaleSeksjon
-    }
+    Success { model | aktivSeksjon = samtaleSeksjon }
 
 
-gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
     let
         ( arbeidsModell, arbeidsCmd ) =
             Arbeidserfaring.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.arbeidserfaring model.cv)
     in
-    ( Success { model | aktivSamtale = ArbeidsErfaringSeksjon arbeidsModell }
-    , Cmd.map (ArbeidserfaringsMsg >> SuccessMsg) arbeidsCmd
+    ( Success { model | aktivSeksjon = ArbeidsErfaringSeksjon arbeidsModell }
+    , Cmd.map ArbeidserfaringsMsg arbeidsCmd
     )
 
 
-gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilUtdanning model ferdigAnimertMeldingsLogg =
     let
         ( utdanningModel, utdanningCmd ) =
@@ -666,13 +671,13 @@ gåTilUtdanning model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = UtdanningSeksjon utdanningModel
+            | aktivSeksjon = UtdanningSeksjon utdanningModel
         }
-    , Cmd.map (UtdanningsMsg >> SuccessMsg) utdanningCmd
+    , Cmd.map UtdanningsMsg utdanningCmd
     )
 
 
-gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilSpråk model ferdigAnimertMeldingsLogg =
     let
         ( språkModel, språkCmd ) =
@@ -680,13 +685,13 @@ gåTilSpråk model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = SpråkSeksjon språkModel
+            | aktivSeksjon = SpråkSeksjon språkModel
         }
-    , Cmd.map (SpråkMsg >> SuccessMsg) språkCmd
+    , Cmd.map SpråkMsg språkCmd
     )
 
 
-gåTilFagbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilFagbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilFagbrev model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
@@ -694,13 +699,13 @@ gåTilFagbrev model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = FagdokumentasjonSeksjon fagbrevModel
+            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
         }
-    , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) fagbrevCmd
+    , Cmd.map FagdokumentasjonMsg fagbrevCmd
     )
 
 
-gåTilMesterbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilMesterbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilMesterbrev model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
@@ -708,13 +713,13 @@ gåTilMesterbrev model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = FagdokumentasjonSeksjon fagbrevModel
+            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
         }
-    , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) fagbrevCmd
+    , Cmd.map FagdokumentasjonMsg fagbrevCmd
     )
 
 
-gåTilAutorisasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilAutorisasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
@@ -722,13 +727,13 @@ gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = FagdokumentasjonSeksjon fagbrevModel
+            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
         }
-    , Cmd.map (FagdokumentasjonMsg >> SuccessMsg) fagbrevCmd
+    , Cmd.map FagdokumentasjonMsg fagbrevCmd
     )
 
 
-gåTilSertifisering : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSertifisering : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilSertifisering model ferdigAnimertMeldingsLogg =
     let
         ( sertifikatModel, sertifikatCmd ) =
@@ -736,13 +741,13 @@ gåTilSertifisering model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = SertifikatSeksjon sertifikatModel
+            | aktivSeksjon = SertifikatSeksjon sertifikatModel
         }
-    , Cmd.map (SertifikatMsg >> SuccessMsg) sertifikatCmd
+    , Cmd.map SertifikatMsg sertifikatCmd
     )
 
 
-gåTilSammendrag : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSammendrag : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilSammendrag model ferdigAnimertMeldingsLogg =
     let
         ( sammendragModel, sammendragCmd ) =
@@ -750,13 +755,13 @@ gåTilSammendrag model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = SammendragSeksjon sammendragModel
+            | aktivSeksjon = SammendragSeksjon sammendragModel
         }
-    , Cmd.map (SammendragMsg >> SuccessMsg) sammendragCmd
+    , Cmd.map SammendragMsg sammendragCmd
     )
 
 
-gåTilAvslutning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilAvslutning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilAvslutning model ferdigAnimertMeldingsLogg =
     let
         ( avslutningModel, avslutningCmd ) =
@@ -764,27 +769,24 @@ gåTilAvslutning model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = AvslutningSeksjon avslutningModel
+            | aktivSeksjon = AvslutningSeksjon avslutningModel
         }
-    , Cmd.map (AvslutningMsg >> SuccessMsg) avslutningCmd
+    , Cmd.map AvslutningMsg avslutningCmd
     )
 
 
-gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     let
         ( seksjonsvalgModel, seksjonsvalgCmd ) =
             Seksjon.Seksjonsvalg.initLeggTil model.debugStatus ferdigAnimertMeldingsLogg
     in
-    ( Success
-        { model
-            | aktivSamtale = SeksjonsvalgSeksjon seksjonsvalgModel
-        }
-    , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) seksjonsvalgCmd
+    ( Success { model | aktivSeksjon = SeksjonsvalgSeksjon seksjonsvalgModel }
+    , Cmd.map SeksjonsvalgMsg seksjonsvalgCmd
     )
 
 
-gåTilFlereSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilFlereSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
 gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
     let
         ( seksjonsvalgModel, seksjonsvalgCmd ) =
@@ -792,9 +794,9 @@ gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
     in
     ( Success
         { model
-            | aktivSamtale = SeksjonsvalgSeksjon seksjonsvalgModel
+            | aktivSeksjon = SeksjonsvalgSeksjon seksjonsvalgModel
         }
-    , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) seksjonsvalgCmd
+    , Cmd.map SeksjonsvalgMsg seksjonsvalgCmd
     )
 
 
@@ -864,10 +866,7 @@ viewLoading =
 
 meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
 meldingsLoggFraSeksjon successModel =
-    case successModel.aktivSamtale of
-        Introduksjon logg ->
-            logg
-
+    case successModel.aktivSeksjon of
         PersonaliaSeksjon model ->
             Personalia.Seksjon.meldingsLogg model
 
@@ -895,6 +894,9 @@ meldingsLoggFraSeksjon successModel =
         SertifikatSeksjon model ->
             Sertifikat.Seksjon.meldingsLogg model
 
+        AndreSamtaleSteg andreSamtaleStegInfo ->
+            andreSamtaleStegInfo.meldingsLogg
+
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
@@ -906,7 +908,7 @@ viewSuccess successModel =
             , successModel
                 |> meldingsLoggFraSeksjon
                 |> viewSkriveStatus
-            , viewBrukerInput successModel.aktivSamtale
+            , viewBrukerInput successModel.aktivSeksjon
             , div [ class "samtale-padding" ] []
             ]
         ]
@@ -972,17 +974,6 @@ viewSkriveStatus meldingsLogg =
 viewBrukerInput : SamtaleSeksjon -> Html Msg
 viewBrukerInput aktivSamtale =
     case aktivSamtale of
-        Introduksjon logg ->
-            case MeldingsLogg.ferdigAnimert logg of
-                FerdigAnimert _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp (SuccessMsg BrukerSierHeiIIntroduksjonen) "Ja!"
-                            |> Knapp.toHtml
-                        ]
-
-                MeldingerGjenstår ->
-                    text ""
-
         PersonaliaSeksjon personaliaSeksjon ->
             personaliaSeksjon
                 |> Personalia.Seksjon.viewBrukerInput
@@ -1027,6 +1018,25 @@ viewBrukerInput aktivSamtale =
             sertifikatSeksjon
                 |> Sertifikat.Seksjon.viewBrukerInput
                 |> Html.map (SertifikatMsg >> SuccessMsg)
+
+        AndreSamtaleSteg andreSamtaleStegInfo ->
+            viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
+                |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
+
+
+viewBrukerInputForAndreSamtaleSteg : AndreSamtaleStegInfo -> Html AndreSamtaleStegMsg
+viewBrukerInputForAndreSamtaleSteg info =
+    case MeldingsLogg.ferdigAnimert info.meldingsLogg of
+        FerdigAnimert _ ->
+            case info.aktivSamtale of
+                Introduksjon ->
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerSierHeiIIntroduksjonen2 "Ja!"
+                            |> Knapp.toHtml
+                        ]
+
+        MeldingerGjenstår ->
+            text ""
 
 
 
@@ -1077,10 +1087,7 @@ seksjonSubscriptions model =
             Sub.none
 
         Success successModel ->
-            case successModel.aktivSamtale of
-                Introduksjon _ ->
-                    Sub.none
-
+            case successModel.aktivSeksjon of
                 PersonaliaSeksjon personaliaModel ->
                     personaliaModel
                         |> Personalia.Seksjon.subscriptions
@@ -1110,4 +1117,7 @@ seksjonSubscriptions model =
                     Sub.none
 
                 SammendragSeksjon _ ->
+                    Sub.none
+
+                AndreSamtaleSteg andreSamtaleStegInfo ->
                     Sub.none
