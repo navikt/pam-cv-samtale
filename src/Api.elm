@@ -63,11 +63,11 @@ getPerson msgConstructor =
         }
 
 
-postPerson : (Result Error () -> msg) -> Cmd msg
+postPerson : (Result Error Person -> msg) -> Cmd msg
 postPerson msgConstructor =
     Http.post
         { url = "/cv-samtale/api/rest/person"
-        , expect = expectWhatever msgConstructor
+        , expect = expectJson msgConstructor Person.decode
         , body = emptyBody
         }
 
