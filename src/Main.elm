@@ -134,7 +134,7 @@ type Samtale
 type Msg
     = LoadingMsg LoadingMsg
     | SuccessMsg SuccessMsg
-    | ErrorLogget (Result Http.Error ())
+    | ErrorLoggetUnderLoading (Result Http.Error ())
     | ViewportHentet Dom.Viewport
     | WindowResized Int Int
     | UrlChanged Url.Url
@@ -173,7 +173,6 @@ type AndreSamtaleStegMsg
     | SeksjonValgt ValgtSeksjon
     | IngenAvAutorisasjonSeksjoneneValgt
     | IngenAvDeAndreSeksjoneneValgt
-    | BrukerVilGåTilNesteDel String
     | BrukerGodkjennerSynligCV
     | BrukerGodkjennerIkkeSynligCV
     | BrukerVilAvslutte String
@@ -181,7 +180,7 @@ type AndreSamtaleStegMsg
     | StartÅSkrive
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
-    | ErrorLogget2
+    | ErrorLogget
 
 
 type ValgtSeksjon
@@ -214,7 +213,7 @@ update msg extendedModel =
                 _ ->
                     ( extendedModel, Cmd.none )
 
-        ErrorLogget _ ->
+        ErrorLoggetUnderLoading _ ->
             ( extendedModel, Cmd.none )
 
         WindowResized windowWidth _ ->
@@ -380,7 +379,7 @@ redirectTilLogin _ =
 logFeilmelding : Http.Error -> String -> Cmd Msg
 logFeilmelding error operasjon =
     Feilmelding.feilmelding operasjon error
-        |> Maybe.map (Api.logError ErrorLogget)
+        |> Maybe.map (Api.logError ErrorLoggetUnderLoading)
         |> Maybe.withDefault Cmd.none
 
 
@@ -588,7 +587,7 @@ updateAndreSamtaleSteg model msg info =
             )
 
         IngenAvDeAndreSeksjoneneValgt ->
-            gåVidereFraSeksjonsvalg2 model info
+            gåVidereFraSeksjonsvalg model info
 
         OriginalSammendragBekreftet ->
             { info
@@ -597,7 +596,7 @@ updateAndreSamtaleSteg model msg info =
                         |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ])
                         |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Flott! Da er vi nesten ferdige!" ] ]
             }
-                |> gåTilAvslutning2 model
+                |> gåTilAvslutning model
 
         BrukerVilLeggeTilSammendrag ->
             case info.aktivSamtale of
@@ -663,7 +662,7 @@ updateAndreSamtaleSteg model msg info =
 
         BrukerVilIkkeRedigereSammendrag ->
             { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ]) }
-                |> gåTilAvslutning2 model
+                |> gåTilAvslutning model
 
         SammendragOppdatert result ->
             case info.aktivSamtale of
@@ -671,7 +670,7 @@ updateAndreSamtaleSteg model msg info =
                     case result of
                         Ok _ ->
                             { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med det vanskeligste 😊" ] ] }
-                                |> gåTilAvslutning2 model
+                                |> gåTilAvslutning model
 
                         Err error ->
                             ( nesteSamtaleSteg model info (Melding.spørsmål [ "Oisann.. Klarte ikke å lagre!" ]) (LagringFeilet error sammendrag)
@@ -679,17 +678,12 @@ updateAndreSamtaleSteg model msg info =
                                 [ lagtTilSpørsmålCmd model.debugStatus
                                 , sammendrag
                                     |> Api.encodeSammendrag
-                                    |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget2) "Lagre sammendrag" error
+                                    |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget) "Lagre sammendrag" error
                                 ]
                             )
 
                 _ ->
                     ( Success model, Cmd.none )
-
-        BrukerVilGåTilNesteDel knappeTekst ->
-            ( nesteSamtaleSteg model info (Melding.svar [ knappeTekst ]) LeggTilAnnet
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
 
         BrukerGodkjennerSynligCV ->
             ( LagrerSynlighet True
@@ -722,7 +716,7 @@ updateAndreSamtaleSteg model msg info =
                         [ lagtTilSpørsmålCmd model.debugStatus
                         , error
                             |> Feilmelding.feilmelding "Lagre synlighet"
-                            |> Maybe.map (Api.logError (always ErrorLogget2 >> AndreSamtaleStegMsg))
+                            |> Maybe.map (Api.logError (always ErrorLogget >> AndreSamtaleStegMsg))
                             |> Maybe.withDefault Cmd.none
                         ]
                     )
@@ -771,7 +765,7 @@ updateAndreSamtaleSteg model msg info =
         ViewportSatt _ ->
             ( Success model, Cmd.none )
 
-        ErrorLogget2 ->
+        ErrorLogget ->
             ( Success model, Cmd.none )
 
 
@@ -814,8 +808,8 @@ gåTilValgtSeksjon model info valgtSeksjon =
             )
 
 
-gåVidereFraSeksjonsvalg2 : SuccessModel -> AndreSamtaleStegInfo -> ( Model, Cmd SuccessMsg )
-gåVidereFraSeksjonsvalg2 model info =
+gåVidereFraSeksjonsvalg : SuccessModel -> AndreSamtaleStegInfo -> ( Model, Cmd SuccessMsg )
+gåVidereFraSeksjonsvalg model info =
     let
         samtale =
             case Cv.sammendrag model.cv of
@@ -841,8 +835,8 @@ gåVidereFraSeksjonsvalg2 model info =
     )
 
 
-gåTilAvslutning2 : SuccessModel -> AndreSamtaleStegInfo -> ( Model, Cmd SuccessMsg )
-gåTilAvslutning2 model info =
+gåTilAvslutning : SuccessModel -> AndreSamtaleStegInfo -> ( Model, Cmd SuccessMsg )
+gåTilAvslutning model info =
     if Person.underOppfolging model.person then
         ( nesteSamtaleStegUtenSvar model info UnderOppfølging
         , lagtTilSpørsmålCmd model.debugStatus
