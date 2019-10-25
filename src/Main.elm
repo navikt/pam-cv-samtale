@@ -69,64 +69,6 @@ type Model
     | Failure Http.Error
 
 
-type LoadingModel
-    = VenterPåPerson
-    | VenterPåPersonalia Person
-    | VenterPåResten LoadingState
-
-
-type alias LoadingState =
-    { cv : Maybe Cv
-    , personalia : Personalia
-    , person : Person
-    , registreringsProgresjon : Maybe RegistreringsProgresjon
-    , windowWidth : Maybe Int
-    }
-
-
-type alias SuccessModel =
-    { cv : Cv
-    , personalia : Personalia
-    , person : Person
-    , registreringsProgresjon : RegistreringsProgresjon
-    , aktivSeksjon : SamtaleSeksjon
-    , debugStatus : DebugStatus
-    }
-
-
-type SamtaleSeksjon
-    = PersonaliaSeksjon Personalia.Seksjon.Model
-    | UtdanningSeksjon Utdanning.Seksjon.Model
-    | ArbeidsErfaringSeksjon Arbeidserfaring.Seksjon.Model
-    | SpråkSeksjon Sprak.Seksjon.Model
-    | FagdokumentasjonSeksjon Fagdokumentasjon.Seksjon.Model
-    | SertifikatSeksjon Sertifikat.Seksjon.Model
-    | AndreSamtaleSteg AndreSamtaleStegInfo
-
-
-type alias AndreSamtaleStegInfo =
-    { aktivSamtale : Samtale
-    , meldingsLogg : MeldingsLogg
-    }
-
-
-type Samtale
-    = Introduksjon Personalia
-    | LeggTilAutorisasjoner
-    | LeggTilFlereAutorisasjoner
-    | LeggTilAnnet
-    | HarIkkeSammendrag
-    | BekreftOriginal Sammendrag
-    | EndreOriginal String
-    | LagrerEndring String
-    | LagringFeilet Http.Error String
-    | UnderOppfølging
-    | DelMedArbeidsgiver Bool
-    | LagrerSynlighet Bool
-    | LagringSynlighetFeilet
-    | AvsluttendeOrd
-
-
 
 --- UPDATE ---
 
@@ -139,58 +81,6 @@ type Msg
     | WindowResized Int Int
     | UrlChanged Url.Url
     | UrlRequestChanged Browser.UrlRequest
-
-
-type LoadingMsg
-    = PersonHentet (Result Http.Error Person)
-    | PersonOpprettet (Result Http.Error Person)
-    | PersonaliaHentet (Result Http.Error Personalia)
-    | PersonaliaOpprettet (Result Http.Error Personalia)
-    | CvHentet (Result Http.Error Cv)
-    | CvOpprettet (Result Http.Error Cv)
-    | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
-
-
-type SuccessMsg
-    = PersonaliaMsg Personalia.Seksjon.Msg
-    | UtdanningsMsg Utdanning.Seksjon.Msg
-    | ArbeidserfaringsMsg Arbeidserfaring.Seksjon.Msg
-    | SpråkMsg Sprak.Seksjon.Msg
-    | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
-    | SertifikatMsg Sertifikat.Seksjon.Msg
-    | AndreSamtaleStegMsg AndreSamtaleStegMsg
-
-
-type AndreSamtaleStegMsg
-    = BrukerSierHeiIIntroduksjonen
-    | OriginalSammendragBekreftet
-    | BrukerVilLeggeTilSammendrag
-    | BrukerVilEndreSammendrag
-    | SammendragEndret String
-    | BrukerVilLagreSammendrag String
-    | SammendragOppdatert (Result Http.Error Sammendrag)
-    | BrukerVilIkkeRedigereSammendrag
-    | SeksjonValgt ValgtSeksjon
-    | IngenAvAutorisasjonSeksjoneneValgt
-    | IngenAvDeAndreSeksjoneneValgt
-    | BrukerGodkjennerSynligCV
-    | BrukerGodkjennerIkkeSynligCV
-    | BrukerVilAvslutte String
-    | SynlighetPostet (Result Http.Error Bool)
-    | StartÅSkrive
-    | FullførMelding
-    | ViewportSatt (Result Dom.Error ())
-    | ErrorLogget
-
-
-type ValgtSeksjon
-    = FagbrevSvennebrevValgt
-    | MesterbrevValgt
-    | AutorisasjonValgt
-    | SertifiseringValgt
-    | AnnenErfaringValgt
-    | KursValgt
-    | FørerkortValgt
 
 
 update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
@@ -256,7 +146,36 @@ mapTilExtendedModel extendedModel ( model, cmd ) =
 
 
 
---- Loading ---
+--- LOADING MODEL ---
+
+
+type LoadingModel
+    = VenterPåPerson
+    | VenterPåPersonalia Person
+    | VenterPåResten LoadingState
+
+
+type alias LoadingState =
+    { cv : Maybe Cv
+    , personalia : Personalia
+    , person : Person
+    , registreringsProgresjon : Maybe RegistreringsProgresjon
+    , windowWidth : Maybe Int
+    }
+
+
+
+--- LOADING UPDATE ---
+
+
+type LoadingMsg
+    = PersonHentet (Result Http.Error Person)
+    | PersonOpprettet (Result Http.Error Person)
+    | PersonaliaHentet (Result Http.Error Personalia)
+    | PersonaliaOpprettet (Result Http.Error Personalia)
+    | CvHentet (Result Http.Error Cv)
+    | CvOpprettet (Result Http.Error Cv)
+    | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
 
 
 updateLoading : DebugStatus -> Navigation.Key -> LoadingMsg -> Model -> ( Model, Cmd Msg )
@@ -277,7 +196,7 @@ updateLoading debugStatus navigationKey msg model =
 
                         _ ->
                             ( Failure error
-                            , logFeilmelding error "Hent Person"
+                            , logFeilmeldingUnderLoading error "Hent Person"
                             )
 
         PersonOpprettet result ->
@@ -287,7 +206,7 @@ updateLoading debugStatus navigationKey msg model =
 
                 Err error ->
                     ( Failure error
-                    , logFeilmelding error "Opprett Person"
+                    , logFeilmeldingUnderLoading error "Opprett Person"
                     )
 
         PersonaliaHentet result ->
@@ -304,7 +223,7 @@ updateLoading debugStatus navigationKey msg model =
 
                                 _ ->
                                     ( Failure error
-                                    , logFeilmelding error "Hent Personalia"
+                                    , logFeilmeldingUnderLoading error "Hent Personalia"
                                     )
 
                 _ ->
@@ -319,7 +238,7 @@ updateLoading debugStatus navigationKey msg model =
 
                         Err error ->
                             ( Failure error
-                            , logFeilmelding error "Opprett Personalia"
+                            , logFeilmeldingUnderLoading error "Opprett Personalia"
                             )
 
                 _ ->
@@ -339,7 +258,7 @@ updateLoading debugStatus navigationKey msg model =
 
                                 _ ->
                                     ( Failure error
-                                    , logFeilmelding error "Hent CV"
+                                    , logFeilmeldingUnderLoading error "Hent CV"
                                     )
 
                 _ ->
@@ -354,7 +273,7 @@ updateLoading debugStatus navigationKey msg model =
 
                         Err error ->
                             ( Failure error
-                            , logFeilmelding error "Opprett CV"
+                            , logFeilmeldingUnderLoading error "Opprett CV"
                             )
 
                 _ ->
@@ -367,7 +286,7 @@ updateLoading debugStatus navigationKey msg model =
 
                 Err error ->
                     ( Failure error
-                    , logFeilmelding error "Hent registreringsprogresjon"
+                    , logFeilmeldingUnderLoading error "Hent registreringsprogresjon"
                     )
 
 
@@ -376,8 +295,8 @@ redirectTilLogin _ =
     Navigation.load "/cv-samtale/login"
 
 
-logFeilmelding : Http.Error -> String -> Cmd Msg
-logFeilmelding error operasjon =
+logFeilmeldingUnderLoading : Http.Error -> String -> Cmd Msg
+logFeilmeldingUnderLoading error operasjon =
     Feilmelding.feilmelding operasjon error
         |> Maybe.map (Api.logError ErrorLoggetUnderLoading)
         |> Maybe.withDefault Cmd.none
@@ -440,7 +359,41 @@ initVenterPåResten person personalia =
 
 
 
---- SUCCESS ---
+--- SUCCESS MODEL ---
+
+
+type alias SuccessModel =
+    { cv : Cv
+    , personalia : Personalia
+    , person : Person
+    , registreringsProgresjon : RegistreringsProgresjon
+    , aktivSeksjon : SamtaleSeksjon
+    , debugStatus : DebugStatus
+    }
+
+
+type SamtaleSeksjon
+    = PersonaliaSeksjon Personalia.Seksjon.Model
+    | UtdanningSeksjon Utdanning.Seksjon.Model
+    | ArbeidsErfaringSeksjon Arbeidserfaring.Seksjon.Model
+    | SpråkSeksjon Sprak.Seksjon.Model
+    | FagdokumentasjonSeksjon Fagdokumentasjon.Seksjon.Model
+    | SertifikatSeksjon Sertifikat.Seksjon.Model
+    | AndreSamtaleSteg AndreSamtaleStegInfo
+
+
+
+--- SUCCESS UPDATE ---
+
+
+type SuccessMsg
+    = PersonaliaMsg Personalia.Seksjon.Msg
+    | UtdanningsMsg Utdanning.Seksjon.Msg
+    | ArbeidserfaringsMsg Arbeidserfaring.Seksjon.Msg
+    | SpråkMsg Sprak.Seksjon.Msg
+    | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
+    | SertifikatMsg Sertifikat.Seksjon.Msg
+    | AndreSamtaleStegMsg AndreSamtaleStegMsg
 
 
 updateSuccess : SuccessMsg -> SuccessModel -> ( Model, Cmd SuccessMsg )
@@ -555,6 +508,197 @@ updateSuccess successMsg model =
 
                 _ ->
                     ( Success model, Cmd.none )
+
+
+oppdaterSamtaleSeksjon : SuccessModel -> SamtaleSeksjon -> Model
+oppdaterSamtaleSeksjon model samtaleSeksjon =
+    Success { model | aktivSeksjon = samtaleSeksjon }
+
+
+gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
+    let
+        ( arbeidsModell, arbeidsCmd ) =
+            Arbeidserfaring.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.arbeidserfaring model.cv)
+    in
+    ( Success { model | aktivSeksjon = ArbeidsErfaringSeksjon arbeidsModell }
+    , Cmd.map ArbeidserfaringsMsg arbeidsCmd
+    )
+
+
+gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilUtdanning model ferdigAnimertMeldingsLogg =
+    let
+        ( utdanningModel, utdanningCmd ) =
+            Utdanning.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
+    in
+    ( Success
+        { model
+            | aktivSeksjon = UtdanningSeksjon utdanningModel
+        }
+    , Cmd.map UtdanningsMsg utdanningCmd
+    )
+
+
+gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilSpråk model ferdigAnimertMeldingsLogg =
+    let
+        ( språkModel, språkCmd ) =
+            Sprak.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
+    in
+    ( Success
+        { model
+            | aktivSeksjon = SpråkSeksjon språkModel
+        }
+    , Cmd.map SpråkMsg språkCmd
+    )
+
+
+gåTilFagbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilFagbrev model ferdigAnimertMeldingsLogg =
+    let
+        ( fagbrevModel, fagbrevCmd ) =
+            Fagdokumentasjon.Seksjon.initFagbrev model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+    in
+    ( Success
+        { model
+            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
+        }
+    , Cmd.map FagdokumentasjonMsg fagbrevCmd
+    )
+
+
+gåTilMesterbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilMesterbrev model ferdigAnimertMeldingsLogg =
+    let
+        ( fagbrevModel, fagbrevCmd ) =
+            Fagdokumentasjon.Seksjon.initMesterbrev model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+    in
+    ( Success
+        { model
+            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
+        }
+    , Cmd.map FagdokumentasjonMsg fagbrevCmd
+    )
+
+
+gåTilAutorisasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
+    let
+        ( fagbrevModel, fagbrevCmd ) =
+            Fagdokumentasjon.Seksjon.initAutorisasjon model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+    in
+    ( Success
+        { model
+            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
+        }
+    , Cmd.map FagdokumentasjonMsg fagbrevCmd
+    )
+
+
+gåTilSertifisering : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilSertifisering model ferdigAnimertMeldingsLogg =
+    let
+        ( sertifikatModel, sertifikatCmd ) =
+            Sertifikat.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.sertifikater model.cv)
+    in
+    ( Success
+        { model
+            | aktivSeksjon = SertifikatSeksjon sertifikatModel
+        }
+    , Cmd.map SertifikatMsg sertifikatCmd
+    )
+
+
+gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
+    ( { aktivSamtale = LeggTilAutorisasjoner
+      , meldingsLogg =
+            ferdigAnimertMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilAutorisasjoner)
+      }
+        |> AndreSamtaleSteg
+        |> oppdaterSamtaleSeksjon model
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+
+
+gåTilFlereSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
+gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
+    ( { aktivSamtale = LeggTilFlereAutorisasjoner
+      , meldingsLogg =
+            ferdigAnimertMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilFlereAutorisasjoner)
+      }
+        |> AndreSamtaleSteg
+        |> oppdaterSamtaleSeksjon model
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+
+
+
+--- ANDRE SAMTALESTEG MODEL ---
+
+
+type alias AndreSamtaleStegInfo =
+    { aktivSamtale : Samtale
+    , meldingsLogg : MeldingsLogg
+    }
+
+
+type Samtale
+    = Introduksjon Personalia
+    | LeggTilAutorisasjoner
+    | LeggTilFlereAutorisasjoner
+    | LeggTilAnnet
+    | HarIkkeSammendrag
+    | BekreftOriginal Sammendrag
+    | EndreOriginal String
+    | LagrerEndring String
+    | LagringFeilet Http.Error String
+    | UnderOppfølging
+    | DelMedArbeidsgiver Bool
+    | LagrerSynlighet Bool
+    | LagringSynlighetFeilet
+    | AvsluttendeOrd
+
+
+
+--- ANDRE SAMTALESTEG UPDATE ---
+
+
+type AndreSamtaleStegMsg
+    = BrukerSierHeiIIntroduksjonen
+    | OriginalSammendragBekreftet
+    | BrukerVilLeggeTilSammendrag
+    | BrukerVilEndreSammendrag
+    | SammendragEndret String
+    | BrukerVilLagreSammendrag String
+    | SammendragOppdatert (Result Http.Error Sammendrag)
+    | BrukerVilIkkeRedigereSammendrag
+    | SeksjonValgt ValgtSeksjon
+    | IngenAvAutorisasjonSeksjoneneValgt
+    | IngenAvDeAndreSeksjoneneValgt
+    | BrukerGodkjennerSynligCV
+    | BrukerGodkjennerIkkeSynligCV
+    | BrukerVilAvslutte String
+    | SynlighetPostet (Result Http.Error Bool)
+    | StartÅSkrive
+    | FullførMelding
+    | ViewportSatt (Result Dom.Error ())
+    | ErrorLogget
+
+
+type ValgtSeksjon
+    = FagbrevSvennebrevValgt
+    | MesterbrevValgt
+    | AutorisasjonValgt
+    | SertifiseringValgt
+    | AnnenErfaringValgt
+    | KursValgt
+    | FørerkortValgt
 
 
 updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( Model, Cmd SuccessMsg )
@@ -975,134 +1119,6 @@ lagtTilSpørsmålCmd debugStatus =
             |> Process.sleep
             |> Task.perform (always StartÅSkrive >> AndreSamtaleStegMsg)
         ]
-
-
-oppdaterSamtaleSeksjon : SuccessModel -> SamtaleSeksjon -> Model
-oppdaterSamtaleSeksjon model samtaleSeksjon =
-    Success { model | aktivSeksjon = samtaleSeksjon }
-
-
-gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
-    let
-        ( arbeidsModell, arbeidsCmd ) =
-            Arbeidserfaring.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.arbeidserfaring model.cv)
-    in
-    ( Success { model | aktivSeksjon = ArbeidsErfaringSeksjon arbeidsModell }
-    , Cmd.map ArbeidserfaringsMsg arbeidsCmd
-    )
-
-
-gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilUtdanning model ferdigAnimertMeldingsLogg =
-    let
-        ( utdanningModel, utdanningCmd ) =
-            Utdanning.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
-    in
-    ( Success
-        { model
-            | aktivSeksjon = UtdanningSeksjon utdanningModel
-        }
-    , Cmd.map UtdanningsMsg utdanningCmd
-    )
-
-
-gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilSpråk model ferdigAnimertMeldingsLogg =
-    let
-        ( språkModel, språkCmd ) =
-            Sprak.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
-    in
-    ( Success
-        { model
-            | aktivSeksjon = SpråkSeksjon språkModel
-        }
-    , Cmd.map SpråkMsg språkCmd
-    )
-
-
-gåTilFagbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilFagbrev model ferdigAnimertMeldingsLogg =
-    let
-        ( fagbrevModel, fagbrevCmd ) =
-            Fagdokumentasjon.Seksjon.initFagbrev model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
-    in
-    ( Success
-        { model
-            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
-        }
-    , Cmd.map FagdokumentasjonMsg fagbrevCmd
-    )
-
-
-gåTilMesterbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilMesterbrev model ferdigAnimertMeldingsLogg =
-    let
-        ( fagbrevModel, fagbrevCmd ) =
-            Fagdokumentasjon.Seksjon.initMesterbrev model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
-    in
-    ( Success
-        { model
-            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
-        }
-    , Cmd.map FagdokumentasjonMsg fagbrevCmd
-    )
-
-
-gåTilAutorisasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
-    let
-        ( fagbrevModel, fagbrevCmd ) =
-            Fagdokumentasjon.Seksjon.initAutorisasjon model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
-    in
-    ( Success
-        { model
-            | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
-        }
-    , Cmd.map FagdokumentasjonMsg fagbrevCmd
-    )
-
-
-gåTilSertifisering : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilSertifisering model ferdigAnimertMeldingsLogg =
-    let
-        ( sertifikatModel, sertifikatCmd ) =
-            Sertifikat.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.sertifikater model.cv)
-    in
-    ( Success
-        { model
-            | aktivSeksjon = SertifikatSeksjon sertifikatModel
-        }
-    , Cmd.map SertifikatMsg sertifikatCmd
-    )
-
-
-gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
-    ( { aktivSamtale = LeggTilAutorisasjoner
-      , meldingsLogg =
-            ferdigAnimertMeldingsLogg
-                |> MeldingsLogg.tilMeldingsLogg
-                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilAutorisasjoner)
-      }
-        |> AndreSamtaleSteg
-        |> oppdaterSamtaleSeksjon model
-    , lagtTilSpørsmålCmd model.debugStatus
-    )
-
-
-gåTilFlereSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd SuccessMsg )
-gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
-    ( { aktivSamtale = LeggTilFlereAutorisasjoner
-      , meldingsLogg =
-            ferdigAnimertMeldingsLogg
-                |> MeldingsLogg.tilMeldingsLogg
-                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilFlereAutorisasjoner)
-      }
-        |> AndreSamtaleSteg
-        |> oppdaterSamtaleSeksjon model
-    , lagtTilSpørsmålCmd model.debugStatus
-    )
 
 
 
