@@ -1,14 +1,17 @@
 module Dato exposing
-    ( Måned(..)
+    ( DatoPeriode(..)
+    , Måned(..)
     , TilDato(..)
     , År
     , datoTilString
     , decodeMonthYear
     , encodeMonthYear
+    , feilmeldingValgfriMåned
     , feilmeldingÅr
     , månedTilNummerMåned
     , månedTilString
     , periodeTilString
+    , stringTilMaybeMåned
     , stringTilMåned
     , stringTilÅr
     , validerÅr
@@ -151,6 +154,49 @@ stringTilMåned string =
 
         _ ->
             Januar
+
+
+stringTilMaybeMåned : String -> Maybe Måned
+stringTilMaybeMåned string =
+    case string of
+        "Januar" ->
+            Just Januar
+
+        "Februar" ->
+            Just Februar
+
+        "Mars" ->
+            Just Mars
+
+        "April" ->
+            Just April
+
+        "Mai" ->
+            Just Mai
+
+        "Juni" ->
+            Just Juni
+
+        "Juli" ->
+            Just Juli
+
+        "August" ->
+            Just August
+
+        "September" ->
+            Just September
+
+        "Oktober" ->
+            Just Oktober
+
+        "November" ->
+            Just November
+
+        "Desember" ->
+            Just Desember
+
+        _ ->
+            Nothing
 
 
 månedTilNummerMåned : Måned -> String
@@ -338,3 +384,21 @@ tilDatoTilString tilDato =
 datoTilString : Måned -> År -> String
 datoTilString måned_ år_ =
     månedTilString måned_ ++ " " ++ årTilString år_
+
+
+
+--- Valgfri Periode ---
+
+
+type DatoPeriode
+    = IkkeOppgitt
+    | Oppgitt Måned År TilDato
+
+
+feilmeldingValgfriMåned : Maybe Måned -> Maybe String
+feilmeldingValgfriMåned måned_ =
+    if måned_ == Nothing then
+        Just "Velg måned"
+
+    else
+        Nothing

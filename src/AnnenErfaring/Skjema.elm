@@ -4,29 +4,36 @@ module AnnenErfaring.Skjema exposing
     , ValidertAnnenErfaringSkjema
     , encode
     , feilmeldingBeskrivelse
+    , feilmeldingFraMåned
     , feilmeldingFraÅr
     , feilmeldingRolle
+    , feilmeldingRolleHvisSynlig
+    , feilmeldingTilMåned
     , feilmeldingTilÅr
     , fraMåned
-    , fraÅrValidert
+    , harDatoer
     , id
     , initValidertSkjema
+    , initValidertSkjemaUtenPeriode
     , innholdTekstFelt
     , nåværende
     , oppdaterFraMåned
     , oppdaterTekstFelt
     , oppdaterTilMåned
-    , tilDatoValidert
+    , periode
     , tilMåned
     , tilUvalidertSkjema
+    , tillatÅViseAlleFeilmeldinger
+    , tillatÅViseFeilmeldingFraÅr
+    , tillatÅViseFeilmeldingMåned
+    , tillatÅViseFeilmeldingRolle
+    , tillatÅViseFeilmeldingTilÅr
+    , toggleHarDatoer
     , toggleNavarende
     , valider
-    , visAlleFeilmeldinger
-    , visFeilmeldingFraÅr
-    , visFeilmeldingTilÅr
     )
 
-import Dato exposing (Måned(..), TilDato(..), År)
+import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import Json.Encode
 
 
@@ -41,19 +48,33 @@ type ValidertAnnenErfaringSkjema
 type alias UvalidertSkjemaInfo =
     { rolle : String
     , beskrivelse : String
-    , fraMåned : Måned
+    , harDatoer : Bool
+    , fraMåned : Maybe Måned
     , fraÅr : String
     , nåværende : Bool
-    , tilMåned : Måned
+    , tilMåned : Maybe Måned
     , tilÅr : String
     , id : Maybe String
-    , visFeilmeldingRolle : Bool
-    , visFeilmeldingFraÅr : Bool
-    , visFeilmeldingTilÅr : Bool
+    , tillatÅViseFeilmeldingRolle : Bool
+    , tillatÅViseFeilmeldingFraÅr : Bool
+    , tillatÅViseFeilmeldingTilÅr : Bool
+    , tillatÅViseFeilmeldingPeriode : Bool
     }
 
 
 type alias ValidertSkjemaInfo =
+    { rolle : String
+    , beskrivelse : String
+    , periode : DatoPeriode
+    , id : Maybe String
+    }
+
+
+
+--- INIT ---
+
+
+type alias ValidertSkjemaInitMedPeriode =
     { rolle : String
     , beskrivelse : String
     , fraMåned : Måned
@@ -63,13 +84,31 @@ type alias ValidertSkjemaInfo =
     }
 
 
-
---- INIT ---
-
-
-initValidertSkjema : ValidertSkjemaInfo -> ValidertAnnenErfaringSkjema
+initValidertSkjema : ValidertSkjemaInitMedPeriode -> ValidertAnnenErfaringSkjema
 initValidertSkjema info =
-    ValidertSkjema info
+    ValidertSkjema
+        { rolle = info.rolle
+        , beskrivelse = info.beskrivelse
+        , periode = Oppgitt info.fraMåned info.fraÅr info.tilDato
+        , id = info.id
+        }
+
+
+type alias ValidertSkjemaInitUtenPeriode =
+    { rolle : String
+    , beskrivelse : String
+    , id : Maybe String
+    }
+
+
+initValidertSkjemaUtenPeriode : ValidertSkjemaInitUtenPeriode -> ValidertAnnenErfaringSkjema
+initValidertSkjemaUtenPeriode info =
+    ValidertSkjema
+        { rolle = info.rolle
+        , beskrivelse = info.beskrivelse
+        , periode = IkkeOppgitt
+        , id = info.id
+        }
 
 
 
@@ -104,24 +143,24 @@ nåværende (UvalidertSkjema info) =
     info.nåværende
 
 
-fraMåned : AnnenErfaringSkjema -> Måned
+harDatoer : AnnenErfaringSkjema -> Bool
+harDatoer (UvalidertSkjema info) =
+    info.harDatoer
+
+
+fraMåned : AnnenErfaringSkjema -> Maybe Måned
 fraMåned (UvalidertSkjema info) =
     info.fraMåned
 
 
-tilMåned : AnnenErfaringSkjema -> Måned
+tilMåned : AnnenErfaringSkjema -> Maybe Måned
 tilMåned (UvalidertSkjema info) =
     info.tilMåned
 
 
-fraÅrValidert : ValidertAnnenErfaringSkjema -> År
-fraÅrValidert (ValidertSkjema info) =
-    info.fraÅr
-
-
-tilDatoValidert : ValidertAnnenErfaringSkjema -> TilDato
-tilDatoValidert (ValidertSkjema info) =
-    info.tilDato
+periode : ValidertAnnenErfaringSkjema -> DatoPeriode
+periode (ValidertSkjema skjema) =
+    skjema.periode
 
 
 id : ValidertAnnenErfaringSkjema -> Maybe String
@@ -154,14 +193,19 @@ toggleNavarende (UvalidertSkjema skjema) =
     UvalidertSkjema { skjema | nåværende = not skjema.nåværende }
 
 
-oppdaterFraMåned : AnnenErfaringSkjema -> Måned -> AnnenErfaringSkjema
+oppdaterFraMåned : AnnenErfaringSkjema -> Maybe Måned -> AnnenErfaringSkjema
 oppdaterFraMåned (UvalidertSkjema skjema) måned =
     UvalidertSkjema { skjema | fraMåned = måned }
 
 
-oppdaterTilMåned : AnnenErfaringSkjema -> Måned -> AnnenErfaringSkjema
+oppdaterTilMåned : AnnenErfaringSkjema -> Maybe Måned -> AnnenErfaringSkjema
 oppdaterTilMåned (UvalidertSkjema skjema) måned =
     UvalidertSkjema { skjema | tilMåned = måned }
+
+
+toggleHarDatoer : AnnenErfaringSkjema -> AnnenErfaringSkjema
+toggleHarDatoer (UvalidertSkjema skjema) =
+    UvalidertSkjema { skjema | harDatoer = not skjema.harDatoer }
 
 
 
@@ -185,6 +229,15 @@ feilmeldingRolle rolle_ =
         Nothing
 
 
+feilmeldingRolleHvisSynlig : AnnenErfaringSkjema -> Maybe String
+feilmeldingRolleHvisSynlig (UvalidertSkjema skjema) =
+    if skjema.tillatÅViseFeilmeldingRolle then
+        feilmeldingRolle skjema.rolle
+
+    else
+        Nothing
+
+
 feilmeldingBeskrivelse : String -> Maybe String
 feilmeldingBeskrivelse innhold =
     if String.length innhold <= 2000 then
@@ -199,9 +252,27 @@ feilmeldingBeskrivelse innhold =
         Just ("Du har " ++ tallTekst ++ " tegn for mye")
 
 
+feilmeldingFraMåned : AnnenErfaringSkjema -> Maybe String
+feilmeldingFraMåned (UvalidertSkjema skjema) =
+    if skjema.harDatoer && skjema.tillatÅViseFeilmeldingPeriode then
+        Dato.feilmeldingValgfriMåned skjema.fraMåned
+
+    else
+        Nothing
+
+
+feilmeldingTilMåned : AnnenErfaringSkjema -> Maybe String
+feilmeldingTilMåned (UvalidertSkjema skjema) =
+    if skjema.harDatoer && not skjema.nåværende && skjema.tillatÅViseFeilmeldingPeriode then
+        Dato.feilmeldingValgfriMåned skjema.tilMåned
+
+    else
+        Nothing
+
+
 feilmeldingFraÅr : AnnenErfaringSkjema -> Maybe String
 feilmeldingFraÅr (UvalidertSkjema skjema) =
-    if skjema.visFeilmeldingFraÅr then
+    if skjema.tillatÅViseFeilmeldingFraÅr then
         Dato.feilmeldingÅr skjema.fraÅr
 
     else
@@ -210,34 +281,40 @@ feilmeldingFraÅr (UvalidertSkjema skjema) =
 
 feilmeldingTilÅr : AnnenErfaringSkjema -> Maybe String
 feilmeldingTilÅr (UvalidertSkjema skjema) =
-    if not skjema.nåværende && skjema.visFeilmeldingTilÅr then
+    if not skjema.nåværende && skjema.tillatÅViseFeilmeldingTilÅr then
         Dato.feilmeldingÅr skjema.tilÅr
 
     else
         Nothing
 
 
-visFeilmeldingFraÅr : AnnenErfaringSkjema -> AnnenErfaringSkjema
-visFeilmeldingFraÅr (UvalidertSkjema skjema) =
-    UvalidertSkjema { skjema | visFeilmeldingFraÅr = True }
+tillatÅViseFeilmeldingFraÅr : AnnenErfaringSkjema -> AnnenErfaringSkjema
+tillatÅViseFeilmeldingFraÅr (UvalidertSkjema skjema) =
+    UvalidertSkjema { skjema | tillatÅViseFeilmeldingFraÅr = True }
 
 
-visFeilmeldingTilÅr : AnnenErfaringSkjema -> AnnenErfaringSkjema
-visFeilmeldingTilÅr (UvalidertSkjema skjema) =
-    UvalidertSkjema { skjema | visFeilmeldingTilÅr = True }
+tillatÅViseFeilmeldingTilÅr : AnnenErfaringSkjema -> AnnenErfaringSkjema
+tillatÅViseFeilmeldingTilÅr (UvalidertSkjema skjema) =
+    UvalidertSkjema { skjema | tillatÅViseFeilmeldingTilÅr = True }
 
 
-visFeilmeldingRolle : AnnenErfaringSkjema -> AnnenErfaringSkjema
-visFeilmeldingRolle (UvalidertSkjema skjema) =
-    UvalidertSkjema { skjema | visFeilmeldingRolle = True }
+tillatÅViseFeilmeldingRolle : AnnenErfaringSkjema -> AnnenErfaringSkjema
+tillatÅViseFeilmeldingRolle (UvalidertSkjema skjema) =
+    UvalidertSkjema { skjema | tillatÅViseFeilmeldingRolle = True }
 
 
-visAlleFeilmeldinger : AnnenErfaringSkjema -> AnnenErfaringSkjema
-visAlleFeilmeldinger skjema =
+tillatÅViseFeilmeldingMåned : AnnenErfaringSkjema -> AnnenErfaringSkjema
+tillatÅViseFeilmeldingMåned (UvalidertSkjema skjema) =
+    UvalidertSkjema { skjema | tillatÅViseFeilmeldingPeriode = True }
+
+
+tillatÅViseAlleFeilmeldinger : AnnenErfaringSkjema -> AnnenErfaringSkjema
+tillatÅViseAlleFeilmeldinger skjema =
     skjema
-        |> visFeilmeldingFraÅr
-        |> visFeilmeldingTilÅr
-        |> visFeilmeldingRolle
+        |> tillatÅViseFeilmeldingFraÅr
+        |> tillatÅViseFeilmeldingTilÅr
+        |> tillatÅViseFeilmeldingRolle
+        |> tillatÅViseFeilmeldingMåned
 
 
 
@@ -245,38 +322,50 @@ visAlleFeilmeldinger skjema =
 
 
 valider : AnnenErfaringSkjema -> Maybe ValidertAnnenErfaringSkjema
-valider (UvalidertSkjema uvalidert) =
-    if feilmeldingRolle uvalidert.rolle /= Nothing then
+valider (UvalidertSkjema info) =
+    if feilmeldingRolle info.rolle /= Nothing then
         Nothing
 
-    else if feilmeldingBeskrivelse uvalidert.beskrivelse /= Nothing then
+    else if feilmeldingBeskrivelse info.beskrivelse /= Nothing then
         Nothing
 
     else
-        Maybe.map2
-            (\fraÅr_ tilDato_ ->
+        Maybe.map
+            (\periode_ ->
                 ValidertSkjema
-                    { rolle = uvalidert.rolle
-                    , beskrivelse = uvalidert.beskrivelse
-                    , fraMåned = uvalidert.fraMåned
-                    , fraÅr = fraÅr_
-                    , tilDato = tilDato_
-                    , id = uvalidert.id
+                    { rolle = info.rolle
+                    , beskrivelse = info.beskrivelse
+                    , periode = periode_
+                    , id = info.id
                     }
             )
-            (Dato.stringTilÅr uvalidert.fraÅr)
-            (validerTilDato uvalidert.nåværende uvalidert.tilMåned uvalidert.tilÅr)
+            (validerPeriode info.harDatoer info.fraMåned info.fraÅr info.nåværende info.tilMåned info.tilÅr)
 
 
-validerTilDato : Bool -> Måned -> String -> Maybe TilDato
-validerTilDato nåværende_ måned år =
+getTilDato : Bool -> Maybe Måned -> String -> Maybe TilDato
+getTilDato nåværende_ måned år =
     if nåværende_ then
         Just Nåværende
 
     else
-        år
-            |> Dato.stringTilÅr
-            |> Maybe.map (Avsluttet måned)
+        Maybe.map2 Avsluttet måned (Dato.stringTilÅr år)
+
+
+validerPeriode : Bool -> Maybe Måned -> String -> Bool -> Maybe Måned -> String -> Maybe DatoPeriode
+validerPeriode harDatoer_ fraMåned_ fraÅr nåværende_ tilMåned_ tilÅr =
+    let
+        tilDato_ =
+            getTilDato nåværende_ tilMåned_ tilÅr
+
+        maybeFraÅr =
+            Dato.stringTilÅr fraÅr
+    in
+    if not harDatoer_ then
+        -- Alt er ok hvis checkbox for dato ikke er checked
+        Just IkkeOppgitt
+
+    else
+        Maybe.map3 Oppgitt fraMåned_ maybeFraÅr tilDato_
 
 
 tilDatoMåned : TilDato -> Måned
@@ -301,32 +390,52 @@ tilDatoÅr tilDato =
 
 tilUvalidertSkjema : ValidertAnnenErfaringSkjema -> AnnenErfaringSkjema
 tilUvalidertSkjema (ValidertSkjema validert) =
-    UvalidertSkjema
-        { rolle = validert.rolle
-        , beskrivelse = validert.beskrivelse
-        , fraMåned = validert.fraMåned
-        , fraÅr = Dato.årTilString validert.fraÅr
-        , nåværende = validert.tilDato == Nåværende
-        , tilMåned = tilDatoMåned validert.tilDato
-        , tilÅr = tilDatoÅr validert.tilDato
-        , visFeilmeldingFraÅr = False
-        , visFeilmeldingTilÅr = False
-        , visFeilmeldingRolle = False
-        , id = validert.id
-        }
+    case validert.periode of
+        Oppgitt fraMåned_ fraÅr_ tilDato ->
+            UvalidertSkjema
+                { rolle = validert.rolle
+                , beskrivelse = validert.beskrivelse
+                , harDatoer = True
+                , fraMåned = Just fraMåned_
+                , fraÅr = Dato.årTilString fraÅr_
+                , nåværende = tilDato == Nåværende
+                , tilMåned = Just (tilDatoMåned tilDato)
+                , tilÅr = tilDatoÅr tilDato
+                , tillatÅViseFeilmeldingFraÅr = False
+                , tillatÅViseFeilmeldingTilÅr = False
+                , tillatÅViseFeilmeldingRolle = False
+                , tillatÅViseFeilmeldingPeriode = False
+                , id = validert.id
+                }
+
+        IkkeOppgitt ->
+            UvalidertSkjema
+                { rolle = validert.rolle
+                , beskrivelse = validert.beskrivelse
+                , harDatoer = False
+                , fraMåned = Nothing
+                , fraÅr = ""
+                , nåværende = False
+                , tilMåned = Nothing
+                , tilÅr = ""
+                , tillatÅViseFeilmeldingFraÅr = False
+                , tillatÅViseFeilmeldingTilÅr = False
+                , tillatÅViseFeilmeldingRolle = False
+                , tillatÅViseFeilmeldingPeriode = False
+                , id = validert.id
+                }
 
 
 
--- ENCODE --
+--- ENCODE ---
 
 
 encode : ValidertAnnenErfaringSkjema -> Json.Encode.Value
 encode (ValidertSkjema skjema) =
     [ [ ( "rolle", Json.Encode.string skjema.rolle )
       , ( "beskrivelse", Json.Encode.string skjema.beskrivelse )
-      , ( "fradato", Dato.encodeMonthYear skjema.fraMåned skjema.fraÅr )
       ]
-    , encodeTilDato skjema.tilDato
+    , encodePeriode skjema.periode
     ]
         |> List.concat
         |> Json.Encode.object
@@ -342,3 +451,16 @@ encodeTilDato tilDato =
             [ ( "naavaerende", Json.Encode.bool False )
             , ( "tildato", Dato.encodeMonthYear måned år )
             ]
+
+
+encodePeriode : DatoPeriode -> List ( String, Json.Encode.Value )
+encodePeriode periode_ =
+    case periode_ of
+        Oppgitt fraMåned_ fraÅr tilDato ->
+            [ [ ( "fradato", Dato.encodeMonthYear fraMåned_ fraÅr ) ]
+            , encodeTilDato tilDato
+            ]
+                |> List.concat
+
+        IkkeOppgitt ->
+            [ ( "naavaerende", Json.Encode.bool False ) ]

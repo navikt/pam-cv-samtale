@@ -8,24 +8,24 @@ module AnnenErfaring.Seksjon exposing
     , viewBrukerInput
     )
 
-import AnnenErfaring.Skjema as Skjema exposing (AnnenErfaringSkjema, Felt(..), ValidertAnnenErfaringSkjema, feilmeldingBeskrivelse, feilmeldingRolle)
+import AnnenErfaring.Skjema as Skjema exposing (AnnenErfaringSkjema, Felt(..), ValidertAnnenErfaringSkjema)
 import Api
 import Browser.Dom as Dom
 import Cv.AnnenErfaring exposing (AnnenErfaring)
-import Dato exposing (Måned(..), TilDato(..), År)
+import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
-import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Textarea as Textarea
+import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
 import Melding exposing (Melding(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
 import Task
@@ -60,6 +60,7 @@ type SamtaleStatus
 type Samtale
     = RegistrerRolle RolleInfo
     | RegistrerBeskrivelse BeskrivelseInfo
+    | SpørOmBrukerVilLeggeInnTidsperiode BeskrivelseInfo
     | RegistrerFraMåned FraDatoInfo
     | RegistrerFraÅr FraDatoInfo
     | RegistrerNåværende ValidertFraDatoInfo
@@ -75,7 +76,7 @@ type Samtale
 
 type alias RolleInfo =
     { rolle : String
-    , visFeilmeldingRolle : Bool
+    , tillatÅViseFeilmeldingRolle : Bool
     }
 
 
@@ -90,7 +91,7 @@ type alias FraDatoInfo =
     , beskrivelse : String
     , fraMåned : Måned
     , fraÅr : String
-    , visFeilmeldingÅr : Bool
+    , tillatÅViseFeilmeldingÅr : Bool
     }
 
 
@@ -109,7 +110,7 @@ type alias TilDatoInfo =
     , fraÅr : År
     , tilMåned : Måned
     , tilÅr : String
-    , visFeilmeldingÅr : Bool
+    , tillatÅViseFeilmeldingÅr : Bool
     }
 
 
@@ -126,7 +127,7 @@ beskrivelseTilFraDato input =
     , beskrivelse = input.beskrivelse
     , fraMåned = Januar
     , fraÅr = ""
-    , visFeilmeldingÅr = False
+    , tillatÅViseFeilmeldingÅr = False
     }
 
 
@@ -138,8 +139,17 @@ fraDatoTilTilDato input =
     , fraÅr = input.fraÅr
     , tilMåned = Januar
     , tilÅr = ""
-    , visFeilmeldingÅr = False
+    , tillatÅViseFeilmeldingÅr = False
     }
+
+
+beskrivelseTilSkjema : BeskrivelseInfo -> ValidertAnnenErfaringSkjema
+beskrivelseTilSkjema info =
+    Skjema.initValidertSkjemaUtenPeriode
+        { rolle = info.rolle
+        , beskrivelse = info.beskrivelse
+        , id = Nothing
+        }
 
 
 fraDatoTilSkjema : ValidertFraDatoInfo -> ValidertAnnenErfaringSkjema
@@ -172,14 +182,16 @@ tilDatoTilSkjema info tilÅr =
 
 type Msg
     = VilRegistrereRolle
-    | OppdaterRolle String
+    | OppdatererRolle String
     | VilRegistrereBeskrivelse
-    | OppdaterBeskrivelse String
+    | OppdatererBeskrivelse String
+    | SvarerJaTilTidsperiode
+    | SvarerNeiTilTidsperiode
     | FraMånedValgt Dato.Måned
     | VilRegistrereFraÅr
     | OppdatererFraÅr String
-    | SvarerJaTilNaavarende
-    | VilRegistrereTilMåned
+    | SvarerJaTilNåværende
+    | SvarerNeiTilNåværende
     | TilMånedValgt Dato.Måned
     | VilRegistrereTilÅr
     | OppdatererTilÅr String
@@ -193,17 +205,19 @@ type Msg
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
     | FokusSatt (Result Dom.Error ())
-    | ÅrMisterFokus
+    | FeltMisterFokus
     | ErrorLogget
 
 
 type SkjemaEndring
     = Tekst Felt String
+    | HarDatoerToggled
     | FraMåned String
     | NåværendeToggled
     | TilMåned String
     | FraÅrBlurred
     | TilÅrBlurred
+    | RolleBlurred
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -212,11 +226,11 @@ update msg (Model model) =
         VilRegistrereRolle ->
             case model.aktivSamtale of
                 RegistrerRolle info ->
-                    case feilmeldingRolle info.rolle of
+                    case Skjema.feilmeldingRolle info.rolle of
                         Just _ ->
-                            ( { info | visFeilmeldingRolle = True }
+                            ( { info | tillatÅViseFeilmeldingRolle = True }
                                 |> RegistrerRolle
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -233,7 +247,7 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdaterRolle string ->
+        OppdatererRolle string ->
             case model.aktivSamtale of
                 RegistrerRolle info ->
                     ( { info | rolle = string }
@@ -249,11 +263,10 @@ update msg (Model model) =
         VilRegistrereBeskrivelse ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse input ->
-                    case feilmeldingBeskrivelse input.beskrivelse of
+                    case Skjema.feilmeldingBeskrivelse input.beskrivelse of
                         Nothing ->
                             ( input
-                                |> beskrivelseTilFraDato
-                                |> RegistrerFraMåned
+                                |> SpørOmBrukerVilLeggeInnTidsperiode
                                 |> nesteSamtaleSteg model (Melding.svar [ input.beskrivelse ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -265,13 +278,41 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdaterBeskrivelse string ->
+        OppdatererBeskrivelse string ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse beskrivelse ->
                     ( { beskrivelse | beskrivelse = string }
                         |> RegistrerBeskrivelse
                         |> oppdaterSamtaleSteg model
                     , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        SvarerJaTilTidsperiode ->
+            case model.aktivSamtale of
+                SpørOmBrukerVilLeggeInnTidsperiode info ->
+                    ( info
+                        |> beskrivelseTilFraDato
+                        |> RegistrerFraMåned
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, det vil jeg" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        SvarerNeiTilTidsperiode ->
+            case model.aktivSamtale of
+                SpørOmBrukerVilLeggeInnTidsperiode info ->
+                    ( info
+                        |> beskrivelseTilSkjema
+                        |> VisOppsummering
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei det vil jeg ikke" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -310,9 +351,9 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Nothing ->
-                            ( { fraDatoInfo | visFeilmeldingÅr = True }
+                            ( { fraDatoInfo | tillatÅViseFeilmeldingÅr = True }
                                 |> RegistrerFraÅr
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -325,7 +366,7 @@ update msg (Model model) =
                 RegistrerFraÅr fraDatoInfo ->
                     ( { fraDatoInfo | fraÅr = string }
                         |> RegistrerFraÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -333,7 +374,7 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        SvarerJaTilNaavarende ->
+        SvarerJaTilNåværende ->
             case model.aktivSamtale of
                 RegistrerNåværende nåværendeInfo ->
                     ( nåværendeInfo
@@ -347,7 +388,7 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilRegistrereTilMåned ->
+        SvarerNeiTilNåværende ->
             case model.aktivSamtale of
                 RegistrerNåværende fraDatoInfo ->
                     ( fraDatoInfo
@@ -388,9 +429,9 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Nothing ->
-                            ( { tilDatoInfo | visFeilmeldingÅr = True }
+                            ( { tilDatoInfo | tillatÅViseFeilmeldingÅr = True }
                                 |> RegistrerTilÅr
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -403,7 +444,7 @@ update msg (Model model) =
                 RegistrerTilÅr tilDatoInfo ->
                     ( { tilDatoInfo | tilÅr = string }
                         |> RegistrerTilÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -411,20 +452,28 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        ÅrMisterFokus ->
+        FeltMisterFokus ->
             case model.aktivSamtale of
                 RegistrerFraÅr fraDatoInfo ->
-                    ( { fraDatoInfo | visFeilmeldingÅr = True }
+                    ( { fraDatoInfo | tillatÅViseFeilmeldingÅr = True }
                         |> RegistrerFraÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
 
                 RegistrerTilÅr tilDatoInfo ->
-                    ( { tilDatoInfo | visFeilmeldingÅr = True }
+                    ( { tilDatoInfo | tillatÅViseFeilmeldingÅr = True }
                         |> RegistrerTilÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                RegistrerRolle rolleInfo ->
+                    ( { rolleInfo | tillatÅViseFeilmeldingRolle = True }
+                        |> RegistrerRolle
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -449,7 +498,7 @@ update msg (Model model) =
                     ( annenErfaringSkjema
                         |> oppdaterSkjema skjemaEndring
                         |> EndreOpplysninger
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -471,9 +520,9 @@ update msg (Model model) =
 
                         Nothing ->
                             ( skjema
-                                |> Skjema.visAlleFeilmeldinger
+                                |> Skjema.tillatÅViseAlleFeilmeldinger
                                 |> EndreOpplysninger
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -575,38 +624,36 @@ setFraMåned fraDatoInfo måned =
     { fraDatoInfo | fraMåned = måned }
 
 
-oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
-oppdaterSamtalesteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-        }
-
-
 oppdaterSkjema : SkjemaEndring -> AnnenErfaringSkjema -> AnnenErfaringSkjema
 oppdaterSkjema endring skjema =
     case endring of
         Tekst felt innhold ->
             Skjema.oppdaterTekstFelt felt innhold skjema
 
+        HarDatoerToggled ->
+            Skjema.toggleHarDatoer skjema
+
         FraMåned månedString ->
             månedString
-                |> Dato.stringTilMåned
+                |> Dato.stringTilMaybeMåned
                 |> Skjema.oppdaterFraMåned skjema
 
         TilMåned månedString ->
             månedString
-                |> Dato.stringTilMåned
+                |> Dato.stringTilMaybeMåned
                 |> Skjema.oppdaterTilMåned skjema
 
         NåværendeToggled ->
             Skjema.toggleNavarende skjema
 
         FraÅrBlurred ->
-            Skjema.visFeilmeldingFraÅr skjema
+            Skjema.tillatÅViseFeilmeldingFraÅr skjema
 
         TilÅrBlurred ->
-            Skjema.visFeilmeldingTilÅr skjema
+            Skjema.tillatÅViseFeilmeldingTilÅr skjema
+
+        RolleBlurred ->
+            Skjema.tillatÅViseFeilmeldingRolle skjema
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -657,7 +704,7 @@ updateEtterLagreKnappTrykket model skjema melding =
     ( skjema
         |> LagrerSkjema
         |> nesteSamtaleSteg model melding
-    , postEllerPutAnnenErfaring AnnenErfaringLagret skjema
+    , Api.postAnnenErfaring AnnenErfaringLagret skjema
     )
         |> IkkeFerdig
 
@@ -717,6 +764,10 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             [ Melding.spørsmål [ "Hva var jobben din?" ]
             ]
 
+        SpørOmBrukerVilLeggeInnTidsperiode _ ->
+            [ Melding.spørsmål [ "Det kan være viktig for arbeidsgiver å vite hvor lenge du har hatt rollen. Har du lyst til å legge inn informasjonen om tidsperiode?" ]
+            ]
+
         RegistrerFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du?" ]
             ]
@@ -737,16 +788,16 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             ]
 
         VisOppsummering skjema ->
-            [ Melding.spørsmål
-                ([ "Du har lagt inn dette:"
-                 , Melding.tomLinje
-                 ]
-                    ++ (validertSkjemaTilSetninger skjema
-                            ++ [ Melding.tomLinje
-                               , "Er informasjonen riktig?"
-                               ]
-                       )
-                )
+            [ [ [ "Du har lagt inn dette:"
+                , Melding.tomLinje
+                ]
+              , validertSkjemaTilSetninger skjema
+              , [ Melding.tomLinje
+                , "Er informasjonen riktig?"
+                ]
+              ]
+                |> List.concat
+                |> Melding.spørsmål
             ]
 
         EndreOpplysninger _ ->
@@ -773,10 +824,17 @@ validertSkjemaTilSetninger validertSkjema =
         skjema =
             Skjema.tilUvalidertSkjema validertSkjema
     in
-    [ "Rolle: " ++ Skjema.innholdTekstFelt Rolle skjema
-    , Dato.periodeTilString (Skjema.fraMåned skjema) (Skjema.fraÅrValidert validertSkjema) (Skjema.tilDatoValidert validertSkjema)
-    , "Beskrivelse: " ++ Skjema.innholdTekstFelt Beskrivelse skjema
-    ]
+    case Skjema.periode validertSkjema of
+        Oppgitt fraMåned_ fraÅr_ tilDato ->
+            [ "Rolle: " ++ Skjema.innholdTekstFelt Rolle skjema
+            , Dato.periodeTilString fraMåned_ fraÅr_ tilDato
+            , "Beskrivelse: " ++ Skjema.innholdTekstFelt Beskrivelse skjema
+            ]
+
+        IkkeOppgitt ->
+            [ "Rolle: " ++ Skjema.innholdTekstFelt Rolle skjema
+            , "Beskrivelse: " ++ Skjema.innholdTekstFelt Beskrivelse skjema
+            ]
 
 
 settFokus : Samtale -> Cmd Msg
@@ -841,13 +899,14 @@ viewBrukerInput (Model model) =
                 RegistrerRolle info ->
                     Containers.inputMedGåVidereKnapp VilRegistrereRolle
                         [ info.rolle
-                            |> Input.input { label = "Rolle", msg = OppdaterRolle }
+                            |> Input.input { label = "Rolle", msg = OppdatererRolle }
                             |> Input.withOnEnter VilRegistrereRolle
                             |> Input.withId (inputIdTilString RolleId)
+                            |> Input.withOnBlur FeltMisterFokus
                             |> Input.withMaybeFeilmelding
                                 (info.rolle
-                                    |> feilmeldingRolle
-                                    |> maybeHvisTrue info.visFeilmeldingRolle
+                                    |> Skjema.feilmeldingRolle
+                                    |> maybeHvisTrue info.tillatÅViseFeilmeldingRolle
                                 )
                             |> Input.toHtml
                         ]
@@ -855,10 +914,20 @@ viewBrukerInput (Model model) =
                 RegistrerBeskrivelse info ->
                     Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
                         [ info.beskrivelse
-                            |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdaterBeskrivelse }
-                            |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelse info.beskrivelse)
+                            |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
+                            |> Textarea.withMaybeFeilmelding (Skjema.feilmeldingBeskrivelse info.beskrivelse)
                             |> Textarea.withId (inputIdTilString BeskrivelseId)
                             |> Textarea.toHtml
+                        ]
+
+                SpørOmBrukerVilLeggeInnTidsperiode _ ->
+                    Containers.knapper Flytende
+                        [ "Ja, det vil jeg"
+                            |> Knapp.knapp SvarerJaTilTidsperiode
+                            |> Knapp.toHtml
+                        , "Nei, det vil jeg ikke"
+                            |> Knapp.knapp SvarerNeiTilTidsperiode
+                            |> Knapp.toHtml
                         ]
 
                 RegistrerFraMåned _ ->
@@ -871,12 +940,12 @@ viewBrukerInput (Model model) =
                                 |> Input.input { label = "År", msg = OppdatererFraÅr }
                                 |> Input.withClass "aar"
                                 |> Input.withOnEnter VilRegistrereFraÅr
-                                |> Input.withOnBlur ÅrMisterFokus
+                                |> Input.withOnBlur FeltMisterFokus
                                 |> Input.withId (inputIdTilString FraÅrId)
                                 |> Input.withMaybeFeilmelding
                                     (fraDatoInfo.fraÅr
                                         |> Dato.feilmeldingÅr
-                                        |> maybeHvisTrue fraDatoInfo.visFeilmeldingÅr
+                                        |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
                                     )
                                 |> Input.toHtml
                             ]
@@ -884,9 +953,9 @@ viewBrukerInput (Model model) =
 
                 RegistrerNåværende _ ->
                     Containers.knapper Flytende
-                        [ Knapp.knapp SvarerJaTilNaavarende "Ja"
+                        [ Knapp.knapp SvarerJaTilNåværende "Ja"
                             |> Knapp.toHtml
-                        , Knapp.knapp VilRegistrereTilMåned "Nei"
+                        , Knapp.knapp SvarerNeiTilNåværende "Nei"
                             |> Knapp.toHtml
                         ]
 
@@ -900,9 +969,9 @@ viewBrukerInput (Model model) =
                                 |> Input.input { label = "År", msg = OppdatererTilÅr }
                                 |> Input.withClass "aar"
                                 |> Input.withOnEnter VilRegistrereTilÅr
-                                |> Input.withOnBlur ÅrMisterFokus
+                                |> Input.withOnBlur FeltMisterFokus
                                 |> Input.withId (inputIdTilString TilÅrId)
-                                |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visFeilmeldingÅr) tilDatoInfo.tilÅr)
+                                |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
                                 |> Input.toHtml
                             ]
                         ]
@@ -918,43 +987,23 @@ viewBrukerInput (Model model) =
                         [ skjema
                             |> Skjema.innholdTekstFelt Rolle
                             |> Input.input { label = "Rolle", msg = Tekst Rolle >> SkjemaEndret }
-                            |> Input.withMaybeFeilmelding (Skjema.innholdTekstFelt Rolle skjema |> feilmeldingRolle)
+                            |> Input.withMaybeFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
+                            |> Input.withOnBlur (SkjemaEndret RolleBlurred)
                             |> Input.toHtml
                         , skjema
                             |> Skjema.innholdTekstFelt Beskrivelse
                             |> Textarea.textarea { label = "Beskrivelse", msg = Tekst Beskrivelse >> SkjemaEndret }
-                            |> Textarea.withMaybeFeilmelding (Skjema.innholdTekstFelt Beskrivelse skjema |> feilmeldingBeskrivelse)
+                            |> Textarea.withMaybeFeilmelding (Skjema.innholdTekstFelt Beskrivelse skjema |> Skjema.feilmeldingBeskrivelse)
                             |> Textarea.toHtml
-                        , div [ class "DatoInput-fra-til-rad" ]
-                            [ DatoInput.datoInput
-                                { label = "Fra"
-                                , onMånedChange = FraMåned >> SkjemaEndret
-                                , måned = Skjema.fraMåned skjema
-                                , onÅrChange = Tekst FraÅr >> SkjemaEndret
-                                , år = Skjema.innholdTekstFelt FraÅr skjema
-                                }
-                                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
-                                |> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
-                                |> DatoInput.toHtml
-                            , if not (Skjema.nåværende skjema) then
-                                DatoInput.datoInput
-                                    { label = "Til"
-                                    , onMånedChange = TilMåned >> SkjemaEndret
-                                    , måned = Skjema.tilMåned skjema
-                                    , onÅrChange = Tekst TilÅr >> SkjemaEndret
-                                    , år = Skjema.innholdTekstFelt TilÅr skjema
-                                    }
-                                    |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
-                                    |> DatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
-                                    |> DatoInput.toHtml
-
-                              else
-                                text ""
-                            ]
                         , skjema
-                            |> Skjema.nåværende
-                            |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
+                            |> Skjema.harDatoer
+                            |> Checkbox.checkbox "Jeg vil legge inn tidsperiode" (SkjemaEndret HarDatoerToggled)
                             |> Checkbox.toHtml
+                        , if Skjema.harDatoer skjema then
+                            viewDatoPeriode skjema
+
+                          else
+                            text ""
                         ]
 
                 LagrerSkjema _ ->
@@ -985,6 +1034,44 @@ viewBekreftOppsummering =
         ]
 
 
+viewDatoPeriode : AnnenErfaringSkjema -> Html Msg
+viewDatoPeriode skjema =
+    div []
+        [ div [ class "DatoInput-fra-til-rad" ]
+            [ ValgfriDatoInput.datoInput
+                { label = "Fra"
+                , onMånedChange = FraMåned >> SkjemaEndret
+                , måned = Skjema.fraMåned skjema
+                , onÅrChange = Tekst FraÅr >> SkjemaEndret
+                , år = Skjema.innholdTekstFelt FraÅr skjema
+                }
+                |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
+                |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingFraMåned skjema)
+                |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
+                |> ValgfriDatoInput.toHtml
+            , if not (Skjema.nåværende skjema) then
+                ValgfriDatoInput.datoInput
+                    { label = "Til"
+                    , onMånedChange = TilMåned >> SkjemaEndret
+                    , måned = Skjema.tilMåned skjema
+                    , onÅrChange = Tekst TilÅr >> SkjemaEndret
+                    , år = Skjema.innholdTekstFelt TilÅr skjema
+                    }
+                    |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
+                    |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingTilMåned skjema)
+                    |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
+                    |> ValgfriDatoInput.toHtml
+
+              else
+                text ""
+            ]
+        , skjema
+            |> Skjema.nåværende
+            |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
+            |> Checkbox.toHtml
+        ]
+
+
 maybeHvisTrue : Bool -> Maybe a -> Maybe a
 maybeHvisTrue bool maybe =
     if bool then
@@ -992,16 +1079,6 @@ maybeHvisTrue bool maybe =
 
     else
         Nothing
-
-
-postEllerPutAnnenErfaring : (Result Error (List AnnenErfaring) -> msg) -> Skjema.ValidertAnnenErfaringSkjema -> Cmd msg
-postEllerPutAnnenErfaring msgConstructor skjema =
-    case Skjema.id skjema of
-        Just id ->
-            Api.putAnnenErfaring msgConstructor skjema id
-
-        Nothing ->
-            Api.postAnnenErfaring msgConstructor skjema
 
 
 
@@ -1012,11 +1089,11 @@ init : DebugStatus -> FerdigAnimertMeldingsLogg -> List AnnenErfaring -> ( Model
 init debugStatus gammelMeldingsLogg annenErfaringListe =
     let
         aktivSamtale =
-            RegistrerRolle { rolle = "", visFeilmeldingRolle = False }
+            RegistrerRolle { rolle = "", tillatÅViseFeilmeldingRolle = False }
     in
     ( Model
         { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
+            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (MeldingsLogg.tilMeldingsLogg gammelMeldingsLogg)
         , aktivSamtale = aktivSamtale
         , annenErfaringListe = annenErfaringListe
         , debugStatus = debugStatus
