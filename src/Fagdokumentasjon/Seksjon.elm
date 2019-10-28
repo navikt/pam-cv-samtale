@@ -16,12 +16,12 @@ import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
-import ErrorMelding exposing (OperasjonEtterError(..))
+import ErrorHandtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
-import FrontendModuler.Common as Common
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as Common
 import FrontendModuler.Textarea as Textarea
 import Html exposing (Html, text)
 import Http exposing (Error(..))
@@ -557,7 +557,7 @@ lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus =
             False
 
         LagrerPåNyttEtterError error ->
-            ErrorMelding.errorOperasjon error == LoggInn
+            ErrorHandtering.operasjonEtterError error == LoggInn
 
         ForsøkÅLagrePåNyttEtterDetteForsøket ->
             True
@@ -682,7 +682,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
 
         LagringFeilet validertSkjema error ->
-            [ ErrorMelding.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
+            [ ErrorHandtering.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
 
         VenterPåAnimasjonFørFullføring _ ->
             []
@@ -796,7 +796,7 @@ viewBrukerInput (Model model) =
                     text ""
 
                 LagringFeilet _ error ->
-                    case ErrorMelding.errorOperasjon error of
+                    case ErrorHandtering.operasjonEtterError error of
                         GiOpp ->
                             Containers.knapper Flytende
                                 [ Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"

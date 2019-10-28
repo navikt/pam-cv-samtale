@@ -1,7 +1,7 @@
-module ErrorMelding exposing
+module ErrorHandtering exposing
     ( OperasjonEtterError(..)
     , errorMelding
-    , errorOperasjon
+    , operasjonEtterError
     )
 
 import Http
@@ -50,8 +50,8 @@ type OperasjonEtterError
 --    | GodtaSamtykket
 
 
-errorOperasjon : Http.Error -> OperasjonEtterError
-errorOperasjon error =
+operasjonEtterError : Http.Error -> OperasjonEtterError
+operasjonEtterError error =
     case error of
         -- Selve URLen ikke gyldig (inneholder linjeskift eller lignende)
         Http.BadUrl string ->
