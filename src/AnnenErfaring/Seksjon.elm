@@ -311,7 +311,7 @@ update msg (Model model) =
                     ( info
                         |> beskrivelseTilSkjema
                         |> VisOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei det vil jeg ikke" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, det vil jeg ikke" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
