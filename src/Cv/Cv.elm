@@ -1,5 +1,6 @@
 module Cv.Cv exposing
     ( Cv
+    , annenErfaring
     , arbeidserfaring
     , decode
     , fagdokumentasjoner

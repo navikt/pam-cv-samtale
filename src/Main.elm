@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import AnnenErfaring.Seksjon
 import Api
 import Arbeidserfaring.Seksjon
 import Browser
@@ -101,6 +102,7 @@ type SamtaleSeksjon
     | SpråkSeksjon Sprak.Seksjon.Model
     | FagdokumentasjonSeksjon Fagdokumentasjon.Seksjon.Model
     | SertifikatSeksjon Sertifikat.Seksjon.Model
+    | AnnenErfaringSeksjon AnnenErfaring.Seksjon.Model
     | SeksjonsvalgSeksjon Seksjon.Seksjonsvalg.Model
     | AvslutningSeksjon Seksjon.Avslutning.Model
     | SammendragSeksjon Seksjon.Sammendrag.Model
@@ -141,6 +143,7 @@ type SuccessMsg
     | SammendragMsg Seksjon.Sammendrag.Msg
     | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
     | SertifikatMsg Sertifikat.Seksjon.Msg
+    | AnnenErfaringMsg AnnenErfaring.Seksjon.Msg
     | AvslutningMsg Seksjon.Avslutning.Msg
     | StartÅSkrive
     | FullførMelding
@@ -589,7 +592,7 @@ updateSuccess successMsg model =
                                     gåTilSertifisering model meldingsLogg
 
                                 Seksjon.Seksjonsvalg.AnnenErfaringSeksjon ->
-                                    ( Success model, Cmd.none )
+                                    gåTilAnnenErfaring model meldingsLogg
 
                                 Seksjon.Seksjonsvalg.KursSeksjon ->
                                     ( Success model, Cmd.none )
@@ -635,6 +638,24 @@ updateSuccess successMsg model =
 
                         Sertifikat.Seksjon.Ferdig sertifikatListe meldingsLogg ->
                             gåTilFlereSeksjonsValg model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
+        AnnenErfaringMsg msg ->
+            case model.aktivSamtale of
+                AnnenErfaringSeksjon annenErfaringModel ->
+                    case AnnenErfaring.Seksjon.update msg annenErfaringModel of
+                        AnnenErfaring.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> AnnenErfaringSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (AnnenErfaringMsg >> SuccessMsg) cmd
+                            )
+
+                        AnnenErfaring.Seksjon.Ferdig _ meldingsLogg ->
+                            gåTilFlereAnnetValg model meldingsLogg
 
                 _ ->
                     ( Success model, Cmd.none )
@@ -742,6 +763,20 @@ gåTilSertifisering model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilAnnenErfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilAnnenErfaring model ferdigAnimertMeldingsLogg =
+    let
+        ( annenErfaringModel, annenErfaringCmd ) =
+            AnnenErfaring.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.annenErfaring model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = AnnenErfaringSeksjon annenErfaringModel
+        }
+    , Cmd.map (AnnenErfaringMsg >> SuccessMsg) annenErfaringCmd
+    )
+
+
 gåTilSammendrag : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 gåTilSammendrag model ferdigAnimertMeldingsLogg =
     let
@@ -774,7 +809,7 @@ gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd M
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     let
         ( seksjonsvalgModel, seksjonsvalgCmd ) =
-            Seksjon.Seksjonsvalg.initLeggTil model.debugStatus ferdigAnimertMeldingsLogg
+            Seksjon.Seksjonsvalg.initLeggTilAutorisasjoner model.debugStatus ferdigAnimertMeldingsLogg
     in
     ( Success
         { model
@@ -788,7 +823,7 @@ gåTilFlereSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, 
 gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
     let
         ( seksjonsvalgModel, seksjonsvalgCmd ) =
-            Seksjon.Seksjonsvalg.initLeggTilFlere model.debugStatus ferdigAnimertMeldingsLogg
+            Seksjon.Seksjonsvalg.initLeggTilFlereAutorisasjoner model.debugStatus ferdigAnimertMeldingsLogg
     in
     ( Success
         { model
@@ -797,6 +832,19 @@ gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
     , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) seksjonsvalgCmd
     )
 
+
+gåTilFlereAnnetValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilFlereAnnetValg model ferdigAnimertMeldingsLogg =
+    let
+        ( seksjonsvalgModel, seksjonsvalgCmd ) =
+            Seksjon.Seksjonsvalg.initLeggTilFlereAnnet model.debugStatus ferdigAnimertMeldingsLogg
+    in
+    ( Success
+        { model
+            | aktivSamtale = SeksjonsvalgSeksjon seksjonsvalgModel
+        }
+    , Cmd.map (SeksjonsvalgMsg >> SuccessMsg) seksjonsvalgCmd
+    )
 
 
 --- VIEW ---
@@ -895,6 +943,8 @@ meldingsLoggFraSeksjon successModel =
         SertifikatSeksjon model ->
             Sertifikat.Seksjon.meldingsLogg model
 
+        AnnenErfaringSeksjon model ->
+            AnnenErfaring.Seksjon.meldingsLogg model
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
@@ -1028,6 +1078,10 @@ viewBrukerInput aktivSamtale =
                 |> Sertifikat.Seksjon.viewBrukerInput
                 |> Html.map (SertifikatMsg >> SuccessMsg)
 
+        AnnenErfaringSeksjon annenErfaringSeksjon ->
+            annenErfaringSeksjon
+                |> AnnenErfaring.Seksjon.viewBrukerInput
+                |> Html.map (AnnenErfaringMsg >> SuccessMsg)
 
 
 --- PROGRAM ---
@@ -1108,4 +1162,7 @@ seksjonSubscriptions model =
                     Sub.none
 
                 SammendragSeksjon _ ->
+                    Sub.none
+
+                AnnenErfaringSeksjon _ ->
                     Sub.none
