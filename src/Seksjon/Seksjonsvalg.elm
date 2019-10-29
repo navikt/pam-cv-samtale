@@ -281,7 +281,7 @@ seksjonsvalgDisabled seksjonsvalg =
             Disabled
 
         FørerkortSeksjon ->
-            Disabled
+            Enabled
 
         IngenAvSeksjonene ->
             Enabled

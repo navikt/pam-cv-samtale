@@ -3,6 +3,7 @@ module Cv.Cv exposing
     , arbeidserfaring
     , decode
     , fagdokumentasjoner
+    , forerkort
     , sammendrag
     , sertifikater
     , spraakferdighet

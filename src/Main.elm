@@ -10,6 +10,7 @@ import Cv.Cv as Cv exposing (Cv)
 import DebugStatus exposing (DebugStatus)
 import Fagdokumentasjon.Seksjon
 import Feilmelding
+import Forerkort.Seksjon
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp
@@ -104,6 +105,7 @@ type SamtaleSeksjon
     | SeksjonsvalgSeksjon Seksjon.Seksjonsvalg.Model
     | AvslutningSeksjon Seksjon.Avslutning.Model
     | SammendragSeksjon Seksjon.Sammendrag.Model
+    | FørerkortSeksjon Forerkort.Seksjon.Model
 
 
 
@@ -137,6 +139,7 @@ type SuccessMsg
     | UtdanningsMsg Utdanning.Seksjon.Msg
     | ArbeidserfaringsMsg Arbeidserfaring.Seksjon.Msg
     | SpråkMsg Sprak.Seksjon.Msg
+    | FørerkortMsg Forerkort.Seksjon.Msg
     | SeksjonsvalgMsg Seksjon.Seksjonsvalg.Msg
     | SammendragMsg Seksjon.Sammendrag.Msg
     | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
@@ -524,6 +527,24 @@ updateSuccess successMsg model =
                 _ ->
                     ( Success model, Cmd.none )
 
+        FørerkortMsg msg ->
+            case model.aktivSamtale of
+                FørerkortSeksjon førerkortModel ->
+                    case Forerkort.Seksjon.update msg førerkortModel of
+                        Forerkort.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> FørerkortSeksjon
+                                |> oppdaterSamtaleSteg model
+                                |> Success
+                            , Cmd.map (FørerkortMsg >> SuccessMsg) cmd
+                            )
+
+                        Forerkort.Seksjon.Ferdig meldingsLogg ->
+                            gåTilSeksjonsValg model meldingsLogg
+
+                _ ->
+                    ( Success model, Cmd.none )
+
         SammendragMsg msg ->
             case model.aktivSamtale of
                 SammendragSeksjon sammendragModel ->
@@ -595,7 +616,7 @@ updateSuccess successMsg model =
                                     ( Success model, Cmd.none )
 
                                 Seksjon.Seksjonsvalg.FørerkortSeksjon ->
-                                    ( Success model, Cmd.none )
+                                    gåTilFørerkort model meldingsLogg
 
                                 Seksjon.Seksjonsvalg.IngenAvSeksjonene ->
                                     gåTilSammendrag model meldingsLogg
@@ -683,6 +704,20 @@ gåTilSpråk model ferdigAnimertMeldingsLogg =
             | aktivSamtale = SpråkSeksjon språkModel
         }
     , Cmd.map (SpråkMsg >> SuccessMsg) språkCmd
+    )
+
+
+gåTilFørerkort : SuccessModel -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+gåTilFørerkort model ferdigAnimertMeldingsLogg =
+    let
+        ( førerkortModel, førerkortCmd ) =
+            Forerkort.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.forerkort model.cv)
+    in
+    ( Success
+        { model
+            | aktivSamtale = FørerkortSeksjon førerkortModel
+        }
+    , Cmd.map (FørerkortMsg >> SuccessMsg) førerkortCmd
     )
 
 
@@ -880,6 +915,9 @@ meldingsLoggFraSeksjon successModel =
         SpråkSeksjon model ->
             Sprak.Seksjon.meldingsLogg model
 
+        FørerkortSeksjon model ->
+            Forerkort.Seksjon.meldingsLogg model
+
         FagdokumentasjonSeksjon model ->
             Fagdokumentasjon.Seksjon.meldingsLogg model
 
@@ -998,6 +1036,11 @@ viewBrukerInput aktivSamtale =
                 |> Sprak.Seksjon.viewBrukerInput
                 |> Html.map (SpråkMsg >> SuccessMsg)
 
+        FørerkortSeksjon førerkortSeksjon ->
+            førerkortSeksjon
+                |> Forerkort.Seksjon.viewBrukerInput
+                |> Html.map (FørerkortMsg >> SuccessMsg)
+
         SammendragSeksjon sammendragSeksjon ->
             sammendragSeksjon
                 |> Seksjon.Sammendrag.viewBrukerInput
@@ -1093,6 +1136,9 @@ seksjonSubscriptions model =
                     Sub.none
 
                 SpråkSeksjon _ ->
+                    Sub.none
+
+                FørerkortSeksjon _ ->
                     Sub.none
 
                 FagdokumentasjonSeksjon _ ->
