@@ -22,6 +22,7 @@ import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http
+import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppe(..), MeldingsLogg, MeldingsPlassering(..), SkriveStatus(..))
 import Person exposing (Person)
@@ -661,12 +662,6 @@ type Samtale
     | AvsluttendeOrd
 
 
-type LagreStatus
-    = LagrerFørsteGang
-    | LagrerPåNyttEtterUtlogging { forsøkÅLagrePåNyttEtterDetteForsøket : Bool }
-    | LagrerPåNyttEtterError Http.Error
-
-
 
 --- ANDRE SAMTALESTEG UPDATE ---
 
@@ -787,14 +782,14 @@ updateAndreSamtaleSteg model msg info =
             case info.aktivSamtale of
                 LagringAvSammendragFeilet error feiletSammendrag ->
                     ( error
-                        |> lagreStatusFraError
+                        |> LagreStatus.fraError
                         |> LagrerSammendrag feiletSammendrag
                         |> nesteSamtaleSteg model info (Melding.svar [ "Prøv på nytt" ])
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                     )
 
                 EndrerSammendrag _ ->
-                    ( LagrerFørsteGang
+                    ( LagreStatus.lagrerFørsteGang
                         |> LagrerSammendrag sammendrag
                         |> nesteSamtaleSteg model info (Melding.svar [ sammendrag ])
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
@@ -815,52 +810,49 @@ updateAndreSamtaleSteg model msg info =
                             gåTilAvslutning model
                                 { info
                                     | meldingsLogg =
-                                        case lagreStatus of
-                                            LagrerPåNyttEtterUtlogging _ ->
-                                                info.meldingsLogg
-                                                    |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
-                                                    |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med det vanskeligste 😊" ] ]
+                                        if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                            info.meldingsLogg
+                                                |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med det vanskeligste 😊" ] ]
 
-                                            _ ->
-                                                info.meldingsLogg
-                                                    |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med det vanskeligste 😊" ] ]
+                                        else
+                                            info.meldingsLogg
+                                                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med det vanskeligste 😊" ] ]
                                 }
 
                         Err error ->
-                            case lagreStatus of
-                                LagrerPåNyttEtterUtlogging { forsøkÅLagrePåNyttEtterDetteForsøket } ->
-                                    if forsøkÅLagrePåNyttEtterDetteForsøket then
-                                        ( { forsøkÅLagrePåNyttEtterDetteForsøket = False }
-                                            |> LagrerPåNyttEtterUtlogging
-                                            |> LagrerSammendrag sammendrag
-                                            |> oppdaterSamtaleSteg model info
-                                        , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
-                                        )
-
-                                    else
-                                        ( LagringAvSammendragFeilet error sammendrag
-                                            |> oppdaterSamtaleSteg model info
-                                        , sammendrag
-                                            |> Api.encodeSammendrag
-                                            |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget) "Lagre sammendrag" error
-                                        )
-
-                                _ ->
-                                    ( LagringAvSammendragFeilet error sammendrag
-                                        |> nesteSamtaleStegUtenSvar model info
-                                    , Cmd.batch
-                                        [ lagtTilSpørsmålCmd model.debugStatus
-                                        , sammendrag
-                                            |> Api.encodeSammendrag
-                                            |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget) "Lagre sammendrag" error
-                                        ]
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( LagreStatus.fraError error
+                                        |> LagrerSammendrag sammendrag
+                                        |> oppdaterSamtaleSteg model info
+                                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                                     )
+
+                                else
+                                    ( LagringAvSammendragFeilet error sammendrag
+                                        |> oppdaterSamtaleSteg model info
+                                    , sammendrag
+                                        |> Api.encodeSammendrag
+                                        |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget) "Lagre sammendrag" error
+                                    )
+
+                            else
+                                ( LagringAvSammendragFeilet error sammendrag
+                                    |> nesteSamtaleStegUtenSvar model info
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , sammendrag
+                                        |> Api.encodeSammendrag
+                                        |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget) "Lagre sammendrag" error
+                                    ]
+                                )
 
                 _ ->
                     ( model, Cmd.none )
 
         BrukerGodkjennerSynligCV ->
-            ( LagrerFørsteGang
+            ( LagreStatus.lagrerFørsteGang
                 |> LagrerSynlighet True
                 |> nesteSamtaleSteg model info (Melding.svar [ "Ja, CV-en skal være synlig for arbeidsgivere" ])
             , Cmd.batch
@@ -870,7 +862,7 @@ updateAndreSamtaleSteg model msg info =
             )
 
         BrukerGodkjennerIkkeSynligCV ->
-            ( LagrerFørsteGang
+            ( LagreStatus.lagrerFørsteGang
                 |> LagrerSynlighet False
                 |> nesteSamtaleSteg model info (Melding.svar [ "Nei, CV-en skal bare være synlig for meg" ])
             , Cmd.batch
@@ -884,57 +876,56 @@ updateAndreSamtaleSteg model msg info =
                 LagrerSynlighet skalVæreSynlig lagreStatus ->
                     case result of
                         Ok _ ->
-                            ( case lagreStatus of
-                                LagrerPåNyttEtterUtlogging _ ->
-                                    AvsluttendeOrd
-                                        |> nesteSamtaleSteg model info (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                            ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                AvsluttendeOrd
+                                    |> nesteSamtaleSteg model info (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
 
-                                _ ->
-                                    nesteSamtaleStegUtenSvar model info AvsluttendeOrd
+                              else
+                                nesteSamtaleStegUtenSvar model info AvsluttendeOrd
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                         Err error ->
-                            case lagreStatus of
-                                LagrerPåNyttEtterUtlogging { forsøkÅLagrePåNyttEtterDetteForsøket } ->
-                                    if forsøkÅLagrePåNyttEtterDetteForsøket then
-                                        ( { forsøkÅLagrePåNyttEtterDetteForsøket = False }
-                                            |> LagrerPåNyttEtterUtlogging
-                                            |> LagrerSynlighet skalVæreSynlig
-                                            |> oppdaterSamtaleSteg model info
-                                        , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
-                                        )
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerSynlighet skalVæreSynlig
+                                        |> oppdaterSamtaleSteg model info
+                                    , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
+                                    )
 
-                                    else
-                                        ( LagringSynlighetFeilet error skalVæreSynlig
-                                            |> oppdaterSamtaleSteg model info
-                                        , error
-                                            |> Feilmelding.feilmelding "Lagre synlighet"
-                                            |> Maybe.map (Api.logError (always ErrorLogget >> AndreSamtaleStegMsg))
-                                            |> Maybe.withDefault Cmd.none
-                                        )
-
-                                _ ->
+                                else
                                     ( skalVæreSynlig
                                         |> LagringSynlighetFeilet error
-                                        |> nesteSamtaleStegUtenSvar model info
-                                    , Cmd.batch
-                                        [ lagtTilSpørsmålCmd model.debugStatus
-                                        , error
-                                            |> Feilmelding.feilmelding "Lagre synlighet"
-                                            |> Maybe.map (Api.logError (always ErrorLogget >> AndreSamtaleStegMsg))
-                                            |> Maybe.withDefault Cmd.none
-                                        ]
+                                        |> oppdaterSamtaleSteg model info
+                                    , error
+                                        |> Feilmelding.feilmelding "Lagre synlighet"
+                                        |> Maybe.map (Api.logError (always ErrorLogget >> AndreSamtaleStegMsg))
+                                        |> Maybe.withDefault Cmd.none
                                     )
+
+                            else
+                                ( skalVæreSynlig
+                                    |> LagringSynlighetFeilet error
+                                    |> nesteSamtaleStegUtenSvar model info
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , error
+                                        |> Feilmelding.feilmelding "Lagre synlighet"
+                                        |> Maybe.map (Api.logError (always ErrorLogget >> AndreSamtaleStegMsg))
+                                        |> Maybe.withDefault Cmd.none
+                                    ]
+                                )
 
                 _ ->
                     ( model, Cmd.none )
 
         BrukerVilPrøveÅLagreSynlighetPåNytt ->
             case info.aktivSamtale of
-                LagringSynlighetFeilet _ skalVæreSynlig ->
-                    ( { forsøkÅLagrePåNyttEtterDetteForsøket = False }
-                        |> LagrerPåNyttEtterUtlogging
+                LagringSynlighetFeilet error skalVæreSynlig ->
+                    ( error
+                        |> LagreStatus.fraError
                         |> LagrerSynlighet skalVæreSynlig
                         |> oppdaterSamtaleSteg model info
                     , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
@@ -955,8 +946,8 @@ updateAndreSamtaleSteg model msg info =
                         LagringAvSammendragFeilet error feiletSammendrag ->
                             case ErrorHåndtering.operasjonEtterError error of
                                 LoggInn ->
-                                    ( { forsøkÅLagrePåNyttEtterDetteForsøket = False }
-                                        |> LagrerPåNyttEtterUtlogging
+                                    ( error
+                                        |> LagreStatus.fraError
                                         |> LagrerSammendrag feiletSammendrag
                                         |> oppdaterSamtaleSteg model info
                                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
@@ -965,9 +956,9 @@ updateAndreSamtaleSteg model msg info =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        LagrerSammendrag sammendrag (LagrerPåNyttEtterUtlogging _) ->
-                            ( { forsøkÅLagrePåNyttEtterDetteForsøket = True }
-                                |> LagrerPåNyttEtterUtlogging
+                        LagrerSammendrag sammendrag lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
                                 |> LagrerSammendrag sammendrag
                                 |> oppdaterSamtaleSteg model info
                             , Cmd.none
@@ -976,8 +967,8 @@ updateAndreSamtaleSteg model msg info =
                         LagringSynlighetFeilet error skalVæreSynlig ->
                             case ErrorHåndtering.operasjonEtterError error of
                                 LoggInn ->
-                                    ( { forsøkÅLagrePåNyttEtterDetteForsøket = False }
-                                        |> LagrerPåNyttEtterUtlogging
+                                    ( error
+                                        |> LagreStatus.fraError
                                         |> LagrerSynlighet skalVæreSynlig
                                         |> oppdaterSamtaleSteg model info
                                     , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
@@ -986,9 +977,9 @@ updateAndreSamtaleSteg model msg info =
                                 _ ->
                                     ( model, Cmd.none )
 
-                        LagrerSynlighet skalVæreSynlig (LagrerPåNyttEtterUtlogging _) ->
-                            ( { forsøkÅLagrePåNyttEtterDetteForsøket = True }
-                                |> LagrerPåNyttEtterUtlogging
+                        LagrerSynlighet skalVæreSynlig lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
                                 |> LagrerSynlighet skalVæreSynlig
                                 |> oppdaterSamtaleSteg model info
                             , Cmd.none
@@ -1080,15 +1071,6 @@ gåTilValgtSeksjon model info valgtSeksjon =
                 |> oppdaterSamtaleSeksjon model
             , lagtTilSpørsmålCmd model.debugStatus
             )
-
-
-lagreStatusFraError : Http.Error -> LagreStatus
-lagreStatusFraError error =
-    if ErrorHåndtering.operasjonEtterError error == LoggInn then
-        LagrerPåNyttEtterUtlogging { forsøkÅLagrePåNyttEtterDetteForsøket = False }
-
-    else
-        LagrerPåNyttEtterError error
 
 
 gåVidereFraSeksjonsvalg : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
@@ -1492,12 +1474,11 @@ viewBrukerInputForAndreSamtaleSteg info =
                         ]
 
                 LagrerSammendrag _ lagreStatus ->
-                    case lagreStatus of
-                        LagrerPåNyttEtterUtlogging _ ->
-                            LoggInnLenke.viewLoggInnLenke
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                        _ ->
-                            text ""
+                    else
+                        text ""
 
                 LagringAvSammendragFeilet error sammendrag ->
                     case ErrorHåndtering.operasjonEtterError error of
@@ -1558,12 +1539,11 @@ viewBrukerInputForAndreSamtaleSteg info =
                         ]
 
                 LagrerSynlighet _ lagreStatus ->
-                    case lagreStatus of
-                        LagrerPåNyttEtterUtlogging _ ->
-                            LoggInnLenke.viewLoggInnLenke
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                        _ ->
-                            text ""
+                    else
+                        text ""
 
                 LagringSynlighetFeilet error _ ->
                     case ErrorHåndtering.operasjonEtterError error of
@@ -1720,8 +1700,10 @@ seksjonSubscriptions model =
                         |> Personalia.Seksjon.subscriptions
                         |> Sub.map (PersonaliaMsg >> SuccessMsg)
 
-                UtdanningSeksjon _ ->
-                    Sub.none
+                UtdanningSeksjon utdanningModel ->
+                    utdanningModel
+                        |> Utdanning.Seksjon.subscriptions
+                        |> Sub.map (UtdanningsMsg >> SuccessMsg)
 
                 ArbeidsErfaringSeksjon _ ->
                     Sub.none

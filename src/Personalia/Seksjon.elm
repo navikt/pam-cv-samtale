@@ -24,6 +24,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onBlur, onInput)
 import Http exposing (Error(..))
 import Json.Encode
+import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Personalia exposing (Personalia)
@@ -56,12 +57,6 @@ type Samtale
     | LagrerEndring ValidertPersonaliaSkjema LagreStatus
     | LagringFeilet Http.Error ValidertPersonaliaSkjema
     | VenterPåAnimasjonFørFullføring Personalia FullføringStatus
-
-
-type LagreStatus
-    = LagrerFørsteGang
-    | LagrerPåNyttEtterUtlogging { forsøkÅLagrePåNyttEtterDetteForsøket : Bool }
-    | LagrerPåNyttEtterError Http.Error
 
 
 type FullføringStatus
@@ -197,7 +192,7 @@ update msg (Model model) =
                 EndreOriginal skjema ->
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
-                            ( LagrerFørsteGang
+                            ( LagreStatus.lagrerFørsteGang
                                 |> LagrerEndring validertSkjema
                                 |> nesteSamtaleSteg model
                                     (skjema
@@ -231,59 +226,57 @@ update msg (Model model) =
                 LagrerEndring skjema lagreStatus ->
                     case result of
                         Ok personalia ->
-                            case lagreStatus of
-                                LagrerPåNyttEtterUtlogging _ ->
-                                    lagreStatus
-                                        |> fullførtStatusEtterOkLagring
-                                        |> VenterPåAnimasjonFørFullføring personalia
-                                        |> nesteSamtaleSteg model (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
-                                        |> fullførSeksjonHvisMeldingsloggErFerdig personalia
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                lagreStatus
+                                    |> fullførtStatusEtterOkLagring
+                                    |> VenterPåAnimasjonFørFullføring personalia
+                                    |> nesteSamtaleSteg model (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                    |> fullførSeksjonHvisMeldingsloggErFerdig personalia
 
-                                _ ->
-                                    lagreStatus
-                                        |> fullførtStatusEtterOkLagring
-                                        |> VenterPåAnimasjonFørFullføring personalia
-                                        |> nesteSamtaleStegUtenSvar model
-                                        |> fullførSeksjonHvisMeldingsloggErFerdig personalia
+                            else
+                                lagreStatus
+                                    |> fullførtStatusEtterOkLagring
+                                    |> VenterPåAnimasjonFørFullføring personalia
+                                    |> nesteSamtaleStegUtenSvar model
+                                    |> fullførSeksjonHvisMeldingsloggErFerdig personalia
 
                         Err error ->
-                            case lagreStatus of
-                                LagrerPåNyttEtterUtlogging { forsøkÅLagrePåNyttEtterDetteForsøket } ->
-                                    if forsøkÅLagrePåNyttEtterDetteForsøket then
-                                        ( error
-                                            |> LagrerPåNyttEtterError
-                                            |> LagrerEndring skjema
-                                            |> oppdaterSamtaleSteg model
-                                        , model.personalia
-                                            |> Personalia.id
-                                            |> Api.putPersonalia PersonaliaOppdatert skjema
-                                        )
-                                            |> IkkeFerdig
-
-                                    else
-                                        ( skjema
-                                            |> LagringFeilet error
-                                            |> oppdaterSamtaleSteg model
-                                        , Cmd.none
-                                        )
-                                            |> IkkeFerdig
-
-                                _ ->
-                                    ( skjema
-                                        |> LagringFeilet error
-                                        |> nesteSamtaleStegUtenSvar model
-                                    , Cmd.batch
-                                        [ lagtTilSpørsmålCmd model.debugStatus
-                                        , model.personalia
-                                            |> Personalia.id
-                                            |> Json.Encode.string
-                                            |> Tuple.pair "id"
-                                            |> List.singleton
-                                            |> Json.Encode.object
-                                            |> Api.logErrorWithRequestBody ErrorLogget "Lagre personalia" error
-                                        ]
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerEndring skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , model.personalia
+                                        |> Personalia.id
+                                        |> Api.putPersonalia PersonaliaOppdatert skjema
                                     )
                                         |> IkkeFerdig
+
+                                else
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtaleSteg model
+                                    , Cmd.none
+                                    )
+                                        |> IkkeFerdig
+
+                            else
+                                ( skjema
+                                    |> LagringFeilet error
+                                    |> nesteSamtaleStegUtenSvar model
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , model.personalia
+                                        |> Personalia.id
+                                        |> Json.Encode.string
+                                        |> Tuple.pair "id"
+                                        |> List.singleton
+                                        |> Json.Encode.object
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre personalia" error
+                                    ]
+                                )
+                                    |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -292,7 +285,7 @@ update msg (Model model) =
             case model.aktivSamtale of
                 LagringFeilet error skjema ->
                     ( error
-                        |> LagrerPåNyttEtterError
+                        |> LagreStatus.fraError
                         |> LagrerEndring skjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Prøv på nytt" ])
                     , Cmd.batch
@@ -317,25 +310,19 @@ update msg (Model model) =
                 Visible ->
                     case model.aktivSamtale of
                         LagringFeilet error skjema ->
-                            case ErrorHåndtering.operasjonEtterError error of
-                                LoggInn ->
-                                    ( { forsøkÅLagrePåNyttEtterDetteForsøket = False }
-                                        |> LagrerPåNyttEtterUtlogging
-                                        |> LagrerEndring skjema
-                                        |> oppdaterSamtaleSteg model
-                                    , model.personalia
-                                        |> Personalia.id
-                                        |> Api.putPersonalia PersonaliaOppdatert skjema
-                                    )
-                                        |> IkkeFerdig
+                            ( error
+                                |> LagreStatus.fraError
+                                |> LagrerEndring skjema
+                                |> oppdaterSamtaleSteg model
+                            , model.personalia
+                                |> Personalia.id
+                                |> Api.putPersonalia PersonaliaOppdatert skjema
+                            )
+                                |> IkkeFerdig
 
-                                _ ->
-                                    ( Model model, Cmd.none )
-                                        |> IkkeFerdig
-
-                        LagrerEndring skjema (LagrerPåNyttEtterUtlogging _) ->
-                            ( { forsøkÅLagrePåNyttEtterDetteForsøket = True }
-                                |> LagrerPåNyttEtterUtlogging
+                        LagrerEndring skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
                                 |> LagrerEndring skjema
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
@@ -379,15 +366,11 @@ update msg (Model model) =
 
 fullførtStatusEtterOkLagring : LagreStatus -> FullføringStatus
 fullførtStatusEtterOkLagring lagreStatus =
-    case lagreStatus of
-        LagrerFørsteGang ->
-            LagringLyktesFørsteGang
+    if LagreStatus.lagrerPåFørsteForsøk lagreStatus then
+        LagringLyktesFørsteGang
 
-        LagrerPåNyttEtterError _ ->
-            LagringLyktesEtterFlereForsøk
-
-        LagrerPåNyttEtterUtlogging _ ->
-            LagringLyktesEtterFlereForsøk
+    else
+        LagringLyktesEtterFlereForsøk
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -600,12 +583,11 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
 
                 -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
                 LagrerEndring _ lagreStatus ->
-                    case lagreStatus of
-                        LagrerPåNyttEtterUtlogging _ ->
-                            LoggInnLenke.viewLoggInnLenke
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                        _ ->
-                            text ""
+                    else
+                        text ""
 
                 LagringFeilet error _ ->
                     case ErrorHåndtering.operasjonEtterError error of
