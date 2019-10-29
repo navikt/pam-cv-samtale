@@ -685,6 +685,7 @@ type AndreSamtaleStegMsg
     | IngenAvDeAndreSeksjoneneValgt
     | BrukerGodkjennerSynligCV
     | BrukerGodkjennerIkkeSynligCV
+    | BrukerVilPrøveÅLagreSynlighetPåNytt
     | BrukerVilAvslutte String
     | SynlighetPostet (Result Http.Error Bool)
     | WindowEndrerVisibility Visibility
@@ -925,6 +926,19 @@ updateAndreSamtaleSteg model msg info =
                                             |> Maybe.withDefault Cmd.none
                                         ]
                                     )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        BrukerVilPrøveÅLagreSynlighetPåNytt ->
+            case info.aktivSamtale of
+                LagringSynlighetFeilet _ skalVæreSynlig ->
+                    ( { forsøkÅLagrePåNyttEtterDetteForsøket = False }
+                        |> LagrerPåNyttEtterUtlogging
+                        |> LagrerSynlighet skalVæreSynlig
+                        |> oppdaterSamtaleSteg model info
+                    , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -1555,17 +1569,15 @@ viewBrukerInputForAndreSamtaleSteg info =
                     case ErrorHåndtering.operasjonEtterError error of
                         GiOpp ->
                             Containers.knapper Flytende
-                                [ Knapp.knapp (BrukerVilAvslutte "Avslutt, jeg gjør det senere") "Avslutt, jeg gjør det senere"
+                                [ Knapp.knapp (BrukerVilAvslutte "Gå videre") "Gå videre"
                                     |> Knapp.toHtml
                                 ]
 
                         PrøvPåNytt ->
                             Containers.knapper Flytende
-                                [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
+                                [ Knapp.knapp BrukerVilPrøveÅLagreSynlighetPåNytt "Prøv på nytt"
                                     |> Knapp.toHtml
-                                , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en skal bare være synlig for meg"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp (BrukerVilAvslutte "Avslutt, jeg gjør det senere") "Avslutt, jeg gjør det senere"
+                                , Knapp.knapp (BrukerVilAvslutte "Gå videre") "Gå videre"
                                     |> Knapp.toHtml
                                 ]
 
