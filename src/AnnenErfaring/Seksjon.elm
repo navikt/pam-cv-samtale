@@ -380,7 +380,7 @@ update msg (Model model) =
                     ( nåværendeInfo
                         |> fraDatoTilSkjema
                         |> VisOppsummering
-                        |> nesteSamtaleStegUtenMelding model
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -826,8 +826,9 @@ validertSkjemaTilSetninger validertSkjema =
     in
     case Skjema.periode validertSkjema of
         Oppgitt fraMåned_ fraÅr_ tilDato ->
-            [ "Rolle: " ++ Skjema.innholdTekstFelt Rolle skjema
-            , Dato.periodeTilString fraMåned_ fraÅr_ tilDato
+            [ Dato.periodeTilString fraMåned_ fraÅr_ tilDato
+            , Melding.tomLinje
+            , "Rolle: " ++ Skjema.innholdTekstFelt Rolle skjema
             , "Beskrivelse: " ++ Skjema.innholdTekstFelt Beskrivelse skjema
             ]
 
