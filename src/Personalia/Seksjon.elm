@@ -192,7 +192,7 @@ update msg (Model model) =
                 EndreOriginal skjema ->
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
-                            ( LagreStatus.lagrerFørsteGang
+                            ( LagreStatus.init
                                 |> LagrerEndring validertSkjema
                                 |> nesteSamtaleSteg model
                                     (skjema

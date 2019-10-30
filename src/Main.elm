@@ -789,7 +789,7 @@ updateAndreSamtaleSteg model msg info =
                     )
 
                 EndrerSammendrag _ ->
-                    ( LagreStatus.lagrerFørsteGang
+                    ( LagreStatus.init
                         |> LagrerSammendrag sammendrag
                         |> nesteSamtaleSteg model info (Melding.svar [ sammendrag ])
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
@@ -852,7 +852,7 @@ updateAndreSamtaleSteg model msg info =
                     ( model, Cmd.none )
 
         BrukerGodkjennerSynligCV ->
-            ( LagreStatus.lagrerFørsteGang
+            ( LagreStatus.init
                 |> LagrerSynlighet True
                 |> nesteSamtaleSteg model info (Melding.svar [ "Ja, CV-en skal være synlig for arbeidsgivere" ])
             , Cmd.batch
@@ -862,7 +862,7 @@ updateAndreSamtaleSteg model msg info =
             )
 
         BrukerGodkjennerIkkeSynligCV ->
-            ( LagreStatus.lagrerFørsteGang
+            ( LagreStatus.init
                 |> LagrerSynlighet False
                 |> nesteSamtaleSteg model info (Melding.svar [ "Nei, CV-en skal bare være synlig for meg" ])
             , Cmd.batch
@@ -1705,19 +1705,25 @@ seksjonSubscriptions model =
                         |> Utdanning.Seksjon.subscriptions
                         |> Sub.map (UtdanningsMsg >> SuccessMsg)
 
-                ArbeidsErfaringSeksjon _ ->
-                    Sub.none
+                ArbeidsErfaringSeksjon arbeidserfaringModel ->
+                    arbeidserfaringModel
+                        |> Arbeidserfaring.Seksjon.subscriptions
+                        |> Sub.map (ArbeidserfaringsMsg >> SuccessMsg)
 
-                SpråkSeksjon _ ->
-                    Sub.none
+                SpråkSeksjon språkModel ->
+                    språkModel
+                        |> Sprak.Seksjon.subscriptions
+                        |> Sub.map (SpråkMsg >> SuccessMsg)
 
                 FagdokumentasjonSeksjon fagdokumentasjonModel ->
                     fagdokumentasjonModel
                         |> Fagdokumentasjon.Seksjon.subscriptions
                         |> Sub.map (FagdokumentasjonMsg >> SuccessMsg)
 
-                SertifikatSeksjon _ ->
-                    Sub.none
+                SertifikatSeksjon sertifikatModel ->
+                    sertifikatModel
+                        |> Sertifikat.Seksjon.subscriptions
+                        |> Sub.map (SertifikatMsg >> SuccessMsg)
 
-                AndreSamtaleSteg andreSamtaleStegInfo ->
+                AndreSamtaleSteg _ ->
                     Browser.Events.onVisibilityChange (WindowEndrerVisibility >> AndreSamtaleStegMsg >> SuccessMsg)

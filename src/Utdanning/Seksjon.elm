@@ -564,7 +564,7 @@ update msg (Model model) =
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
                     IkkeFerdig
-                        ( LagreStatus.lagrerFørsteGang
+                        ( LagreStatus.init
                             |> LagrerSkjema ferdigskjema
                             |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
                         , Cmd.batch
@@ -590,7 +590,7 @@ update msg (Model model) =
                         Just validertSkjema ->
                             --- TODO: Endre til å vise skjemaet etter endringer som svar fra brukeren
                             IkkeFerdig
-                                ( LagreStatus.lagrerFørsteGang
+                                ( LagreStatus.init
                                     |> LagrerSkjema validertSkjema
                                     |> nesteSamtaleSteg model (Melding.svar [ "Lagre endringer" ])
                                 , Cmd.batch
@@ -728,6 +728,15 @@ update msg (Model model) =
 
                             else
                                 IkkeFerdig ( Model model, Cmd.none )
+
+                        LagrerSkjema skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerSkjema skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
 
                         _ ->
                             IkkeFerdig ( Model model, Cmd.none )

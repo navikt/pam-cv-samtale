@@ -1,4 +1,4 @@
-module LagreStatus exposing (LagreStatus, forsøkPåNytt, fraError, lagrerEtterUtlogging, lagrerFørsteGang, lagrerPåFørsteForsøk, setForsøkPåNytt)
+module LagreStatus exposing (LagreStatus, forsøkPåNytt, fraError, init, lagrerEtterUtlogging, lagrerPåFørsteForsøk, setForsøkPåNytt)
 
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Http
@@ -14,8 +14,8 @@ type LagreStatus
 --- INIT ---
 
 
-lagrerFørsteGang : LagreStatus
-lagrerFørsteGang =
+init : LagreStatus
+init =
     LagrerFørsteGang
 
 
