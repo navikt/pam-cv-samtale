@@ -331,7 +331,7 @@ tilUvalidertSkjema (ValidertSkjema validert) =
 
 
 
--- ENCODE --
+--- ENCODE ---
 
 
 encode : ValidertSertifikatSkjema -> Json.Encode.Value

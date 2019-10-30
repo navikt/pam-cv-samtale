@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import AnnenErfaring.Seksjon
 import Api
 import Arbeidserfaring.Seksjon
 import Browser
@@ -382,6 +383,7 @@ type SamtaleSeksjon
     | SpråkSeksjon Sprak.Seksjon.Model
     | FagdokumentasjonSeksjon Fagdokumentasjon.Seksjon.Model
     | SertifikatSeksjon Sertifikat.Seksjon.Model
+    | AnnenErfaringSeksjon AnnenErfaring.Seksjon.Model
     | AndreSamtaleSteg AndreSamtaleStegInfo
 
 
@@ -396,6 +398,7 @@ type SuccessMsg
     | SpråkMsg Sprak.Seksjon.Msg
     | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
     | SertifikatMsg Sertifikat.Seksjon.Msg
+    | AnnenErfaringMsg AnnenErfaring.Seksjon.Msg
     | AndreSamtaleStegMsg AndreSamtaleStegMsg
 
 
@@ -504,6 +507,23 @@ updateSuccess successMsg model =
                 _ ->
                     ( model, Cmd.none )
 
+        AnnenErfaringMsg msg ->
+            case model.aktivSeksjon of
+                AnnenErfaringSeksjon annenErfaringModel ->
+                    case AnnenErfaring.Seksjon.update msg annenErfaringModel of
+                        AnnenErfaring.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> AnnenErfaringSeksjon
+                                |> oppdaterSamtaleSeksjon model
+                            , Cmd.map AnnenErfaringMsg cmd
+                            )
+
+                        AnnenErfaring.Seksjon.Ferdig _ meldingsLogg ->
+                            gåTilFlereAnnetValg model meldingsLogg
+
+                _ ->
+                    ( model, Cmd.none )
+
         AndreSamtaleStegMsg andreSamtaleStegMsg ->
             case model.aktivSeksjon of
                 AndreSamtaleSteg andreSamtaleStegInfo ->
@@ -607,6 +627,19 @@ gåTilSertifisering model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilAnnenErfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilAnnenErfaring model ferdigAnimertMeldingsLogg =
+    let
+        ( annenErfaringModel, annenErfaringCmd ) =
+            AnnenErfaring.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.annenErfaring model.cv)
+    in
+    ( { model
+        | aktivSeksjon = AnnenErfaringSeksjon annenErfaringModel
+      }
+    , Cmd.map AnnenErfaringMsg annenErfaringCmd
+    )
+
+
 gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilAutorisasjoner
@@ -635,6 +668,20 @@ gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilFlereAnnetValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilFlereAnnetValg model ferdigAnimertMeldingsLogg =
+    ( { aktivSamtale = LeggTilFlereAutorisasjoner
+      , meldingsLogg =
+            ferdigAnimertMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilFlereAnnet)
+      }
+        |> AndreSamtaleSteg
+        |> oppdaterSamtaleSeksjon model
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+
+
 
 --- ANDRE SAMTALESTEG MODEL ---
 
@@ -650,6 +697,7 @@ type Samtale
     | LeggTilAutorisasjoner
     | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
+    | LeggTilFlereAnnet
     | HarIkkeSammendrag
     | BekreftEksisterendeSammendrag Sammendrag
     | EndrerSammendrag String
@@ -1057,7 +1105,7 @@ gåTilValgtSeksjon model info valgtSeksjon =
                     gåTilSertifisering model ferdigAnimertMeldingsLogg
 
                 AnnenErfaringValgt ->
-                    ( model, Cmd.none )
+                    gåTilAnnenErfaring model ferdigAnimertMeldingsLogg
 
                 KursValgt ->
                     ( model, Cmd.none )
@@ -1173,6 +1221,9 @@ samtaleTilMeldingsLogg samtale =
             , Melding.spørsmål [ "Hva med førerkort? Husk å legge det inn i CV-en din. Mange arbeidsgivere ser etter jobbsøkere som kan kjøre." ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
+
+        LeggTilFlereAnnet ->
+            [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
 
         HarIkkeSammendrag ->
             [ Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ] ]
@@ -1323,6 +1374,9 @@ meldingsLoggFraSeksjon successModel =
         SertifikatSeksjon model ->
             Sertifikat.Seksjon.meldingsLogg model
 
+        AnnenErfaringSeksjon model ->
+            AnnenErfaring.Seksjon.meldingsLogg model
+
         AndreSamtaleSteg andreSamtaleStegInfo ->
             andreSamtaleStegInfo.meldingsLogg
 
@@ -1433,6 +1487,11 @@ viewBrukerInput aktivSamtale =
                 |> Sertifikat.Seksjon.viewBrukerInput
                 |> Html.map (SertifikatMsg >> SuccessMsg)
 
+        AnnenErfaringSeksjon annenErfaringSeksjon ->
+            annenErfaringSeksjon
+                |> AnnenErfaring.Seksjon.viewBrukerInput
+                |> Html.map (AnnenErfaringMsg >> SuccessMsg)
+
         AndreSamtaleSteg andreSamtaleStegInfo ->
             viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
                 |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
@@ -1506,13 +1565,10 @@ viewBrukerInputForAndreSamtaleSteg info =
                     viewLeggTilAutorisasjoner
 
                 LeggTilAnnet ->
-                    Containers.knapper Kolonne
-                        [ seksjonsvalgKnapp AnnenErfaringValgt
-                        , seksjonsvalgKnapp KursValgt
-                        , seksjonsvalgKnapp FørerkortValgt
-                        , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                    viewLeggTilAnnet
+
+                LeggTilFlereAnnet ->
+                    viewLeggTilAnnet
 
                 AvsluttendeOrd ->
                     Containers.knapper Flytende
@@ -1585,6 +1641,17 @@ viewLeggTilAutorisasjoner =
         ]
 
 
+viewLeggTilAnnet : Html AndreSamtaleStegMsg
+viewLeggTilAnnet =
+    Containers.knapper Kolonne
+        [ seksjonsvalgKnapp AnnenErfaringValgt
+        , seksjonsvalgKnapp KursValgt
+        , seksjonsvalgKnapp FørerkortValgt
+        , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
+            |> Knapp.toHtml
+        ]
+
+
 seksjonsvalgKnapp : ValgtSeksjon -> Html AndreSamtaleStegMsg
 seksjonsvalgKnapp seksjonsvalg =
     seksjonsvalg
@@ -1612,7 +1679,7 @@ seksjonsvalgDisabled seksjonsvalg =
             Enabled
 
         AnnenErfaringValgt ->
-            Disabled
+            Enabled
 
         KursValgt ->
             Disabled
@@ -1727,3 +1794,6 @@ seksjonSubscriptions model =
 
                 AndreSamtaleSteg _ ->
                     Browser.Events.onVisibilityChange (WindowEndrerVisibility >> AndreSamtaleStegMsg >> SuccessMsg)
+
+                AnnenErfaringSeksjon _ ->
+                    Sub.none

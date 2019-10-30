@@ -170,7 +170,7 @@ type Msg
     | HentetTypeahead (Result Http.Error (List SertifikatTypeahead))
     | VilRegistrereSertifikat
     | VilRegistrereUtsteder
-    | OppdaterUtsteder String
+    | OppdatererUtsteder String
     | FullførtMånedValgt Dato.Måned
     | VilRegistrereFullførtÅr
     | OppdatererFullførtÅr String
@@ -302,7 +302,7 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        OppdaterUtsteder string ->
+        OppdatererUtsteder string ->
             case model.aktivSamtale of
                 RegistrerUtsteder utsteder ->
                     ( { utsteder | utsteder = string }
@@ -351,7 +351,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
                                 |> RegistrerFullførtÅr
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -364,7 +364,7 @@ update msg (Model model) =
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | fullførtÅr = string }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -433,7 +433,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
                                 |> RegistrerUtløperÅr
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -446,7 +446,7 @@ update msg (Model model) =
                 RegistrerUtløperÅr utløpsdatoInfo ->
                     ( { utløpsdatoInfo | utløperÅr = string }
                         |> RegistrerUtløperÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -460,7 +460,7 @@ update msg (Model model) =
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -468,7 +468,7 @@ update msg (Model model) =
                 RegistrerUtløperÅr utløpsdatoInfo ->
                     ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
                         |> RegistrerUtløperÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -494,7 +494,7 @@ update msg (Model model) =
                     ( sertifikatSkjema
                         |> oppdaterSkjema skjemaEndring
                         |> EndreOpplysninger typeaheadModel
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -519,7 +519,7 @@ update msg (Model model) =
                             ( skjema
                                 |> Skjema.visAlleFeilmeldinger
                                 |> EndreOpplysninger typeaheadModel
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -811,14 +811,6 @@ feilmeldingTypeahead typeaheadModel =
 setFullførtMåned : FullførtDatoInfo -> Dato.Måned -> FullførtDatoInfo
 setFullførtMåned fullførtDatoInfo måned =
     { fullførtDatoInfo | fullførtMåned = måned }
-
-
-oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
-oppdaterSamtalesteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-        }
 
 
 oppdaterSkjema : SkjemaEndring -> SertifikatSkjema -> SertifikatSkjema
@@ -1140,7 +1132,7 @@ viewBrukerInput (Model model) =
                 RegistrerUtsteder input ->
                     Containers.inputMedGåVidereKnapp VilRegistrereUtsteder
                         [ input.utsteder
-                            |> Input.input { label = "Utsteder", msg = OppdaterUtsteder }
+                            |> Input.input { label = "Utsteder", msg = OppdatererUtsteder }
                             |> Input.withOnEnter VilRegistrereUtsteder
                             |> Input.withId (inputIdTilString UtstederId)
                             |> Input.toHtml
