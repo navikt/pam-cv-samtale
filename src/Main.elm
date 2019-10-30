@@ -670,7 +670,7 @@ gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
 
 gåTilFlereAnnetValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
 gåTilFlereAnnetValg model ferdigAnimertMeldingsLogg =
-    ( { aktivSamtale = LeggTilFlereAutorisasjoner
+    ( { aktivSamtale = LeggTilFlereAnnet
       , meldingsLogg =
             ferdigAnimertMeldingsLogg
                 |> MeldingsLogg.tilMeldingsLogg
@@ -1792,8 +1792,10 @@ seksjonSubscriptions model =
                         |> Sertifikat.Seksjon.subscriptions
                         |> Sub.map (SertifikatMsg >> SuccessMsg)
 
+                AnnenErfaringSeksjon annenErfaringModel ->
+                    annenErfaringModel
+                        |> AnnenErfaring.Seksjon.subscriptions
+                        |> Sub.map (AnnenErfaringMsg >> SuccessMsg)
+
                 AndreSamtaleSteg _ ->
                     Browser.Events.onVisibilityChange (WindowEndrerVisibility >> AndreSamtaleStegMsg >> SuccessMsg)
-
-                AnnenErfaringSeksjon _ ->
-                    Sub.none
