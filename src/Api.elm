@@ -13,6 +13,7 @@ module Api exposing
     , hentPoststed
     , logError
     , logErrorWithRequestBody
+    , postAnnenErfaring
     , postArbeidserfaring
     , postCv
     , postFagdokumentasjon
@@ -22,6 +23,7 @@ module Api exposing
     , postSpråk
     , postSynlighet
     , postUtdanning
+    , putAnnenErfaring
     , putArbeidserfaring
     , putPersonalia
     , putSammendrag
@@ -29,7 +31,9 @@ module Api exposing
     , putUtdanning
     )
 
+import AnnenErfaring.Skjema
 import Arbeidserfaring.Skjema
+import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
@@ -63,11 +67,11 @@ getPerson msgConstructor =
         }
 
 
-postPerson : (Result Error () -> msg) -> Cmd msg
+postPerson : (Result Error Person -> msg) -> Cmd msg
 postPerson msgConstructor =
     Http.post
         { url = "/cv-samtale/api/rest/person"
-        , expect = expectWhatever msgConstructor
+        , expect = expectJson msgConstructor Person.decode
         , body = emptyBody
         }
 
@@ -171,6 +175,28 @@ getAAreg msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/cv/aareg"
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
+        }
+
+
+postAnnenErfaring : (Result Error (List AnnenErfaring) -> msg) -> AnnenErfaring.Skjema.ValidertAnnenErfaringSkjema -> Cmd msg
+postAnnenErfaring msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/annenerfaring"
+        , expect = expectJson msgConstructor (Json.Decode.list AnnenErfaring.decode)
+        , body = AnnenErfaring.Skjema.encode skjema |> jsonBody
+        }
+
+
+putAnnenErfaring : (Result Error (List AnnenErfaring) -> msg) -> AnnenErfaring.Skjema.ValidertAnnenErfaringSkjema -> String -> Cmd msg
+putAnnenErfaring msgConstructor skjema id =
+    Http.request
+        { method = "PUT"
+        , headers = []
+        , url = "/cv-samtale/api/rest/cv/annenerfaring/" ++ id
+        , expect = expectJson msgConstructor (Json.Decode.list AnnenErfaring.decode)
+        , body = AnnenErfaring.Skjema.encode skjema |> jsonBody
+        , timeout = Nothing
+        , tracker = Nothing
         }
 
 

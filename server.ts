@@ -46,7 +46,11 @@ const getCookie = (name: string, cookie: string) => {
 };
 
 server.get('/cv-samtale/login', (req, res) => {
-    res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}/cv-samtale`);
+    if (req.query.redirect) {
+        res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}${req.query.redirect}`);
+    } else {
+        res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}/cv-samtale`);
+    }
 });
 
 server.post('/cv-samtale/log', express.json(), (req, res) => {
@@ -90,6 +94,13 @@ server.use(
     '/cv-samtale*',
     (req: express.Request, res: express.Response) => {
         res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+    }
+);
+
+server.use(
+    '/logget-inn*',
+    (req: express.Request, res: express.Response) => {
+        res.sendFile(path.resolve(__dirname, 'dist', 'lukkSiden.html'));
     }
 );
 

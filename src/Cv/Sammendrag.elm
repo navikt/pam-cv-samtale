@@ -1,39 +1,34 @@
-module Cv.Sammendrag exposing (Sammendrag, decode, sammendrag, stringToSammendrag)
+module Cv.Sammendrag exposing (Sammendrag, decode, toString)
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 
 
 type Sammendrag
-    = Sammendrag SammendragInfo
+    = Sammendrag String
 
 
-type alias SammendragInfo =
-    { sammendrag : String
-    }
-
-
-stringToSammendrag : String -> Sammendrag
-stringToSammendrag string =
-    Sammendrag { sammendrag = string }
-
-
-sammendrag : Sammendrag -> String
-sammendrag (Sammendrag info) =
-    info.sammendrag
+toString : Sammendrag -> String
+toString (Sammendrag sammendrag_) =
+    sammendrag_
 
 
 
----- Decoder ----
+---- DECODER ----
 
 
 decode : Decoder Sammendrag
 decode =
     decodeBackendData
-        |> map Sammendrag
+        |> map (.sammendrag >> Sammendrag)
 
 
-decodeBackendData : Decoder SammendragInfo
+decodeBackendData : Decoder BackendData
 decodeBackendData =
-    succeed SammendragInfo
+    succeed BackendData
         |> required "sammendrag" string
+
+
+type alias BackendData =
+    { sammendrag : String
+    }

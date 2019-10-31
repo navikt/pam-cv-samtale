@@ -51,19 +51,6 @@ html {
 
   .header-hoyre {
     display: flex;
-
-    a {
-      color: #8C368E;
-    }
-
-    a:visited {
-      color: #8C368E;
-    }
-
-    a:hover {
-      color: #8C368E;
-      text-decoration: none;
-    }
   }
 }
 
@@ -167,6 +154,7 @@ html {
   border-radius: 12px;
   position: relative;
   margin-top: 0.5rem;
+  overflow-wrap: break-word;
 
   p {
     margin: 0;
@@ -393,6 +381,49 @@ html {
 
   .DatoInput-år-wrapper {
     margin-left: 1rem;
+  }
+}
+.ForlateSiden {
+  text-decoration: none;
+
+  .lenke {
+
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .ForlateSiden__icon {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+    background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/External_link.svg');
+  }
+
+  .lenke:hover,
+  .lenke:active,
+  .lenke:focus {
+    .ForlateSiden__icon {
+      width: 16px;
+      height: 16px;
+      background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/External_link_hover.svg');
+    }
+  }
+}
+
+.app {
+  .lenke {
+    color: #8C368E;
+  }
+
+  .lenke:visited {
+    color: #8C368E;
+  }
+
+  .lenke:hover {
+    color: #8C368E;
+    text-decoration: none;
   }
 }
 

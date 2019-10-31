@@ -4,25 +4,30 @@ module Sertifikat.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , subscriptions
     , update
     , viewBrukerInput
     )
 
 import Api
 import Browser.Dom as Dom
+import Browser.Events exposing (Visibility(..))
 import Cv.Sertifikat exposing (Sertifikat)
 import Dato exposing (Måned(..), År, datoTilString)
 import DebugStatus exposing (DebugStatus)
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.ManedKnapper as MånedKnapper
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
+import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
@@ -70,7 +75,7 @@ type Samtale
     | VisOppsummering ValidertSertifikatSkjema
     | EndreOpplysninger (Typeahead.Model SertifikatTypeahead) SertifikatSkjema
     | VisOppsummeringEtterEndring ValidertSertifikatSkjema
-    | LagrerSkjema ValidertSertifikatSkjema
+    | LagrerSkjema ValidertSertifikatSkjema LagreStatus
     | LagringFeilet Http.Error ValidertSertifikatSkjema
     | VenterPåAnimasjonFørFullføring (List Sertifikat)
 
@@ -165,7 +170,7 @@ type Msg
     | HentetTypeahead (Result Http.Error (List SertifikatTypeahead))
     | VilRegistrereSertifikat
     | VilRegistrereUtsteder
-    | OppdaterUtsteder String
+    | OppdatererUtsteder String
     | FullførtMånedValgt Dato.Måned
     | VilRegistrereFullførtÅr
     | OppdatererFullførtÅr String
@@ -180,6 +185,7 @@ type Msg
     | VilLagreEndretSkjema
     | SertifikatLagret (Result Http.Error (List Sertifikat))
     | FerdigMedSertifikat
+    | WindowEndrerVisibility Visibility
     | StartÅSkrive
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
@@ -296,7 +302,7 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        OppdaterUtsteder string ->
+        OppdatererUtsteder string ->
             case model.aktivSamtale of
                 RegistrerUtsteder utsteder ->
                     ( { utsteder | utsteder = string }
@@ -345,7 +351,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
                                 |> RegistrerFullførtÅr
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -358,7 +364,7 @@ update msg (Model model) =
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | fullførtÅr = string }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -427,7 +433,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
                                 |> RegistrerUtløperÅr
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -440,7 +446,7 @@ update msg (Model model) =
                 RegistrerUtløperÅr utløpsdatoInfo ->
                     ( { utløpsdatoInfo | utløperÅr = string }
                         |> RegistrerUtløperÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -454,7 +460,7 @@ update msg (Model model) =
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -462,7 +468,7 @@ update msg (Model model) =
                 RegistrerUtløperÅr utløpsdatoInfo ->
                     ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
                         |> RegistrerUtløperÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -488,7 +494,7 @@ update msg (Model model) =
                     ( sertifikatSkjema
                         |> oppdaterSkjema skjemaEndring
                         |> EndreOpplysninger typeaheadModel
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -513,7 +519,7 @@ update msg (Model model) =
                             ( skjema
                                 |> Skjema.visAlleFeilmeldinger
                                 |> EndreOpplysninger typeaheadModel
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -529,36 +535,73 @@ update msg (Model model) =
                 VisOppsummeringEtterEndring skjema ->
                     updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
 
-                LagringFeilet _ skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, prøv på nytt" ])
+                LagringFeilet error skjema ->
+                    ( error
+                        |> LagreStatus.fraError
+                        |> LagrerSkjema skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                    , postEllerPutSertifikat SertifikatLagret skjema
+                    )
+                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         SertifikatLagret result ->
             case model.aktivSamtale of
-                LagrerSkjema sertifikatSkjema ->
+                LagrerSkjema skjema lagreStatus ->
                     case result of
                         Ok sertifikater ->
-                            ( Model
-                                { model
-                                    | aktivSamtale = VenterPåAnimasjonFørFullføring sertifikater
-                                    , seksjonsMeldingsLogg =
+                            let
+                                oppdatertMeldingslogg =
+                                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen din lagt til i CV-en!" ] ]
+
+                                    else
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen din lagt til i CV-en!" ] ]
-                                }
+                            in
+                            ( sertifikater
+                                |> VenterPåAnimasjonFørFullføring
+                                |> oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( LagringFeilet error sertifikatSkjema
-                                |> nesteSamtaleStegUtenMelding model
-                            , sertifikatSkjema
-                                |> Skjema.encode
-                                |> Api.logErrorWithRequestBody ErrorLogget "Lagre sertifikat" error
-                            )
-                                |> IkkeFerdig
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( LagreStatus.fraError error
+                                        |> LagrerSkjema skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , postEllerPutSertifikat SertifikatLagret skjema
+                                    )
+                                        |> IkkeFerdig
+
+                                else
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtaleSteg model
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre sertifikat" error
+                                    )
+                                        |> IkkeFerdig
+
+                            else
+                                ( skjema
+                                    |> LagringFeilet error
+                                    |> nesteSamtaleStegUtenMelding model
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre sertifikat" error
+                                    ]
+                                )
+                                    |> IkkeFerdig
 
                 _ ->
                     ( Model model, Cmd.none )
@@ -569,7 +612,7 @@ update msg (Model model) =
                 LagringFeilet _ _ ->
                     ( model.sertifikatListe
                         |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -577,6 +620,38 @@ update msg (Model model) =
                 _ ->
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
+
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagrerSkjema skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerSkjema skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        LagringFeilet error skjema ->
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                IkkeFerdig
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerSkjema skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , postEllerPutSertifikat SertifikatLagret skjema
+                                    )
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                Hidden ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         StartÅSkrive ->
             ( Model
@@ -738,14 +813,6 @@ setFullførtMåned fullførtDatoInfo måned =
     { fullførtDatoInfo | fullførtMåned = måned }
 
 
-oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
-oppdaterSamtalesteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-        }
-
-
 oppdaterSkjema : SkjemaEndring -> SertifikatSkjema -> SertifikatSkjema
 oppdaterSkjema endring skjema =
     case endring of
@@ -849,8 +916,8 @@ updateEtterVilEndreSkjema model skjema =
 
 updateEtterLagreKnappTrykket : ModelInfo -> ValidertSertifikatSkjema -> Melding -> SamtaleStatus
 updateEtterLagreKnappTrykket model skjema melding =
-    ( skjema
-        |> LagrerSkjema
+    ( LagreStatus.init
+        |> LagrerSkjema skjema
         |> nesteSamtaleSteg model melding
     , postEllerPutSertifikat SertifikatLagret skjema
     )
@@ -961,13 +1028,11 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
         VisOppsummeringEtterEndring _ ->
             [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
 
-        LagrerSkjema _ ->
+        LagrerSkjema _ _ ->
             []
 
-        LagringFeilet _ _ ->
-            [ Melding.spørsmål
-                [ "Oops... Jeg klarte ikke å lagre sertifikatet. Vil du prøve på nytt?" ]
-            ]
+        LagringFeilet error _ ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre sertifikat/sertifisering" } ]
 
         VenterPåAnimasjonFørFullføring _ ->
             []
@@ -1067,7 +1132,7 @@ viewBrukerInput (Model model) =
                 RegistrerUtsteder input ->
                     Containers.inputMedGåVidereKnapp VilRegistrereUtsteder
                         [ input.utsteder
-                            |> Input.input { label = "Utsteder", msg = OppdaterUtsteder }
+                            |> Input.input { label = "Utsteder", msg = OppdatererUtsteder }
                             |> Input.withOnEnter VilRegistrereUtsteder
                             |> Input.withId (inputIdTilString UtstederId)
                             |> Input.toHtml
@@ -1169,19 +1234,34 @@ viewBrukerInput (Model model) =
                             |> Checkbox.toHtml
                         ]
 
-                LagrerSkjema _ ->
-                    div [] []
+                LagrerSkjema _ lagreStatus ->
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                LagringFeilet _ _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp VilLagreSertifikat "Ja, prøv på nytt"
-                            |> Knapp.toHtml
-                        , Knapp.knapp FerdigMedSertifikat "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                    else
+                        text ""
+
+                LagringFeilet error _ ->
+                    case ErrorHåndtering.operasjonEtterError error of
+                        GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp FerdigMedSertifikat "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp VilLagreSertifikat "Prøv igjen"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp FerdigMedSertifikat "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        LoggInn ->
+                            LoggInnLenke.viewLoggInnLenke
 
                 VenterPåAnimasjonFørFullføring _ ->
-                    div [] []
+                    text ""
 
         MeldingerGjenstår ->
             text ""
@@ -1235,3 +1315,8 @@ init debugStatus gammelMeldingsLogg sertifikatListe =
         }
     , lagtTilSpørsmålCmd debugStatus
     )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Browser.Events.onVisibilityChange WindowEndrerVisibility

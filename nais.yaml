@@ -28,7 +28,8 @@ spec:
     vault:
         enabled: true
     ingresses:
-        - {{{ ingress }}}
+        - {{{ ingress-samtale }}}
+        - {{{ ingress-logget-inn }}}
     env:
         - name: API_GATEWAY_HOST
           value: {{{ apiGatewayHost }}}

@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node server-dev.js",
-    "build": "parcel build src/index.html --public-url /cv-samtale/static",
+    "build-samtale": "parcel build src/index.html --public-url /cv-samtale/static",
+    "start-lukksiden": "parcel src/lukkSiden.html --public-url /cv-samtale/static",
+    "build-lukksiden": "parcel build src/lukkSiden.html --public-url /cv-samtale/static",
+    "build": "npm run build-samtale && npm run build-lukksiden",
     "start:server": "node server.js",
     "build:server": "tsc"
   },
@@ -20,6 +23,7 @@
     "elm-hot": "^1.1.0",
     "less": "^3.9.0",
     "nav-frontend-core": "^4.0.9",
+    "nav-frontend-lenker-style": "^0.2.21",
     "nav-frontend-paneler-style": "^0.3.15",
     "nav-frontend-skjema-style": "^1.0.40",
     "nav-frontend-spinner-style": "^0.2.5",
@@ -29,7 +33,7 @@
     "pam-frontend-header": "^4.6.0",
     "pam-frontend-knapper": "^1.0.2",
     "pam-frontend-typografi": "^2.0.2",
-    "parcel-bundler": "^1.12.3",
+    "parcel-bundler": "^1.12.4",
     "typescript": "^3.5.2"
   },
   "dependencies": {
@@ -37,6 +41,6 @@
     "express": "^4.16.0",
     "express-http-proxy": "^1.5.1",
     "fs": "0.0.1-security",
-    "helmet": "^3.18.0"
+    "helmet": "^3.21.2"
   }
 }
