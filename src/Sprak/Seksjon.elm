@@ -4,21 +4,26 @@ module Sprak.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , subscriptions
     , update
     , viewBrukerInput
     )
 
 import Api
+import Browser.Events exposing (Visibility(..))
 import Cv.Spraakferdighet as Spraakferdighet exposing (Spraakferdighet)
 import DebugStatus exposing (DebugStatus)
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Select as Select
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http
 import Json.Encode
+import LagreStatus exposing (LagreStatus)
 import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
@@ -51,14 +56,14 @@ type Samtale
     = IntroLeggTilNorsk (List Spraakferdighet)
     | LeggTilNorskMuntlig
     | LeggTilNorskSkriftlig Ferdighet
-    | LagrerNorsk SpråkSkjema
-    | LagreNorskFeilet SpråkSkjema Http.Error
+    | LagrerNorsk SpråkSkjema LagreStatus
+    | LagreNorskFeilet Http.Error SpråkSkjema
     | LeggTilEngelsk
     | VelgNyttSpråk { valgtSpråk : Maybe SpråkKode, feilmelding : Maybe String }
     | LeggTilMuntlig SpråkKode
     | LeggTilSkriftlig SpråkMedMuntlig
-    | LagrerSpråk SpråkSkjema
-    | LagringFeilet SpråkSkjema Http.Error
+    | LagrerSpråk SpråkSkjema LagreStatus
+    | LagringFeilet Http.Error SpråkSkjema
     | LeggTilFlereSpråk
     | SpråkKodeneFeilet (Maybe Http.Error)
     | VenterPåAnimasjonFørFullføring
@@ -105,6 +110,7 @@ type Msg
     | SpråkKoderHentet (Result Http.Error (List SpråkKode))
     | BrukerVilHenteSpråkKoderPåNytt
     | BrukerVilAvslutteSeksjonen
+    | WindowEndrerVisibility Visibility
     | StartÅSkrive
     | FullførMelding
     | ViewportSatt
@@ -115,7 +121,9 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         NorskErFørstespråk ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerNorsk Skjema.norskFørstespråk)
+            ( LagreStatus.init
+                |> LagrerNorsk Skjema.norskFørstespråk
+                |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
             , Cmd.batch
                 [ leggTilSpråkAPI Skjema.norskFørstespråk
                 , lagtTilSpørsmålCmd model.debugStatus
@@ -162,7 +170,8 @@ update msg (Model model) =
                                 , skriftlig = skriftligNivå
                                 }
                     in
-                    ( LagrerSpråk skjema
+                    ( LagreStatus.init
+                        |> LagrerSpråk skjema
                         |> nesteSamtaleSteg model
                             (Melding.svar [ skriftligNivåTilKnappeTekst språkMedMuntlig.språk skriftligNivå ])
                     , Cmd.batch
@@ -181,7 +190,8 @@ update msg (Model model) =
                                 , skriftlig = skriftligNivå
                                 }
                     in
-                    ( LagrerNorsk skjema
+                    ( LagreStatus.init
+                        |> LagrerNorsk skjema
                         |> nesteSamtaleSteg model
                             (Melding.svar [ skriftligNivåTilKnappeTekst SpråkKode.norsk skriftligNivå ])
                     , Cmd.batch
@@ -260,54 +270,42 @@ update msg (Model model) =
             case result of
                 Ok språk ->
                     case model.aktivSamtale of
-                        LagrerNorsk _ ->
-                            ( nesteSamtaleStegUtenMelding { model | språk = språk } LeggTilEngelsk
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
+                        LagrerNorsk _ lagreStatus ->
+                            lagringLykkes model språk lagreStatus LeggTilEngelsk
 
-                        LagrerSpråk _ ->
-                            ( nesteSamtaleStegUtenMelding { model | språk = språk } LeggTilFlereSpråk
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
+                        LagrerSpråk _ lagreStatus ->
+                            lagringLykkes model språk lagreStatus LeggTilFlereSpråk
 
                         _ ->
                             IkkeFerdig ( Model model, Cmd.none )
 
                 Err error ->
                     case model.aktivSamtale of
-                        LagrerNorsk skjema ->
-                            ( nesteSamtaleStegUtenMelding model (LagreNorskFeilet skjema error)
-                            , Cmd.batch
-                                [ lagtTilSpørsmålCmd model.debugStatus
-                                , logFeilmeldingMedRequestBody error "Lagre språk" (Skjema.encode skjema)
-                                ]
-                            )
-                                |> IkkeFerdig
+                        LagrerNorsk skjema lagreStatus ->
+                            lagringMislyktes model error skjema lagreStatus LagrerNorsk LagreNorskFeilet
 
-                        LagrerSpråk skjema ->
-                            ( nesteSamtaleStegUtenMelding model (LagringFeilet skjema error)
-                            , Cmd.batch
-                                [ lagtTilSpørsmålCmd model.debugStatus
-                                , logFeilmeldingMedRequestBody error "Lagre språk" (Skjema.encode skjema)
-                                ]
-                            )
-                                |> IkkeFerdig
+                        LagrerSpråk skjema lagreStatus ->
+                            lagringMislyktes model error skjema lagreStatus LagrerSpråk LagringFeilet
 
                         _ ->
                             IkkeFerdig ( Model model, logFeilmelding error "Lagre språk" )
 
         SendSkjemaPåNytt ->
             case model.aktivSamtale of
-                LagreNorskFeilet skjema _ ->
-                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, prøv på nytt" ]) (LagrerNorsk skjema)
+                LagreNorskFeilet error skjema ->
+                    ( error
+                        |> LagreStatus.fraError
+                        |> LagrerNorsk skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, prøv på nytt" ])
                     , leggTilSpråkAPI skjema
                     )
                         |> IkkeFerdig
 
-                LagringFeilet skjema _ ->
-                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, prøv på nytt" ]) (LagrerSpråk skjema)
+                LagringFeilet error skjema ->
+                    ( error
+                        |> LagreStatus.fraError
+                        |> LagrerSpråk skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, prøv på nytt" ])
                     , leggTilSpråkAPI skjema
                     )
                         |> IkkeFerdig
@@ -350,6 +348,60 @@ update msg (Model model) =
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
+
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagrerNorsk skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerNorsk skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        LagreNorskFeilet error skjema ->
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                IkkeFerdig
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerNorsk skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , leggTilSpråkAPI skjema
+                                    )
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        LagrerSpråk skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerSpråk skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        LagringFeilet error skjema ->
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                IkkeFerdig
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerSpråk skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , leggTilSpråkAPI skjema
+                                    )
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                Hidden ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         StartÅSkrive ->
             ( Model
@@ -527,11 +579,11 @@ samtaleTilMeldingsLogg model språkSeksjon =
         LeggTilNorskSkriftlig _ ->
             [ Melding.spørsmål [ "Hvor godt skriver du norsk?" ] ]
 
-        LagrerNorsk _ ->
+        LagrerNorsk _ _ ->
             []
 
-        LagreNorskFeilet _ _ ->
-            [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre norsk.", "Vil du prøve på nytt?" ] ]
+        LagreNorskFeilet error _ ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre norsk" } ]
 
         LeggTilEngelsk ->
             [ Melding.spørsmål [ "Hva med engelsk? Kan du det?" ] ]
@@ -545,11 +597,11 @@ samtaleTilMeldingsLogg model språkSeksjon =
         LeggTilSkriftlig språkMedMuntlig ->
             [ Melding.spørsmål [ "Hvor godt skriver du " ++ String.toLower (SpråkKode.term språkMedMuntlig.språk) ++ "?" ] ]
 
-        LagrerSpråk _ ->
+        LagrerSpråk _ _ ->
             []
 
-        LagringFeilet skjema _ ->
-            [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre " ++ String.toLower (Skjema.språkNavn skjema) ++ ".", "Vil du prøve på nytt?" ] ]
+        LagringFeilet error skjema ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre " ++ String.toLower (Skjema.språkNavn skjema) } ]
 
         LeggTilFlereSpråk ->
             [ Melding.spørsmål
@@ -594,6 +646,63 @@ nesteSamtaleStegUtenMelding model samtaleSeksjon =
                 model.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg model samtaleSeksjon)
         }
+
+
+oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
+oppdaterSamtaleSteg modelInfo samtaleSeksjon =
+    Model
+        { modelInfo
+            | aktivSamtale = samtaleSeksjon
+        }
+
+
+lagringLykkes : ModelInfo -> List Spraakferdighet -> LagreStatus -> Samtale -> SamtaleStatus
+lagringLykkes model språk lagreStatus nyAktivSamtale =
+    ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
+        nyAktivSamtale
+            |> nesteSamtaleSteg { model | språk = språk } (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+
+      else
+        nyAktivSamtale
+            |> nesteSamtaleStegUtenMelding { model | språk = språk }
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
+
+
+lagringMislyktes : ModelInfo -> Http.Error -> SpråkSkjema -> LagreStatus -> (SpråkSkjema -> LagreStatus -> Samtale) -> (Http.Error -> SpråkSkjema -> Samtale) -> SamtaleStatus
+lagringMislyktes model error skjema lagreStatus tilLagring tilFeilet =
+    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+        if LagreStatus.forsøkPåNytt lagreStatus then
+            ( LagreStatus.fraError error
+                |> tilLagring skjema
+                |> oppdaterSamtaleSteg model
+            , leggTilSpråkAPI skjema
+            )
+                |> IkkeFerdig
+
+        else
+            ( skjema
+                |> tilFeilet error
+                |> oppdaterSamtaleSteg model
+            , skjema
+                |> Skjema.encode
+                |> Api.logErrorWithRequestBody ErrorLogget "Lagre språk" error
+            )
+                |> IkkeFerdig
+
+    else
+        ( skjema
+            |> tilFeilet error
+            |> nesteSamtaleStegUtenMelding model
+        , Cmd.batch
+            [ lagtTilSpørsmålCmd model.debugStatus
+            , skjema
+                |> Skjema.encode
+                |> Api.logErrorWithRequestBody ErrorLogget "Lagre språk" error
+            ]
+        )
+            |> IkkeFerdig
 
 
 listeTilSetning : List String -> String
@@ -649,16 +758,31 @@ viewBrukerInput (Model model) =
                         , skriftligKnapp SpråkKode.norsk VeldigGodt
                         ]
 
-                LagrerNorsk _ ->
-                    text ""
+                LagrerNorsk _ lagreStatus ->
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                LagreNorskFeilet _ _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                    else
+                        text ""
+
+                LagreNorskFeilet error _ ->
+                    case ErrorHåndtering.operasjonEtterError error of
+                        GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        LoggInn ->
+                            LoggInnLenke.viewLoggInnLenke
 
                 LeggTilEngelsk ->
                     Containers.knapper Flytende
@@ -712,16 +836,31 @@ viewBrukerInput (Model model) =
                             Containers.knapper Flytende
                                 [ text "Noe gikk galt..." ]
 
-                LagrerSpråk _ ->
-                    text ""
+                LagrerSpråk _ lagreStatus ->
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                LagringFeilet _ _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                    else
+                        text ""
+
+                LagringFeilet error _ ->
+                    case ErrorHåndtering.operasjonEtterError error of
+                        GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        LoggInn ->
+                            LoggInnLenke.viewLoggInnLenke
 
                 LeggTilFlereSpråk ->
                     Containers.knapper Flytende
@@ -786,3 +925,8 @@ init debugStatus gammelMeldingsLogg språkFerdighet =
         , hentSpråkkoder
         ]
     )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Browser.Events.onVisibilityChange WindowEndrerVisibility

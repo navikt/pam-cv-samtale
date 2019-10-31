@@ -4,26 +4,31 @@ module Utdanning.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , subscriptions
     , update
     , viewBrukerInput
     )
 
 import Api
 import Browser.Dom as Dom
+import Browser.Events exposing (Visibility(..))
 import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Dato exposing (Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Select as Select
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
+import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Process
@@ -62,7 +67,7 @@ type Samtale
     | RegistrereTilÅr TilDatoInfo
     | Oppsummering ValidertUtdanningSkjema
     | EndrerOppsummering UtdanningSkjema
-    | LagrerSkjema ValidertUtdanningSkjema
+    | LagrerSkjema ValidertUtdanningSkjema LagreStatus
     | LagringFeilet Http.Error ValidertUtdanningSkjema
     | LeggTilFlereUtdanninger
     | VenterPåAnimasjonFørFullføring (List Utdanning)
@@ -205,7 +210,9 @@ type Msg
     | OppsummeringEndret SkjemaEndring
     | OppsummeringSkjemaLagreknappTrykket
     | UtdanningSendtTilApi (Result Http.Error (List Utdanning))
-    | AvbrytLagringOgTaMegTilIntro
+    | BrukerVilPrøveÅLagrePåNytt
+    | BrukerVilAvbryteLagringen
+    | WindowEndrerVisibility Visibility
     | ViewportSatt (Result Dom.Error ())
     | FokusSatt (Result Dom.Error ())
     | ErrorLogget
@@ -557,7 +564,9 @@ update msg (Model model) =
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ]) (LagrerSkjema ferdigskjema)
+                        ( LagreStatus.init
+                            |> LagrerSkjema ferdigskjema
+                            |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
                         , Cmd.batch
                             [ Api.postUtdanning UtdanningSendtTilApi ferdigskjema
                             , lagtTilSpørsmålCmd model.debugStatus
@@ -579,8 +588,11 @@ update msg (Model model) =
                 EndrerOppsummering skjema ->
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
+                            --- TODO: Endre til å vise skjemaet etter endringer som svar fra brukeren
                             IkkeFerdig
-                                ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (LagrerSkjema validertSkjema)
+                                ( LagreStatus.init
+                                    |> LagrerSkjema validertSkjema
+                                    |> nesteSamtaleSteg model (Melding.svar [ "Lagre endringer" ])
                                 , Cmd.batch
                                     [ postEllerPutUtdanning UtdanningSendtTilApi validertSkjema
                                     , lagtTilSpørsmålCmd model.debugStatus
@@ -596,9 +608,12 @@ update msg (Model model) =
                                 , Cmd.none
                                 )
 
-                LagringFeilet _ feiletskjema ->
+                LagringFeilet error feiletskjema ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ "Bekreft" ]) (LagrerSkjema feiletskjema)
+                        ( error
+                            |> LagreStatus.fraError
+                            |> LagrerSkjema feiletskjema
+                            |> nesteSamtaleSteg model (Melding.svar [ "Bekreft" ])
                         , Cmd.batch
                             [ postEllerPutUtdanning UtdanningSendtTilApi feiletskjema
                             , lagtTilSpørsmålCmd model.debugStatus
@@ -610,19 +625,52 @@ update msg (Model model) =
 
         UtdanningSendtTilApi result ->
             case model.aktivSamtale of
-                LagrerSkjema skjema ->
+                LagrerSkjema skjema lagreStatus ->
                     case result of
                         Ok value ->
-                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } LeggTilFlereUtdanninger, lagtTilSpørsmålCmd model.debugStatus )
+                            ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                LeggTilFlereUtdanninger
+                                    |> nesteSamtaleSteg { model | utdanningListe = value } (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+
+                              else
+                                LeggTilFlereUtdanninger
+                                    |> nesteSamtaleStegUtenMelding { model | utdanningListe = value }
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( nesteSamtaleStegUtenMelding model (LagringFeilet error skjema)
-                            , skjema
-                                |> Skjema.encode
-                                |> Api.logErrorWithRequestBody ErrorLogget "Lagre utdanning" error
-                            )
-                                |> IkkeFerdig
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( LagreStatus.fraError error
+                                        |> LagrerSkjema skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , postEllerPutUtdanning UtdanningSendtTilApi skjema
+                                    )
+                                        |> IkkeFerdig
+
+                                else
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtaleSteg model
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre utdanning" error
+                                    )
+                                        |> IkkeFerdig
+
+                            else
+                                ( skjema
+                                    |> LagringFeilet error
+                                    |> nesteSamtaleStegUtenMelding model
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre utdanning" error
+                                    ]
+                                )
+                                    |> IkkeFerdig
 
                 Oppsummering skjema ->
                     case result of
@@ -641,9 +689,60 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        AvbrytLagringOgTaMegTilIntro ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Avbryt lagring" ]) (Intro model.utdanningListe), lagtTilSpørsmålCmd model.debugStatus )
+        BrukerVilPrøveÅLagrePåNytt ->
+            case model.aktivSamtale of
+                LagringFeilet error validertSkjema ->
+                    IkkeFerdig
+                        ( error
+                            |> LagreStatus.fraError
+                            |> LagrerSkjema validertSkjema
+                            |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                        , Cmd.batch
+                            [ postEllerPutUtdanning UtdanningSendtTilApi validertSkjema
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            ]
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilAvbryteLagringen ->
+            ( nesteSamtaleSteg model (Melding.svar [ "Avbryt lagring" ]) (Intro model.utdanningListe)
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
                 |> IkkeFerdig
+
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagringFeilet error validertSkjema ->
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                IkkeFerdig
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerSkjema validertSkjema
+                                        |> oppdaterSamtaleSteg model
+                                    , Api.postUtdanning UtdanningSendtTilApi validertSkjema
+                                    )
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        LagrerSkjema skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerSkjema skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                Hidden ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         StartÅSkrive ->
             ( Model
@@ -1008,13 +1107,13 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
             ]
 
-        LagringFeilet _ _ ->
-            [ Melding.spørsmål [ "Klarte ikke å lagre skjemaet. Mulig du ikke har internett, eller at du har skrevet noe i skjemaet som jeg ikke forventet. Vennligst se over skjemaet og forsøk på nytt" ] ]
+        LagringFeilet error _ ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre utdanning" } ]
 
         VenterPåAnimasjonFørFullføring _ ->
             [ Melding.spørsmål [ "Bra jobba! Da går vi videre." ] ]
 
-        LagrerSkjema _ ->
+        LagrerSkjema _ _ ->
             []
 
 
@@ -1159,13 +1258,31 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         ]
 
-                LagringFeilet _ _ ->
-                    --                    Debug.todo "View når lagring feiler"
-                    -- TODO: Test
-                    text ""
+                LagrerSkjema _ lagreStatus ->
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                LagrerSkjema _ ->
-                    div [] []
+                    else
+                        text ""
+
+                LagringFeilet error _ ->
+                    case ErrorHåndtering.operasjonEtterError error of
+                        GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv igjen"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        LoggInn ->
+                            LoggInnLenke.viewLoggInnLenke
 
                 VenterPåAnimasjonFørFullføring _ ->
                     div [] []
@@ -1345,3 +1462,8 @@ init debugStatus gammelMeldingsLogg utdanningListe =
         }
     , lagtTilSpørsmålCmd debugStatus
     )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Browser.Events.onVisibilityChange WindowEndrerVisibility

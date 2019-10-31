@@ -4,6 +4,7 @@ module AnnenErfaring.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , subscriptions
     , update
     , viewBrukerInput
     )
@@ -11,19 +12,23 @@ module AnnenErfaring.Seksjon exposing
 import AnnenErfaring.Skjema as Skjema exposing (AnnenErfaringSkjema, Felt(..), ValidertAnnenErfaringSkjema)
 import Api
 import Browser.Dom as Dom
+import Browser.Events exposing (Visibility(..))
 import Cv.AnnenErfaring exposing (AnnenErfaring)
 import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Textarea as Textarea
 import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
+import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
@@ -69,7 +74,7 @@ type Samtale
     | VisOppsummering ValidertAnnenErfaringSkjema
     | EndreOpplysninger AnnenErfaringSkjema
     | VisOppsummeringEtterEndring ValidertAnnenErfaringSkjema
-    | LagrerSkjema ValidertAnnenErfaringSkjema
+    | LagrerSkjema ValidertAnnenErfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertAnnenErfaringSkjema
     | VenterPåAnimasjonFørFullføring (List AnnenErfaring)
 
@@ -201,6 +206,7 @@ type Msg
     | VilLagreEndretSkjema
     | AnnenErfaringLagret (Result Http.Error (List AnnenErfaring))
     | FerdigMedAnnenErfaring
+    | WindowEndrerVisibility Visibility
     | StartÅSkrive
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
@@ -538,39 +544,73 @@ update msg (Model model) =
                 VisOppsummeringEtterEndring skjema ->
                     updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
 
-                LagringFeilet _ skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, prøv på nytt" ])
+                LagringFeilet error skjema ->
+                    ( error
+                        |> LagreStatus.fraError
+                        |> LagrerSkjema skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                    )
+                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         AnnenErfaringLagret result ->
             case model.aktivSamtale of
-                LagrerSkjema annenErfaringSkjema ->
+                LagrerSkjema skjema lagreStatus ->
                     case result of
                         Ok annenErfaringer ->
-                            ( Model
-                                { model
-                                    | aktivSamtale = VenterPåAnimasjonFørFullføring annenErfaringer
-                                    , seksjonsMeldingsLogg =
+                            let
+                                oppdatertMeldingslogg =
+                                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til denne erfaringen." ] ]
+
+                                    else
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til denne erfaringen." ] ]
-                                }
+                            in
+                            ( annenErfaringer
+                                |> VenterPåAnimasjonFørFullføring
+                                |> oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( LagringFeilet error annenErfaringSkjema
-                                |> nesteSamtaleStegUtenMelding model
-                            , Cmd.batch
-                                [ annenErfaringSkjema
-                                    |> Skjema.encode
-                                    |> Api.logErrorWithRequestBody ErrorLogget "Lagre annen erfaring" error
-                                , lagtTilSpørsmålCmd model.debugStatus
-                                ]
-                            )
-                                |> IkkeFerdig
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( LagreStatus.fraError error
+                                        |> LagrerSkjema skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                                    )
+                                        |> IkkeFerdig
+
+                                else
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtaleSteg model
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre annen erfaring" error
+                                    )
+                                        |> IkkeFerdig
+
+                            else
+                                ( skjema
+                                    |> LagringFeilet error
+                                    |> nesteSamtaleStegUtenMelding model
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre annen erfaring" error
+                                    ]
+                                )
+                                    |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -580,12 +620,44 @@ update msg (Model model) =
                 LagringFeilet _ _ ->
                     ( model.annenErfaringListe
                         |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagrerSkjema skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerSkjema skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        LagringFeilet error skjema ->
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                IkkeFerdig
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerSkjema skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                                    )
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                Hidden ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         StartÅSkrive ->
@@ -701,8 +773,8 @@ updateEtterVilEndreSkjema model skjema =
 
 updateEtterLagreKnappTrykket : ModelInfo -> ValidertAnnenErfaringSkjema -> Melding -> SamtaleStatus
 updateEtterLagreKnappTrykket model skjema melding =
-    ( skjema
-        |> LagrerSkjema
+    ( LagreStatus.init
+        |> LagrerSkjema skjema
         |> nesteSamtaleSteg model melding
     , Api.postAnnenErfaring AnnenErfaringLagret skjema
     )
@@ -806,13 +878,11 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         VisOppsummeringEtterEndring _ ->
             [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
 
-        LagrerSkjema _ ->
+        LagrerSkjema _ _ ->
             []
 
         LagringFeilet error _ ->
-            [ Melding.spørsmål
-                [ "Oops... Jeg klarte ikke å lagre annen erfaring. Vil du prøve på nytt?" ]
-            ]
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre annen erfaring" } ]
 
         VenterPåAnimasjonFørFullføring _ ->
             []
@@ -1007,19 +1077,34 @@ viewBrukerInput (Model model) =
                             text ""
                         ]
 
-                LagrerSkjema _ ->
-                    div [] []
+                LagrerSkjema _ lagreStatus ->
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                LagringFeilet _ _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp VilLagreAnnenErfaring "Ja, prøv på nytt"
-                            |> Knapp.toHtml
-                        , Knapp.knapp FerdigMedAnnenErfaring "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                    else
+                        text ""
+
+                LagringFeilet error _ ->
+                    case ErrorHåndtering.operasjonEtterError error of
+                        ErrorHåndtering.GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        ErrorHåndtering.PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp VilLagreAnnenErfaring "Prøv igjen"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        ErrorHåndtering.LoggInn ->
+                            LoggInnLenke.viewLoggInnLenke
 
                 VenterPåAnimasjonFørFullføring _ ->
-                    div [] []
+                    text ""
 
         MeldingerGjenstår ->
             text ""
@@ -1101,3 +1186,8 @@ init debugStatus gammelMeldingsLogg annenErfaringListe =
         }
     , lagtTilSpørsmålCmd debugStatus
     )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Browser.Events.onVisibilityChange WindowEndrerVisibility

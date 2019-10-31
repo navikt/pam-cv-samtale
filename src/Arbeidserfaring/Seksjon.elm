@@ -4,6 +4,7 @@ module Arbeidserfaring.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , subscriptions
     , update
     , viewBrukerInput
     )
@@ -11,20 +12,24 @@ module Arbeidserfaring.Seksjon exposing
 import Api
 import Arbeidserfaring.Skjema as Skjema exposing (ArbeidserfaringSkjema, Felt(..), ValidertArbeidserfaringSkjema)
 import Browser.Dom as Dom
+import Browser.Events exposing (Visibility(..))
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
 import Dato exposing (Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Textarea as Textarea
 import Html exposing (Attribute, Html, div, text)
 import Html.Attributes exposing (class)
 import Http exposing (Error)
+import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding)
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
@@ -76,7 +81,7 @@ type Samtale
     | RegistrereTilÅr TilDatoInfo
     | VisOppsummering ValidertArbeidserfaringSkjema
     | RedigerOppsummering (Typeahead.Model Yrke) ArbeidserfaringSkjema
-    | LagrerArbeidserfaring ValidertArbeidserfaringSkjema
+    | LagrerArbeidserfaring ValidertArbeidserfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
     | SpørOmBrukerVilLeggeInnMer
     | StartNyArbeidserfaring (Typeahead.Model Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
@@ -120,8 +125,11 @@ type Msg
     | BrukerVilLagreArbeidserfaringIOppsummering
     | BrukerVilLagreArbeidserfaringSkjema
     | ArbeidserfaringLagret (Result Http.Error (List Arbeidserfaring))
+    | BrukerVilPrøveÅLagrePåNytt
+    | BrukerVilAvbryteLagringen
     | NyArbeidserfaring
     | FerdigMedArbeidserfaring String
+    | WindowEndrerVisibility Visibility
     | StartÅSkrive
     | FullFørMelding
     | ViewportSatt (Result Dom.Error ())
@@ -326,7 +334,7 @@ update msg (Model model) =
                             |> Skjema.oppdaterYrke skjema
                             |> Skjema.gjørFeilmeldingYrkeSynlig (Typeahead.inputStatus status == InputBlurred)
                             |> RedigerOppsummering nyTypeaheadModel
-                            |> oppdaterSamtalesteg model
+                            |> oppdaterSamtaleSteg model
                         , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput string ->
                                 Api.getYrkeTypeahead HentetYrkeTypeahead string
@@ -349,7 +357,7 @@ update msg (Model model) =
                               in
                               nyTypeaheadModel
                                 |> RegistrerYrke visFeilmelding
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -362,7 +370,7 @@ update msg (Model model) =
                     case result of
                         Ok suggestions ->
                             ( RedigerOppsummering (Typeahead.updateSuggestions Yrke.label typeaheadModel suggestions) skjema
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -556,7 +564,7 @@ update msg (Model model) =
                 RegistrereFraÅr fraDatoInfo ->
                     ( { fraDatoInfo | fraÅr = string }
                         |> RegistrereFraÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -570,7 +578,7 @@ update msg (Model model) =
                 RegistrereFraÅr fraDatoInfo ->
                     ( { fraDatoInfo | visFeilmeldingFraÅr = True }
                         |> RegistrereFraÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -597,7 +605,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { fraDatoInfo | visFeilmeldingFraÅr = True }
                                 |> RegistrereFraÅr
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -660,7 +668,7 @@ update msg (Model model) =
                 RegistrereTilÅr tilDatoInfo ->
                     ( { tilDatoInfo | tilÅr = string }
                         |> RegistrereTilÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -674,7 +682,7 @@ update msg (Model model) =
                 RegistrereTilÅr tilDatoInfo ->
                     ( { tilDatoInfo | visFeilmeldingTilÅr = True }
                         |> RegistrereTilÅr
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -698,7 +706,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { tilDatoInfo | visFeilmeldingTilÅr = True }
                                 |> RegistrereTilÅr
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -733,7 +741,7 @@ update msg (Model model) =
                     ( arbeidserfaringSkjema
                         |> oppdaterSkjema skjemaEndring
                         |> RedigerOppsummering typeaheadModel
-                        |> oppdaterSamtalesteg model
+                        |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -745,8 +753,8 @@ update msg (Model model) =
         BrukerVilLagreArbeidserfaringIOppsummering ->
             case model.aktivSamtale of
                 VisOppsummering validertSkjema ->
-                    ( validertSkjema
-                        |> LagrerArbeidserfaring
+                    ( LagreStatus.init
+                        |> LagrerArbeidserfaring validertSkjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
                     , Cmd.batch
                         [ postEllerPutArbeidserfaring ArbeidserfaringLagret validertSkjema
@@ -764,8 +772,8 @@ update msg (Model model) =
                 RedigerOppsummering typeaheadModel skjema ->
                     case Skjema.valider skjema of
                         Just validertSkjema ->
-                            ( validertSkjema
-                                |> LagrerArbeidserfaring
+                            ( LagreStatus.init
+                                |> LagrerArbeidserfaring validertSkjema
                                 |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
                             , Cmd.batch
                                 [ postEllerPutArbeidserfaring ArbeidserfaringLagret validertSkjema
@@ -778,7 +786,7 @@ update msg (Model model) =
                             ( skjema
                                 |> Skjema.gjørAlleFeilmeldingerSynlig
                                 |> RedigerOppsummering typeaheadModel
-                                |> oppdaterSamtalesteg model
+                                |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -788,26 +796,72 @@ update msg (Model model) =
 
         ArbeidserfaringLagret result ->
             case model.aktivSamtale of
-                LagrerArbeidserfaring arbeidserfaringSkjema ->
+                LagrerArbeidserfaring skjema lagreStatus ->
                     case result of
                         Ok arbeidserfaringer ->
-                            ( oppdaterSamtalesteg { model | arbeidserfaringListe = arbeidserfaringer } SpørOmBrukerVilLeggeInnMer
+                            ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                SpørOmBrukerVilLeggeInnMer
+                                    |> nesteSamtaleSteg { model | arbeidserfaringListe = arbeidserfaringer } (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+
+                              else
+                                SpørOmBrukerVilLeggeInnMer
+                                    |> nesteSamtaleStegUtenSvar { model | arbeidserfaringListe = arbeidserfaringer }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( LagringFeilet error arbeidserfaringSkjema
-                                |> nesteSamtaleSteg model (Melding.spørsmål [ "Noe gikk galt med lagringen" ])
-                            , arbeidserfaringSkjema
-                                |> Skjema.encode
-                                |> Api.logErrorWithRequestBody ErrorLogget "Lagre arbeidserfaring" error
-                            )
-                                |> IkkeFerdig
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( LagreStatus.fraError error
+                                        |> LagrerArbeidserfaring skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                                    )
+                                        |> IkkeFerdig
+
+                                else
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtaleSteg model
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre arbeidserfaring" error
+                                    )
+                                        |> IkkeFerdig
+
+                            else
+                                ( skjema
+                                    |> LagringFeilet error
+                                    |> nesteSamtaleStegUtenSvar model
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre arbeidserfaring" error
+                                    ]
+                                )
+                                    |> IkkeFerdig
 
                 _ ->
-                    ( Model model, Cmd.none )
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilPrøveÅLagrePåNytt ->
+            case model.aktivSamtale of
+                LagringFeilet error skjema ->
+                    ( error
+                        |> LagreStatus.fraError
+                        |> LagrerArbeidserfaring skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                    )
                         |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilAvbryteLagringen ->
+            IkkeFerdig ( Model model, Cmd.none )
 
         NyArbeidserfaring ->
             ( initSamtaleTypeahead
@@ -816,6 +870,38 @@ update msg (Model model) =
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
+
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagrerArbeidserfaring skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerArbeidserfaring skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        LagringFeilet error skjema ->
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                IkkeFerdig
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerArbeidserfaring skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                                    )
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                Hidden ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         StartÅSkrive ->
             ( Model
@@ -896,7 +982,7 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
             IkkeFerdig
                 ( nyTypeaheadModel
                     |> RegistrerYrke visFeilmelding
-                    |> oppdaterSamtalesteg model
+                    |> oppdaterSamtaleSteg model
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         Api.getYrkeTypeahead HentetYrkeTypeahead string
@@ -1065,14 +1151,14 @@ feilmeldingTypeahead typeaheadModel =
 visFeilmeldingRegistrerYrke : ModelInfo -> Typeahead.Model Yrke -> SamtaleStatus
 visFeilmeldingRegistrerYrke model typeaheadModel =
     ( RegistrerYrke True typeaheadModel
-        |> oppdaterSamtalesteg model
+        |> oppdaterSamtaleSteg model
     , Cmd.none
     )
         |> IkkeFerdig
 
 
-oppdaterSamtalesteg : ModelInfo -> Samtale -> Model
-oppdaterSamtalesteg modelInfo samtaleSeksjon =
+oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
+oppdaterSamtaleSteg modelInfo samtaleSeksjon =
     case samtaleSeksjon of
         SpørOmBrukerVilLeggeInnMer ->
             Model
@@ -1098,6 +1184,17 @@ nesteSamtaleSteg modelInfo melding samtaleSeksjon =
             , seksjonsMeldingsLogg =
                 modelInfo.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSvar melding
+                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
+        }
+
+
+nesteSamtaleStegUtenSvar : ModelInfo -> Samtale -> Model
+nesteSamtaleStegUtenSvar modelInfo samtaleSeksjon =
+    Model
+        { modelInfo
+            | aktivSamtale = samtaleSeksjon
+            , seksjonsMeldingsLogg =
+                modelInfo.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
         }
 
@@ -1182,11 +1279,11 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         RedigerOppsummering _ _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
-        LagrerArbeidserfaring _ ->
+        LagrerArbeidserfaring _ _ ->
             []
 
-        LagringFeilet _ _ ->
-            []
+        LagringFeilet error _ ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre arbeidserfaringen" } ]
 
         SpørOmBrukerVilLeggeInnMer ->
             [ Melding.spørsmål [ "Flott! Da har du lagt inn en arbeidserfaring." ]
@@ -1436,11 +1533,31 @@ viewBrukerInput (Model model) =
                             |> Checkbox.toHtml
                         ]
 
-                LagrerArbeidserfaring _ ->
-                    div [] []
+                LagrerArbeidserfaring _ lagreStatus ->
+                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                        LoggInnLenke.viewLoggInnLenke
 
-                LagringFeilet _ _ ->
-                    div [] []
+                    else
+                        text ""
+
+                LagringFeilet error _ ->
+                    case ErrorHåndtering.operasjonEtterError error of
+                        GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv igjen"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        LoggInn ->
+                            LoggInnLenke.viewLoggInnLenke
 
                 SpørOmBrukerVilLeggeInnMer ->
                     Containers.knapper Flytende
@@ -1459,10 +1576,10 @@ viewBrukerInput (Model model) =
                         ]
 
                 VenterPåAnimasjonFørFullføring _ ->
-                    div [] []
+                    text ""
 
         MeldingsLogg.MeldingerGjenstår ->
-            div [] []
+            text ""
 
 
 maybeHvisTrue : Bool -> Maybe a -> Maybe a
@@ -1590,3 +1707,8 @@ init debugStatus gammelMeldingsLogg arbeidserfaringsListe =
         }
     , lagtTilSpørsmålCmd debugStatus
     )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Browser.Events.onVisibilityChange WindowEndrerVisibility
