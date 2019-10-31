@@ -1,33 +1,73 @@
-module Melding exposing (Melding, innhold, spørsmål, svar, tomLinje)
+module Melding exposing
+    ( Melding
+    , Tekstområde(..)
+    , innhold
+    , spørsmål
+    , spørsmålMedTekstområder
+    , svar
+    , tomLinje
+    )
 
 
 type Melding
-    = Melding (List String)
+    = Melding (List Tekstområde)
+
+
+type Tekstområde
+    = Avsnitt String
+    | Seksjon String (List String)
 
 
 spørsmål : List String -> Melding
 spørsmål list =
-    Melding list
+    list
+        |> List.map Avsnitt
+        |> Melding
+
+
+spørsmålMedTekstområder : List Tekstområde -> Melding
+spørsmålMedTekstområder tekstområder =
+    Melding tekstområder
 
 
 svar : List String -> Melding
 svar list =
-    Melding list
+    list
+        |> List.map Avsnitt
+        |> Melding
 
 
-innhold : Melding -> List String
-innhold (Melding linjer) =
-    linjer
-        |> List.map (String.split "\n")
+innhold : Melding -> List Tekstområde
+innhold (Melding tekstområder) =
+    tekstområder
+        |> List.map splitInnhold
         |> List.concat
-        |> List.map
-            (\linje ->
-                if (String.trim >> String.isEmpty) linje then
-                    tomLinje
 
-                else
-                    linje
-            )
+
+splitInnhold : Tekstområde -> List Tekstområde
+splitInnhold tekstområde =
+    case tekstområde of
+        Avsnitt tekst ->
+            tekst
+                |> String.split "\n"
+                |> List.map erstattTommeLinjer
+                |> List.map Avsnitt
+
+        Seksjon label tekster ->
+            tekster
+                |> List.concatMap (String.split "\n")
+                |> List.map erstattTommeLinjer
+                |> Seksjon label
+                |> List.singleton
+
+
+erstattTommeLinjer : String -> String
+erstattTommeLinjer linje =
+    if (String.trim >> String.isEmpty) linje then
+        tomLinje
+
+    else
+        linje
 
 
 tomLinje : String

@@ -30,7 +30,8 @@ import Html exposing (Attribute, Html, div, text)
 import Html.Attributes exposing (class)
 import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding)
+import Maybe.Extra as Maybe
+import Melding exposing (Melding, Tekstområde(..))
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Process
 import SamtaleAnimasjon
@@ -1648,29 +1649,36 @@ postEllerPutArbeidserfaring msgConstructor skjema =
             Api.postArbeidserfaring msgConstructor skjema
 
 
-arbeidserfaringerTilString : List Arbeidserfaring -> List String
-arbeidserfaringerTilString arbeidserfaringer =
+arbeidserfaringerTilTekstområder : List Arbeidserfaring -> List Tekstområde
+arbeidserfaringerTilTekstområder arbeidserfaringer =
     arbeidserfaringer
-        |> List.map arbeidserfaringTilString
-        |> List.intersperse [ Melding.tomLinje ]
-        |> List.concat
+        |> List.map arbeidserfaringTilTekstområde
+        |> List.intersperse (Avsnitt Melding.tomLinje)
 
 
-arbeidserfaringTilString : Arbeidserfaring -> List String
-arbeidserfaringTilString arbeidserfaring =
-    -- TODO : FIks dette? og Sjekk
-    [ Dato.periodeTilString (Cv.Arbeidserfaring.fraMåned arbeidserfaring) (Cv.Arbeidserfaring.fraÅr arbeidserfaring) (Cv.Arbeidserfaring.tilDato arbeidserfaring)
-    , ((if Cv.Arbeidserfaring.yrkeFritekst arbeidserfaring == Nothing then
-            Cv.Arbeidserfaring.yrkeString arbeidserfaring
+arbeidserfaringTilTekstområde : Arbeidserfaring -> Tekstområde
+arbeidserfaringTilTekstområde arbeidserfaring =
+    Seksjon (beskrivArbeidserfaring arbeidserfaring)
+        [ Dato.periodeTilString (Cv.Arbeidserfaring.fraMåned arbeidserfaring) (Cv.Arbeidserfaring.fraÅr arbeidserfaring) (Cv.Arbeidserfaring.tilDato arbeidserfaring)
+        , beskrivArbeidserfaring arbeidserfaring
+        ]
 
-        else
-            Cv.Arbeidserfaring.yrkeFritekst arbeidserfaring
-       )
-        |> Maybe.withDefault ""
-      )
-        ++ " hos "
-        ++ (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring |> Maybe.withDefault "")
+
+beskrivArbeidserfaring : Arbeidserfaring -> String
+beskrivArbeidserfaring arbeidserfaring =
+    let
+        maybeYrkeTekst : Maybe String
+        maybeYrkeTekst =
+            Maybe.or
+                (Cv.Arbeidserfaring.yrkeFritekst arbeidserfaring)
+                (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
+    in
+    [ maybeYrkeTekst
+    , Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring
     ]
+        |> Maybe.values
+        |> List.intersperse "hos"
+        |> String.join " "
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
@@ -1697,7 +1705,7 @@ init debugStatus gammelMeldingsLogg arbeidserfaringsListe =
                         MeldingsLogg.leggTilSpørsmål
                             [ Melding.spørsmål [ "Nå skal vi legge til arbeidserfaringen din." ]
                             , Melding.spørsmål [ "Jeg ser at du har lagt til noe allerede." ]
-                            , Melding.spørsmål (arbeidserfaringerTilString arbeidserfaringsListe)
+                            , Melding.spørsmålMedTekstområder (arbeidserfaringerTilTekstområder arbeidserfaringsListe)
                             , Melding.spørsmål [ "Vil du legge til mer?" ]
                             ]
                    )

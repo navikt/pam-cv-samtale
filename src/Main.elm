@@ -22,9 +22,10 @@ import FrontendModuler.Spinner as Spinner
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Attributes.Aria exposing (ariaLabel, ariaLive, role)
 import Http
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding)
+import Melding exposing (Melding, Tekstområde(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppe(..), MeldingsLogg, MeldingsPlassering(..), SkriveStatus(..))
 import Person exposing (Person)
 import Personalia exposing (Personalia)
@@ -1409,17 +1410,17 @@ viewMeldingsgruppe meldingsGruppe =
     case meldingsGruppe of
         SpørsmålGruppe meldingsGruppeMeldinger ->
             meldingsGruppeMeldinger
-                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "sporsmal")
-                |> div [ class "meldingsgruppe" ]
+                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding True "sporsmal")
+                |> div [ class "meldingsgruppe", ariaLabel "Roboten" ]
 
         SvarGruppe meldingsGruppeMeldinger ->
             meldingsGruppeMeldinger
-                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "svar")
-                |> div [ class "meldingsgruppe" ]
+                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding False "svar")
+                |> div [ class "meldingsgruppe", ariaLabel "Deg" ]
 
 
-viewMelding : String -> MeldingsPlassering -> Melding -> Html msg
-viewMelding meldingsTypeClass plassering melding =
+viewMelding : Bool -> String -> MeldingsPlassering -> Melding -> Html msg
+viewMelding leggPåAriaLive meldingsTypeClass plassering melding =
     div [ class ("meldingsrad " ++ meldingsTypeClass) ]
         [ case plassering of
             SisteSpørsmålIMeldingsgruppe ->
@@ -1427,19 +1428,47 @@ viewMelding meldingsTypeClass plassering melding =
 
             IkkeSisteSpørsmål ->
                 div [ class "robot" ] []
-        , div [ class "melding" ]
-            [ Melding.innhold melding
-                |> List.map (\elem -> p [] [ text elem ])
-                |> div []
+        , article
+            [ class "melding"
+            , if leggPåAriaLive then
+                ariaLive "polite"
+
+              else
+                noAttribute
             ]
+            (melding
+                |> Melding.innhold
+                |> List.map viewTekstområde
+            )
         ]
+
+
+noAttribute : Html.Attribute msg
+noAttribute =
+    classList []
+
+
+viewTekstområde : Tekstområde -> Html msg
+viewTekstområde tekstområde =
+    case tekstområde of
+        Avsnitt tekst ->
+            viewAvsnitt tekst
+
+        Seksjon labelTekst tekster ->
+            section [ ariaLabel labelTekst ]
+                (List.map viewAvsnitt tekster)
+
+
+viewAvsnitt : String -> Html msg
+viewAvsnitt string =
+    p [] [ text string ]
 
 
 viewSkriveStatus : MeldingsLogg -> Html msg
 viewSkriveStatus meldingsLogg =
     case MeldingsLogg.skriveStatus meldingsLogg of
         MeldingsLogg.Skriver ->
-            div [ class "meldingsrad sporsmal" ]
+            div [ class "meldingsrad sporsmal", ariaLive "off" ]
                 [ div [ class "robot" ] [ RobotLogo.robotLogo ]
                 , div [ class "melding" ]
                     [ div [ class "skriver-melding" ]
