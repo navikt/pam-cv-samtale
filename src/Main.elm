@@ -91,7 +91,7 @@ update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
 update msg extendedModel =
     case msg of
         LoadingMsg loadingModel ->
-            updateLoading extendedModel.debugStatus extendedModel.navigationKey loadingModel extendedModel.model
+            updateLoading extendedModel.debugStatus loadingModel extendedModel.model
                 |> mapTilExtendedModel extendedModel
 
         SuccessMsg successMsg ->
@@ -182,13 +182,13 @@ type LoadingMsg
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
 
 
-updateLoading : DebugStatus -> Navigation.Key -> LoadingMsg -> Model -> ( Model, Cmd Msg )
-updateLoading debugStatus navigationKey msg model =
+updateLoading : DebugStatus -> LoadingMsg -> Model -> ( Model, Cmd Msg )
+updateLoading debugStatus msg model =
     case msg of
         PersonHentet result ->
             case result of
                 Ok person ->
-                    ( Loading (VenterPåPersonalia person), Api.getPersonalia (PersonaliaHentet >> LoadingMsg) )
+                    personHentet model person
 
                 Err error ->
                     case error of
@@ -196,7 +196,7 @@ updateLoading debugStatus navigationKey msg model =
                             ( model, Api.postPerson (PersonOpprettet >> LoadingMsg) )
 
                         Http.BadStatus 401 ->
-                            ( model, redirectTilLogin navigationKey )
+                            ( model, redirectTilLogin )
 
                         _ ->
                             ( Failure error
@@ -206,7 +206,7 @@ updateLoading debugStatus navigationKey msg model =
         PersonOpprettet result ->
             case result of
                 Ok person ->
-                    ( Loading (VenterPåPersonalia person), Api.getPersonalia (PersonaliaHentet >> LoadingMsg) )
+                    personHentet model person
 
                 Err error ->
                     ( Failure error
@@ -294,9 +294,25 @@ updateLoading debugStatus navigationKey msg model =
                     )
 
 
-redirectTilLogin : Navigation.Key -> Cmd Msg
-redirectTilLogin _ =
+personHentet : Model -> Person -> ( Model, Cmd Msg )
+personHentet model person =
+    if Person.harGodtattVilkår person then
+        ( Loading (VenterPåPersonalia person)
+        , Api.getPersonalia (PersonaliaHentet >> LoadingMsg)
+        )
+
+    else
+        ( model, redirectTilGodkjenningAvSamtykke )
+
+
+redirectTilLogin : Cmd Msg
+redirectTilLogin =
     Navigation.load "/cv-samtale/login"
+
+
+redirectTilGodkjenningAvSamtykke : Cmd Msg
+redirectTilGodkjenningAvSamtykke =
+    Navigation.load "/cv/samtykke-for-cv-samtale"
 
 
 logFeilmeldingUnderLoading : Http.Error -> String -> Cmd Msg
