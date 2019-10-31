@@ -1,4 +1,11 @@
-module Person exposing (Person(..), cvSynligForArbeidsgiver, decode, decodeBackendData, underOppfolging)
+module Person exposing
+    ( Person
+    , cvSynligForArbeidsgiver
+    , decode
+    , decodeBackendData
+    , harGodtattVilkår
+    , underOppfolging
+    )
 
 import Json.Decode exposing (Decoder, bool, map, nullable, string, succeed)
 import Json.Decode.Pipeline exposing (required)
@@ -11,6 +18,7 @@ type Person
 type alias PersonInfo =
     { underOppfolging : Bool
     , cvSynligForArbeidsgiver : Bool
+    , godtattVilkaar : Bool
     }
 
 
@@ -22,6 +30,11 @@ underOppfolging (Person info) =
 cvSynligForArbeidsgiver : Person -> Bool
 cvSynligForArbeidsgiver (Person info) =
     info.cvSynligForArbeidsgiver
+
+
+harGodtattVilkår : Person -> Bool
+harGodtattVilkår (Person info) =
+    info.godtattVilkaar
 
 
 
@@ -39,3 +52,4 @@ decodeBackendData =
     succeed PersonInfo
         |> required "underOppfolging" bool
         |> required "cvSynligForArbeidsgiver" bool
+        |> required "godtattVilkaar" bool
