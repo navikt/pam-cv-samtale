@@ -11,11 +11,12 @@ module FrontendModuler.Input exposing
     , withMaybeFeilmelding
     , withOnBlur
     , withOnEnter
+    , withoutLabel
     )
 
+import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Attributes.Aria exposing (..)
 import Html.Events exposing (..)
 import Json.Decode
 
@@ -26,7 +27,7 @@ type Input msg
 
 type alias Options msg =
     { msg : String -> msg
-    , label : String
+    , label : Maybe String
     , innhold : String
     , feilmelding : Maybe String
     , classes : List String
@@ -34,6 +35,7 @@ type alias Options msg =
     , onBlur : Maybe msg
     , id : Maybe String
     , enabled : Enabled
+    , ariaLabelledby : Maybe msg
     }
 
 
@@ -47,7 +49,7 @@ input : InputOptions msg -> String -> Input msg
 input { msg, label } innhold =
     Input
         { msg = msg
-        , label = label
+        , label = Just label
         , innhold = innhold
         , feilmelding = Nothing
         , classes = []
@@ -55,12 +57,18 @@ input { msg, label } innhold =
         , onBlur = Nothing
         , id = Nothing
         , enabled = Enabled
+        , ariaLabelledby = Nothing
         }
 
 
 type Enabled
     = Enabled
     | Disabled
+
+
+withoutLabel : Input msg -> Input msg
+withoutLabel (Input options) =
+    Input { options | label = Nothing }
 
 
 withFeilmelding : String -> Input msg -> Input msg
@@ -121,43 +129,46 @@ decodeEnter msg i =
 toHtml : Input msg -> Html msg
 toHtml (Input options) =
     div [ class "skjemaelement" ]
-        [ label
-            --- TODO: htmlFor={inputId}
-            []
-            [ span [ class "skjemaelement__label" ] [ text options.label ]
-            , Html.input
-                [ type_ "text"
-                , value options.innhold
-                , classList
-                    [ ( "skjemaelement__input", True )
-                    , ( "input--fullbredde", True )
-                    , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
+        (case options.label of
+            Just label_ ->
+                [ label []
+                    [ span [ class "skjemaelement__label" ] [ text label_ ]
+                    , htmlInput (Input options)
                     ]
-                , optionClasses options.classes
-                , onInput options.msg
-                , options.id
-                    |> Maybe.map id
-                    |> Maybe.withDefault noAttribute
-                , options.onEnter
-                    |> Maybe.map onEnter
-                    |> Maybe.withDefault noAttribute
-                , options.onBlur
-                    |> Maybe.map onBlur
-                    |> Maybe.withDefault noAttribute
-                , disabled (options.enabled == Disabled)
+                , htmlFeilmelding options.feilmelding
                 ]
-                []
-            ]
-        , case options.feilmelding of
-            Just feilmelding ->
-                div [ role "alert", ariaLive "assertive" ]
-                    [ div [ class "skjemaelement__feilmelding" ]
-                        [ text feilmelding ]
-                    ]
 
             Nothing ->
-                text ""
+                [ htmlInput (Input options)
+                , htmlFeilmelding options.feilmelding
+                ]
+        )
+
+
+htmlInput : Input msg -> Html msg
+htmlInput (Input options) =
+    Html.input
+        [ type_ "text"
+        , value options.innhold
+        , classList
+            [ ( "skjemaelement__input", True )
+            , ( "input--fullbredde", True )
+            , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
+            ]
+        , optionClasses options.classes
+        , onInput options.msg
+        , options.id
+            |> Maybe.map id
+            |> Maybe.withDefault noAttribute
+        , options.onEnter
+            |> Maybe.map onEnter
+            |> Maybe.withDefault noAttribute
+        , options.onBlur
+            |> Maybe.map onBlur
+            |> Maybe.withDefault noAttribute
+        , disabled (options.enabled == Disabled)
         ]
+        []
 
 
 optionClasses : List String -> Html.Attribute msg
