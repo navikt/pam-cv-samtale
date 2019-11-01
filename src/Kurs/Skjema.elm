@@ -5,11 +5,11 @@ module Kurs.Skjema exposing
     , ValidertKursSkjema
     , VarighetEnhet(..)
     , encode
-    , feilmeldingFullførtMåned
-    , feilmeldingFullførtÅr
     , feilmeldingKursholder
     , feilmeldingKursnavn
     , feilmeldingKursnavnHvisSynlig
+    , feilmeldingPeriode
+    , feilmeldingValgfrittFullførtÅr
     , feilmeldingVarighet
     , feilmeldingVarighetHvisSynlig
     , fullførtDatoValidert
@@ -65,7 +65,7 @@ type alias UvalidertSkjemaInfo =
     , varighetEnhet : VarighetEnhet
     , id : Maybe String
     , tillatÅViseFeilmeldingKursnavn : Bool
-    , tillatÅViseFeilmeldingFullførtMåned : Bool
+    , tillatÅViseFeilmeldingPeriode : Bool
     , tillatÅViseFeilmeldingFullførtÅr : Bool
     , tillatÅViseFeilmeldingVarighet : Bool
     }
@@ -169,8 +169,7 @@ stringTilVarighetEnhet string =
             MND
 
         _ ->
-            Debug.log "ooh"
-                TIME
+            TIME
 
 
 
@@ -247,16 +246,20 @@ feilmeldingKursholder innhold =
         Just ("Du har " ++ tallTekst ++ " tegn for mye")
 
 
-feilmeldingFullførtMåned : KursSkjema -> Maybe String
-feilmeldingFullførtMåned (UvalidertSkjema skjema) =
-    if not skjema.tillatÅViseFeilmeldingFullførtMåned then
+feilmeldingPeriode : KursSkjema -> Maybe String
+feilmeldingPeriode (UvalidertSkjema skjema) =
+    let
+        fullførtÅrErTom =
+            (String.isEmpty << String.trim) skjema.fullførtÅr
+    in
+    if not skjema.tillatÅViseFeilmeldingPeriode then
         Nothing
 
-    else if skjema.fullførtMåned == Nothing && String.isEmpty skjema.fullførtÅr then
+    else if skjema.fullførtMåned == Nothing && fullførtÅrErTom then
         --greit å ikke fylle ut noe
         Nothing
 
-    else if skjema.fullførtMåned /= Nothing && String.isEmpty skjema.fullførtÅr then
+    else if skjema.fullførtMåned /= Nothing && not fullførtÅrErTom then
         --greit å fylle ut begge
         Nothing
 
@@ -266,7 +269,10 @@ feilmeldingFullførtMåned (UvalidertSkjema skjema) =
 
 feilmeldingVarighet : String -> Maybe String
 feilmeldingVarighet varighet_ =
-    if String.toInt varighet_ == Nothing then
+    if (String.isEmpty << String.trim) varighet_ then
+        Nothing
+
+    else if String.toInt varighet_ == Nothing then
         Just "Varighet kan kun inneholde tall"
 
     else
@@ -282,10 +288,13 @@ feilmeldingVarighetHvisSynlig (UvalidertSkjema skjema) =
         Nothing
 
 
-feilmeldingFullførtÅr : KursSkjema -> Maybe String
-feilmeldingFullførtÅr (UvalidertSkjema skjema) =
-    if skjema.tillatÅViseFeilmeldingFullførtÅr then
-        Dato.feilmeldingÅr skjema.fullførtÅr
+feilmeldingValgfrittFullførtÅr : KursSkjema -> Maybe String
+feilmeldingValgfrittFullførtÅr (UvalidertSkjema skjema) =
+    if String.isEmpty skjema.fullførtÅr then
+        Nothing
+
+    else if skjema.tillatÅViseFeilmeldingFullførtÅr && (String.length skjema.fullførtÅr /= 4 || String.toInt skjema.fullførtÅr == Nothing) then
+        Just "Kun 4 siffer"
 
     else
         Nothing
@@ -303,7 +312,7 @@ tillatÅViseFeilmeldingKursnavn (UvalidertSkjema skjema) =
 
 tillatÅViseFeilmeldingMåned : KursSkjema -> KursSkjema
 tillatÅViseFeilmeldingMåned (UvalidertSkjema skjema) =
-    UvalidertSkjema { skjema | tillatÅViseFeilmeldingFullførtMåned = True }
+    UvalidertSkjema { skjema | tillatÅViseFeilmeldingPeriode = True }
 
 
 tillatÅViseAlleFeilmeldinger : KursSkjema -> KursSkjema
@@ -312,7 +321,6 @@ tillatÅViseAlleFeilmeldinger skjema =
         |> tillatÅViseFeilmeldingMåned
         |> tillatÅViseFeilmeldingFullførtÅr
         |> tillatÅViseFeilmeldingKursnavn
-        |> tillatÅViseFeilmeldingMåned
 
 
 
@@ -387,7 +395,7 @@ tilUvalidertSkjema (ValidertSkjema validert) =
                     String.fromInt varighet_
         , varighetEnhet = validert.varighetEnhet
         , tillatÅViseFeilmeldingKursnavn = False
-        , tillatÅViseFeilmeldingFullførtMåned = False
+        , tillatÅViseFeilmeldingPeriode = False
         , tillatÅViseFeilmeldingFullførtÅr = False
         , tillatÅViseFeilmeldingVarighet = False
         , id = validert.id

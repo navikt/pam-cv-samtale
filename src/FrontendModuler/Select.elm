@@ -90,7 +90,7 @@ toHtml (Select options) =
 
 htmlSelect : Select msg -> Maybe String -> Html msg
 htmlSelect (Select options) labelId =
-    div [ class "selectContainer input--s" ]
+    div [ class "selectContainer input--fullbredde" ]
         [ List.map (optionToHtml options.selectedValue) options.listOfOptions
             |> Html.select
                 [ onInput options.msg

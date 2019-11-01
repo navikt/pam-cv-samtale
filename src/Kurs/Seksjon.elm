@@ -383,13 +383,23 @@ update msg (Model model) =
         VilRegistrereVarighet ->
             case model.aktivSamtale of
                 RegistrerVarighet info ->
-                    ( info
-                        |> varighetTilSkjema
-                        |> VisOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ info.varighet ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    case Skjema.feilmeldingVarighet info.varighet of
+                        Just _ ->
+                            ( { info | tillatÅViseFeilmeldingVarighet = True }
+                                |> RegistrerVarighet
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            ( info
+                                |> varighetTilSkjema
+                                |> VisOppsummering
+                                |> nesteSamtaleSteg model (Melding.svar [ info.varighet ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -409,6 +419,14 @@ update msg (Model model) =
 
         FeltMisterFokus ->
             case model.aktivSamtale of
+                RegistrerKursnavn kursnavnInfo ->
+                    ( { kursnavnInfo | tillatÅViseFeilmeldingKursnavn = True }
+                        |> RegistrerKursnavn
+                        |> oppdaterSamtaleSteg model
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | tillatÅViseFeilmeldingÅr = True }
                         |> RegistrerFullførtÅr
@@ -417,17 +435,9 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                RegistrerVarighetEnhet varighetInfo ->
+                RegistrerVarighet varighetInfo ->
                     ( { varighetInfo | tillatÅViseFeilmeldingVarighet = True }
-                        |> RegistrerVarighetEnhet
-                        |> oppdaterSamtaleSteg model
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                RegistrerKursnavn kursnavnInfo ->
-                    ( { kursnavnInfo | tillatÅViseFeilmeldingKursnavn = True }
-                        |> RegistrerKursnavn
+                        |> RegistrerVarighet
                         |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
@@ -509,7 +519,7 @@ update msg (Model model) =
                                     | aktivSamtale = VenterPåAnimasjonFørFullføring kurser
                                     , seksjonsMeldingsLogg =
                                         model.seksjonsMeldingsLogg
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til denne erfaringen." ] ]
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et kurs 👍" ] ]
                                 }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -745,7 +755,7 @@ samtaleTilMeldingsLogg kursSeksjon =
             []
 
         VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
+            [ Melding.spørsmål [ "Da har du endret! Er informasjonen riktig nå?" ] ]
 
         LagrerSkjema _ ->
             []
@@ -941,8 +951,8 @@ viewBrukerInput (Model model) =
                                 , onÅrChange = Tekst FullførtÅr >> SkjemaEndret
                                 , år = Skjema.innholdTekstFelt FullførtÅr skjema
                                 }
-                                |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
-                                |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingFullførtMåned skjema)
+                                |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingValgfrittFullførtÅr skjema)
+                                |> ValgfriDatoInput.withMaybeFeilmeldingPeriode (Skjema.feilmeldingPeriode skjema)
                                 |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrBlurred)
                                 |> ValgfriDatoInput.toHtml
                             , viewVarighet skjema
@@ -1001,10 +1011,10 @@ viewBekreftOppsummering =
 
 viewVarighet : KursSkjema -> Html Msg
 viewVarighet skjema =
-    div [ class " Varighet-wrapper skjemaelement" ]
-        [ label []
-            [ span [ class "skjemaelement__label", id "varighet-label" ] [ text "Timer/dager/uker/måneder" ]
-            , div [ class "Select-wrapper" ]
+    div [ class "Varighet-kolonne skjemaelement" ]
+        [ label [ class "skjemaelement__label", id "varighet-label" ] [ text "Timer/dager/uker/måneder" ]
+        , div [ class "Inputs-wrapper" ]
+            [ div [ class "Select-wrapper" ]
                 [ Select.select
                     ""
                     (VarighetEnhet >> SkjemaEndret)
@@ -1023,7 +1033,7 @@ viewVarighet skjema =
                 |> Input.input { label = "", msg = Tekst Varighet >> SkjemaEndret }
                 |> Input.withoutLabel
                 |> Input.withClass "Varighet-antall"
-                |> Input.withMaybeFeilmelding (Skjema.feilmeldingVarighet (Skjema.innholdTekstFelt Varighet skjema))
+                |> Input.withMaybeFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
                 |> Input.toHtml
             ]
         ]
