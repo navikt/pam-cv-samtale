@@ -677,6 +677,19 @@ gåTilAnnenErfaring model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilKurs : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilKurs model ferdigAnimertMeldingsLogg =
+    let
+        ( kursModel, kursCmd ) =
+            Kurs.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.kurs model.cv)
+    in
+    ( { model
+        | aktivSeksjon = KursSeksjon kursModel
+      }
+    , Cmd.map KursMsg kursCmd
+    )
+
+
 gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilAutorisasjoner
@@ -1145,7 +1158,7 @@ gåTilValgtSeksjon model info valgtSeksjon =
                     gåTilAnnenErfaring model ferdigAnimertMeldingsLogg
 
                 KursValgt ->
-                    ( model, Cmd.none )
+                    gåTilKurs model ferdigAnimertMeldingsLogg
 
                 FørerkortValgt ->
                     ( model, Cmd.none )
@@ -1755,7 +1768,7 @@ seksjonsvalgDisabled seksjonsvalg =
             Enabled
 
         KursValgt ->
-            Disabled
+            Enabled
 
         FørerkortValgt ->
             Disabled
@@ -1870,8 +1883,10 @@ seksjonSubscriptions model =
                         |> AnnenErfaring.Seksjon.subscriptions
                         |> Sub.map (AnnenErfaringMsg >> SuccessMsg)
 
+                KursSeksjon kursModel ->
+                    kursModel
+                        |> Kurs.Seksjon.subscriptions
+                        |> Sub.map (KursMsg >> SuccessMsg)
+
                 AndreSamtaleSteg _ ->
                     Browser.Events.onVisibilityChange (WindowEndrerVisibility >> AndreSamtaleStegMsg >> SuccessMsg)
-
-                KursSeksjon _ ->
-                    Sub.none
