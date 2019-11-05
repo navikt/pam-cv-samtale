@@ -31,6 +31,7 @@ module Utdanning.Skjema exposing
 import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Dato exposing (Måned(..), TilDato(..), År)
 import Json.Encode
+import ValideringUtils as Validering
 
 
 type UtdanningSkjema
@@ -288,21 +289,25 @@ type alias ValidertUtdanningSkjemaInfo =
 
 validerSkjema : UtdanningSkjema -> Maybe ValidertUtdanningSkjema
 validerSkjema (UtdanningSkjema info) =
-    Maybe.map2
-        (\tilDato fraÅr ->
-            ValidertSkjema
-                { nivå = info.nivå
-                , studiested = info.studiested
-                , utdanningsretning = info.utdanningsretning
-                , beskrivelse = String.trim info.beskrivelse
-                , fraMåned = info.fraMåned
-                , fraÅr = fraÅr
-                , id = info.id
-                , tilDato = tilDato
-                }
-        )
-        (validerTilDato info.nåværende info.tilMåned info.tilÅr)
-        (Dato.stringTilÅr info.fraÅr)
+    if Validering.feilmeldingMaxAntallTegn info.beskrivelse 2000 /= Nothing then
+        Nothing
+
+    else
+        Maybe.map2
+            (\tilDato fraÅr ->
+                ValidertSkjema
+                    { nivå = info.nivå
+                    , studiested = info.studiested
+                    , utdanningsretning = info.utdanningsretning
+                    , beskrivelse = String.trim info.beskrivelse
+                    , fraMåned = info.fraMåned
+                    , fraÅr = fraÅr
+                    , id = info.id
+                    , tilDato = tilDato
+                    }
+            )
+            (validerTilDato info.nåværende info.tilMåned info.tilÅr)
+            (Dato.stringTilÅr info.fraÅr)
 
 
 validerTilDato : Bool -> Måned -> String -> Maybe TilDato

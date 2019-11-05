@@ -35,6 +35,7 @@ import Process
 import SamtaleAnimasjon
 import Task
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
+import ValideringUtils as Validering
 
 
 
@@ -116,6 +117,10 @@ type alias TilDatoInfo =
     , tilÅr : String
     , visÅrFeilmelding : Bool
     }
+
+
+maxLengthBeskrivelse =
+    2000
 
 
 forrigeTilRetningInfo : SkoleInfo -> RetningInfo
@@ -349,14 +354,19 @@ update msg (Model model) =
         BrukerVilRegistrereBeskrivelse ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse beskrivelseinfo ->
-                    let
-                        trimmetBeskrivelseinfo =
-                            { beskrivelseinfo | beskrivelse = String.trim beskrivelseinfo.beskrivelse }
-                    in
-                    IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ trimmetBeskrivelseinfo.beskrivelse ]) (RegistrereFraMåned (forrigeTilFradatoInfo trimmetBeskrivelseinfo))
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
+                    case Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse of
+                        Nothing ->
+                            let
+                                trimmetBeskrivelseinfo =
+                                    { beskrivelseinfo | beskrivelse = String.trim beskrivelseinfo.beskrivelse }
+                            in
+                            IkkeFerdig
+                                ( nesteSamtaleSteg model (Melding.svar [ trimmetBeskrivelseinfo.beskrivelse ]) (RegistrereFraMåned (forrigeTilFradatoInfo trimmetBeskrivelseinfo))
+                                , lagtTilSpørsmålCmd model.debugStatus
+                                )
+
+                        Just _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -1193,6 +1203,7 @@ viewBrukerInput (Model model) =
                         [ beskrivelseinfo.beskrivelse
                             |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
                             |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
+                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse)
                             |> Textarea.toHtml
                         ]
 
@@ -1348,6 +1359,7 @@ viewSkjema utdanningsskjema =
         , utdanningsskjema
             |> Skjema.innholdTekstFelt Beskrivelse
             |> Textarea.textarea { label = "Beskriv utdanningen", msg = Tekst Beskrivelse >> OppsummeringEndret }
+            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse utdanningsskjema) maxLengthBeskrivelse)
             |> Textarea.toHtml
         , div [ class "DatoInput-fra-til-rad" ]
             [ DatoInput.datoInput

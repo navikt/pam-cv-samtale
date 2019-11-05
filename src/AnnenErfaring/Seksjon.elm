@@ -34,6 +34,7 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Process
 import SamtaleAnimasjon
 import Task
+import ValideringUtils as Validering
 
 
 
@@ -117,6 +118,10 @@ type alias TilDatoInfo =
     , tilÅr : String
     , tillatÅViseFeilmeldingÅr : Bool
     }
+
+
+maxLengthBeskrivelse =
+    2000
 
 
 rolleTilBeskrivelse : String -> BeskrivelseInfo
@@ -269,7 +274,7 @@ update msg (Model model) =
         VilRegistrereBeskrivelse ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse input ->
-                    case Skjema.feilmeldingBeskrivelse input.beskrivelse of
+                    case Validering.feilmeldingMaxAntallTegn input.beskrivelse maxLengthBeskrivelse of
                         Nothing ->
                             ( input
                                 |> SpørOmBrukerVilLeggeInnTidsperiode
@@ -986,7 +991,7 @@ viewBrukerInput (Model model) =
                     Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
                         [ info.beskrivelse
                             |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
-                            |> Textarea.withMaybeFeilmelding (Skjema.feilmeldingBeskrivelse info.beskrivelse)
+                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
                             |> Textarea.withId (inputIdTilString BeskrivelseId)
                             |> Textarea.toHtml
                         ]
@@ -1064,7 +1069,7 @@ viewBrukerInput (Model model) =
                         , skjema
                             |> Skjema.innholdTekstFelt Beskrivelse
                             |> Textarea.textarea { label = "Beskrivelse", msg = Tekst Beskrivelse >> SkjemaEndret }
-                            |> Textarea.withMaybeFeilmelding (Skjema.innholdTekstFelt Beskrivelse skjema |> Skjema.feilmeldingBeskrivelse)
+                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse skjema) maxLengthBeskrivelse)
                             |> Textarea.toHtml
                         , skjema
                             |> Skjema.harDatoer

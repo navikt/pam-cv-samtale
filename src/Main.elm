@@ -38,6 +38,7 @@ import Sprak.Seksjon
 import Task
 import Url
 import Utdanning.Seksjon
+import ValideringUtils as Validering
 
 
 
@@ -886,12 +887,17 @@ updateAndreSamtaleSteg model msg info =
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                     )
 
-                EndrerSammendrag _ ->
-                    ( LagreStatus.init
-                        |> LagrerSammendrag sammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ sammendrag ])
-                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
-                    )
+                EndrerSammendrag tekst ->
+                    case Validering.feilmeldingMaxAntallTegn tekst 4000 of
+                        Nothing ->
+                            ( LagreStatus.init
+                                |> LagrerSammendrag sammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ sammendrag ])
+                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                            )
+
+                        Just _ ->
+                            ( model, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -1614,6 +1620,7 @@ viewBrukerInputForAndreSamtaleSteg info =
                     Containers.inputMedGåVidereKnapp (BrukerVilLagreSammendrag sammendrag)
                         [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
                             |> Textarea.withTextAreaClass "textarea_stor"
+                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
                             |> Textarea.withId sammendragId
                             |> Textarea.toHtml
                         ]

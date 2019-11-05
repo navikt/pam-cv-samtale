@@ -37,6 +37,7 @@ import Process
 import SamtaleAnimasjon
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
+import ValideringUtils as Validering
 import Yrke exposing (Yrke)
 
 
@@ -199,6 +200,10 @@ type alias TilDatoInfo =
     , tilÅr : String
     , visFeilmeldingTilÅr : Bool
     }
+
+
+maxLengthArbeidsoppgaver =
+    2000
 
 
 yrkeInfoTilJobbtittelInfo : Yrke -> JobbtittelInfo
@@ -528,13 +533,18 @@ update msg (Model model) =
         BrukerVilRegistrereArbeidsoppgaver ->
             case model.aktivSamtale of
                 RegistrereArbeidsoppgaver arbeidsOppgaveInfo ->
-                    ( arbeidsOppgaveInfo
-                        |> arbeidsoppgaverInfoTilfraDatoInfo
-                        |> RegistrereFraMåned
-                        |> nesteSamtaleSteg model (Melding.svar [ arbeidsOppgaveInfo.arbeidsoppgaver ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    case Validering.feilmeldingMaxAntallTegn arbeidsOppgaveInfo.arbeidsoppgaver maxLengthArbeidsoppgaver of
+                        Nothing ->
+                            ( arbeidsOppgaveInfo
+                                |> arbeidsoppgaverInfoTilfraDatoInfo
+                                |> RegistrereFraMåned
+                                |> nesteSamtaleSteg model (Melding.svar [ arbeidsOppgaveInfo.arbeidsoppgaver ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Just _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
                     ( Model model, Cmd.none )
@@ -1423,6 +1433,7 @@ viewBrukerInput (Model model) =
                         [ arbeidsoppgaverInfo.arbeidsoppgaver
                             |> Textarea.textarea { label = "Arbeidsoppgaver", msg = BrukerOppdatererArbeidsoppgaver }
                             |> Textarea.withId (inputIdTilString ArbeidsoppgaverInput)
+                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn arbeidsoppgaverInfo.arbeidsoppgaver maxLengthArbeidsoppgaver)
                             |> Textarea.toHtml
                         ]
 
@@ -1501,6 +1512,7 @@ viewBrukerInput (Model model) =
                         , skjema
                             |> Skjema.innholdTekstFelt Arbeidsoppgaver
                             |> Textarea.textarea { label = "Arbeidsoppgaver", msg = Tekst Arbeidsoppgaver >> SkjemaEndret }
+                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Arbeidsoppgaver skjema) maxLengthArbeidsoppgaver)
                             |> Textarea.toHtml
                         , div [ class "DatoInput-fra-til-rad" ]
                             [ DatoInput.datoInput
