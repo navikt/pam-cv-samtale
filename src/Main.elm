@@ -24,6 +24,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabel, ariaLive, role)
 import Http
+import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding, Tekstområde(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppe(..), MeldingsLogg, MeldingsPlassering(..), SkriveStatus(..))
@@ -401,6 +402,7 @@ type SamtaleSeksjon
     | FagdokumentasjonSeksjon Fagdokumentasjon.Seksjon.Model
     | SertifikatSeksjon Sertifikat.Seksjon.Model
     | AnnenErfaringSeksjon AnnenErfaring.Seksjon.Model
+    | KursSeksjon Kurs.Seksjon.Model
     | AndreSamtaleSteg AndreSamtaleStegInfo
 
 
@@ -416,6 +418,7 @@ type SuccessMsg
     | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
     | SertifikatMsg Sertifikat.Seksjon.Msg
     | AnnenErfaringMsg AnnenErfaring.Seksjon.Msg
+    | KursMsg Kurs.Seksjon.Msg
     | AndreSamtaleStegMsg AndreSamtaleStegMsg
 
 
@@ -541,6 +544,23 @@ updateSuccess successMsg model =
                 _ ->
                     ( model, Cmd.none )
 
+        KursMsg msg ->
+            case model.aktivSeksjon of
+                KursSeksjon kursModel ->
+                    case Kurs.Seksjon.update msg kursModel of
+                        Kurs.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> KursSeksjon
+                                |> oppdaterSamtaleSeksjon model
+                            , Cmd.map KursMsg cmd
+                            )
+
+                        Kurs.Seksjon.Ferdig _ meldingsLogg ->
+                            gåTilFlereAnnetValg model meldingsLogg
+
+                _ ->
+                    ( model, Cmd.none )
+
         AndreSamtaleStegMsg andreSamtaleStegMsg ->
             case model.aktivSeksjon of
                 AndreSamtaleSteg andreSamtaleStegInfo ->
@@ -654,6 +674,19 @@ gåTilAnnenErfaring model ferdigAnimertMeldingsLogg =
         | aktivSeksjon = AnnenErfaringSeksjon annenErfaringModel
       }
     , Cmd.map AnnenErfaringMsg annenErfaringCmd
+    )
+
+
+gåTilKurs : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilKurs model ferdigAnimertMeldingsLogg =
+    let
+        ( kursModel, kursCmd ) =
+            Kurs.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.kurs model.cv)
+    in
+    ( { model
+        | aktivSeksjon = KursSeksjon kursModel
+      }
+    , Cmd.map KursMsg kursCmd
     )
 
 
@@ -1125,7 +1158,7 @@ gåTilValgtSeksjon model info valgtSeksjon =
                     gåTilAnnenErfaring model ferdigAnimertMeldingsLogg
 
                 KursValgt ->
-                    ( model, Cmd.none )
+                    gåTilKurs model ferdigAnimertMeldingsLogg
 
                 FørerkortValgt ->
                     ( model, Cmd.none )
@@ -1394,6 +1427,9 @@ meldingsLoggFraSeksjon successModel =
         AnnenErfaringSeksjon model ->
             AnnenErfaring.Seksjon.meldingsLogg model
 
+        KursSeksjon model ->
+            Kurs.Seksjon.meldingsLogg model
+
         AndreSamtaleSteg andreSamtaleStegInfo ->
             andreSamtaleStegInfo.meldingsLogg
 
@@ -1536,6 +1572,11 @@ viewBrukerInput aktivSamtale =
             annenErfaringSeksjon
                 |> AnnenErfaring.Seksjon.viewBrukerInput
                 |> Html.map (AnnenErfaringMsg >> SuccessMsg)
+
+        KursSeksjon kursSeksjon ->
+            kursSeksjon
+                |> Kurs.Seksjon.viewBrukerInput
+                |> Html.map (KursMsg >> SuccessMsg)
 
         AndreSamtaleSteg andreSamtaleStegInfo ->
             viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
@@ -1727,7 +1768,7 @@ seksjonsvalgDisabled seksjonsvalg =
             Enabled
 
         KursValgt ->
-            Disabled
+            Enabled
 
         FørerkortValgt ->
             Disabled
@@ -1841,6 +1882,11 @@ seksjonSubscriptions model =
                     annenErfaringModel
                         |> AnnenErfaring.Seksjon.subscriptions
                         |> Sub.map (AnnenErfaringMsg >> SuccessMsg)
+
+                KursSeksjon kursModel ->
+                    kursModel
+                        |> Kurs.Seksjon.subscriptions
+                        |> Sub.map (KursMsg >> SuccessMsg)
 
                 AndreSamtaleSteg _ ->
                     Browser.Events.onVisibilityChange (WindowEndrerVisibility >> AndreSamtaleStegMsg >> SuccessMsg)

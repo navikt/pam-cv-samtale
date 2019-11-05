@@ -17,6 +17,7 @@ module Api exposing
     , postArbeidserfaring
     , postCv
     , postFagdokumentasjon
+    , postKurs
     , postPerson
     , postPersonalia
     , postSertifikat
@@ -37,6 +38,7 @@ import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
+import Cv.Kurs exposing (Kurs)
 import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
 import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
 import Cv.Spraakferdighet exposing (Spraakferdighet)
@@ -47,6 +49,7 @@ import Http exposing (..)
 import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
 import Konsept exposing (Konsept)
+import Kurs.Skjema
 import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Personalia.Skjema
@@ -219,6 +222,15 @@ putArbeidserfaring msgConstructor skjema id =
         , body = Arbeidserfaring.Skjema.encode skjema |> jsonBody
         , timeout = Nothing
         , tracker = Nothing
+        }
+
+
+postKurs : (Result Error (List Kurs) -> msg) -> Kurs.Skjema.ValidertKursSkjema -> Cmd msg
+postKurs msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/kurs"
+        , expect = expectJson msgConstructor (Json.Decode.list Cv.Kurs.decode)
+        , body = Kurs.Skjema.encode skjema |> jsonBody
         }
 
 
