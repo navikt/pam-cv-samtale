@@ -33,6 +33,7 @@ module Arbeidserfaring.Skjema exposing
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Dato exposing (Måned(..), TilDato(..), År)
 import Json.Encode
+import ValideringUtils as Validering
 import Yrke exposing (Yrke)
 
 
@@ -323,23 +324,27 @@ valider : ArbeidserfaringSkjema -> Maybe ValidertArbeidserfaringSkjema
 valider (ArbeidserfaringSkjema info) =
     -- TODO: Hvorfor sjekker man om Yrke.label er tom streng?
     --            if Yrke.label yrkefelt /= "" then
-    Maybe.map3
-        (\yrke_ tilDato fraÅr_ ->
-            ValidertArbeidserfaringSkjema
-                { yrke = yrke_
-                , jobbTittel = info.jobbTittel
-                , bedriftNavn = info.bedriftsnavn
-                , lokasjon = info.sted
-                , arbeidsoppgaver = info.arbeidsoppgaver
-                , fraMåned = info.fraMåned
-                , fraÅr = fraÅr_
-                , tilDato = tilDato
-                , id = info.id
-                }
-        )
-        info.yrke
-        (validerTilDato info.nåværende info.tilMåned info.tilÅr)
-        (Dato.stringTilÅr info.fraÅr)
+    if Validering.feilmeldingMaxAntallTegn info.arbeidsoppgaver 2000 /= Nothing then
+        Nothing
+
+    else
+        Maybe.map3
+            (\yrke_ tilDato fraÅr_ ->
+                ValidertArbeidserfaringSkjema
+                    { yrke = yrke_
+                    , jobbTittel = info.jobbTittel
+                    , bedriftNavn = info.bedriftsnavn
+                    , lokasjon = info.sted
+                    , arbeidsoppgaver = info.arbeidsoppgaver
+                    , fraMåned = info.fraMåned
+                    , fraÅr = fraÅr_
+                    , tilDato = tilDato
+                    , id = info.id
+                    }
+            )
+            info.yrke
+            (validerTilDato info.nåværende info.tilMåned info.tilÅr)
+            (Dato.stringTilÅr info.fraÅr)
 
 
 

@@ -3,7 +3,6 @@ module AnnenErfaring.Skjema exposing
     , Felt(..)
     , ValidertAnnenErfaringSkjema
     , encode
-    , feilmeldingBeskrivelse
     , feilmeldingFraMåned
     , feilmeldingFraÅr
     , feilmeldingRolle
@@ -35,6 +34,7 @@ module AnnenErfaring.Skjema exposing
 
 import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import Json.Encode
+import ValideringUtils as Validering
 
 
 type AnnenErfaringSkjema
@@ -238,20 +238,6 @@ feilmeldingRolleHvisSynlig (UvalidertSkjema skjema) =
         Nothing
 
 
-feilmeldingBeskrivelse : String -> Maybe String
-feilmeldingBeskrivelse innhold =
-    if String.length innhold <= 2000 then
-        Nothing
-
-    else
-        let
-            tallTekst =
-                (String.length innhold - 2000)
-                    |> String.fromInt
-        in
-        Just ("Du har " ++ tallTekst ++ " tegn for mye")
-
-
 feilmeldingFraMåned : AnnenErfaringSkjema -> Maybe String
 feilmeldingFraMåned (UvalidertSkjema skjema) =
     if skjema.harDatoer && skjema.tillatÅViseFeilmeldingPeriode then
@@ -326,7 +312,7 @@ valider (UvalidertSkjema info) =
     if feilmeldingRolle info.rolle /= Nothing then
         Nothing
 
-    else if feilmeldingBeskrivelse info.beskrivelse /= Nothing then
+    else if Validering.feilmeldingMaxAntallTegn info.beskrivelse 2000 /= Nothing then
         Nothing
 
     else
