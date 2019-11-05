@@ -139,7 +139,7 @@ kursholderTilVarighet input =
     , kursholder = input.kursholder
     , fullførtDato = IkkeOppgitt
     , varighet = ""
-    , varighetEnhet = TIME
+    , varighetEnhet = Time
     , tillatÅViseFeilmeldingVarighet = False
     }
 
@@ -150,21 +150,9 @@ fullførtDatoTilVarighet input =
     , kursholder = input.kursholder
     , fullførtDato = input.fullførtDato
     , varighet = ""
-    , varighetEnhet = TIME
+    , varighetEnhet = Time
     , tillatÅViseFeilmeldingVarighet = False
     }
-
-
-fullførtDatoTilSkjema : ValidertFullførtDatoInfo -> ValidertKursSkjema
-fullførtDatoTilSkjema info =
-    Skjema.initValidertSkjema
-        { kursnavn = info.kursnavn
-        , kursholder = info.kursholder
-        , fullførtDato = info.fullførtDato
-        , varighet = Nothing
-        , varighetEnhet = TIME
-        , id = Nothing
-        }
 
 
 varighetTilSkjema : VarighetInfo -> ValidertKursSkjema
@@ -812,7 +800,7 @@ samtaleTilMeldingsLogg kursSeksjon =
             [ Melding.spørsmål [ "Hvor lenge varte kurset? Var det timer, dager, uker eller måneder?" ] ]
 
         RegistrerVarighet info ->
-            [ Melding.spørsmål [ "Hvor mange " ++ (String.toLower << Skjema.varighetEnhetTilString) info.varighetEnhet ++ " varte kurset?" ] ]
+            [ Melding.spørsmål [ "Hvor mange " ++ (Skjema.varighetEnhetTilString >> String.toLower) info.varighetEnhet ++ " varte kurset?" ] ]
 
         VisOppsummering skjema ->
             [ [ [ "Du har lagt inn dette:"
@@ -875,7 +863,7 @@ settFokus samtale =
         RegistrerFullførtÅr _ ->
             settFokusCmd FullførtÅrId
 
-        RegistrerVarighetEnhet _ ->
+        RegistrerVarighet _ ->
             settFokusCmd VarighetId
 
         _ ->
@@ -979,7 +967,7 @@ viewBrukerInput (Model model) =
                         ]
 
                 RegistrerVarighetEnhet _ ->
-                    varighetEnhetKnapper VarighetEnhetValgt
+                    varighetEnhetKnapper
 
                 RegistrerVarighet info ->
                     Containers.inputMedGåVidereKnapp VilRegistrereVarighet
@@ -1066,25 +1054,25 @@ viewBrukerInput (Model model) =
             text ""
 
 
-varighetEnhetKnapper : (VarighetEnhet -> msg) -> Html msg
-varighetEnhetKnapper onEnhetClick =
+varighetEnhetKnapper : Html Msg
+varighetEnhetKnapper =
     div [ class "knapperad" ]
         [ div [ class "knapper--varighet" ]
-            (List.map (varighetEnhetKnapp onEnhetClick)
-                [ TIME
-                , DAG
-                , UKE
-                , MND
+            (List.map varighetEnhetKnapp
+                [ Time
+                , Dag
+                , Uke
+                , Måned
                 ]
             )
         ]
 
 
-varighetEnhetKnapp : (VarighetEnhet -> msg) -> VarighetEnhet -> Html msg
-varighetEnhetKnapp onEnhetClick enhet =
+varighetEnhetKnapp : VarighetEnhet -> Html Msg
+varighetEnhetKnapp enhet =
     enhet
         |> Skjema.varighetEnhetTilString
-        |> Knapp.knapp (onEnhetClick enhet)
+        |> Knapp.knapp (VarighetEnhetValgt enhet)
         |> Knapp.toHtml
 
 

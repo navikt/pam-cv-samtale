@@ -14,7 +14,7 @@ module FrontendModuler.Input exposing
     , withOnEnter
     )
 
-import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
+import FrontendModuler.Feilmelding as Feilmelding
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabelledby)
@@ -141,12 +141,12 @@ toHtml (Input options) =
                     [ span [ class "skjemaelement__label" ] [ text label_ ]
                     , htmlInput (Input options) Nothing
                     ]
-                , htmlFeilmelding options.feilmelding
+                , Feilmelding.htmlFeilmelding options.feilmelding
                 ]
 
             LabelId id_ ->
                 [ htmlInput (Input options) (Just id_)
-                , htmlFeilmelding options.feilmelding
+                , Feilmelding.htmlFeilmelding options.feilmelding
                 ]
         )
 

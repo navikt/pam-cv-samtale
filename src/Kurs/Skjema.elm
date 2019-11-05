@@ -50,10 +50,10 @@ type FullførtDato
 
 
 type VarighetEnhet
-    = TIME
-    | DAG
-    | UKE
-    | MND
+    = Time
+    | Dag
+    | Uke
+    | Måned
 
 
 type alias UvalidertSkjemaInfo =
@@ -140,16 +140,16 @@ id (ValidertSkjema info) =
 varighetEnhetTilString : VarighetEnhet -> String
 varighetEnhetTilString enhet =
     case enhet of
-        TIME ->
+        Time ->
             "Timer"
 
-        DAG ->
+        Dag ->
             "Dager"
 
-        UKE ->
+        Uke ->
             "Uker"
 
-        MND ->
+        Måned ->
             "Måneder"
 
 
@@ -157,19 +157,19 @@ stringTilVarighetEnhet : String -> VarighetEnhet
 stringTilVarighetEnhet string =
     case string of
         "Timer" ->
-            TIME
+            Time
 
         "Dager" ->
-            DAG
+            Dag
 
         "Uker" ->
-            UKE
+            Uke
 
         "Måneder" ->
-            MND
+            Måned
 
         _ ->
-            TIME
+            Time
 
 
 
@@ -448,16 +448,16 @@ encodeVarighet varighet_ =
 encodeVarighetEnhet : VarighetEnhet -> Json.Encode.Value
 encodeVarighetEnhet enhet =
     (case enhet of
-        TIME ->
+        Time ->
             "TIME"
 
-        DAG ->
+        Dag ->
             "DAG"
 
-        UKE ->
+        Uke ->
             "UKE"
 
-        MND ->
+        Måned ->
             "MND"
     )
         |> Json.Encode.string
