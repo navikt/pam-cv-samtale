@@ -35,7 +35,7 @@ import Process
 import SamtaleAnimasjon
 import Task
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
-import ValideringUtils as Validering
+import Validering
 
 
 

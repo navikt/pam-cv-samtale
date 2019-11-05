@@ -37,7 +37,7 @@ import Process
 import SamtaleAnimasjon
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
-import ValideringUtils as Validering
+import Validering
 import Yrke exposing (Yrke)
 
 

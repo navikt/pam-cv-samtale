@@ -31,7 +31,7 @@ module Utdanning.Skjema exposing
 import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Dato exposing (Måned(..), TilDato(..), År)
 import Json.Encode
-import ValideringUtils as Validering
+import Validering
 
 
 type UtdanningSkjema

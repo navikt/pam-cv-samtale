@@ -34,7 +34,7 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Process
 import SamtaleAnimasjon
 import Task
-import ValideringUtils as Validering
+import Validering
 
 
 
