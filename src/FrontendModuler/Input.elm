@@ -8,15 +8,16 @@ module FrontendModuler.Input exposing
     , withEnabled
     , withFeilmelding
     , withId
+    , withLabelId
     , withMaybeFeilmelding
     , withOnBlur
     , withOnEnter
-    , withoutLabel
     )
 
 import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Attributes.Aria exposing (ariaLabelledby)
 import Html.Events exposing (..)
 import Json.Decode
 
@@ -25,9 +26,14 @@ type Input msg
     = Input (Options msg)
 
 
+type Label
+    = Label String
+    | LabelId String
+
+
 type alias Options msg =
     { msg : String -> msg
-    , label : Maybe String
+    , label : Label
     , innhold : String
     , feilmelding : Maybe String
     , classes : List String
@@ -49,7 +55,7 @@ input : InputOptions msg -> String -> Input msg
 input { msg, label } innhold =
     Input
         { msg = msg
-        , label = Just label
+        , label = Label label
         , innhold = innhold
         , feilmelding = Nothing
         , classes = []
@@ -66,9 +72,9 @@ type Enabled
     | Disabled
 
 
-withoutLabel : Input msg -> Input msg
-withoutLabel (Input options) =
-    Input { options | label = Nothing }
+withLabelId : String -> Input msg -> Input msg
+withLabelId id (Input options) =
+    Input { options | label = LabelId id }
 
 
 withFeilmelding : String -> Input msg -> Input msg
@@ -130,23 +136,23 @@ toHtml : Input msg -> Html msg
 toHtml (Input options) =
     div [ class "skjemaelement" ]
         (case options.label of
-            Just label_ ->
+            Label label_ ->
                 [ label []
                     [ span [ class "skjemaelement__label" ] [ text label_ ]
-                    , htmlInput (Input options)
+                    , htmlInput (Input options) Nothing
                     ]
                 , htmlFeilmelding options.feilmelding
                 ]
 
-            Nothing ->
-                [ htmlInput (Input options)
+            LabelId id_ ->
+                [ htmlInput (Input options) (Just id_)
                 , htmlFeilmelding options.feilmelding
                 ]
         )
 
 
-htmlInput : Input msg -> Html msg
-htmlInput (Input options) =
+htmlInput : Input msg -> Maybe String -> Html msg
+htmlInput (Input options) labelId =
     Html.input
         [ type_ "text"
         , value options.innhold
@@ -167,6 +173,9 @@ htmlInput (Input options) =
             |> Maybe.map onBlur
             |> Maybe.withDefault noAttribute
         , disabled (options.enabled == Disabled)
+        , labelId
+            |> Maybe.map ariaLabelledby
+            |> Maybe.withDefault noAttribute
         ]
         []
 

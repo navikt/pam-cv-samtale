@@ -25,7 +25,7 @@ module Kurs.Skjema exposing
     , tillatÅViseAlleFeilmeldinger
     , tillatÅViseFeilmeldingFullførtÅr
     , tillatÅViseFeilmeldingKursnavn
-    , tillatÅViseFeilmeldingMåned
+    , tillatÅViseFeilmeldingVarighet
     , valider
     , validerFullført
     , varighetEnhet
@@ -186,7 +186,7 @@ oppdaterTekstFelt felt tekst (UvalidertSkjema skjema) =
             UvalidertSkjema { skjema | kursholder = tekst }
 
         FullførtÅr ->
-            UvalidertSkjema { skjema | fullførtÅr = tekst }
+            UvalidertSkjema { skjema | fullførtÅr = tekst, tillatÅViseFeilmeldingPeriode = False }
 
         Varighet ->
             UvalidertSkjema { skjema | varighet = tekst }
@@ -194,7 +194,7 @@ oppdaterTekstFelt felt tekst (UvalidertSkjema skjema) =
 
 oppdaterFullførtMåned : KursSkjema -> Maybe Måned -> KursSkjema
 oppdaterFullførtMåned (UvalidertSkjema skjema) måned =
-    UvalidertSkjema { skjema | fullførtMåned = måned }
+    UvalidertSkjema { skjema | fullførtMåned = måned, tillatÅViseFeilmeldingPeriode = False }
 
 
 oppdaterVarighetEnhet : KursSkjema -> VarighetEnhet -> KursSkjema
@@ -310,17 +310,23 @@ tillatÅViseFeilmeldingKursnavn (UvalidertSkjema skjema) =
     UvalidertSkjema { skjema | tillatÅViseFeilmeldingKursnavn = True }
 
 
-tillatÅViseFeilmeldingMåned : KursSkjema -> KursSkjema
-tillatÅViseFeilmeldingMåned (UvalidertSkjema skjema) =
+tillatÅViseFeilmeldingPeriode : KursSkjema -> KursSkjema
+tillatÅViseFeilmeldingPeriode (UvalidertSkjema skjema) =
     UvalidertSkjema { skjema | tillatÅViseFeilmeldingPeriode = True }
+
+
+tillatÅViseFeilmeldingVarighet : KursSkjema -> KursSkjema
+tillatÅViseFeilmeldingVarighet (UvalidertSkjema skjema) =
+    UvalidertSkjema { skjema | tillatÅViseFeilmeldingVarighet = True }
 
 
 tillatÅViseAlleFeilmeldinger : KursSkjema -> KursSkjema
 tillatÅViseAlleFeilmeldinger skjema =
     skjema
-        |> tillatÅViseFeilmeldingMåned
+        |> tillatÅViseFeilmeldingPeriode
         |> tillatÅViseFeilmeldingFullførtÅr
         |> tillatÅViseFeilmeldingKursnavn
+        |> tillatÅViseFeilmeldingVarighet
 
 
 
@@ -354,12 +360,12 @@ valider (UvalidertSkjema info) =
 
 
 validerFullført : Maybe Måned -> String -> Maybe FullførtDato
-validerFullført fullførtMåned_ fullførtÅr =
+validerFullført fullførtMåned_ fullførtÅr_ =
     let
         maybeFullførtÅr =
-            Dato.stringTilÅr fullførtÅr
+            Dato.stringTilÅr fullførtÅr_
     in
-    if fullførtMåned_ == Nothing && maybeFullførtÅr == Nothing then
+    if fullførtMåned_ == Nothing && String.isEmpty fullførtÅr_ then
         -- Alt er ok hvis ingen datoer valgt
         Just IkkeOppgitt
 

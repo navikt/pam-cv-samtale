@@ -217,6 +217,7 @@ type SkjemaEndring
     | VarighetEnhet String
     | FullførtÅrBlurred
     | KursnavnBlurred
+    | VarighetBlurred
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -672,16 +673,19 @@ oppdaterSkjema endring skjema =
                 |> Dato.stringTilMaybeMåned
                 |> Skjema.oppdaterFullførtMåned skjema
 
+        VarighetEnhet string ->
+            string
+                |> Skjema.stringTilVarighetEnhet
+                |> Skjema.oppdaterVarighetEnhet skjema
+
         FullførtÅrBlurred ->
             Skjema.tillatÅViseFeilmeldingFullførtÅr skjema
 
         KursnavnBlurred ->
             Skjema.tillatÅViseFeilmeldingKursnavn skjema
 
-        VarighetEnhet string ->
-            string
-                |> Skjema.stringTilVarighetEnhet
-                |> Skjema.oppdaterVarighetEnhet skjema
+        VarighetBlurred ->
+            Skjema.tillatÅViseFeilmeldingVarighet skjema
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -1010,9 +1014,9 @@ viewBrukerInput (Model model) =
                             |> Input.toHtml
                         , skjema
                             |> Skjema.innholdTekstFelt Kursholder
-                            |> Textarea.textarea { label = "Kursholder", msg = Tekst Kursholder >> SkjemaEndret }
-                            |> Textarea.withMaybeFeilmelding (Skjema.innholdTekstFelt Kursholder skjema |> Skjema.feilmeldingKursholder)
-                            |> Textarea.toHtml
+                            |> Input.input { label = "Kursholder", msg = Tekst Kursholder >> SkjemaEndret }
+                            |> Input.withMaybeFeilmelding (Skjema.innholdTekstFelt Kursholder skjema |> Skjema.feilmeldingKursholder)
+                            |> Input.toHtml
                         , div [ class "DatoInput-fra-til-rad" ]
                             [ ValgfriDatoInput.datoInput
                                 { label = "Fullført"
@@ -1116,8 +1120,9 @@ viewVarighet skjema =
                 ]
             , Skjema.innholdTekstFelt Varighet skjema
                 |> Input.input { label = "", msg = Tekst Varighet >> SkjemaEndret }
-                |> Input.withoutLabel
+                |> Input.withLabelId "varighet-label"
                 |> Input.withClass "Varighet-antall"
+                |> Input.withOnBlur (SkjemaEndret VarighetBlurred)
                 |> Input.withMaybeFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
                 |> Input.toHtml
             ]
