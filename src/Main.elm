@@ -38,7 +38,7 @@ import Sprak.Seksjon
 import Task
 import Url
 import Utdanning.Seksjon
-import ValideringUtils as Validering
+import Validering
 
 
 

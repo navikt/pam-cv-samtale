@@ -1,4 +1,4 @@
-module ValideringUtils exposing (feilmeldingMaxAntallTegn)
+module Validering exposing (feilmeldingMaxAntallTegn)
 
 
 feilmeldingMaxAntallTegn : String -> Int -> Maybe String

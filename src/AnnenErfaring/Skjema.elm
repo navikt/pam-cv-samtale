@@ -34,7 +34,7 @@ module AnnenErfaring.Skjema exposing
 
 import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import Json.Encode
-import ValideringUtils as Validering
+import Validering
 
 
 type AnnenErfaringSkjema
