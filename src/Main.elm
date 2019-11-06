@@ -16,6 +16,7 @@ import Feilmelding
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
+import FrontendModuler.Lenke as Lenke
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.RobotLogo as RobotLogo
 import FrontendModuler.Spinner as Spinner
@@ -758,7 +759,9 @@ type Samtale
     | DelMedArbeidsgiver Bool
     | LagrerSynlighet Bool LagreStatus
     | LagringSynlighetFeilet Http.Error Bool
-    | AvsluttendeOrd
+    | SpørOmTilbakemelding
+    | GiTilbakemelding
+    | Avslutt Bool
 
 
 
@@ -780,7 +783,9 @@ type AndreSamtaleStegMsg
     | BrukerGodkjennerSynligCV
     | BrukerGodkjennerIkkeSynligCV
     | BrukerVilPrøveÅLagreSynlighetPåNytt
-    | BrukerVilAvslutte String
+    | BrukerGirOppÅLagre String
+    | VilGiTilbakemelding
+    | VilIkkeGiTilbakemelding
     | SynlighetPostet (Result Http.Error Bool)
     | WindowEndrerVisibility Visibility
     | StartÅSkrive
@@ -975,17 +980,29 @@ updateAndreSamtaleSteg model msg info =
                 ]
             )
 
+        VilGiTilbakemelding ->
+            ( GiTilbakemelding
+                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, gi tilbakemelding" ])
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+
+        VilIkkeGiTilbakemelding ->
+            ( Avslutt False
+                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil ikke gi tilbakemelding" ])
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+
         SynlighetPostet result ->
             case info.aktivSamtale of
                 LagrerSynlighet skalVæreSynlig lagreStatus ->
                     case result of
                         Ok _ ->
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                AvsluttendeOrd
+                                SpørOmTilbakemelding
                                     |> nesteSamtaleSteg model info (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
 
                               else
-                                nesteSamtaleStegUtenSvar model info AvsluttendeOrd
+                                nesteSamtaleStegUtenSvar model info SpørOmTilbakemelding
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
@@ -1038,8 +1055,8 @@ updateAndreSamtaleSteg model msg info =
                 _ ->
                     ( model, Cmd.none )
 
-        BrukerVilAvslutte knappeTekst ->
-            ( nesteSamtaleSteg model info (Melding.svar [ knappeTekst ]) AvsluttendeOrd
+        BrukerGirOppÅLagre knappeTekst ->
+            ( nesteSamtaleSteg model info (Melding.svar [ knappeTekst ]) SpørOmTilbakemelding
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1087,6 +1104,12 @@ updateAndreSamtaleSteg model msg info =
                                 |> LagrerSynlighet skalVæreSynlig
                                 |> oppdaterSamtaleSteg model info
                             , Cmd.none
+                            )
+
+                        GiTilbakemelding ->
+                            ( Avslutt True
+                                |> nesteSamtaleStegUtenSvar model info
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                         _ ->
@@ -1316,16 +1339,26 @@ samtaleTilMeldingsLogg samtale =
         UnderOppfølging ->
             [ Melding.spørsmål [ "I denne CV-tjenesten kan arbeidsgivere og NAV-veiledere søke opp CV-en din. De kan kontakte deg hvis de har en jobb du kan passe til." ]
             , Melding.spørsmål [ "Fordi du får oppfølging fra NAV, vil CV-en din være synlig for arbeidsgivere og NAV-veiledere." ]
-            , Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ] -- TODO: Skal ikke arbeidssøkere få denne meldingen?
-            , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Lykke til med jobbjakten! 😊" ]
             ]
 
-        AvsluttendeOrd ->
+        SpørOmTilbakemelding ->
             [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Lykke til med jobbjakten! 😊" ]
+            , Melding.spørsmål [ "Hvis du har tid vil jeg gjerne ha tilbakemelding fra deg. Hvordan synes du det var å lage en CV? Det er kun 3 spørsmål, og du er anonym :) Vil du gi oss en tilbakemelding?" ]
             ]
+
+        GiTilbakemelding ->
+            [ Melding.spørsmål [ "Så bra at du vil hjelpe oss. Trykk på lenken for å gi oss tilbakemelding" ]
+            ]
+
+        Avslutt harGittTilbakemelding ->
+            if harGittTilbakemelding then
+                [ Melding.spørsmål [ "Takk for tilbakemeldingen. Lykke til med jobbjakten! 😊" ]
+                ]
+
+            else
+                [ Melding.spørsmål [ "Det er greit. Lykke til med jobbjakten! 😊" ]
+                ]
 
         LagrerSynlighet _ _ ->
             []
@@ -1663,14 +1696,6 @@ viewBrukerInputForAndreSamtaleSteg info =
                 LeggTilFlereAnnet ->
                     viewLeggTilAnnet
 
-                AvsluttendeOrd ->
-                    Containers.knapper Flytende
-                        [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
-                            [ div [ class "Knapp" ]
-                                [ text "Avslutt og vis CV-en min" ]
-                            ]
-                        ]
-
                 DelMedArbeidsgiver _ ->
                     Containers.knapper Flytende
                         [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
@@ -1680,6 +1705,24 @@ viewBrukerInputForAndreSamtaleSteg info =
                         ]
 
                 UnderOppfølging ->
+                    text ""
+
+                SpørOmTilbakemelding ->
+                    Containers.knapper Flytende
+                        [ Knapp.knapp VilGiTilbakemelding "Ja, gi tilbakemelding"
+                            |> Knapp.toHtml
+                        , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke gi tilbakemelding"
+                            |> Knapp.toHtml
+                        ]
+
+                GiTilbakemelding ->
+                    Containers.lenke
+                        (Lenke.lenke { tekst = "Gi tilbakemelding", url = "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585" }
+                            |> Lenke.withTargetBlank
+                            |> Lenke.toHtml
+                        )
+
+                Avslutt _ ->
                     Containers.knapper Flytende
                         [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
                             [ div [ class "Knapp" ]
@@ -1698,7 +1741,7 @@ viewBrukerInputForAndreSamtaleSteg info =
                     case ErrorHåndtering.operasjonEtterError error of
                         GiOpp ->
                             Containers.knapper Flytende
-                                [ Knapp.knapp (BrukerVilAvslutte "Gå videre") "Gå videre"
+                                [ Knapp.knapp (BrukerGirOppÅLagre "Gå videre") "Gå videre"
                                     |> Knapp.toHtml
                                 ]
 
@@ -1706,7 +1749,7 @@ viewBrukerInputForAndreSamtaleSteg info =
                             Containers.knapper Flytende
                                 [ Knapp.knapp BrukerVilPrøveÅLagreSynlighetPåNytt "Prøv på nytt"
                                     |> Knapp.toHtml
-                                , Knapp.knapp (BrukerVilAvslutte "Gå videre") "Gå videre"
+                                , Knapp.knapp (BrukerGirOppÅLagre "Gå videre") "Gå videre"
                                     |> Knapp.toHtml
                                 ]
 
