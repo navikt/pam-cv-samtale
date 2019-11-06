@@ -22,7 +22,6 @@ import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Select as Select
-import FrontendModuler.Textarea as Textarea
 import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
 import Html.Attributes exposing (..)
