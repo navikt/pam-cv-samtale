@@ -982,13 +982,13 @@ updateAndreSamtaleSteg model msg info =
 
         VilGiTilbakemelding ->
             ( GiTilbakemelding
-                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, gi tilbakemelding" ])
+                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg vil svare" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
         VilIkkeGiTilbakemelding ->
             ( Avslutt False
-                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil ikke gi tilbakemelding" ])
+                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil ikke svare" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1344,11 +1344,11 @@ samtaleTilMeldingsLogg samtale =
         SpørOmTilbakemelding ->
             [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Hvis du har tid vil jeg gjerne ha tilbakemelding fra deg. Hvordan synes du det var å lage en CV? Det er kun 3 spørsmål, og du er anonym :) Vil du gi oss en tilbakemelding?" ]
+            , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du må svare på 3 spørsmål, og du er anonym 😊 Vil du svare?" ]
             ]
 
         GiTilbakemelding ->
-            [ Melding.spørsmål [ "Så bra at du vil hjelpe oss. Trykk på lenken for å gi oss tilbakemelding" ]
+            [ Melding.spørsmål [ "Så bra at du vil svare! Klikk på lenken." ]
             ]
 
         Avslutt harGittTilbakemelding ->
@@ -1357,7 +1357,7 @@ samtaleTilMeldingsLogg samtale =
                 ]
 
             else
-                [ Melding.spørsmål [ "Det er greit. Lykke til med jobbjakten! 😊" ]
+                [ Melding.spørsmål [ "Lykke til med jobbjakten! 😊" ]
                 ]
 
         LagrerSynlighet _ _ ->
@@ -1709,9 +1709,9 @@ viewBrukerInputForAndreSamtaleSteg info =
 
                 SpørOmTilbakemelding ->
                     Containers.knapper Flytende
-                        [ Knapp.knapp VilGiTilbakemelding "Ja, gi tilbakemelding"
+                        [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
                             |> Knapp.toHtml
-                        , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke gi tilbakemelding"
+                        , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
                             |> Knapp.toHtml
                         ]
 
