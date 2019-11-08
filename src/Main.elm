@@ -18,6 +18,7 @@ import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
 import FrontendModuler.Lenke as Lenke
 import FrontendModuler.LoggInnLenke as LoggInnLenke
+import FrontendModuler.Modal as Modal
 import FrontendModuler.RobotLogo as RobotLogo
 import FrontendModuler.Spinner as Spinner
 import FrontendModuler.Textarea as Textarea
@@ -68,6 +69,7 @@ type alias ExtendedModel =
     , navigationKey : Navigation.Key
     , debugStatus : DebugStatus
     , windowWidth : Int
+    , tilbakemeldingsModalOpen : Bool
     }
 
 
@@ -75,6 +77,17 @@ type Model
     = Loading LoadingModel
     | Success SuccessModel
     | Failure Http.Error
+
+
+type InputId
+    = TilbakemeldingsModalId
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        TilbakemeldingsModalId ->
+            "tilbakemeldings-modal-id"
 
 
 
@@ -89,6 +102,8 @@ type Msg
     | WindowResized Int Int
     | UrlChanged Url.Url
     | UrlRequestChanged Browser.UrlRequest
+    | VisTilbakemeldingsModal Bool
+    | FokusSatt (Result Dom.Error ())
 
 
 update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
@@ -118,6 +133,7 @@ update msg extendedModel =
             ( { model = extendedModel.model
               , navigationKey = extendedModel.navigationKey
               , debugStatus = extendedModel.debugStatus
+              , tilbakemeldingsModalOpen = extendedModel.tilbakemeldingsModalOpen
               , windowWidth = windowWidth
               }
             , Cmd.none
@@ -136,10 +152,28 @@ update msg extendedModel =
             ( { model = extendedModel.model
               , navigationKey = extendedModel.navigationKey
               , debugStatus = extendedModel.debugStatus
+              , tilbakemeldingsModalOpen = extendedModel.tilbakemeldingsModalOpen
               , windowWidth = round viewport.scene.width
               }
             , Cmd.none
             )
+
+        VisTilbakemeldingsModal isOpen ->
+            ( { model = extendedModel.model
+              , navigationKey = extendedModel.navigationKey
+              , debugStatus = extendedModel.debugStatus
+              , windowWidth = extendedModel.windowWidth
+              , tilbakemeldingsModalOpen = not extendedModel.tilbakemeldingsModalOpen
+              }
+            , if isOpen then
+                settFokusCmd TilbakemeldingsModalId
+
+              else
+                Cmd.none
+            )
+
+        FokusSatt _ ->
+            ( extendedModel, Cmd.none )
 
 
 mapTilExtendedModel : ExtendedModel -> ( Model, Cmd Msg ) -> ( ExtendedModel, Cmd Msg )
@@ -148,6 +182,7 @@ mapTilExtendedModel extendedModel ( model, cmd ) =
       , windowWidth = extendedModel.windowWidth
       , debugStatus = extendedModel.debugStatus
       , navigationKey = extendedModel.navigationKey
+      , tilbakemeldingsModalOpen = extendedModel.tilbakemeldingsModalOpen
       }
     , cmd
     )
@@ -1390,10 +1425,18 @@ viewDocument extendedModel =
 
 
 view : ExtendedModel -> Html Msg
-view { model, windowWidth } =
+view { model, windowWidth, tilbakemeldingsModalOpen } =
     div [ class "app" ]
-        [ Header.header windowWidth
+        [ Header.header windowWidth (VisTilbakemeldingsModal True)
             |> Header.toHtml
+        , div [ class "modal__overlay" ] []
+        , Modal.modal
+            { id = "tilbakemeldings-modal-id"
+            , isOpen = tilbakemeldingsModalOpen
+            , onClose = VisTilbakemeldingsModal False
+            , innhold = viewTilbakemeldingModalInnhold
+            }
+            |> Modal.toHtml
         , case model of
             Loading _ ->
                 viewLoading
@@ -1431,6 +1474,14 @@ view { model, windowWidth } =
                             [ text "error"
                             ]
         ]
+
+
+settFokusCmd : InputId -> Cmd Msg
+settFokusCmd inputId =
+    inputId
+        |> inputIdTilString
+        |> Dom.focus
+        |> Task.attempt FokusSatt
 
 
 viewLoading : Html msg
@@ -1788,6 +1839,19 @@ viewLeggTilAnnet =
         ]
 
 
+viewTilbakemeldingModalInnhold : Html msg
+viewTilbakemeldingModalInnhold =
+    section [ class "tilbakemeldingsModal" ]
+        [ h2 [] [ text "Hjelp oss med å forbedre CVert" ]
+        , p [] [ text "CVert vil gjerne bli bedre. Vil du gi tilbakemelding?" ]
+        , Lenke.lenke { tekst = "Gi tilbakemelding", url = "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585" }
+            |> Lenke.withTargetBlank
+            |> Lenke.toHtml
+        , Lenke.lenke { tekst = "Avslutt CV-registreringen", url = "/cv" }
+            |> Lenke.toHtml
+        ]
+
+
 seksjonsvalgKnapp : ValgtSeksjon -> Html AndreSamtaleStegMsg
 seksjonsvalgKnapp seksjonsvalg =
     seksjonsvalg
@@ -1870,6 +1934,7 @@ init _ url navigationKey =
       , windowWidth = 1000
       , navigationKey = navigationKey
       , debugStatus = DebugStatus.fromUrl url
+      , tilbakemeldingsModalOpen = False
       }
     , Cmd.batch
         [ Api.getPerson (PersonHentet >> LoadingMsg)

@@ -1,27 +1,29 @@
 module FrontendModuler.Header exposing (Header, header, toHtml)
 
-import FrontendModuler.Lenke as Lenke
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabel)
-import Svg exposing (circle, defs, desc, g, path, rect, svg, use)
-import Svg.Attributes exposing (cx, cy, d, fill, fillRule, mask, r, rx, stroke, strokeLinecap, strokeWidth, transform, version, viewBox, x, y)
+import Html.Events exposing (onClick)
+import Svg exposing (path, svg)
+import Svg.Attributes exposing (d, fill, viewBox)
 
 
-type Header
+type Header msg
     = Header
         { windowWidth : Int
+        , onClickMsg : msg
         }
 
 
-header : Int -> Header
-header width =
+header : Int -> msg -> Header msg
+header width onClick =
     Header
         { windowWidth = width
+        , onClickMsg = onClick
         }
 
 
-toHtml : Header -> Html msg
+toHtml : Header msg -> Html msg
 toHtml (Header options) =
     div [ class "header" ]
         [ div [ class "Header__logo" ]
@@ -30,9 +32,12 @@ toHtml (Header options) =
             ]
 
         -- TODO: Endre til å vise burger-meny på mobil og evt. iPad
-        , if options.windowWidth > 410 then
-            Lenke.lenke { tekst = "Avslutt CV-registreringen", url = "/cv" }
-                |> Lenke.toHtml
+        , if options.windowWidth > 460 then
+            button
+                [ class "Knapp Knapp--flat"
+                , onClick options.onClickMsg
+                ]
+                [ text "Avslutt CV-registreringen" ]
 
           else
             text ""
