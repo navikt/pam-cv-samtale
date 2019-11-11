@@ -56,7 +56,7 @@ html {
 
 // SAMTALE
 
-.samtale-wrapper {
+.CV-samtale{
   position: absolute;
   top: 4.5rem;
   left: 0;
@@ -66,8 +66,36 @@ html {
   margin-bottom: 0;
   overflow-y: scroll;
   -webkit-overflow-scrolling: touch;
+}
+
+.samtale-wrapper {
+
   display: flex;
   justify-content: center;
+}
+
+.samtale-header {
+  width: 100%;
+  max-width: 40rem;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #d8d8d8;
+  align-items: center;
+  margin: 2rem auto 2.5rem;
+
+  .robot {
+    width: 80px;
+    height: 80px;
+  }
+
+  h1 {
+    margin: 1rem 0 0.5rem;
+  }
+
+  p {
+    margin-top: 0;
+    font-size: 18px;
+  }
 }
 
 .samtale {
