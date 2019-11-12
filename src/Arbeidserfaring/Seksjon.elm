@@ -131,9 +131,7 @@ type Msg
     | NyArbeidserfaring
     | FerdigMedArbeidserfaring String
     | WindowEndrerVisibility Visibility
-    | StartÅSkrive
-    | FullFørMelding
-    | ViewportSatt (Result Dom.Error ())
+    | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
     | GåTilNesteSeksjon
     | ErrorLogget
@@ -904,33 +902,12 @@ update msg (Model model) =
                 Hidden ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        StartÅSkrive ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
-                }
-            , Cmd.batch
-                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> DebugStatus.meldingsTimeout model.debugStatus
-                    |> Process.sleep
-                    |> Task.perform (always FullFørMelding)
-                ]
-            )
-                |> IkkeFerdig
-
-        FullFørMelding ->
-            model.seksjonsMeldingsLogg
-                |> MeldingsLogg.fullførMelding
+        SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
+            SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
                 |> updateEtterFullførtMelding model
 
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
-
-        ViewportSatt _ ->
-            ( Model model, Cmd.none )
-                |> IkkeFerdig
 
         FerdigMedArbeidserfaring knappeTekst ->
             if List.isEmpty model.arbeidserfaringListe then
@@ -1054,8 +1031,8 @@ oppdaterSkjema endring skjema =
             Skjema.gjørFeilmeldingTilÅrSynlig skjema
 
 
-updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
-updateEtterFullførtMelding info nyMeldingsLogg =
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding info ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         MeldingsLogg.FerdigAnimert ferdigAnimertSamtale ->
             case info.aktivSamtale of
@@ -1065,18 +1042,15 @@ updateEtterFullførtMelding info nyMeldingsLogg =
                 _ ->
                     ( Model { info | seksjonsMeldingsLogg = nyMeldingsLogg }
                     , Cmd.batch
-                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        [ Cmd.map SamtaleAnimasjonMsg cmd
                         , settFokus info.aktivSamtale
                         ]
                     )
                         |> IkkeFerdig
 
         MeldingsLogg.MeldingerGjenstår ->
-            ( Model
-                { info
-                    | seksjonsMeldingsLogg = nyMeldingsLogg
-                }
-            , lagtTilSpørsmålCmd info.debugStatus
+            ( Model { info | seksjonsMeldingsLogg = nyMeldingsLogg }
+            , Cmd.map SamtaleAnimasjonMsg cmd
             )
                 |> IkkeFerdig
 
@@ -1119,13 +1093,8 @@ settFokusCmd inputId =
 
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
-    Cmd.batch
-        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , 200
-            |> DebugStatus.meldingsTimeout debugStatus
-            |> Process.sleep
-            |> Task.perform (always StartÅSkrive)
-        ]
+    SamtaleAnimasjon.startAnimasjon debugStatus
+        |> Cmd.map SamtaleAnimasjonMsg
 
 
 brukerVelgerYrke : ModelInfo -> Yrke -> SamtaleStatus

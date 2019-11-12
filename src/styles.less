@@ -81,7 +81,8 @@ html {
   }
 
   .samtale-padding {
-    min-height: 2.5rem;
+    min-height: 1rem;
+    //min-height: 2.5rem;
   }
 }
 
@@ -97,6 +98,20 @@ html {
     color: #062140;
   }
 
+  .melding.skjult {
+    height: 0;
+    width: 0;
+    padding: 0;
+    margin-top: 0;
+    .skriver-melding {
+      opacity: 0;
+    }
+  }
+  .melding.skriveindikator {
+    height: 54px;
+    width: 62px;
+  }
+
   .melding:after {
     content: '';
     position: absolute;
@@ -109,16 +124,59 @@ html {
     border-left: 0;
     margin-top: -6px;
     margin-left: -6px;
+    opacity: 1;
+    transition: opacity 0.4s ease-in-out;
+  }
+
+  .skjult.melding:after {
+    opacity: 0;
   }
 
   .robot {
-    width: 50px;
-    height: 50px;
     align-self: center;
-    padding-top: 15px;
-    padding-right: 14px;
+    //margin-top: 0.5rem;
+    padding-right: 0.75rem;
+    width: 50px;
+    //height: 50px;
+    margin-right: 0.75rem;
+    transition: transform 0.4s ease-in-out;
+
+
+    .Robotlogo {
+      width: 50px;
+      height: 50px;
+      display: inline-block;
+      vertical-align: middle;
+      background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
+    }
   }
 }
+
+.robotkolonne {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+  //transition-property: padding-bottom, opacity;
+  //transition-duration: 0.4s;
+  //transition-timing-function: ease-in-out;
+}
+
+//.robot {
+//  align-self: center;
+//  padding-right: 0.75rem;
+//  transition-property: margin-bottom, opacity;
+//  transition-duration: 0.4s;
+//  transition-timing-function: ease-in-out;
+//
+//  .Robotlogo {
+//    width: 50px;
+//    height: 50px;
+//    display: inline-block;
+//    vertical-align: middle;
+//    background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
+//  }
+//}
 
 .svar {
   justify-content: flex-end;
@@ -156,6 +214,52 @@ html {
   margin-top: 0.5rem;
   overflow-wrap: break-word;
 
+  // Animasjon
+  //transition: height 0.15s ease-in-out;
+
+  //transition: height, width 0.4s ease-in-out;
+  transition-property: height, width, padding, margin;
+  transition-duration: 0.4s;
+  //transition-duration: 1s;
+  transition-timing-function: ease-in-out;
+
+  .meldinginnhold-wrapper {
+    @media (min-width: 768px) {
+      max-width: calc(@meldingBredde - 2rem);
+    }
+    @media (max-width: 767px) {
+      //max-width: calc(@meldingBreddeMobil - 2rem);
+    }
+    width: max-content;
+    //transition: opacity 0.4s ease-in-out;
+    transition: opacity 0.2s ease-in-out 0.2s;
+    //transition: opacity 1s ease-in-out;
+  }
+
+  .meldinginnhold-overflow-hidden {
+    overflow: hidden;
+    height: 100%;
+  }
+
+  &.kalkulerer {
+    height: 54px;
+    width: 62px;
+
+    .meldinginnhold-wrapper {
+      opacity: 0;
+    }
+
+    //padding: 0;
+  }
+
+  &.ferdiganimert {
+    .meldinginnhold-wrapper {
+      opacity: 1;
+    }
+
+    //padding: 0;
+  }
+
   p {
     margin: 0;
   }
@@ -166,7 +270,10 @@ html {
 }
 
 .skriver-melding {
+  transition-property: opacity;
+  transition-delay: 0.4s;
   opacity: 0.2;
+  overflow: hidden;
 
   .bounce {
     width: 10px;
@@ -383,6 +490,7 @@ html {
     margin-left: 1rem;
   }
 }
+
 .ForlateSiden {
   text-decoration: none;
 
