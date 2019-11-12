@@ -344,7 +344,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         BrukerVilAvslutteSeksjonen ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ]) VenterPåAnimasjonFørFullføring
+            ( nesteSamtaleSteg model (Melding.svar [ "Nei, jeg har lagt inn språkene jeg kan" ]) VenterPåAnimasjonFørFullføring
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -740,7 +740,7 @@ viewBrukerInput (Model model) =
                         Containers.knapper Flytende
                             [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
                                 |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, jeg har lagt inn språkene jeg kan"
                                 |> Knapp.toHtml
                             ]
 
@@ -866,7 +866,7 @@ viewBrukerInput (Model model) =
                     Containers.knapper Flytende
                         [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
                             |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, jeg har lagt inn språkene jeg kan"
                             |> Knapp.toHtml
                         ]
 

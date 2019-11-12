@@ -1387,7 +1387,7 @@ viewBrukerInput (Model model) =
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerHopperOverArbeidserfaring "Nei, jeg er ferdig"
                                 |> Knapp.toHtml
-                            , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Jeg vil redigere det jeg har lagt inn") "Jeg vil redigere det jeg har lagt inn"
+                            , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Nei, jeg vil endre det jeg har lagt inn") "Nei, jeg vil endre det jeg har lagt inn"
                                 |> Knapp.toHtml
                             ]
 
@@ -1594,7 +1594,7 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
                             |> Knapp.toHtml
-                        , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Rediger arbeidserfaring") "Rediger arbeidserfaring"
+                        , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Nei, jeg vil endre det jeg har lagt inn") "Nei, jeg vil endre det jeg har lagt inn"
                             |> Knapp.toHtml
                         ]
 

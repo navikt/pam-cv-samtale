@@ -809,7 +809,7 @@ viewBrukerInput (Model model) =
                         ]
 
                 EndrerOppsummering typeaheadModel skjema ->
-                    Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre" }
+                    Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre endringer" }
                         [ skjema
                             |> Skjema.feilmeldingTypeahead
                             |> Typeahead.view Konsept.label typeaheadModel

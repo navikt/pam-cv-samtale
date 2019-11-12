@@ -1178,8 +1178,8 @@ viewBrukerInput (Model model) =
                             , "Nei, jeg er ferdig"
                                 |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg er ferdig")
                                 |> Knapp.toHtml
-                            , "Jeg vil redigere det jeg har lagt inn"
-                                |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
+                            , "Nei, jeg vil endre det jeg har lagt inn"
+                                |> Knapp.knapp (BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn")
                                 |> Knapp.toHtml
                             ]
 
@@ -1287,8 +1287,8 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         , Knapp.knapp OppsummeringBekreftet "Nei, jeg er ferdig"
                             |> Knapp.toHtml
-                        , "Jeg vil redigere det jeg har lagt inn"
-                            |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
+                        , "Nei, jeg vil endre det jeg har lagt inn"
+                            |> Knapp.knapp (BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn")
                             |> Knapp.toHtml
                         ]
 
@@ -1434,9 +1434,7 @@ lagUtdanningKnapper utdanninger =
             (\utdanning ->
                 let
                     text =
-                        Maybe.withDefault "" (Utdanning.utdanningsretning utdanning)
-                            ++ ", "
-                            ++ Maybe.withDefault "" (Utdanning.studiested utdanning)
+                        Maybe.withDefault (utdanning |> Utdanning.nivå |> nivåToString) (Utdanning.utdanningsretning utdanning)
                 in
                 Knapp.knapp (BrukerHarValgtUtdanningÅRedigere utdanning text) text
                     |> Knapp.toHtml
