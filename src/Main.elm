@@ -744,14 +744,20 @@ type alias AndreSamtaleStegInfo =
     }
 
 
+type BekreftSammendragState
+    = NyttSammendrag
+    | EndretSammendrag
+
+
 type Samtale
     = Introduksjon Personalia
     | LeggTilAutorisasjoner
     | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
     | LeggTilFlereAnnet
-    | HarIkkeSammendrag
-    | BekreftEksisterendeSammendrag Sammendrag
+    | BekreftOpprinneligSammendrag Sammendrag
+    | BekreftSammendrag BekreftSammendragState String
+    | SkriverSammendrag String
     | EndrerSammendrag String
     | LagrerSammendrag String LagreStatus
     | LagringAvSammendragFeilet Http.Error String
@@ -770,11 +776,10 @@ type Samtale
 
 type AndreSamtaleStegMsg
     = BrukerSierHeiIIntroduksjonen
-    | OriginalSammendragBekreftet
-    | BrukerVilLeggeTilSammendrag
     | BrukerVilEndreSammendrag
     | SammendragEndret String
-    | BrukerVilLagreSammendrag String
+    | VilLagreSammendragSkjema
+    | VilLagreBekreftetSammendrag
     | SammendragOppdatert (Result Http.Error Sammendrag)
     | BrukerVilIkkeRedigereSammendrag
     | SeksjonValgt ValgtSeksjon
@@ -801,7 +806,6 @@ type ValgtSeksjon
     | SertifiseringValgt
     | AnnenErfaringValgt
     | KursValgt
-    | FørerkortValgt
 
 
 updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
@@ -836,34 +840,20 @@ updateAndreSamtaleSteg model msg info =
         IngenAvDeAndreSeksjoneneValgt ->
             gåVidereFraSeksjonsvalg model info
 
-        OriginalSammendragBekreftet ->
-            { info
-                | meldingsLogg =
-                    info.meldingsLogg
-                        |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ])
-                        |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Flott! Da er vi nesten ferdige!" ] ]
-            }
-                |> gåTilAvslutning model
-
-        BrukerVilLeggeTilSammendrag ->
-            case info.aktivSamtale of
-                HarIkkeSammendrag ->
-                    ( ""
-                        |> EndrerSammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Jeg vil legge til" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
-
         BrukerVilEndreSammendrag ->
             case info.aktivSamtale of
-                BekreftEksisterendeSammendrag sammendrag ->
+                BekreftOpprinneligSammendrag sammendrag ->
                     ( sammendrag
                         |> Sammendrag.toString
                         |> EndrerSammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg vil se over" ])
+                        |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+
+                BekreftSammendrag _ sammendrag ->
+                    ( sammendrag
+                        |> EndrerSammendrag
+                        |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
 
@@ -879,36 +869,78 @@ updateAndreSamtaleSteg model msg info =
                     , Cmd.none
                     )
 
+                SkriverSammendrag _ ->
+                    ( tekst
+                        |> SkriverSammendrag
+                        |> oppdaterSamtaleSteg model info
+                    , Cmd.none
+                    )
+
                 _ ->
                     ( model, Cmd.none )
 
-        BrukerVilLagreSammendrag sammendrag ->
+        VilLagreSammendragSkjema ->
+            case info.aktivSamtale of
+                EndrerSammendrag tekst ->
+                    case Validering.feilmeldingMaxAntallTegn tekst 4000 of
+                        Just _ ->
+                            ( model, Cmd.none )
+
+                        Nothing ->
+                            ( tekst
+                                |> BekreftSammendrag EndretSammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+
+                SkriverSammendrag tekst ->
+                    case Validering.feilmeldingMaxAntallTegn tekst 4000 of
+                        Just _ ->
+                            ( model, Cmd.none )
+
+                        Nothing ->
+                            ( tekst
+                                |> BekreftSammendrag NyttSammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        VilLagreBekreftetSammendrag ->
             case info.aktivSamtale of
                 LagringAvSammendragFeilet error feiletSammendrag ->
                     ( error
                         |> LagreStatus.fraError
                         |> LagrerSammendrag feiletSammendrag
                         |> nesteSamtaleSteg model info (Melding.svar [ "Prøv på nytt" ])
+                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
+                    )
+
+                BekreftSammendrag _ sammendrag ->
+                    ( LagreStatus.init
+                        |> LagrerSammendrag sammendrag
+                        |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                     )
 
-                EndrerSammendrag tekst ->
-                    case Validering.feilmeldingMaxAntallTegn tekst 4000 of
-                        Nothing ->
-                            ( LagreStatus.init
-                                |> LagrerSammendrag sammendrag
-                                |> nesteSamtaleSteg model info (Melding.svar [ sammendrag ])
-                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
-                            )
-
-                        Just _ ->
-                            ( model, Cmd.none )
+                BekreftOpprinneligSammendrag opprinnelig ->
+                    let
+                        sammendrag =
+                            Sammendrag.toString opprinnelig
+                    in
+                    ( LagreStatus.init
+                        |> LagrerSammendrag sammendrag
+                        |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
+                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                    )
 
                 _ ->
                     ( model, Cmd.none )
 
         BrukerVilIkkeRedigereSammendrag ->
-            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ]) }
+            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg er fornøyd" ]) }
                 |> gåTilAvslutning model
 
         SammendragOppdatert result ->
@@ -1189,9 +1221,6 @@ gåTilValgtSeksjon model info valgtSeksjon =
                 KursValgt ->
                     gåTilKurs model ferdigAnimertMeldingsLogg
 
-                FørerkortValgt ->
-                    ( model, Cmd.none )
-
         MeldingerGjenstår ->
             ( { info | meldingsLogg = meldingsLogg }
                 |> AndreSamtaleSteg
@@ -1207,13 +1236,13 @@ gåVidereFraSeksjonsvalg model info =
             case Cv.sammendrag model.cv of
                 Just sammendrag ->
                     if String.isEmpty (String.trim (Sammendrag.toString sammendrag)) then
-                        HarIkkeSammendrag
+                        SkriverSammendrag ""
 
                     else
-                        BekreftEksisterendeSammendrag sammendrag
+                        BekreftOpprinneligSammendrag sammendrag
 
                 Nothing ->
-                    HarIkkeSammendrag
+                    EndrerSammendrag ""
     in
     ( { meldingsLogg =
             info.meldingsLogg
@@ -1303,21 +1332,41 @@ samtaleTilMeldingsLogg samtale =
         LeggTilFlereAnnet ->
             [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
 
-        HarIkkeSammendrag ->
+        BekreftOpprinneligSammendrag sammendrag ->
             [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
             , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
+            , Melding.spørsmål
+                [ "Du har allerede skrevet dette:"
+                , Melding.tomLinje
+                , Sammendrag.toString sammendrag
+                , Melding.tomLinje
+                , "Er du fornøyd? "
+                ]
             ]
 
-        BekreftEksisterendeSammendrag sammendrag ->
-            [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
-            , Melding.spørsmål [ "Nå skal du skrive et sammendrag." ]
-            , Melding.spørsmål [ "Du har allerede skrevet dette..." ]
-            , Melding.spørsmål [ Sammendrag.toString sammendrag ]
-            , Melding.spørsmål [ "Vil du legge til eller endre på noe?" ]
-            ]
+        BekreftSammendrag bekreftState sammendrag ->
+            case bekreftState of
+                NyttSammendrag ->
+                    [ Melding.spørsmål
+                        [ "Du la inn dette:"
+                        , Melding.tomLinje
+                        , sammendrag
+                        , Melding.tomLinje
+                        , "Er du fornøyd? "
+                        ]
+                    ]
+
+                EndretSammendrag ->
+                    [ Melding.spørsmål [ "Nå har du endret. Er du fornøyd?" ] ]
 
         EndrerSammendrag _ ->
-            [ Melding.spørsmål [ "Ok! Fyll ut sammendraget ditt i boksen under." ] ]
+            [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
+
+        SkriverSammendrag _ ->
+            [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
+            , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
+            , Melding.spørsmål [ "Fyll ut sammendraget ditt i boksen under." ]
+            ]
 
         LagrerSammendrag _ _ ->
             []
@@ -1635,30 +1684,19 @@ viewBrukerInputForAndreSamtaleSteg info =
                             |> Knapp.toHtml
                         ]
 
-                HarIkkeSammendrag ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilLeggeTilSammendrag "Jeg vil legge til sammendrag"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilIkkeRedigereSammendrag "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                BekreftOpprinneligSammendrag _ ->
+                    viewBekreftSammendrag BrukerVilIkkeRedigereSammendrag
 
-                BekreftEksisterendeSammendrag _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilEndreSammendrag "Ja, jeg vil se over"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilIkkeRedigereSammendrag "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                BekreftSammendrag _ _ ->
+                    viewBekreftSammendrag VilLagreBekreftetSammendrag
 
                 EndrerSammendrag sammendrag ->
-                    Containers.inputMedGåVidereKnapp (BrukerVilLagreSammendrag sammendrag)
-                        [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
-                            |> Textarea.withTextAreaClass "textarea_stor"
-                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
-                            |> Textarea.withId sammendragId
-                            |> Textarea.toHtml
-                        ]
+                    Containers.skjema { lagreMsg = VilLagreSammendragSkjema, lagreKnappTekst = "Lagre endringer" }
+                        (viewSammendragInput sammendrag)
+
+                SkriverSammendrag sammendrag ->
+                    Containers.inputMedGåVidereKnapp VilLagreSammendragSkjema
+                        (viewSammendragInput sammendrag)
 
                 LagrerSammendrag _ lagreStatus ->
                     if LagreStatus.lagrerEtterUtlogging lagreStatus then
@@ -1667,7 +1705,7 @@ viewBrukerInputForAndreSamtaleSteg info =
                     else
                         text ""
 
-                LagringAvSammendragFeilet error sammendrag ->
+                LagringAvSammendragFeilet error _ ->
                     case ErrorHåndtering.operasjonEtterError error of
                         GiOpp ->
                             Containers.knapper Flytende
@@ -1677,7 +1715,7 @@ viewBrukerInputForAndreSamtaleSteg info =
 
                         PrøvPåNytt ->
                             Containers.knapper Flytende
-                                [ Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Prøv på nytt"
+                                [ Knapp.knapp VilLagreBekreftetSammendrag "Prøv på nytt"
                                     |> Knapp.toHtml
                                 , Knapp.knapp BrukerVilIkkeRedigereSammendrag "Gå videre uten å lagre"
                                     |> Knapp.toHtml
@@ -1784,8 +1822,27 @@ viewLeggTilAnnet =
     Containers.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
         , seksjonsvalgKnapp KursValgt
-        , seksjonsvalgKnapp FørerkortValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
+            |> Knapp.toHtml
+        ]
+
+
+viewSammendragInput : String -> List (Html AndreSamtaleStegMsg)
+viewSammendragInput sammendrag =
+    [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
+        |> Textarea.withTextAreaClass "textarea_stor"
+        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
+        |> Textarea.withId sammendragId
+        |> Textarea.toHtml
+    ]
+
+
+viewBekreftSammendrag : AndreSamtaleStegMsg -> Html AndreSamtaleStegMsg
+viewBekreftSammendrag bekreftMsg =
+    Containers.knapper Flytende
+        [ Knapp.knapp bekreftMsg "Ja, jeg er fornøyd"
+            |> Knapp.toHtml
+        , Knapp.knapp BrukerVilEndreSammendrag "Nei, jeg vil endre"
             |> Knapp.toHtml
         ]
 
@@ -1795,42 +1852,14 @@ seksjonsvalgKnapp seksjonsvalg =
     seksjonsvalg
         |> seksjonsvalgTilString
         |> Knapp.knapp (SeksjonValgt seksjonsvalg)
-        |> Knapp.withEnabled (seksjonsvalgDisabled seksjonsvalg)
         |> Knapp.toHtml
-
-
-seksjonsvalgDisabled : ValgtSeksjon -> Enabled
-seksjonsvalgDisabled seksjonsvalg =
-    -- TODO: enable når implementert
-    -- TODO: Slett denne når alle er implementert
-    case seksjonsvalg of
-        FagbrevSvennebrevValgt ->
-            Enabled
-
-        MesterbrevValgt ->
-            Enabled
-
-        AutorisasjonValgt ->
-            Enabled
-
-        SertifiseringValgt ->
-            Enabled
-
-        AnnenErfaringValgt ->
-            Enabled
-
-        KursValgt ->
-            Enabled
-
-        FørerkortValgt ->
-            Disabled
 
 
 seksjonsvalgTilString : ValgtSeksjon -> String
 seksjonsvalgTilString seksjonsvalg =
     case seksjonsvalg of
         FagbrevSvennebrevValgt ->
-            "Fagbrev/Svennebrev"
+            "Fagbrev/svennebrev"
 
         MesterbrevValgt ->
             "Mesterbrev"
@@ -1846,9 +1875,6 @@ seksjonsvalgTilString seksjonsvalg =
 
         KursValgt ->
             "Kurs"
-
-        FørerkortValgt ->
-            "Førerkort"
 
 
 
