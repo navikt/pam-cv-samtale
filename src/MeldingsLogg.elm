@@ -15,6 +15,7 @@ module MeldingsLogg exposing
     , SpørsmålsGruppeViewState
     , avsluttScrollingTilInput
     , begynnÅViseBrukerInput
+    , debugFullførAlleMeldinger
     , ferdigAnimert
     , fullførAnimasjon
     , ikonPlassering
@@ -119,6 +120,36 @@ sisteMeldingId : MeldingsLogg -> String
 sisteMeldingId (MeldingsLogg info) =
     -- TODO: Er denne nødvendig?
     "test"
+
+
+debugFullførAlleMeldinger : MeldingsLogg -> MeldingsLogg
+debugFullførAlleMeldinger (MeldingsLogg info) =
+    case info.ikkeVist of
+        MeldingerIkkeFerdigAnimert ikkeFerdigInfo ->
+            MeldingsLogg
+                { info
+                    | ikkeVist = AlleMeldingerFerdigAnimert
+                    , ferdigAnimert =
+                        info.ferdigAnimert
+                            ++ [ [ ikkeFerdigInfo.ferdigAnimerteMeldinger
+                                 , [ debugTilFerdiganimert ikkeFerdigInfo.nesteMelding ]
+                                 , List.map debugTilFerdiganimert ikkeFerdigInfo.ikkeAnimerteMeldinger
+                                 ]
+                                    |> List.concat
+                                    |> FerdigAnimertSpørsmålsGruppe
+                               ]
+                }
+
+        _ ->
+            MeldingsLogg { info | ikkeVist = AlleMeldingerFerdigAnimert }
+
+
+debugTilFerdiganimert : Melding -> FerdigAnimertMelding
+debugTilFerdiganimert melding =
+    { melding = melding
+    , height = 0
+    , width = 0
+    }
 
 
 type ScrollAnimasjonStatus

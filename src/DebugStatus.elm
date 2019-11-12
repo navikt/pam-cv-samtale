@@ -1,4 +1,4 @@
-module DebugStatus exposing (DebugStatus, fromUrl, meldingsTimeout)
+module DebugStatus exposing (DebugStatus, fromUrl, hoppOverMeldingsanimasjon, meldingsTimeout)
 
 import Url exposing (Url)
 
@@ -45,3 +45,8 @@ meldingsTimeout status timeout =
 
         Regular ->
             timeout
+
+
+hoppOverMeldingsanimasjon : DebugStatus -> Bool
+hoppOverMeldingsanimasjon debugStatus =
+    debugStatus == Debug

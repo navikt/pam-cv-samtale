@@ -17,57 +17,24 @@ scrollTilBunn msgKonstruktør =
         |> Task.attempt msgKonstruktør
 
 
-scrollTilElement : (Result Dom.Error () -> msg) -> String -> Cmd msg
-scrollTilElement msgKonstruktør id =
-    --    let
-    --        _ =
-    --            Debug.log "id" id
-    --    in
-    Dom.getElement id
-        |> Task.andThen setViewportTilElement
-        |> Task.attempt msgKonstruktør
-
-
-setViewportTilElement : Element -> Task Dom.Error ()
-setViewportTilElement elementInfo =
-    let
-        --        _ =
-        --            Debug.log "elementInfo" elementInfo
-        --
-        --        y =
-        --            Debug.log "y" (elementInfo.element.y + elementInfo.element.height - 224)
-        --
-        _ =
-            Debug.log "y" elementInfo.element.y
-
-        y =
-            elementInfo.element.y + elementInfo.element.height - 224
-    in
-    Dom.setViewportOf "samtale" 0 y
-
-
 type Msg
     = StartÅSkrive (Result Dom.Error ( Viewport, Time.Posix ))
     | StartMeldingsanimasjon
-    | GotElement (Result Dom.Error ( Dom.Element, Viewport, Time.Posix ))
+    | RegistrerMeldingsdimensjoner (Result Dom.Error ( Dom.Element, Viewport, Time.Posix ))
     | FullførMeldingsanimasjon
     | VisBrukerInput
     | StartÅScrolleInnInput (Result Dom.Error ( Viewport, Time.Posix ))
     | AnimationFrame Time.Posix
-    | ViewportSatt (Result Dom.Error ())
+    | ScrolletViewport (Result Dom.Error ())
 
 
 startAnimasjon : DebugStatus -> Cmd Msg
 startAnimasjon debugStatus =
-    Cmd.batch
-        [ --scrollTilBunn ViewportSatt
-          --,
-          200
-            |> DebugStatus.meldingsTimeout debugStatus
-            |> Process.sleep
-            |> Task.andThen (\_ -> getTimeAndViewport)
-            |> Task.attempt StartÅSkrive
-        ]
+    200
+        |> DebugStatus.meldingsTimeout debugStatus
+        |> Process.sleep
+        |> Task.andThen (\_ -> getTimeAndViewport)
+        |> Task.attempt StartÅSkrive
 
 
 update : DebugStatus -> Msg -> MeldingsLogg -> ( MeldingsLogg, Cmd Msg )
@@ -76,13 +43,17 @@ update debugStatus msg meldingsLogg =
         StartÅSkrive result ->
             case result of
                 Ok ( viewport, posix ) ->
-                    ( MeldingsLogg.startÅSkrive posix viewport meldingsLogg
-                    , MeldingsLogg.nesteMeldingToString meldingsLogg
-                        * 1000.0
-                        |> DebugStatus.meldingsTimeout debugStatus
-                        |> Process.sleep
-                        |> Task.perform (always StartMeldingsanimasjon)
-                    )
+                    if DebugStatus.hoppOverMeldingsanimasjon debugStatus then
+                        hoppOverMeldingsanimasjon meldingsLogg
+
+                    else
+                        ( MeldingsLogg.startÅSkrive posix viewport meldingsLogg
+                        , MeldingsLogg.nesteMeldingToString meldingsLogg
+                            * 1000.0
+                            |> DebugStatus.meldingsTimeout debugStatus
+                            |> Process.sleep
+                            |> Task.perform (always StartMeldingsanimasjon)
+                        )
 
                 Err error ->
                     ( meldingsLogg, Cmd.none )
@@ -96,10 +67,10 @@ update debugStatus msg meldingsLogg =
             , nyMeldingslogg
                 |> MeldingsLogg.sisteMeldingId
                 |> getDimensionsTimeAndViewport
-                |> Task.attempt GotElement
+                |> Task.attempt RegistrerMeldingsdimensjoner
             )
 
-        GotElement result ->
+        RegistrerMeldingsdimensjoner result ->
             case result of
                 Ok ( element, viewport, posix ) ->
                     ( meldingsLogg
@@ -125,12 +96,6 @@ update debugStatus msg meldingsLogg =
             in
             case MeldingsLogg.ferdigAnimert nyMeldingslogg of
                 FerdigAnimert _ ->
-                    --                    100
-                    --                        |> DebugStatus.meldingsTimeout debugStatus
-                    --                        |> Process.sleep
-                    --                        |> Task.andThen (always (Dom.getViewportOf "samtale"))
-                    --                        |> Task.andThen (\viewport -> Task.map (\posix -> { timestamp = posix, viewport = viewport }) Time.now)
-                    --                        |> Task.perform StartÅScrolleInnInput
                     ( nyMeldingslogg
                     , 250
                         |> DebugStatus.meldingsTimeout debugStatus
@@ -147,15 +112,8 @@ update debugStatus msg meldingsLogg =
                         |> Task.attempt StartÅSkrive
                     )
 
-        --        StartÅScrolleInnInput viewport timestamp ->
-        --                ( MeldingsLogg.startScrollingTilInput timestamp meldingsLogg, Cmd.none )
         VisBrukerInput ->
             ( MeldingsLogg.begynnÅViseBrukerInput meldingsLogg
-              --            , 100
-              --                |> DebugStatus.meldingsTimeout debugStatus
-              --                |> Process.sleep
-              --                |> Task.andThen (\_ -> Task.map2 Tuple.pair (Dom.getViewportOf "samtale") Time.now)
-              --                |> Task.attempt StartÅScrolleInnInput
             , getTimeAndViewport
                 |> Task.attempt StartÅScrolleInnInput
             )
@@ -168,7 +126,7 @@ update debugStatus msg meldingsLogg =
                 Err _ ->
                     ( meldingsLogg, Cmd.none )
 
-        ViewportSatt _ ->
+        ScrolletViewport _ ->
             ( meldingsLogg, Cmd.none )
 
         AnimationFrame posix ->
@@ -177,16 +135,18 @@ update debugStatus msg meldingsLogg =
                     ( meldingsLogg, Cmd.none )
 
                 ScrollerInnSkriveIndikator record ->
-                    --                    ( meldingsLogg, scrollTilElement ViewportSatt "test0" )
-                    --                    ( meldingsLogg, scrollTilBunn ViewportSatt )
                     scrollTilSkriveIndikator meldingsLogg record posix
 
                 ScrollerInnMelding record ->
                     scrollTilMelding meldingsLogg record posix
 
                 ScrollerInnInputFelt record ->
-                    --                    ( meldingsLogg, Cmd.none )
                     scrollInnBrukerInput meldingsLogg record posix
+
+
+hoppOverMeldingsanimasjon : MeldingsLogg -> ( MeldingsLogg, Cmd Msg )
+hoppOverMeldingsanimasjon meldingsLogg =
+    ( MeldingsLogg.debugFullførAlleMeldinger meldingsLogg, scrollTilBunn ScrolletViewport )
 
 
 triple : a -> b -> c -> ( a, b, c )
@@ -222,7 +182,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
       }
         |> scrollPosition
         |> Dom.setViewportOf "samtale" 0
-        |> Task.attempt ViewportSatt
+        |> Task.attempt ScrolletViewport
     )
 
 
@@ -244,7 +204,7 @@ scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewpor
       }
         |> scrollPosition
         |> Dom.setViewportOf "samtale" 0
-        |> Task.attempt ViewportSatt
+        |> Task.attempt ScrolletViewport
     )
 
 
@@ -289,25 +249,25 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport } 
         sluttPosisjon =
             opprinneligViewport.scene.height - opprinneligViewport.viewport.height
 
-        yNå =
-            { animasjonstidMs = 150
-            , opprinneligViewport = opprinneligViewport
-            , sluttPosisjon = sluttPosisjon
-            , tidNå = tidNå
-            , startTidForScrolling = startTidForScrolling
-            }
-                |> scrollPosition
+        scrollTilPosisjon =
+            scrollPosition
+                { animasjonstidMs = 150
+                , opprinneligViewport = opprinneligViewport
+                , sluttPosisjon = sluttPosisjon
+                , tidNå = tidNå
+                , startTidForScrolling = startTidForScrolling
+                }
     in
-    if yNå >= (sluttPosisjon - 4) then
+    if scrollTilPosisjon >= (sluttPosisjon - 4) then
         ( MeldingsLogg.avsluttScrollingTilInput meldingsLogg
-        , Dom.setViewportOf "samtale" 0 yNå
-            |> Task.attempt ViewportSatt
+        , Dom.setViewportOf "samtale" 0 scrollTilPosisjon
+            |> Task.attempt ScrolletViewport
         )
 
     else
         ( meldingsLogg
-        , Dom.setViewportOf "samtale" 0 yNå
-            |> Task.attempt ViewportSatt
+        , Dom.setViewportOf "samtale" 0 scrollTilPosisjon
+            |> Task.attempt ScrolletViewport
         )
 
 
@@ -320,7 +280,7 @@ subscriptions meldingsLogg =
         ScrollerInnSkriveIndikator _ ->
             Browser.Events.onAnimationFrame AnimationFrame
 
-        ScrollerInnMelding record ->
+        ScrollerInnMelding _ ->
             Browser.Events.onAnimationFrame AnimationFrame
 
         ScrollerInnInputFelt _ ->
