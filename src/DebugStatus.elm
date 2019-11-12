@@ -8,15 +8,6 @@ type DebugStatus
     | Regular
 
 
-
---debugParser : Parser DebugStatus
---debugParser =
---    succeed Debug
---        |. Parser.chompUntil "?"
---        |. Parser.chompUntil "debug=true"
---        |. Parser.symbol "&"
-
-
 fromUrl : Url -> DebugStatus
 fromUrl url =
     url

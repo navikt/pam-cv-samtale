@@ -17,20 +17,18 @@ import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
 import FrontendModuler.LoggInnLenke as LoggInnLenke
-import FrontendModuler.RobotLogo as RobotLogo
 import FrontendModuler.Spinner as Spinner
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Attributes.Aria exposing (ariaLabel, ariaLive, role)
+import Html.Attributes.Aria exposing (ariaLabel, ariaLive)
 import Http
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding, Tekstområde(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), IkonView(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
 import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Personalia.Seksjon
-import Process
 import SamtaleAnimasjon
 import Sertifikat.Seksjon
 import SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
@@ -1391,15 +1389,6 @@ viewMeldingsgruppe : MeldingsGruppeViewState -> Html msg
 viewMeldingsgruppe meldingsGruppe =
     case meldingsGruppe of
         SpørsmålGruppe spørsmålGruppe ->
-            --            div [ style "display" "flex" ]
-            --                [ div [ class "robotkolonne" ]
-            --                    [ div [ class "robot", robotStyle spørsmålGruppe ]
-            --                        [ i [ class "Robotlogo" ] [] ]
-            --                    ]
-            --                , spørsmålGruppe
-            --                    |> MeldingsLogg.mapSpørsmålsgruppe viewSpørsmål
-            --                    |> div [ class "meldingsgruppe", ariaLabel "Roboten" ]
-            --                ]
             spørsmålGruppe
                 |> MeldingsLogg.mapSpørsmålsgruppe viewSpørsmål
                 |> div [ class "meldingsgruppe", ariaLabel "Roboten" ]
@@ -1408,145 +1397,20 @@ viewMeldingsgruppe meldingsGruppe =
             viewSvar melding
 
 
-robotStyle : SpørsmålsGruppeViewState -> Html.Attribute msg
-robotStyle spørsmålsGruppeViewState =
-    case MeldingsLogg.ikonPlassering spørsmålsGruppeViewState of
-        IkonSkjult ->
-            style "opacity" "0"
-
-        UtenPadding ->
-            --            style "padding-bottom" "2px"
-            style "margin-bottom" "2px"
-
-        MedPadding { height } ->
-            let
-                padding =
-                    16
-
-                snakkebobleHeight =
-                    height
-                        + (2 * padding)
-                        |> toFloat
-
-                marginBottom =
-                    (snakkebobleHeight - 50) / 2
-            in
-            --            style "padding-bottom" (String.fromFloat marginBottom ++ "px")
-            style "margin-bottom" (String.fromFloat marginBottom ++ "px")
-
-
-viewSpørsmålNy : SpørsmålViewState -> Html msg
-viewSpørsmålNy spørsmål =
-    --        [ --text ""
-    --          div [ class "robot" ]
-    --            -- TODO Fiks at kun siste får robot
-    --            [ i [ class "Robotlogo" ] [] ]
-    --             case plassering of
-    --                SisteSpørsmålIMeldingsgruppe ->
-    --                    div [ class "robot" ] [ RobotLogo.robotLogo ]
-    --
-    --                IkkeSisteSpørsmål ->
-    --                    div [ class "robot" ] []
-    case SpørsmålViewState.spørsmålStyle spørsmål of
-        FørSkriveindikator ->
-            div [ class "meldingsrad sporsmal " ]
-                [ div [ class "melding skjult", ariaLive "off" ]
-                    [ div [ class "skriver-melding" ]
-                        [ div [ class "bounce bounce1" ] []
-                        , div [ class "bounce bounce2" ] []
-                        , div [ class "bounce bounce3" ] []
-                        ]
-                    ]
-                ]
-
-        Skriveindikator ->
-            div [ class "meldingsrad sporsmal" ]
-                [ viewSkriveStatus
-                ]
-
-        StørrelseKalkuleres ->
-            div [ class "meldingsrad sporsmal" ]
-                [ article
-                    [ class "melding kalkulerer"
-                    , ariaLive "polite"
-                    ]
-                    [ div [ class "meldinginnhold-overflow-hidden" ]
-                        [ div [ class "meldinginnhold-wrapper", id "test" ]
-                            (spørsmål
-                                |> SpørsmålViewState.tekst
-                                |> List.map viewTekstområde
-                            )
-                        ]
-                    ]
-                ]
-
-        MeldingAnimeres { height, width } ->
-            let
-                padding =
-                    16
-
-                snakkebobleHeight =
-                    height + (2 * padding)
-
-                snakkebobleWidth =
-                    width + (2 * padding)
-            in
-            div [ class "meldingsrad sporsmal" ]
-                [ article
-                    [ class "melding ferdiganimert"
-                    , ariaLive "polite"
-                    , style "height" (String.fromInt snakkebobleHeight ++ "px")
-                    , style "width" (String.fromInt snakkebobleWidth ++ "px")
-                    ]
-                    [ div [ class "meldinginnhold-overflow-hidden" ]
-                        [ div [ class "meldinginnhold-wrapper" ]
-                            (spørsmål
-                                |> SpørsmålViewState.tekst
-                                |> List.map viewTekstområde
-                            )
-                        ]
-                    ]
-                ]
-
-        MeldingFerdigAnimert ->
-            div [ class "meldingsrad sporsmal" ]
-                [ article
-                    [ class "melding"
-                    , ariaLive "polite"
-                    ]
-                    (spørsmål
-                        |> SpørsmålViewState.tekst
-                        |> List.map viewTekstområde
-                    )
-                ]
-
-
 viewSpørsmål : SpørsmålViewState -> Html msg
 viewSpørsmål spørsmål =
     div [ class "meldingsrad sporsmal" ]
-        [ --text ""
-          case SpørsmålViewState.ikonStatus spørsmål of
+        [ case SpørsmålViewState.ikonStatus spørsmål of
             SkjultIkon ->
-                div [ class "robot" ]
-                    -- TODO Fiks at kun siste får robot
-                    []
+                div [ class "robot" ] []
 
             MidtstiltIkon ->
                 div [ class "robot" ]
-                    -- TODO Fiks at kun siste får robot
                     [ i [ class "Robotlogo" ] [] ]
 
             IkonForNesteMelding height ->
                 div [ class "robot", transformForRobot height ]
-                    -- TODO Fiks at kun siste får robot
                     [ i [ class "Robotlogo" ] [] ]
-
-        --         case plassering of
-        --            SisteSpørsmålIMeldingsgruppe ->
-        --                div [ class "robot" ] [ RobotLogo.robotLogo ]
-        --
-        --            IkkeSisteSpørsmål ->
-        --                div [ class "robot" ] []
         , case SpørsmålViewState.spørsmålStyle spørsmål of
             FørSkriveindikator ->
                 div
@@ -1664,11 +1528,6 @@ viewSvar melding =
                 )
             ]
         ]
-
-
-noAttribute : Html.Attribute msg
-noAttribute =
-    classList []
 
 
 viewTekstområde : Tekstområde -> Html msg
