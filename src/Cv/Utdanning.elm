@@ -40,7 +40,7 @@ type Nivå
     | Folkehøyskole
     | HøyereUtdanning1til4
     | HøyereUtdanning4pluss
-    | Phd
+    | Doktorgrad
 
 
 id : Utdanning -> String
@@ -149,7 +149,7 @@ decodeNivå nivå_ =
         succeed HøyereUtdanning4pluss
 
     else if String.left 1 nivå_ == "8" then
-        succeed Phd
+        succeed Doktorgrad
 
     else
         fail ("Decoding av nuskode feilet. Klarer ikke decode verdi: " ++ nivå_)

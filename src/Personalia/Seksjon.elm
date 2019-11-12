@@ -460,7 +460,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
         BekreftOriginal personalia ->
             [ Melding.spørsmål [ "Da setter vi i gang 😊" ]
-            , Melding.spørsmål [ "Jeg har hentet inn kontaktinformasjonen din, den vises på CV-en. Det er viktig at informasjonen er riktig, slik at arbeidsgivere kan kontakte deg." ]
+            , Melding.spørsmål [ "Jeg har hentet inn kontaktinformasjonen din, den vises på CV-en. Sjekk at den er riktig, slik at arbeidsgivere kan kontakte deg." ]
             , Melding.spørsmål
                 (List.concat
                     [ personalia
@@ -474,7 +474,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             ]
 
         EndreOriginal _ ->
-            [ Melding.spørsmål [ "Ok! Vennligst skriv inn riktig informasjon i feltene under:" ] ]
+            [ Melding.spørsmål [ "Ok! Skriv inn riktig informasjon i feltene under." ] ]
 
         LagrerEndring _ _ ->
             []
@@ -486,11 +486,11 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             case fullføringStatus of
                 BekreftetOriginal ->
                     [ Melding.spørsmål [ "Så bra! 😊 Nå kan arbeidsgivere kontakte deg." ]
-                    , Melding.spørsmål [ "Da kan vi gå videre til utfylling av CV-en." ]
+                    , Melding.spørsmål [ "Da går vi videre til utdanning." ]
                     ]
 
                 LagringLyktesFørsteGang ->
-                    [ Melding.spørsmål [ "Godt jobbet! Da tar jeg vare på den nye infoen!" ] ]
+                    [ Melding.spørsmål [ "Da har du endret👍 Er det riktig nå?" ] ]
 
                 LagringLyktesEtterFlereForsøk ->
                     [ Melding.spørsmål [ "Supert! Nå fikk jeg det til. Kontaktinformasjonen er lagret. La oss fortsette 😊" ] ]

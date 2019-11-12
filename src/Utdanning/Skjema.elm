@@ -372,5 +372,5 @@ encodeNuskode nivå_ =
         HøyereUtdanning4pluss ->
             Json.Encode.string "7"
 
-        Phd ->
+        Doktorgrad ->
             Json.Encode.string "8"

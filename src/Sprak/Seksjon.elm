@@ -586,7 +586,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre norsk" } ]
 
         LeggTilEngelsk ->
-            [ Melding.spørsmål [ "Hva med engelsk? Kan du det?" ] ]
+            [ Melding.spørsmål [ "Da går videre til engelsk? Kan du det?" ] ]
 
         VelgNyttSpråk _ ->
             [ Melding.spørsmål [ "Hvilket språk vil du legge til?" ] ]
@@ -605,7 +605,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
 
         LeggTilFlereSpråk ->
             [ Melding.spørsmål
-                [ "Supert! Da har du lagt inn "
+                [ "Bra! Nå har du lagt til "
                     ++ (model.språk
                             |> List.filterMap Spraakferdighet.sprak
                             |> List.map String.toLower

@@ -816,10 +816,10 @@ samtaleTilMeldingsLogg kursSeksjon =
             ]
 
         EndreOpplysninger _ ->
-            []
+            [ Melding.spørsmål [ "Gjør endringene du ønsker i feltene under." ] ]
 
         VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Da har du endret! Er informasjonen riktig nå?" ] ]
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         LagrerSkjema _ _ ->
             []

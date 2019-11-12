@@ -557,11 +557,11 @@ update msg (Model model) =
                                     if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen din lagt til i CV-en!" ] ]
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen lagret 👍" ] ]
 
                                     else
                                         model.seksjonsMeldingsLogg
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen din lagt til i CV-en!" ] ]
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen lagret 👍" ] ]
                             in
                             ( sertifikater
                                 |> VenterPåAnimasjonFørFullføring
@@ -986,7 +986,7 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
             [ Melding.spørsmål
                 [ "Hvilken organisasjon sertifiserte deg?" ]
             , Melding.spørsmål
-                [ "Er du usikker på hvem som har ansvar for sertifiseringen? Det vil ofte stå på beviset ditt" ]
+                [ "Er du usikker på hvem som har ansvar for sertifiseringen? Det står ofte på beviset ditt" ]
             ]
 
         RegistrerFullførtMåned _ ->
@@ -1023,10 +1023,10 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
             ]
 
         EndreOpplysninger _ _ ->
-            []
+            [ Melding.spørsmål [ "Endre informasjonen i feltene under." ] ]
 
         VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         LagrerSkjema _ _ ->
             []

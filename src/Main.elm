@@ -1256,14 +1256,14 @@ samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg samtale =
     case samtale of
         Introduksjon personalia ->
-            [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten Cvert, og jeg kan hjelpe deg å lage en CV." ]
-            , Melding.spørsmål [ "Først skal du legge inn utdanning, arbeidserfaring, språk og sammendrag. Etter det kan du legge til kurs, fagbrev, sertifisering og førerkort." ]
-            , Melding.spørsmål [ "Husk at du ikke skal legge inn noe om helse, religion eller politiske oppfatning." ]
+            [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ ", nå starter vi på CV-en din!" ]
+            , Melding.spørsmål [ "Først legger du inn utdanning, arbeidserfaring, språk og førerkort. Etter det kan du legge inn fagbrev, kurs, sertifisering og sammendrag." ]
+            , Melding.spørsmål [ "Du skal ikke skrive inn noe om helse, religion eller politiske oppfatning." ]
             , Melding.spørsmål [ "Er du klar til å begynne?" ]
             ]
 
         LeggTilAutorisasjoner ->
-            [ Melding.spørsmål [ "Nå begynner CV-en din å ta form. Er det noe mer du kan legge inn?" ]
+            [ Melding.spørsmål [ "Nå har du lagt inn mye i CV-en din. Er det noe mer du kan ta med?" ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
@@ -1274,7 +1274,6 @@ samtaleTilMeldingsLogg samtale =
             [ Melding.spørsmål [ "Det er viktig å få med alt du kan på CV-en." ]
             , Melding.spørsmål [ "Har du jobbet som frivillig eller har hatt verv? Legg til annen erfaring." ]
             , Melding.spørsmål [ "Har du tatt norskprøve? Legg til kurs." ]
-            , Melding.spørsmål [ "Hva med førerkort? Husk å legge det inn i CV-en din. Mange arbeidsgivere ser etter jobbsøkere som kan kjøre." ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
@@ -1282,10 +1281,13 @@ samtaleTilMeldingsLogg samtale =
             [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
 
         HarIkkeSammendrag ->
-            [ Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ] ]
+            [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
+            , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
+            ]
 
         BekreftEksisterendeSammendrag sammendrag ->
-            [ Melding.spørsmål [ "Nå skal vi skrive et sammendrag." ]
+            [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
+            , Melding.spørsmål [ "Nå skal du skrive et sammendrag." ]
             , Melding.spørsmål [ "Du har allerede skrevet dette..." ]
             , Melding.spørsmål [ Sammendrag.toString sammendrag ]
             , Melding.spørsmål [ "Vil du legge til eller endre på noe?" ]
@@ -1301,7 +1303,7 @@ samtaleTilMeldingsLogg samtale =
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre sammendrag" } ]
 
         DelMedArbeidsgiver synlig ->
-            [ Melding.spørsmål [ "I denne CV-tjenesten kan arbeidsgivere søke opp CV-en din. Hvis de har en ledig jobb du kan passe til, kan de ta kontakt." ]
+            [ Melding.spørsmål [ "Du kan velge om arbeidsgivere skal få se CV-en din. Da kan de ta kontakt hvis de har en jobb du kan passe til. " ]
             , if synlig then
                 Melding.spørsmål
                     [ "CV-en din er allerede synlig for arbeidsgivere!"
@@ -1314,8 +1316,8 @@ samtaleTilMeldingsLogg samtale =
             ]
 
         UnderOppfølging ->
-            [ Melding.spørsmål [ "I denne CV-tjenesten kan arbeidsgivere og NAV-veiledere søke opp CV-en din. De kan kontakte deg hvis de har en jobb du kan passe til." ]
-            , Melding.spørsmål [ "Fordi du får oppfølging fra NAV, vil CV-en din være synlig for arbeidsgivere og NAV-veiledere." ]
+            [ Melding.spørsmål [ "Arbeidsgivere og NAV-veiledere kan søke opp CV-en din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
+            , Melding.spørsmål [ "CV-en din er synlig for arbeidsgivere og NAV-veiledere fordi du får oppfølging fra NAV." ]
             , Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ] -- TODO: Skal ikke arbeidssøkere få denne meldingen?
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
             , Melding.spørsmål [ "Lykke til med jobbjakten! 😊" ]
