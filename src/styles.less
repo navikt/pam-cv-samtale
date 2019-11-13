@@ -4,7 +4,8 @@
 @meldingBredde: 27rem;
 //@meldingBreddeMobil: 70%;
 @meldingBreddeMedium: 21rem;
-@meldingBreddeMobil: 14rem;
+@meldingBreddeMobil: 15rem;
+@meldingBreddeLitenMobil: 14rem;
 
 @storSkjermSkjema: 432px;
 @litenSkjermSkjema: 431px;
@@ -232,7 +233,12 @@ html {
       max-width: @meldingBreddeMedium;
     }
     @media (max-width: 479px) {
-      max-width: @meldingBreddeMobil;
+      @media (min-width: 360px) {
+        max-width: @meldingBreddeMobil;
+      }
+      @media (max-width: 359px) {
+        max-width: @meldingBreddeLitenMobil;
+      }
     }
   }
   padding: 1rem;
@@ -259,7 +265,12 @@ html {
         max-width: calc(@meldingBreddeMedium - 2rem);
       }
       @media (max-width: 479px) {
-        max-width: calc(@meldingBreddeMobil - 2rem);
+        @media (min-width: 360px) {
+          max-width: calc(@meldingBreddeMobil - 2rem);
+        }
+        @media (max-width: 359px) {
+          max-width: calc(@meldingBreddeLitenMobil - 2rem);
+        }
       }
     }
     width: max-content;
