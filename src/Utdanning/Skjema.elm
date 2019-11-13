@@ -358,13 +358,13 @@ encodeNuskode nivå_ =
             Json.Encode.string "2"
 
         VideregåendeYrkesskole ->
-            Json.Encode.string "3"
-
-        Fagskole ->
             Json.Encode.string "4"
 
-        Folkehøyskole ->
+        Fagskole ->
             Json.Encode.string "5"
+
+        Folkehøyskole ->
+            Json.Encode.string "3"
 
         HøyereUtdanning1til4 ->
             Json.Encode.string "6"

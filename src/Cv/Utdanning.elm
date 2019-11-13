@@ -133,13 +133,13 @@ decodeNivå nivå_ =
     if String.left 1 nivå_ == "1" || String.left 1 nivå_ == "2" then
         succeed Grunnskole
 
-    else if String.left 1 nivå_ == "3" then
+    else if String.left 1 nivå_ == "4" then
         succeed VideregåendeYrkesskole
 
-    else if String.left 1 nivå_ == "4" then
+    else if String.left 1 nivå_ == "5" then
         succeed Fagskole
 
-    else if String.left 1 nivå_ == "5" then
+    else if String.left 1 nivå_ == "3" then
         succeed Folkehøyskole
 
     else if String.left 1 nivå_ == "6" then

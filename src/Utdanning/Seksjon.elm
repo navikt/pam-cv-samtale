@@ -921,7 +921,7 @@ updateEtterLagreKnappTrykket model skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
         |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
-    , Api.postUtdanning UtdanningSendtTilApi skjema
+    , postEllerPutUtdanning UtdanningSendtTilApi skjema
     )
         |> IkkeFerdig
 
@@ -1434,7 +1434,16 @@ lagUtdanningKnapper utdanninger =
             (\utdanning ->
                 let
                     text =
-                        Maybe.withDefault (utdanning |> Utdanning.nivå |> nivåToString) (Utdanning.utdanningsretning utdanning)
+                        case Utdanning.utdanningsretning utdanning of
+                            Just value ->
+                                if value == "" then
+                                    utdanning |> Utdanning.nivå |> nivåToString
+
+                                else
+                                    value
+
+                            Nothing ->
+                                utdanning |> Utdanning.nivå |> nivåToString
                 in
                 Knapp.knapp (BrukerHarValgtUtdanningÅRedigere utdanning text) text
                     |> Knapp.toHtml

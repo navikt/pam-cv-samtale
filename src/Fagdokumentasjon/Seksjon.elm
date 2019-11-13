@@ -305,7 +305,7 @@ update msg (Model model) =
                                             model.seksjonsMeldingsLogg
                                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg vil logge inn" ])
                                                 |> MeldingsLogg.leggTilSpørsmål
-                                                    [ meldingForLagringSucess skjema ]
+                                                    [ meldingForLagringSuccess skjema ]
                                     }
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -318,7 +318,7 @@ update msg (Model model) =
                                         , seksjonsMeldingsLogg =
                                             model.seksjonsMeldingsLogg
                                                 |> MeldingsLogg.leggTilSpørsmål
-                                                    [ meldingForLagringSucess skjema ]
+                                                    [ meldingForLagringSuccess skjema ]
                                     }
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -552,8 +552,8 @@ updateEtterLagreKnappTrykket model skjema svar lagreStatus =
         )
 
 
-meldingForLagringSucess : ValidertFagdokumentasjonSkjema -> Melding
-meldingForLagringSucess skjema =
+meldingForLagringSuccess : ValidertFagdokumentasjonSkjema -> Melding
+meldingForLagringSuccess skjema =
     let
         fagdokumentasjonType =
             skjema
@@ -568,7 +568,7 @@ meldingForLagringSucess skjema =
             Melding.spørsmål [ "Nå er det lagret! Så bra at du har mesterbrev, det er mangel på jobbsøkere med mesterbrev." ]
 
         Autorisasjon ->
-            Melding.spørsmål [ "Nå er det lagret! Så bra at du har autorisasjon!" ]
+            Melding.spørsmål [ "Nå er det lagret. Så bra at du har autorisasjon!" ]
 
 
 lagringFeiletTidligerePåGrunnAvInnlogging : LagreStatus -> Bool
@@ -672,7 +672,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
                     [ Melding.spørsmål [ "Hva er navnet på fagbrevet/svennebrevet ditt?" ]
-                    , Melding.spørsmål [ "Begynn å skriv inn fagbrevet/svennebrevet ditt. Velg et av forslagene fra listen som kommer opp." ]
+                    , Melding.spørsmål [ "Begynn å skriv inn fagbrevet/svennebrevet. Velg et av forslagene fra listen som kommer opp." ]
                     ]
 
                 Mesterbrev ->
@@ -694,7 +694,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                     [ Melding.spørsmål [ "Beskriv kort mesterbrevet ditt." ] ]
 
                 Autorisasjon ->
-                    [ Melding.spørsmål [ "Beskriv kort autorisasjonen din? Ikke skriv inn autorisasjonsnummeret ditt." ] ]
+                    [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ] ]
 
         Oppsummering skjema ->
             [ Melding.spørsmål

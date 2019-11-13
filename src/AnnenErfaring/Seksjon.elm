@@ -878,7 +878,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             ]
 
         EndreOpplysninger _ ->
-            [ Melding.spørsmål [ "Nå kan du endre informasjonen" ] ]
+            [ Melding.spørsmål [ "Nå kan du endre informasjonen." ] ]
 
         VisOppsummeringEtterEndring _ ->
             [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]

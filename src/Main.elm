@@ -745,8 +745,9 @@ type alias AndreSamtaleStegInfo =
 
 
 type BekreftSammendragState
-    = NyttSammendrag
-    | EndretSammendrag
+    = OpprinneligSammendrag Sammendrag
+    | NyttSammendrag String
+    | EndretSammendrag String
 
 
 type Samtale
@@ -755,8 +756,7 @@ type Samtale
     | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
     | LeggTilFlereAnnet
-    | BekreftOpprinneligSammendrag Sammendrag
-    | BekreftSammendrag BekreftSammendragState String
+    | BekreftSammendrag BekreftSammendragState
     | SkriverSammendrag String
     | EndrerSammendrag String
     | LagrerSammendrag String LagreStatus
@@ -842,20 +842,29 @@ updateAndreSamtaleSteg model msg info =
 
         BrukerVilEndreSammendrag ->
             case info.aktivSamtale of
-                BekreftOpprinneligSammendrag sammendrag ->
-                    ( sammendrag
-                        |> Sammendrag.toString
-                        |> EndrerSammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
+                BekreftSammendrag bekreftSammendragState ->
+                    case bekreftSammendragState of
+                        OpprinneligSammendrag sammendrag ->
+                            ( sammendrag
+                                |> Sammendrag.toString
+                                |> EndrerSammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
 
-                BekreftSammendrag _ sammendrag ->
-                    ( sammendrag
-                        |> EndrerSammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
+                        NyttSammendrag sammendrag ->
+                            ( sammendrag
+                                |> EndrerSammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+
+                        EndretSammendrag sammendrag ->
+                            ( sammendrag
+                                |> EndrerSammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
 
                 _ ->
                     ( model, Cmd.none )
@@ -887,8 +896,7 @@ updateAndreSamtaleSteg model msg info =
                             ( model, Cmd.none )
 
                         Nothing ->
-                            ( tekst
-                                |> BekreftSammendrag EndretSammendrag
+                            ( BekreftSammendrag (EndretSammendrag tekst)
                                 |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -899,8 +907,7 @@ updateAndreSamtaleSteg model msg info =
                             ( model, Cmd.none )
 
                         Nothing ->
-                            ( tekst
-                                |> BekreftSammendrag NyttSammendrag
+                            ( BekreftSammendrag (NyttSammendrag tekst)
                                 |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -918,23 +925,32 @@ updateAndreSamtaleSteg model msg info =
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
                     )
 
-                BekreftSammendrag _ sammendrag ->
-                    ( LagreStatus.init
-                        |> LagrerSammendrag sammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
-                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
-                    )
+                BekreftSammendrag bekreftSammendragState ->
+                    case bekreftSammendragState of
+                        OpprinneligSammendrag opprinnelig ->
+                            let
+                                sammendrag =
+                                    Sammendrag.toString opprinnelig
+                            in
+                            ( LagreStatus.init
+                                |> LagrerSammendrag sammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
+                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                            )
 
-                BekreftOpprinneligSammendrag opprinnelig ->
-                    let
-                        sammendrag =
-                            Sammendrag.toString opprinnelig
-                    in
-                    ( LagreStatus.init
-                        |> LagrerSammendrag sammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
-                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
-                    )
+                        NyttSammendrag sammendrag ->
+                            ( LagreStatus.init
+                                |> LagrerSammendrag sammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
+                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                            )
+
+                        EndretSammendrag sammendrag ->
+                            ( LagreStatus.init
+                                |> LagrerSammendrag sammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
+                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                            )
 
                 _ ->
                     ( model, Cmd.none )
@@ -1239,7 +1255,7 @@ gåVidereFraSeksjonsvalg model info =
                         SkriverSammendrag ""
 
                     else
-                        BekreftOpprinneligSammendrag sammendrag
+                        BekreftSammendrag (OpprinneligSammendrag sammendrag)
 
                 Nothing ->
                     EndrerSammendrag ""
@@ -1332,21 +1348,21 @@ samtaleTilMeldingsLogg samtale =
         LeggTilFlereAnnet ->
             [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
 
-        BekreftOpprinneligSammendrag sammendrag ->
-            [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
-            , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
-            , Melding.spørsmål
-                [ "Du har allerede skrevet dette:"
-                , Melding.tomLinje
-                , Sammendrag.toString sammendrag
-                , Melding.tomLinje
-                , "Er du fornøyd? "
-                ]
-            ]
-
-        BekreftSammendrag bekreftState sammendrag ->
+        BekreftSammendrag bekreftState ->
             case bekreftState of
-                NyttSammendrag ->
+                OpprinneligSammendrag sammendrag ->
+                    [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
+                    , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
+                    , Melding.spørsmål
+                        [ "Du har allerede skrevet dette:"
+                        , Melding.tomLinje
+                        , Sammendrag.toString sammendrag
+                        , Melding.tomLinje
+                        , "Er du fornøyd? "
+                        ]
+                    ]
+
+                NyttSammendrag sammendrag ->
                     [ Melding.spørsmål
                         [ "Du la inn dette:"
                         , Melding.tomLinje
@@ -1356,7 +1372,7 @@ samtaleTilMeldingsLogg samtale =
                         ]
                     ]
 
-                EndretSammendrag ->
+                EndretSammendrag _ ->
                     [ Melding.spørsmål [ "Nå har du endret. Er du fornøyd?" ] ]
 
         EndrerSammendrag _ ->
@@ -1684,11 +1700,16 @@ viewBrukerInputForAndreSamtaleSteg info =
                             |> Knapp.toHtml
                         ]
 
-                BekreftOpprinneligSammendrag _ ->
-                    viewBekreftSammendrag BrukerVilIkkeRedigereSammendrag
+                BekreftSammendrag bekreftSammendragState ->
+                    case bekreftSammendragState of
+                        OpprinneligSammendrag _ ->
+                            viewBekreftSammendrag BrukerVilIkkeRedigereSammendrag
 
-                BekreftSammendrag _ _ ->
-                    viewBekreftSammendrag VilLagreBekreftetSammendrag
+                        NyttSammendrag _ ->
+                            viewBekreftSammendrag VilLagreBekreftetSammendrag
+
+                        EndretSammendrag _ ->
+                            viewBekreftSammendrag VilLagreBekreftetSammendrag
 
                 EndrerSammendrag sammendrag ->
                     Containers.skjema { lagreMsg = VilLagreSammendragSkjema, lagreKnappTekst = "Lagre endringer" }
