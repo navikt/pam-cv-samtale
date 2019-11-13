@@ -243,11 +243,26 @@ scrollPosition { animasjonstidMs, opprinneligViewport, sluttPosisjon, tidNå, st
     yNå
 
 
-scrollInnBrukerInput : MeldingsLogg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
-scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport } tidNå =
+scrollInnBrukerInput : MeldingsLogg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, sisteSpørsmålHeight : Maybe Int } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
+scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, sisteSpørsmålHeight } tidNå =
     let
-        sluttPosisjon =
+        spørsmålHeight =
+            case sisteSpørsmålHeight of
+                Just height ->
+                    -- høyde på innhold + melding-padding + padding-bottom-samtale + margin over melding
+                    toFloat (height + (2 * 16) + 16 + 8)
+
+                Nothing ->
+                    0
+
+        sluttPosisjonHvisManScrollerHelt =
             opprinneligViewport.scene.height - opprinneligViewport.viewport.height
+
+        lengsteManBurdeScrolle =
+            opprinneligViewport.viewport.y + opprinneligViewport.viewport.height - spørsmålHeight
+
+        sluttPosisjon =
+            min sluttPosisjonHvisManScrollerHelt lengsteManBurdeScrolle
 
         scrollTilPosisjon =
             scrollPosition

@@ -27,6 +27,7 @@ module MeldingsLogg exposing
     )
 
 import Browser.Dom exposing (Viewport)
+import List.Extra as List
 import Melding exposing (Melding)
 import SporsmalViewState as SpørsmålViewState exposing (SpørsmålViewState)
 import Time
@@ -58,7 +59,7 @@ type IkkeVist
     = MeldingerIkkeFerdigAnimert MeldingerIkkeFerdigAnimertInfo
     | VenterPåAtMeldingScrollingSkalBliFerdig
     | VenterPåÅScrolleTilInput
-    | ScrollerTilInput { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport }
+    | ScrollerTilInput { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, sisteSpørsmålHeight : Maybe Int }
     | AlleMeldingerFerdigAnimert
 
 
@@ -139,7 +140,7 @@ type ScrollAnimasjonStatus
     = IngenScrollAnimasjon
     | ScrollerInnSkriveIndikator { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport }
     | ScrollerInnMelding { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport }
-    | ScrollerInnInputFelt { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport }
+    | ScrollerInnInputFelt { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, sisteSpørsmålHeight : Maybe Int }
 
 
 scrollAnimasjonStatus : MeldingsLogg -> ScrollAnimasjonStatus
@@ -168,8 +169,8 @@ scrollAnimasjonStatus (MeldingsLogg info) =
         VenterPåÅScrolleTilInput ->
             IngenScrollAnimasjon
 
-        ScrollerTilInput { startTidForScrolling, opprinneligViewport } ->
-            ScrollerInnInputFelt { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport }
+        ScrollerTilInput { startTidForScrolling, opprinneligViewport, sisteSpørsmålHeight } ->
+            ScrollerInnInputFelt { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, sisteSpørsmålHeight = sisteSpørsmålHeight }
 
 
 visBrukerInput : MeldingsLogg -> Bool
@@ -455,13 +456,33 @@ startScrollingTilInput posix viewport (MeldingsLogg meldingsLoggInfo) =
             MeldingsLogg meldingsLoggInfo
 
         VenterPåÅScrolleTilInput ->
-            MeldingsLogg { meldingsLoggInfo | ikkeVist = ScrollerTilInput { startTidForScrolling = posix, opprinneligViewport = viewport } }
+            MeldingsLogg { meldingsLoggInfo | ikkeVist = ScrollerTilInput { startTidForScrolling = posix, opprinneligViewport = viewport, sisteSpørsmålHeight = regnUtSisteSpørsmålHeight meldingsLoggInfo.ferdigAnimert } }
 
         ScrollerTilInput { startTidForScrolling } ->
             MeldingsLogg meldingsLoggInfo
 
         AlleMeldingerFerdigAnimert ->
             MeldingsLogg meldingsLoggInfo
+
+
+regnUtSisteSpørsmålHeight : List FerdigAnimertMeldingsGruppe -> Maybe Int
+regnUtSisteSpørsmålHeight ferdigAnimerteMeldingsgrupper =
+    case List.last ferdigAnimerteMeldingsgrupper of
+        Just sisteMeldingsgruppe ->
+            case sisteMeldingsgruppe of
+                FerdigAnimertSpørsmålsGruppe meldinger ->
+                    case List.last meldinger of
+                        Just ferdigAnimertSpørsmål ->
+                            Just ferdigAnimertSpørsmål.height
+
+                        Nothing ->
+                            Nothing
+
+                FerdigAnimertSvarGruppe _ ->
+                    Nothing
+
+        Nothing ->
+            Nothing
 
 
 avsluttScrollingTilInput : MeldingsLogg -> MeldingsLogg
