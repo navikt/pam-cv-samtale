@@ -2,7 +2,9 @@
 
 
 @meldingBredde: 27rem;
-@meldingBreddeMobil: 80%;
+//@meldingBreddeMobil: 70%;
+@meldingBreddeMedium: 21rem;
+@meldingBreddeMobil: 14rem;
 
 @storSkjermSkjema: 432px;
 @litenSkjermSkjema: 431px;
@@ -71,10 +73,10 @@ html {
 }
 
 .samtale {
-  @media (min-width: 768px) {
+  @media (min-width: 672px) {
     width: 40rem;
   }
-  @media (max-width: 767px) {
+  @media (max-width: 671px) {
     width: 100%;
     margin-left: 1rem;
     margin-right: 1rem;
@@ -136,15 +138,29 @@ html {
     align-self: center;
     margin-top: 0.5rem;
     padding-right: 0.75rem;
-    width: 50px;
+
+    @media (min-width: 672px) {
+      width: 50px;
+    }
+    @media (max-width: 671px) {
+      width: 35px;
+    }
     //height: 50px;
     margin-right: 0.75rem;
     transition: transform 0.4s ease-in-out;
 
 
     .Robotlogo {
-      width: 50px;
-      height: 50px;
+
+      @media (min-width: 672px) {
+        width: 50px;
+        height: 50px;
+      }
+      @media (max-width: 671px) {
+        width: 35px;
+        height: 35px;
+      }
+
       display: inline-block;
       vertical-align: middle;
       background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
@@ -202,11 +218,16 @@ html {
 }
 
 .melding {
-  @media (min-width: 768px) {
+  @media (min-width: 672px) {
     max-width: @meldingBredde;
   }
-  @media (max-width: 767px) {
-    max-width: @meldingBreddeMobil;
+  @media (max-width: 671px) {
+    @media (min-width: 480px) {
+      max-width: @meldingBreddeMedium;
+    }
+    @media (max-width: 479px) {
+      max-width: @meldingBreddeMobil;
+    }
   }
   padding: 1rem;
   border-radius: 12px;
@@ -224,11 +245,16 @@ html {
   transition-timing-function: ease-in-out;
 
   .meldinginnhold-wrapper {
-    @media (min-width: 768px) {
+    @media (min-width: 672px) {
       max-width: calc(@meldingBredde - 2rem);
     }
-    @media (max-width: 767px) {
-      //max-width: calc(@meldingBreddeMobil - 2rem);
+    @media (max-width: 671px) {
+      @media (min-width: 480px) {
+        max-width: calc(@meldingBreddeMedium - 2rem);
+      }
+      @media (max-width: 479px) {
+        max-width: calc(@meldingBreddeMobil - 2rem);
+      }
     }
     width: max-content;
     //transition: opacity 0.4s ease-in-out;
