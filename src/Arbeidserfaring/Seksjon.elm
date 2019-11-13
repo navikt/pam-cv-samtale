@@ -33,7 +33,6 @@ import LagreStatus exposing (LagreStatus)
 import Maybe.Extra as Maybe
 import Melding exposing (Melding, Tekstområde(..))
 import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
-import Process
 import SamtaleAnimasjon
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))

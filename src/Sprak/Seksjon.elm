@@ -27,12 +27,10 @@ import LagreStatus exposing (LagreStatus)
 import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
-import Process
 import SamtaleAnimasjon
 import Sprak.Skjema as Skjema exposing (Ferdighet(..), SpråkSkjema)
 import SpråkKode exposing (SpråkKode)
 import String.Extra as String
-import Task
 
 
 

@@ -31,7 +31,6 @@ import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding, Tekstområde(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
-import Process
 import SamtaleAnimasjon
 import Task
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)

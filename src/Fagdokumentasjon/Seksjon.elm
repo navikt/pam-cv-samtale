@@ -28,7 +28,6 @@ import Http exposing (Error(..))
 import Konsept exposing (Konsept)
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
-import Process
 import SamtaleAnimasjon
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))

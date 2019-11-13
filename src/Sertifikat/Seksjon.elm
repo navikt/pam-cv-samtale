@@ -30,7 +30,6 @@ import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
-import Process
 import SamtaleAnimasjon
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import SertifikatTypeahead exposing (SertifikatTypeahead)

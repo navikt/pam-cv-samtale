@@ -31,7 +31,6 @@ import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
-import Process
 import SamtaleAnimasjon
 import Task
 
