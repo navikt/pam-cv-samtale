@@ -1283,5 +1283,10 @@ init debugStatus gammelMeldingsLogg sertifikatListe =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Browser.Events.onVisibilityChange WindowEndrerVisibility
+subscriptions (Model model) =
+    Sub.batch
+        [ Browser.Events.onVisibilityChange WindowEndrerVisibility
+        , model.seksjonsMeldingsLogg
+            |> SamtaleAnimasjon.subscriptions
+            |> Sub.map SamtaleAnimasjonMsg
+        ]
