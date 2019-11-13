@@ -1333,9 +1333,9 @@ viewLoading =
         ]
 
 
-meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
-meldingsLoggFraSeksjon successModel =
-    case successModel.aktivSeksjon of
+meldingsLoggFraSeksjon : SamtaleSeksjon -> MeldingsLogg
+meldingsLoggFraSeksjon aktivSeksjon =
+    case aktivSeksjon of
         PersonaliaSeksjon model ->
             Personalia.Seksjon.meldingsLogg model
 
@@ -1365,7 +1365,7 @@ viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div [ class "samtale-wrapper", id "samtale" ]
         [ div [ class "samtale" ]
-            [ successModel
+            [ successModel.aktivSeksjon
                 |> meldingsLoggFraSeksjon
                 |> viewMeldingsLogg
 
@@ -1572,8 +1572,20 @@ viewSkriveStatus =
 
 
 viewBrukerInput : SamtaleSeksjon -> Html Msg
-viewBrukerInput aktivSamtale =
-    case aktivSamtale of
+viewBrukerInput aktivSeksjon =
+    div [ classList [ ( "brukerInput-padding", brukerInputVises aktivSeksjon ) ] ]
+        [ viewBrukerInputForSeksjon aktivSeksjon
+        ]
+
+
+brukerInputVises : SamtaleSeksjon -> Bool
+brukerInputVises aktivSeksjon =
+    (meldingsLoggFraSeksjon >> MeldingsLogg.ferdigAnimert) aktivSeksjon /= MeldingerGjenstår
+
+
+viewBrukerInputForSeksjon : SamtaleSeksjon -> Html Msg
+viewBrukerInputForSeksjon aktivSeksjon =
+    case aktivSeksjon of
         PersonaliaSeksjon personaliaSeksjon ->
             personaliaSeksjon
                 |> Personalia.Seksjon.viewBrukerInput
