@@ -1483,6 +1483,7 @@ viewSpørsmål spørsmål =
             MeldingFerdigAnimert ->
                 article
                     [ class "melding"
+                    , classList [ ( "ikke-siste", ikkeSisteMelding spørsmål ) ]
                     , ariaLive "polite"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
@@ -1491,6 +1492,19 @@ viewSpørsmål spørsmål =
                         |> List.map viewTekstområde
                     )
         ]
+
+
+ikkeSisteMelding : SpørsmålViewState -> Bool
+ikkeSisteMelding spørsmål =
+    case SpørsmålViewState.ikonStatus spørsmål of
+        SkjultIkon ->
+            True
+
+        MidtstiltIkon ->
+            False
+
+        IkonForNesteMelding _ ->
+            True
 
 
 transformForRobot : { height : Int } -> Html.Attribute msg
