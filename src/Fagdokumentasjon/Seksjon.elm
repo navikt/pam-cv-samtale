@@ -304,7 +304,8 @@ update msg (Model model) =
                                         , seksjonsMeldingsLogg =
                                             model.seksjonsMeldingsLogg
                                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg vil logge inn" ])
-                                                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ]
+                                                |> MeldingsLogg.leggTilSpørsmål
+                                                    [ meldingForLagringSuccess skjema ]
                                     }
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -316,7 +317,8 @@ update msg (Model model) =
                                         | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
                                         , seksjonsMeldingsLogg =
                                             model.seksjonsMeldingsLogg
-                                                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ]
+                                                |> MeldingsLogg.leggTilSpørsmål
+                                                    [ meldingForLagringSuccess skjema ]
                                     }
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -550,6 +552,25 @@ updateEtterLagreKnappTrykket model skjema svar lagreStatus =
         )
 
 
+meldingForLagringSuccess : ValidertFagdokumentasjonSkjema -> Melding
+meldingForLagringSuccess skjema =
+    let
+        fagdokumentasjonType =
+            skjema
+                |> Skjema.tilSkjema
+                |> Skjema.fagdokumentasjonType
+    in
+    case fagdokumentasjonType of
+        SvennebrevFagbrev ->
+            Melding.spørsmål [ "Nå er det lagret! Så bra at du har fagbrev/svennebrev, arbeidsgivere etterspør det." ]
+
+        Mesterbrev ->
+            Melding.spørsmål [ "Nå er det lagret! Så bra at du har mesterbrev, det er mangel på jobbsøkere med mesterbrev." ]
+
+        Autorisasjon ->
+            Melding.spørsmål [ "Nå er det lagret. Så bra at du har autorisasjon!" ]
+
+
 lagringFeiletTidligerePåGrunnAvInnlogging : LagreStatus -> Bool
 lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus =
     case lagreStatus of
@@ -651,21 +672,29 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
                     [ Melding.spørsmål [ "Hva er navnet på fagbrevet/svennebrevet ditt?" ]
-                    , Melding.spørsmål [ "Begynn å skrive inn fagbrevet/svennebrevet ditt. Velg et av forslagene fra listen som kommer opp." ]
+                    , Melding.spørsmål [ "Begynn å skriv inn fagbrevet/svennebrevet. Velg et av forslagene fra listen som kommer opp." ]
                     ]
 
                 Mesterbrev ->
                     [ Melding.spørsmål [ "Hva er navnet på mesterbrevet ditt?" ]
-                    , Melding.spørsmål [ "Begynn å skrive inn mesterbrevet ditt. Velg fra listen med forslag som kommer opp." ]
+                    , Melding.spørsmål [ "Begynn å skriv inn mesterbrevet. Velg fra listen med forslag som kommer opp." ]
                     ]
 
                 Autorisasjon ->
                     [ Melding.spørsmål [ "Hva er navnet på autorisasjonen din?" ]
-                    , Melding.spørsmål [ "Begynn å skrive inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
+                    , Melding.spørsmål [ "Begynn å skriv inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
                     ]
 
-        RegistrerBeskrivelse _ _ ->
-            [ Melding.spørsmål [ "Hva lærte du?" ] ]
+        RegistrerBeskrivelse fagdokumentasjonType _ ->
+            case fagdokumentasjonType of
+                SvennebrevFagbrev ->
+                    [ Melding.spørsmål [ "Beskriv kort fagbrevet/svennebrevet ditt." ] ]
+
+                Mesterbrev ->
+                    [ Melding.spørsmål [ "Beskriv kort mesterbrevet ditt." ] ]
+
+                Autorisasjon ->
+                    [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ] ]
 
         Oppsummering skjema ->
             [ Melding.spørsmål
@@ -678,8 +707,19 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                 ]
             ]
 
+        EndrerOppsummering _ skjema ->
+            case Skjema.fagdokumentasjonType skjema of
+                SvennebrevFagbrev ->
+                    [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
+
+                Mesterbrev ->
+                    [ Melding.spørsmål [ "Nå kan du endre i feltene under." ] ]
+
+                Autorisasjon ->
+                    [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
+
         OppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         LagringFeilet validertSkjema error ->
             [ ErrorHandtering.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
@@ -688,9 +728,6 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             []
 
         Lagrer _ _ ->
-            []
-
-        EndrerOppsummering _ _ ->
             []
 
 
@@ -772,7 +809,7 @@ viewBrukerInput (Model model) =
                         ]
 
                 EndrerOppsummering typeaheadModel skjema ->
-                    Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre" }
+                    Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre endringer" }
                         [ skjema
                             |> Skjema.feilmeldingTypeahead
                             |> Typeahead.view Konsept.label typeaheadModel

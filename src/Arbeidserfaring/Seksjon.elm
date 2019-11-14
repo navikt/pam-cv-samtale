@@ -83,6 +83,7 @@ type Samtale
     | RegistrereTilÅr TilDatoInfo
     | VisOppsummering ValidertArbeidserfaringSkjema
     | RedigerOppsummering (Typeahead.Model Yrke) ArbeidserfaringSkjema
+    | VisOppsummeringEtterEndring ValidertArbeidserfaringSkjema
     | LagrerArbeidserfaring ValidertArbeidserfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
     | SpørOmBrukerVilLeggeInnMer
@@ -404,7 +405,7 @@ update msg (Model model) =
 
         BrukerVilEndreJobbtittel jobbtittelInfo ->
             ( EndreJobbtittel jobbtittelInfo
-                |> nesteSamtaleSteg model (Melding.svar [ "Nei, legg til et nytt navn" ])
+                |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke kalle det noe annet" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -430,7 +431,7 @@ update msg (Model model) =
                     ( jobbtittelInfo
                         |> jobbtittelInfoTilBedriftnavnsInfo
                         |> RegistrereBedriftsnavn
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, det stemmer" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil kalle det noe annet" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -728,19 +729,10 @@ update msg (Model model) =
         BrukerVilRedigereOppsummering ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
-                    ( skjema
-                        |> Skjema.tilUvalidertSkjema
-                        |> RedigerOppsummering (initSkjemaTypeaheadFraYrke (Skjema.yrke skjema))
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-                    , Cmd.batch
-                        [ lagtTilSpørsmålCmd model.debugStatus
-                        , skjema
-                            |> Skjema.yrke
-                            |> Yrke.label
-                            |> Api.getYrkeTypeahead HentetYrkeTypeahead
-                        ]
-                    )
-                        |> IkkeFerdig
+                    updateEtterVilEndreSkjema model skjema
+
+                VisOppsummeringEtterEndring skjema ->
+                    updateEtterVilEndreSkjema model skjema
 
                 _ ->
                     ( Model model, Cmd.none )
@@ -763,16 +755,11 @@ update msg (Model model) =
 
         BrukerVilLagreArbeidserfaringIOppsummering ->
             case model.aktivSamtale of
-                VisOppsummering validertSkjema ->
-                    ( LagreStatus.init
-                        |> LagrerArbeidserfaring validertSkjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
-                    , Cmd.batch
-                        [ postEllerPutArbeidserfaring ArbeidserfaringLagret validertSkjema
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        ]
-                    )
-                        |> IkkeFerdig
+                VisOppsummering skjema ->
+                    updateEtterLagreKnappTrykket model skjema
+
+                VisOppsummeringEtterEndring skjema ->
+                    updateEtterLagreKnappTrykket model skjema
 
                 _ ->
                     ( Model model, Cmd.none )
@@ -783,13 +770,10 @@ update msg (Model model) =
                 RedigerOppsummering typeaheadModel skjema ->
                     case Skjema.valider skjema of
                         Just validertSkjema ->
-                            ( LagreStatus.init
-                                |> LagrerArbeidserfaring validertSkjema
+                            ( validertSkjema
+                                |> VisOppsummeringEtterEndring
                                 |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
-                            , Cmd.batch
-                                [ postEllerPutArbeidserfaring ArbeidserfaringLagret validertSkjema
-                                , lagtTilSpørsmålCmd model.debugStatus
-                                ]
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
@@ -952,7 +936,7 @@ update msg (Model model) =
                     |> IkkeFerdig
 
             else
-                ( VenterPåAnimasjonFørFullføring "Bra innsats! 😊 Nå kan arbeidsgivere finne deg hvis du har den erfaringen de ser etter."
+                ( VenterPåAnimasjonFørFullføring "Bra innsats! 😊 Nå kan arbeidsgivere finne deg hvis de ser etter en med din erfaring."
                     |> nesteSamtaleSteg model
                         (Melding.svar [ knappeTekst ])
                 , lagtTilSpørsmålCmd model.debugStatus
@@ -1091,6 +1075,33 @@ updateEtterFullførtMelding info nyMeldingsLogg =
                 |> IkkeFerdig
 
 
+updateEtterVilEndreSkjema : ModelInfo -> ValidertArbeidserfaringSkjema -> SamtaleStatus
+updateEtterVilEndreSkjema model skjema =
+    ( skjema
+        |> Skjema.tilUvalidertSkjema
+        |> RedigerOppsummering (initSkjemaTypeaheadFraYrke (Skjema.yrke skjema))
+        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+    , Cmd.batch
+        [ lagtTilSpørsmålCmd model.debugStatus
+        , skjema
+            |> Skjema.yrke
+            |> Yrke.label
+            |> Api.getYrkeTypeahead HentetYrkeTypeahead
+        ]
+    )
+        |> IkkeFerdig
+
+
+updateEtterLagreKnappTrykket : ModelInfo -> ValidertArbeidserfaringSkjema -> SamtaleStatus
+updateEtterLagreKnappTrykket model skjema =
+    ( LagreStatus.init
+        |> LagrerArbeidserfaring skjema
+        |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
+    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+    )
+        |> IkkeFerdig
+
+
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
@@ -1227,7 +1238,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Nå skal vi registrere arbeidserfaringen din" ] ]
 
         VelgEnArbeidserfaringÅRedigere ->
-            [ Melding.spørsmål [ "Hvilken registrerte arbeidserfaring ønsker du å redigere?" ] ]
+            [ Melding.spørsmål [ "Hvilken arbeidserfaring ønsker du å endre?" ] ]
 
         RegistrerYrke _ _ ->
             [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
@@ -1235,11 +1246,8 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
             ]
 
-        SpørOmBrukerVilEndreJobbtittel _ ->
-            [ Melding.spørsmål
-                [ "Stemte yrket du la inn, eller ønsker du å gi det et nytt navn?"
-                , "Navnet du skriver vil vises på CV-en din"
-                ]
+        SpørOmBrukerVilEndreJobbtittel info ->
+            [ Melding.spørsmål [ "Du valgte " ++ Yrke.label info.tidligereInfo ++ ". Hvis dette ikke stemmer helt, kan du gi yrket et nytt navn. Det navnet vil vises på CV-en din. Ønsker du å kalle det noe annet? " ]
             ]
 
         EndreJobbtittel _ ->
@@ -1252,7 +1260,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Hvor holder bedriften til?" ] ]
 
         RegistrereArbeidsoppgaver _ ->
-            [ Melding.spørsmål [ "Fortell om hvilke arbeidsoppgaver du har hatt, hva du har lært og hva som var rollen din." ] ]
+            [ Melding.spørsmål [ "Fortell om hvilke arbeidsoppgaver du har hatt og hva som var rollen din." ] ]
 
         RegistrereFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du i jobben?" ] ]
@@ -1290,6 +1298,9 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         RedigerOppsummering _ _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
+        VisOppsummeringEtterEndring _ ->
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
         LagrerArbeidserfaring _ _ ->
             []
 
@@ -1297,8 +1308,8 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre arbeidserfaringen" } ]
 
         SpørOmBrukerVilLeggeInnMer ->
-            [ Melding.spørsmål [ "Flott! Da har du lagt inn en arbeidserfaring." ]
-            , Melding.spørsmål [ "Har du flere arbeidserfaringer du ønsker å legge inn?" ]
+            [ Melding.spørsmål [ "Flott! Nå er arbeidserfaringen lagret." ]
+            , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
             ]
 
         StartNyArbeidserfaring _ ->
@@ -1314,7 +1325,9 @@ validertSkjemaTilSetninger validertSkjema =
         skjema =
             Skjema.tilUvalidertSkjema validertSkjema
     in
-    [ datoRad validertSkjema
+    [ "Du har lagt inn dette:"
+    , Melding.tomLinje
+    , datoRad validertSkjema
     , Melding.tomLinje
     , "Stilling/Yrke: " ++ hentStilling validertSkjema
     , "Bedriftnavn: " ++ Skjema.innholdTekstFelt Bedriftsnavn skjema
@@ -1374,7 +1387,7 @@ viewBrukerInput (Model model) =
                                 |> Knapp.toHtml
                             , Knapp.knapp BrukerHopperOverArbeidserfaring "Nei, jeg er ferdig"
                                 |> Knapp.toHtml
-                            , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Jeg vil redigere det jeg har lagt inn") "Jeg vil redigere det jeg har lagt inn"
+                            , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Nei, jeg vil endre det jeg har lagt inn") "Nei, jeg vil endre det jeg har lagt inn"
                                 |> Knapp.toHtml
                             ]
 
@@ -1393,11 +1406,11 @@ viewBrukerInput (Model model) =
 
                 SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
                     Containers.knapper Flytende
-                        [ "Nei, legg til nytt navn"
-                            |> Knapp.knapp (BrukerVilEndreJobbtittel jobbtittelInfo)
-                            |> Knapp.toHtml
-                        , "Ja, det stemmer"
+                        [ "Nei, jeg vil ikke kalle det noe annet"
                             |> Knapp.knapp BrukerVilIkkeEndreJobbtittel
+                            |> Knapp.toHtml
+                        , "Ja, jeg vil kalle det noe annet"
+                            |> Knapp.knapp (BrukerVilEndreJobbtittel jobbtittelInfo)
                             |> Knapp.toHtml
                         ]
 
@@ -1486,6 +1499,9 @@ viewBrukerInput (Model model) =
                         , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
                             |> Knapp.toHtml
                         ]
+
+                VisOppsummeringEtterEndring _ ->
+                    viewBekreftOppsummering
 
                 RedigerOppsummering typeaheadModel skjema ->
                     Containers.skjema { lagreMsg = BrukerVilLagreArbeidserfaringSkjema, lagreKnappTekst = "Lagre endringer" }
@@ -1578,7 +1594,7 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         , Knapp.knapp (FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle") "Nei, jeg har lagt inn alle"
                             |> Knapp.toHtml
-                        , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Rediger arbeidserfaring") "Rediger arbeidserfaring"
+                        , Knapp.knapp (BrukerVilRedigereArbeidserfaring "Nei, jeg vil endre det jeg har lagt inn") "Nei, jeg vil endre det jeg har lagt inn"
                             |> Knapp.toHtml
                         ]
 
@@ -1637,6 +1653,16 @@ inputIdTilString inputId =
 
         TilÅrInput ->
             "arbeidserfaring-registrer-til-år"
+
+
+viewBekreftOppsummering : Html Msg
+viewBekreftOppsummering =
+    Containers.knapper Flytende
+        [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, informasjonen er riktig"
+            |> Knapp.toHtml
+        , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
+            |> Knapp.toHtml
+        ]
 
 
 lagArbeidserfaringKnapp : Arbeidserfaring -> Html Msg
