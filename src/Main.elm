@@ -1365,15 +1365,17 @@ viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div [ class "samtale-wrapper", id "samtale" ]
         [ div [ class "samtale" ]
-            [ successModel.aktivSeksjon
-                |> meldingsLoggFraSeksjon
-                |> viewMeldingsLogg
+            [ div [ id "samtale-innhold" ]
+                [ successModel.aktivSeksjon
+                    |> meldingsLoggFraSeksjon
+                    |> viewMeldingsLogg
 
-            --            , successModel
-            --                |> meldingsLoggFraSeksjon
-            --                |> viewSkriveStatus
-            , viewBrukerInput successModel.aktivSeksjon
-            , div [ class "samtale-padding" ] []
+                --            , successModel
+                --                |> meldingsLoggFraSeksjon
+                --                |> viewSkriveStatus
+                , viewBrukerInput successModel.aktivSeksjon
+                , div [ class "samtale-padding" ] []
+                ]
             ]
         ]
 

@@ -28,7 +28,7 @@ module MeldingsLogg exposing
     , visBrukerInput
     )
 
-import Browser.Dom exposing (Viewport)
+import Browser.Dom as Dom exposing (Viewport)
 import List.Extra as List
 import Melding exposing (Melding)
 import SporsmalViewState as SpørsmålViewState exposing (SpørsmålViewState)
@@ -75,9 +75,9 @@ type alias MeldingerIkkeFerdigAnimertInfo =
 
 type AnimasjonStatus
     = IngenAnimasjon
-    | SkriveAnimasjon { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport }
+    | SkriveAnimasjon { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Dom.Element }
     | VenterPåÅFåRegistrertHøydeBredde
-    | HarRegistrertHøyde { height : Int, width : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport }
+    | HarRegistrertHøyde { height : Int, width : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Dom.Element }
 
 
 
@@ -165,8 +165,8 @@ debugTilFerdiganimert melding =
 
 type ScrollAnimasjonStatus
     = IngenScrollAnimasjon
-    | ScrollerInnSkriveIndikator { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport }
-    | ScrollerInnMelding { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport }
+    | ScrollerInnSkriveIndikator { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Dom.Element }
+    | ScrollerInnMelding { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Dom.Element }
     | ScrollerInnInputFelt { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, sisteSpørsmålHeight : Maybe Int }
 
 
@@ -181,14 +181,14 @@ scrollAnimasjonStatus (MeldingsLogg info) =
                 IngenAnimasjon ->
                     IngenScrollAnimasjon
 
-                SkriveAnimasjon { startTidForScrolling, opprinneligViewport } ->
-                    ScrollerInnSkriveIndikator { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport }
+                SkriveAnimasjon { startTidForScrolling, opprinneligViewport, samtaleElement } ->
+                    ScrollerInnSkriveIndikator { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, samtaleElement = samtaleElement }
 
                 VenterPåÅFåRegistrertHøydeBredde ->
                     IngenScrollAnimasjon
 
-                HarRegistrertHøyde { height, width, startTidForScrolling, opprinneligViewport } ->
-                    ScrollerInnMelding { height = height, startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport }
+                HarRegistrertHøyde { height, width, startTidForScrolling, opprinneligViewport, samtaleElement } ->
+                    ScrollerInnMelding { height = height, startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, samtaleElement = samtaleElement }
 
         VenterPåAtMeldingScrollingSkalBliFerdig ->
             IngenScrollAnimasjon
@@ -305,15 +305,15 @@ leggTilSvar nyMelding (MeldingsLogg info) =
 --- ANIMASJON ---
 
 
-startÅSkrive : Time.Posix -> Viewport -> MeldingsLogg -> MeldingsLogg
-startÅSkrive posix viewport (MeldingsLogg meldingsLoggInfo) =
+startÅSkrive : Time.Posix -> Viewport -> Dom.Element -> MeldingsLogg -> MeldingsLogg
+startÅSkrive posix viewport samtaleElement (MeldingsLogg meldingsLoggInfo) =
     case meldingsLoggInfo.ikkeVist of
         MeldingerIkkeFerdigAnimert animasjonsInfo ->
             case animasjonsInfo.animasjonStatus of
                 IngenAnimasjon ->
                     MeldingsLogg
                         { meldingsLoggInfo
-                            | ikkeVist = MeldingerIkkeFerdigAnimert { animasjonsInfo | animasjonStatus = SkriveAnimasjon { startTidForScrolling = posix, opprinneligViewport = viewport } }
+                            | ikkeVist = MeldingerIkkeFerdigAnimert { animasjonsInfo | animasjonStatus = SkriveAnimasjon { startTidForScrolling = posix, opprinneligViewport = viewport, samtaleElement = samtaleElement } }
                         }
 
                 _ ->
@@ -359,8 +359,8 @@ startAnimasjon (MeldingsLogg meldingsLoggInfo) =
             MeldingsLogg meldingsLoggInfo
 
 
-registrerDimensjoner : { height : Int, width : Int, viewport : Viewport, posix : Time.Posix } -> MeldingsLogg -> MeldingsLogg
-registrerDimensjoner { height, width, viewport, posix } (MeldingsLogg meldingsLoggInfo) =
+registrerDimensjoner : { height : Int, width : Int, viewport : Viewport, posix : Time.Posix, samtaleElement : Dom.Element } -> MeldingsLogg -> MeldingsLogg
+registrerDimensjoner { height, width, viewport, posix, samtaleElement } (MeldingsLogg meldingsLoggInfo) =
     case meldingsLoggInfo.ikkeVist of
         AlleMeldingerFerdigAnimert ->
             MeldingsLogg meldingsLoggInfo
@@ -379,6 +379,7 @@ registrerDimensjoner { height, width, viewport, posix } (MeldingsLogg meldingsLo
                                                 , width = width
                                                 , startTidForScrolling = posix
                                                 , opprinneligViewport = viewport
+                                                , samtaleElement = samtaleElement
                                                 }
                                     }
                         }

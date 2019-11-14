@@ -18,14 +18,23 @@ scrollTilBunn msgKonstruktør =
 
 
 type Msg
-    = StartÅSkrive (Result Dom.Error ( Viewport, Time.Posix ))
+    = StartÅSkrive (Result Dom.Error ( Viewport, Time.Posix, Element ))
     | StartMeldingsanimasjon
-    | RegistrerMeldingsdimensjoner (Result Dom.Error ( Dom.Element, Viewport, Time.Posix ))
+    | RegistrerMeldingsdimensjoner (Result Dom.Error MeldingDimensjonInfo)
     | FullførMeldingsanimasjon
+    | ScrollInnMelding (Result Dom.Error ( Viewport, Time.Posix ))
     | VisBrukerInput
     | StartÅScrolleInnInput (Result Dom.Error ( Viewport, Time.Posix ))
     | AnimationFrame Time.Posix
     | ScrolletViewport (Result Dom.Error ())
+
+
+type alias MeldingDimensjonInfo =
+    { melding : Element
+    , viewport : Viewport
+    , timestamp : Time.Posix
+    , samtaleElement : Element
+    }
 
 
 startAnimasjon : DebugStatus -> Cmd Msg
@@ -33,7 +42,7 @@ startAnimasjon debugStatus =
     500
         |> DebugStatus.meldingsTimeout debugStatus
         |> Process.sleep
-        |> Task.andThen (\_ -> getTimeAndViewport)
+        |> Task.andThen (\_ -> getTimeViewportAndElement)
         |> Task.attempt StartÅSkrive
 
 
@@ -42,14 +51,14 @@ update debugStatus msg meldingsLogg =
     case msg of
         StartÅSkrive result ->
             case result of
-                Ok ( viewport, posix ) ->
+                Ok ( viewport, posix, samtaleElement ) ->
                     if DebugStatus.hoppOverMeldingsanimasjon debugStatus then
                         hoppOverMeldingsanimasjon meldingsLogg
 
                     else
                         let
                             nyMeldingslogg =
-                                MeldingsLogg.startÅSkrive posix viewport meldingsLogg
+                                MeldingsLogg.startÅSkrive posix viewport samtaleElement meldingsLogg
                         in
                         ( nyMeldingslogg
                         , nyMeldingslogg
@@ -75,13 +84,14 @@ update debugStatus msg meldingsLogg =
 
         RegistrerMeldingsdimensjoner result ->
             case result of
-                Ok ( element, viewport, posix ) ->
+                Ok { melding, viewport, timestamp, samtaleElement } ->
                     ( meldingsLogg
                         |> MeldingsLogg.registrerDimensjoner
-                            { height = ceiling element.element.height
-                            , width = ceiling element.element.width
+                            { height = ceiling melding.element.height
+                            , width = ceiling melding.element.width
                             , viewport = viewport
-                            , posix = posix
+                            , posix = timestamp
+                            , samtaleElement = samtaleElement
                             }
                     , 400
                         |> DebugStatus.meldingsTimeout debugStatus
@@ -100,8 +110,8 @@ update debugStatus msg meldingsLogg =
             case MeldingsLogg.ferdigAnimert nyMeldingslogg of
                 FerdigAnimert _ ->
                     ( nyMeldingslogg
-                    , 500
-                        -- TODO: Baser på forrige melding sin lengde?
+                    , meldingsLogg
+                        |> ventetidFørBrukerinputScrollesInn
                         |> DebugStatus.meldingsTimeout debugStatus
                         |> Process.sleep
                         |> Task.attempt (always VisBrukerInput)
@@ -112,7 +122,7 @@ update debugStatus msg meldingsLogg =
                     , 500
                         |> DebugStatus.meldingsTimeout debugStatus
                         |> Process.sleep
-                        |> Task.andThen (\_ -> getTimeAndViewport)
+                        |> Task.andThen (\_ -> getTimeViewportAndElement)
                         |> Task.attempt StartÅSkrive
                     )
 
@@ -142,10 +152,26 @@ update debugStatus msg meldingsLogg =
                     scrollTilSkriveIndikator meldingsLogg record posix
 
                 ScrollerInnMelding record ->
-                    scrollTilMelding meldingsLogg record posix
+                    ( meldingsLogg
+                    , getTimeAndViewport
+                        |> Task.attempt ScrollInnMelding
+                    )
 
                 ScrollerInnInputFelt record ->
                     scrollInnBrukerInput meldingsLogg record posix
+
+        ScrollInnMelding result ->
+            case result of
+                Ok ( viewport, posix ) ->
+                    case MeldingsLogg.scrollAnimasjonStatus meldingsLogg of
+                        ScrollerInnMelding record ->
+                            scrollTilMelding meldingsLogg record posix
+
+                        _ ->
+                            ( meldingsLogg, Cmd.none )
+
+                Err error ->
+                    ( meldingsLogg, Cmd.none )
 
 
 lengdePåSkriveindikatorIMillisekunder : MeldingsLogg -> Float
@@ -166,23 +192,45 @@ lengdePåSkriveindikatorIMillisekunder meldingsLogg =
             gjennomsnitteligAntallOrd * 200
 
 
+ventetidFørBrukerinputScrollesInn : MeldingsLogg -> Float
+ventetidFørBrukerinputScrollesInn meldingsLogg =
+    case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
+        AlleMeldingerAnimert ->
+            500
+
+        FørsteMelding antallOrdNesteMelding ->
+            (antallOrdNesteMelding * 150)
+                |> toFloat
+                |> clamp 500 3600
+
+        FinnesEnForrigeMelding { neste } ->
+            (neste * 150)
+                |> toFloat
+                |> clamp 500 3600
+
+
 hoppOverMeldingsanimasjon : MeldingsLogg -> ( MeldingsLogg, Cmd Msg )
 hoppOverMeldingsanimasjon meldingsLogg =
     ( MeldingsLogg.debugFullførAlleMeldinger meldingsLogg, scrollTilBunn ScrolletViewport )
 
 
-triple : a -> b -> c -> ( a, b, c )
-triple a b c =
-    ( a, b, c )
+tilMeldingDimensjoner : Element -> Viewport -> Time.Posix -> Element -> MeldingDimensjonInfo
+tilMeldingDimensjoner melding viewport timestamp samtaleElement =
+    { melding = melding
+    , viewport = viewport
+    , timestamp = timestamp
+    , samtaleElement = samtaleElement
+    }
 
 
-getDimensionsTimeAndViewport : String -> Task Dom.Error ( Element, Viewport, Time.Posix )
+getDimensionsTimeAndViewport : String -> Task Dom.Error MeldingDimensjonInfo
 getDimensionsTimeAndViewport id =
-    Task.map3
-        triple
+    Task.map4
+        tilMeldingDimensjoner
         (Dom.getElement id)
         (Dom.getViewportOf "samtale")
         Time.now
+        (Dom.getElement "samtale-innhold")
 
 
 getTimeAndViewport : Task Dom.Error ( Viewport, Time.Posix )
@@ -193,29 +241,46 @@ getTimeAndViewport =
         Time.now
 
 
-scrollTilSkriveIndikator : MeldingsLogg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
-scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewport } tidNå =
+triple : a -> b -> c -> ( a, b, c )
+triple a b c =
+    ( a, b, c )
+
+
+getTimeViewportAndElement : Task Dom.Error ( Viewport, Time.Posix, Element )
+getTimeViewportAndElement =
+    Task.map3
+        triple
+        (Dom.getViewportOf "samtale")
+        Time.now
+        (Dom.getElement "samtale-innhold")
+
+
+scrollTilSkriveIndikator : MeldingsLogg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
+scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewport, samtaleElement } tidNå =
     ( meldingsLogg
     , { animasjonstidMs = 400
       , opprinneligViewport = opprinneligViewport
-      , sluttPosisjon = opprinneligViewport.scene.height - 24 + 62 - opprinneligViewport.viewport.height
+      , sluttPosisjon = 54 - (16 - ((samtaleElement.element.height + 12) - opprinneligViewport.viewport.height))
       , tidNå = tidNå
       , startTidForScrolling = startTidForScrolling
       }
-        |> scrollPosition
+        |> scrollPositionMeldinger
         |> Dom.setViewportOf "samtale" 0
         |> Task.attempt ScrolletViewport
     )
 
 
-scrollTilMelding : MeldingsLogg -> { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
-scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewport } tidNå =
+scrollTilMelding : MeldingsLogg -> { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
+scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewport, samtaleElement } tidNå =
     let
         heightPlussPadding =
             toFloat height + (2 * 16)
 
+        forskjellMeldingstørrelse =
+            heightPlussPadding - 54
+
         sluttPosisjon =
-            opprinneligViewport.viewport.y + heightPlussPadding - 54
+            forskjellMeldingstørrelse - (16 - ((samtaleElement.element.height + 12) - opprinneligViewport.viewport.height))
     in
     ( meldingsLogg
     , { animasjonstidMs = 400
@@ -224,13 +289,13 @@ scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewpor
       , tidNå = tidNå
       , startTidForScrolling = startTidForScrolling
       }
-        |> scrollPosition
+        |> scrollPositionMeldinger
         |> Dom.setViewportOf "samtale" 0
         |> Task.attempt ScrolletViewport
     )
 
 
-scrollPosition :
+scrollPositionMeldinger :
     { animasjonstidMs : Int
     , opprinneligViewport : Viewport
     , sluttPosisjon : Float
@@ -238,7 +303,21 @@ scrollPosition :
     , startTidForScrolling : Time.Posix
     }
     -> Float
-scrollPosition { animasjonstidMs, opprinneligViewport, sluttPosisjon, tidNå, startTidForScrolling } =
+scrollPositionMeldinger =
+    scrollPosition { easingFunction = Ease.bezier 0.25 0.1 0.25 1.0 }
+
+
+scrollPosition :
+    { easingFunction : Float -> Float }
+    ->
+        { animasjonstidMs : Int
+        , opprinneligViewport : Viewport
+        , sluttPosisjon : Float
+        , tidNå : Time.Posix
+        , startTidForScrolling : Time.Posix
+        }
+    -> Float
+scrollPosition { easingFunction } { animasjonstidMs, opprinneligViewport, sluttPosisjon, tidNå, startTidForScrolling } =
     let
         startPosisjon =
             opprinneligViewport.viewport.y
@@ -257,7 +336,7 @@ scrollPosition { animasjonstidMs, opprinneligViewport, sluttPosisjon, tidNå, st
             normalisertTid / toFloat animasjonstidMs
 
         andelUtførtAvstand =
-            Ease.bezier 0.25 0.1 0.25 1.0 andelUtførtTid
+            easingFunction andelUtførtTid
 
         yNå =
             (totalAvstand * andelUtførtAvstand) + startPosisjon
@@ -286,17 +365,17 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
         sluttPosisjon =
             min sluttPosisjonHvisManScrollerHelt lengsteManBurdeScrolle
 
-        animasjonsTid =
-            (sluttPosisjon - opprinneligViewport.viewport.y)
-                * 3
-                |> clamp 300 800
-                |> round
+        avstand =
+            sluttPosisjon - opprinneligViewport.viewport.y
 
-        _ =
-            Debug.log "animasjonstid" animasjonsTid
+        animasjonsTid =
+            (avstand * 2)
+                |> round
+                |> clamp 200 400
 
         scrollTilPosisjon =
             scrollPosition
+                { easingFunction = Ease.bezier 0 0 0.58 1 }
                 { animasjonstidMs = animasjonsTid
                 , opprinneligViewport = opprinneligViewport
                 , sluttPosisjon = sluttPosisjon
