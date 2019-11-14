@@ -2,7 +2,6 @@
 
 
 @meldingBredde: 27rem;
-//@meldingBreddeMobil: 70%;
 @meldingBreddeMedium: 21rem;
 @meldingBreddeMobil: 15rem;
 @meldingBreddeLitenMobil: 14rem;
@@ -87,7 +86,8 @@ html {
     margin-bottom: 2.5rem;
   }
   .samtale-padding {
-    min-height: 1rem;
+    //min-height: 1rem; TODO :Skal denne være så høy som under
+    min-height: 2.5rem;
   }
 }
 
@@ -422,13 +422,7 @@ html {
 .skjema-wrapper {
   display: flex;
   flex-direction: column;
-  margin-top: 1rem;
-  @media (min-width: 768px) {
-    margin-top: 1.25rem;
-  }
-  @media (max-width: 767px) {
-    margin-top: 1rem;
-  }
+  margin-top: 1.25rem;
 }
 
 .skjema {

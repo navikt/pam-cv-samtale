@@ -1,10 +1,12 @@
 module MeldingsLogg exposing
-    ( FerdigAnimertMeldingsLogg
+    ( AntallOrdNesteOgForrigeMelding(..)
+    , FerdigAnimertMeldingsLogg
     , FerdigAnimertStatus(..)
     , MeldingsGruppeViewState(..)
     , MeldingsLogg
     , ScrollAnimasjonStatus(..)
     , SpørsmålsGruppeViewState
+    , antallOrdForrigeOgNesteMelding
     , avsluttScrollingTilInput
     , begynnÅViseBrukerInput
     , debugFullførAlleMeldinger
@@ -98,6 +100,31 @@ nesteMeldingToString : MeldingsLogg -> Float
 nesteMeldingToString (MeldingsLogg { ikkeVist }) =
     -- TODO: Erstatt denne funksjonene med noe annet
     2.0
+
+
+type AntallOrdNesteOgForrigeMelding
+    = AlleMeldingerAnimert
+    | FørsteMelding Int
+    | FinnesEnForrigeMelding { forrige : Int, neste : Int }
+
+
+antallOrdForrigeOgNesteMelding : MeldingsLogg -> AntallOrdNesteOgForrigeMelding
+antallOrdForrigeOgNesteMelding (MeldingsLogg { ikkeVist }) =
+    case ikkeVist of
+        MeldingerIkkeFerdigAnimert ikkeFerdigAnimertInfo ->
+            let
+                antallOrdNesteMelding =
+                    Melding.antallOrd ikkeFerdigAnimertInfo.nesteMelding
+            in
+            case List.reverse ikkeFerdigAnimertInfo.ferdigAnimerteMeldinger of
+                last :: _ ->
+                    FinnesEnForrigeMelding { forrige = Melding.antallOrd last.melding, neste = antallOrdNesteMelding }
+
+                _ ->
+                    FørsteMelding antallOrdNesteMelding
+
+        _ ->
+            AlleMeldingerAnimert
 
 
 sisteMeldingId : MeldingsLogg -> String

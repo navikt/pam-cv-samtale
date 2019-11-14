@@ -4,7 +4,7 @@ import Browser.Dom as Dom exposing (Element, Viewport)
 import Browser.Events
 import DebugStatus exposing (DebugStatus)
 import Ease
-import MeldingsLogg exposing (FerdigAnimertStatus(..), MeldingsLogg, ScrollAnimasjonStatus(..))
+import MeldingsLogg exposing (AntallOrdNesteOgForrigeMelding(..), FerdigAnimertStatus(..), MeldingsLogg, ScrollAnimasjonStatus(..))
 import Process
 import Task exposing (Task)
 import Time
@@ -30,7 +30,7 @@ type Msg
 
 startAnimasjon : DebugStatus -> Cmd Msg
 startAnimasjon debugStatus =
-    200
+    500
         |> DebugStatus.meldingsTimeout debugStatus
         |> Process.sleep
         |> Task.andThen (\_ -> getTimeAndViewport)
@@ -47,10 +47,13 @@ update debugStatus msg meldingsLogg =
                         hoppOverMeldingsanimasjon meldingsLogg
 
                     else
-                        ( MeldingsLogg.startÅSkrive posix viewport meldingsLogg
-                        , MeldingsLogg.nesteMeldingToString meldingsLogg
-                            * 1000.0
-                            |> DebugStatus.meldingsTimeout debugStatus
+                        let
+                            nyMeldingslogg =
+                                MeldingsLogg.startÅSkrive posix viewport meldingsLogg
+                        in
+                        ( nyMeldingslogg
+                        , nyMeldingslogg
+                            |> lengdePåSkriveindikatorIMillisekunder
                             |> Process.sleep
                             |> Task.perform (always StartMeldingsanimasjon)
                         )
@@ -97,7 +100,8 @@ update debugStatus msg meldingsLogg =
             case MeldingsLogg.ferdigAnimert nyMeldingslogg of
                 FerdigAnimert _ ->
                     ( nyMeldingslogg
-                    , 250
+                    , 500
+                        -- TODO: Baser på forrige melding sin lengde?
                         |> DebugStatus.meldingsTimeout debugStatus
                         |> Process.sleep
                         |> Task.attempt (always VisBrukerInput)
@@ -105,7 +109,7 @@ update debugStatus msg meldingsLogg =
 
                 MeldingerGjenstår ->
                     ( nyMeldingslogg
-                    , 1000
+                    , 500
                         |> DebugStatus.meldingsTimeout debugStatus
                         |> Process.sleep
                         |> Task.andThen (\_ -> getTimeAndViewport)
@@ -144,6 +148,24 @@ update debugStatus msg meldingsLogg =
                     scrollInnBrukerInput meldingsLogg record posix
 
 
+lengdePåSkriveindikatorIMillisekunder : MeldingsLogg -> Float
+lengdePåSkriveindikatorIMillisekunder meldingsLogg =
+    case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
+        AlleMeldingerAnimert ->
+            400
+
+        FørsteMelding antallOrdNesteMelding ->
+            1600
+
+        FinnesEnForrigeMelding { forrige, neste } ->
+            let
+                gjennomsnitteligAntallOrd =
+                    (((forrige * 2) + neste) // 3)
+                        |> toFloat
+            in
+            gjennomsnitteligAntallOrd * 200
+
+
 hoppOverMeldingsanimasjon : MeldingsLogg -> ( MeldingsLogg, Cmd Msg )
 hoppOverMeldingsanimasjon meldingsLogg =
     ( MeldingsLogg.debugFullførAlleMeldinger meldingsLogg, scrollTilBunn ScrolletViewport )
@@ -176,7 +198,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
     ( meldingsLogg
     , { animasjonstidMs = 400
       , opprinneligViewport = opprinneligViewport
-      , sluttPosisjon = opprinneligViewport.scene.height + 62 - opprinneligViewport.viewport.height
+      , sluttPosisjon = opprinneligViewport.scene.height - 24 + 62 - opprinneligViewport.viewport.height
       , tidNå = tidNå
       , startTidForScrolling = startTidForScrolling
       }
@@ -193,7 +215,7 @@ scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewpor
             toFloat height + (2 * 16)
 
         sluttPosisjon =
-            opprinneligViewport.scene.height + heightPlussPadding - 54 - opprinneligViewport.viewport.height
+            opprinneligViewport.viewport.y + heightPlussPadding - 54
     in
     ( meldingsLogg
     , { animasjonstidMs = 400
@@ -235,7 +257,7 @@ scrollPosition { animasjonstidMs, opprinneligViewport, sluttPosisjon, tidNå, st
             normalisertTid / toFloat animasjonstidMs
 
         andelUtførtAvstand =
-            Ease.inOutCubic andelUtførtTid
+            Ease.bezier 0.25 0.1 0.25 1.0 andelUtførtTid
 
         yNå =
             (totalAvstand * andelUtførtAvstand) + startPosisjon
@@ -256,7 +278,7 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
                     0
 
         sluttPosisjonHvisManScrollerHelt =
-            opprinneligViewport.scene.height - opprinneligViewport.viewport.height
+            opprinneligViewport.scene.height - opprinneligViewport.viewport.height - 24
 
         lengsteManBurdeScrolle =
             opprinneligViewport.viewport.y + opprinneligViewport.viewport.height - spørsmålHeight
@@ -264,9 +286,18 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
         sluttPosisjon =
             min sluttPosisjonHvisManScrollerHelt lengsteManBurdeScrolle
 
+        animasjonsTid =
+            (sluttPosisjon - opprinneligViewport.viewport.y)
+                * 3
+                |> clamp 300 800
+                |> round
+
+        _ =
+            Debug.log "animasjonstid" animasjonsTid
+
         scrollTilPosisjon =
             scrollPosition
-                { animasjonstidMs = 150
+                { animasjonstidMs = animasjonsTid
                 , opprinneligViewport = opprinneligViewport
                 , sluttPosisjon = sluttPosisjon
                 , tidNå = tidNå
