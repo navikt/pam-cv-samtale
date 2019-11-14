@@ -1,16 +1,26 @@
 module Dato exposing
-    ( Måned(..)
+    ( Dato
+    , DatoValidering(..)
+    , Måned(..)
     , TilDato(..)
     , År
     , datoTilString
     , decodeMonthYear
+    , encodeMaybeDato
     , encodeMonthYear
     , feilmeldingÅr
+    , formaterDag
+    , getDatoDag
+    , getDatoMåned
+    , getDatoÅr
     , månedTilNummerMåned
     , månedTilString
     , periodeTilString
+    , stringTilMaybeMåned
     , stringTilMåned
     , stringTilÅr
+    , toString
+    , validerDato
     , validerÅr
     , årTilString
     )
@@ -32,6 +42,109 @@ type Måned
     | Oktober
     | November
     | Desember
+    | Ikke_valgt
+
+
+type alias DatoInfo =
+    { dag : String
+    , måned : Måned
+    , år : String
+    }
+
+
+type Dato
+    = Dato DatoInfo
+
+
+toString : Dato -> String
+toString dato =
+    case dato of
+        Dato dato_ ->
+            dato_.dag ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ dato_.år
+
+
+maybeDatoToString : Maybe Dato -> Maybe String
+maybeDatoToString dato =
+    case dato of
+        Just (Dato info) ->
+            Just ("" ++ info.år)
+
+        Nothing ->
+            Nothing
+
+
+getDatoÅr : Dato -> String
+getDatoÅr (Dato datoInfo) =
+    datoInfo.år
+
+
+getDatoMåned : Dato -> Måned
+getDatoMåned (Dato info) =
+    info.måned
+
+
+getDatoDag : Dato -> String
+getDatoDag (Dato info) =
+    info.dag
+
+
+type DatoValidering
+    = DatoValiderer Dato
+    | DatoValidererIkke
+    | DatoIkkeSkrevetInn
+
+
+validerDato : { dag : String, måned : Maybe Måned, år : String } -> DatoValidering
+validerDato { dag, måned, år } =
+    case måned of
+        Just måned_ ->
+            if validerÅr år && validerDag dag then
+                DatoValiderer
+                    (Dato
+                        { dag = formaterDag dag
+                        , måned = måned_
+                        , år = år
+                        }
+                    )
+
+            else
+                DatoValidererIkke
+
+        Nothing ->
+            if String.isEmpty dag && String.isEmpty år then
+                DatoIkkeSkrevetInn
+
+            else
+                DatoValidererIkke
+
+
+formaterDag : String -> String
+formaterDag dag =
+    if String.length dag == 1 then
+        "0" ++ dag
+
+    else
+        dag
+
+
+validerDag : String -> Bool
+validerDag dag =
+    case String.toInt dag of
+        Just dagSomInt ->
+            dagSomInt > 0 && dagSomInt <= 31
+
+        Nothing ->
+            False
+
+
+encodeMaybeDato : Maybe Dato -> Json.Encode.Value
+encodeMaybeDato dato =
+    case dato of
+        Just (Dato dato_) ->
+            Json.Encode.string (dato_.år ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ dato_.dag)
+
+        Nothing ->
+            Json.Encode.null
 
 
 månedTilString : Måned -> String
@@ -72,6 +185,9 @@ månedTilString mnd =
 
         Desember ->
             "Desember"
+
+        Ikke_valgt ->
+            ""
 
 
 stringTilMåned : String -> Måned
@@ -153,6 +269,49 @@ stringTilMåned string =
             Januar
 
 
+stringTilMaybeMåned : String -> Maybe Måned
+stringTilMaybeMåned string =
+    case string of
+        "Januar" ->
+            Just Januar
+
+        "Februar" ->
+            Just Februar
+
+        "Mars" ->
+            Just Mars
+
+        "April" ->
+            Just April
+
+        "Mai" ->
+            Just Mai
+
+        "Juni" ->
+            Just Juni
+
+        "Juli" ->
+            Just Juli
+
+        "August" ->
+            Just August
+
+        "September" ->
+            Just September
+
+        "Oktober" ->
+            Just Oktober
+
+        "November" ->
+            Just November
+
+        "Desember" ->
+            Just Desember
+
+        _ ->
+            Nothing
+
+
 månedTilNummerMåned : Måned -> String
 månedTilNummerMåned maaned =
     case maaned of
@@ -191,6 +350,9 @@ månedTilNummerMåned maaned =
 
         Desember ->
             "12"
+
+        Ikke_valgt ->
+            ""
 
 
 validerÅr : String -> Bool

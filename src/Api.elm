@@ -110,7 +110,7 @@ putPersonalia msgConstructor skjema id =
         }
 
 
-postFørerkort : (Result Error (List Forerkort) -> msg) -> Forerkort.Skjema.FørerkortSkjema -> Cmd msg
+postFørerkort : (Result Error (List Forerkort) -> msg) -> Forerkort.Skjema.ValidertFørerkortSkjema -> Cmd msg
 postFørerkort msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/forerkort"

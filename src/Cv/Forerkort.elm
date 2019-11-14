@@ -1,5 +1,6 @@
 module Cv.Forerkort exposing (Forerkort, Klasse(..), decode, id, klasse)
 
+import Date exposing (Date)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 
@@ -11,6 +12,8 @@ type Forerkort
 type alias ForerkortInfo =
     { id : String
     , klasse : Klasse
+    , fraDato : Maybe Date
+    , utløperDato : Maybe Date
     }
 
 
@@ -107,6 +110,11 @@ decodeKlasse klasse_ =
         fail ("Decoding av klasse feilet. Klarer ikke decode verdi: " ++ klasse_)
 
 
+decodeDateString : Maybe String -> Maybe Date
+decodeDateString dato =
+    Nothing
+
+
 tilForerkortInfo : BackendData -> Decoder Forerkort
 tilForerkortInfo backendData =
     Json.Decode.map (lagForerkort backendData)
@@ -118,6 +126,8 @@ lagForerkort backendData klasse_ =
     Forerkort
         { id = backendData.id
         , klasse = klasse_
+        , fraDato = decodeDateString backendData.fraDato
+        , utløperDato = decodeDateString backendData.utloperDato
         }
 
 
@@ -126,9 +136,13 @@ decodeBackendData =
     succeed BackendData
         |> required "id" string
         |> required "klasse" string
+        |> required "fraDato" (nullable string)
+        |> required "utloperDato" (nullable string)
 
 
 type alias BackendData =
     { id : String
     , klasse : String
+    , fraDato : Maybe String
+    , utloperDato : Maybe String
     }
