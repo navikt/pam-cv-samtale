@@ -18,7 +18,6 @@ module MeldingsLogg exposing
     , leggTilSvar
     , mapMeldingsGruppe
     , mapSpørsmålsgruppe
-    , nesteMeldingToString
     , registrerDimensjoner
     , scrollAnimasjonStatus
     , sisteMeldingId
@@ -91,152 +90,6 @@ init =
         { ferdigAnimert = []
         , ikkeVist = AlleMeldingerFerdigAnimert
         }
-
-
-
---- OPPDATERING ---
-
-
-nesteMeldingToString : MeldingsLogg -> Float
-nesteMeldingToString (MeldingsLogg { ikkeVist }) =
-    -- TODO: Erstatt denne funksjonene med noe annet
-    2.0
-
-
-type AntallOrdNesteOgForrigeMelding
-    = AlleMeldingerAnimert
-    | FørsteMelding Int
-    | FinnesEnForrigeMelding { forrige : Int, neste : Int }
-
-
-antallOrdForrigeOgNesteMelding : MeldingsLogg -> AntallOrdNesteOgForrigeMelding
-antallOrdForrigeOgNesteMelding (MeldingsLogg { ikkeVist }) =
-    case ikkeVist of
-        MeldingerIkkeFerdigAnimert ikkeFerdigAnimertInfo ->
-            let
-                antallOrdNesteMelding =
-                    Melding.antallOrd ikkeFerdigAnimertInfo.nesteMelding
-            in
-            case List.reverse ikkeFerdigAnimertInfo.ferdigAnimerteMeldinger of
-                last :: _ ->
-                    FinnesEnForrigeMelding { forrige = Melding.antallOrd last.melding, neste = antallOrdNesteMelding }
-
-                _ ->
-                    FørsteMelding antallOrdNesteMelding
-
-        _ ->
-            AlleMeldingerAnimert
-
-
-sisteMeldingId : MeldingsLogg -> String
-sisteMeldingId (MeldingsLogg info) =
-    -- TODO: Er denne nødvendig?
-    "test"
-
-
-debugFullførAlleMeldinger : MeldingsLogg -> MeldingsLogg
-debugFullførAlleMeldinger (MeldingsLogg info) =
-    case info.ikkeVist of
-        MeldingerIkkeFerdigAnimert ikkeFerdigInfo ->
-            MeldingsLogg
-                { info
-                    | ikkeVist = AlleMeldingerFerdigAnimert
-                    , ferdigAnimert =
-                        info.ferdigAnimert
-                            ++ [ [ ikkeFerdigInfo.ferdigAnimerteMeldinger
-                                 , [ debugTilFerdiganimert ikkeFerdigInfo.nesteMelding ]
-                                 , List.map debugTilFerdiganimert ikkeFerdigInfo.ikkeAnimerteMeldinger
-                                 ]
-                                    |> List.concat
-                                    |> FerdigAnimertSpørsmålsGruppe
-                               ]
-                }
-
-        _ ->
-            MeldingsLogg { info | ikkeVist = AlleMeldingerFerdigAnimert }
-
-
-debugTilFerdiganimert : Melding -> FerdigAnimertMelding
-debugTilFerdiganimert melding =
-    { melding = melding
-    , height = 0
-    , width = 0
-    }
-
-
-type ScrollAnimasjonStatus
-    = IngenScrollAnimasjon
-    | ScrollerInnSkriveIndikator { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Dom.Element }
-    | ScrollerInnMelding { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Dom.Element }
-    | ScrollerInnInputFelt { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, sisteSpørsmålHeight : Maybe Int }
-
-
-scrollAnimasjonStatus : MeldingsLogg -> ScrollAnimasjonStatus
-scrollAnimasjonStatus (MeldingsLogg info) =
-    case info.ikkeVist of
-        AlleMeldingerFerdigAnimert ->
-            IngenScrollAnimasjon
-
-        MeldingerIkkeFerdigAnimert meldingerIkkeFerdigAnimertInfo ->
-            case meldingerIkkeFerdigAnimertInfo.animasjonStatus of
-                IngenAnimasjon ->
-                    IngenScrollAnimasjon
-
-                SkriveAnimasjon { startTidForScrolling, opprinneligViewport, samtaleElement } ->
-                    ScrollerInnSkriveIndikator { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, samtaleElement = samtaleElement }
-
-                VenterPåÅFåRegistrertHøydeBredde ->
-                    IngenScrollAnimasjon
-
-                HarRegistrertHøyde { height, width, startTidForScrolling, opprinneligViewport, samtaleElement } ->
-                    ScrollerInnMelding { height = height, startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, samtaleElement = samtaleElement }
-
-        VenterPåAtMeldingScrollingSkalBliFerdig ->
-            IngenScrollAnimasjon
-
-        VenterPåÅScrolleTilInput ->
-            IngenScrollAnimasjon
-
-        ScrollerTilInput { startTidForScrolling, opprinneligViewport, sisteSpørsmålHeight } ->
-            ScrollerInnInputFelt { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, sisteSpørsmålHeight = sisteSpørsmålHeight }
-
-
-alleMeldingerVises : MeldingsLogg -> Bool
-alleMeldingerVises (MeldingsLogg info) =
-    case info.ikkeVist of
-        MeldingerIkkeFerdigAnimert _ ->
-            False
-
-        VenterPåAtMeldingScrollingSkalBliFerdig ->
-            True
-
-        VenterPåÅScrolleTilInput ->
-            True
-
-        ScrollerTilInput _ ->
-            True
-
-        AlleMeldingerFerdigAnimert ->
-            True
-
-
-visBrukerInput : MeldingsLogg -> Bool
-visBrukerInput (MeldingsLogg info) =
-    case info.ikkeVist of
-        MeldingerIkkeFerdigAnimert _ ->
-            False
-
-        VenterPåAtMeldingScrollingSkalBliFerdig ->
-            False
-
-        VenterPåÅScrolleTilInput ->
-            True
-
-        ScrollerTilInput _ ->
-            True
-
-        AlleMeldingerFerdigAnimert ->
-            True
 
 
 
@@ -321,7 +174,157 @@ leggTilSvar nyMelding (MeldingsLogg info) =
 
 
 
---- ANIMASJON ---
+--- FERDIGANIMERT ---
+
+
+type FerdigAnimertStatus
+    = FerdigAnimert FerdigAnimertMeldingsLogg
+    | MeldingerGjenstår
+
+
+type FerdigAnimertMeldingsLogg
+    = FerdigAnimertMeldingsLogg (List FerdigAnimertMeldingsGruppe)
+
+
+ferdigAnimert : MeldingsLogg -> FerdigAnimertStatus
+ferdigAnimert (MeldingsLogg info) =
+    case info.ikkeVist of
+        MeldingerIkkeFerdigAnimert _ ->
+            MeldingerGjenstår
+
+        VenterPåAtMeldingScrollingSkalBliFerdig ->
+            MeldingerGjenstår
+
+        VenterPåÅScrolleTilInput ->
+            MeldingerGjenstår
+
+        ScrollerTilInput _ ->
+            MeldingerGjenstår
+
+        AlleMeldingerFerdigAnimert ->
+            FerdigAnimert (FerdigAnimertMeldingsLogg info.ferdigAnimert)
+
+
+tilMeldingsLogg : FerdigAnimertMeldingsLogg -> MeldingsLogg
+tilMeldingsLogg (FerdigAnimertMeldingsLogg ferdigAnimert_) =
+    MeldingsLogg
+        { ferdigAnimert = ferdigAnimert_
+        , ikkeVist = AlleMeldingerFerdigAnimert
+        }
+
+
+
+--- ANIMASJON INFO ---
+
+
+type AntallOrdNesteOgForrigeMelding
+    = AlleMeldingerAnimert
+    | FørsteMelding Int
+    | FinnesEnForrigeMelding { forrige : Int, neste : Int }
+
+
+antallOrdForrigeOgNesteMelding : MeldingsLogg -> AntallOrdNesteOgForrigeMelding
+antallOrdForrigeOgNesteMelding (MeldingsLogg { ikkeVist }) =
+    case ikkeVist of
+        MeldingerIkkeFerdigAnimert ikkeFerdigAnimertInfo ->
+            let
+                antallOrdNesteMelding =
+                    Melding.antallOrd ikkeFerdigAnimertInfo.nesteMelding
+            in
+            case List.reverse ikkeFerdigAnimertInfo.ferdigAnimerteMeldinger of
+                last :: _ ->
+                    FinnesEnForrigeMelding { forrige = Melding.antallOrd last.melding, neste = antallOrdNesteMelding }
+
+                _ ->
+                    FørsteMelding antallOrdNesteMelding
+
+        _ ->
+            AlleMeldingerAnimert
+
+
+sisteMeldingId : MeldingsLogg -> String
+sisteMeldingId (MeldingsLogg info) =
+    -- TODO: Er denne nødvendig?
+    "test"
+
+
+type ScrollAnimasjonStatus
+    = IngenScrollAnimasjon
+    | ScrollerInnSkriveIndikator { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Dom.Element }
+    | ScrollerInnMelding { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Dom.Element }
+    | ScrollerInnInputFelt { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, sisteSpørsmålHeight : Maybe Int }
+
+
+scrollAnimasjonStatus : MeldingsLogg -> ScrollAnimasjonStatus
+scrollAnimasjonStatus (MeldingsLogg info) =
+    case info.ikkeVist of
+        AlleMeldingerFerdigAnimert ->
+            IngenScrollAnimasjon
+
+        MeldingerIkkeFerdigAnimert meldingerIkkeFerdigAnimertInfo ->
+            case meldingerIkkeFerdigAnimertInfo.animasjonStatus of
+                IngenAnimasjon ->
+                    IngenScrollAnimasjon
+
+                SkriveAnimasjon { startTidForScrolling, opprinneligViewport, samtaleElement } ->
+                    ScrollerInnSkriveIndikator { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, samtaleElement = samtaleElement }
+
+                VenterPåÅFåRegistrertHøydeBredde ->
+                    IngenScrollAnimasjon
+
+                HarRegistrertHøyde { height, width, startTidForScrolling, opprinneligViewport, samtaleElement } ->
+                    ScrollerInnMelding { height = height, startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, samtaleElement = samtaleElement }
+
+        VenterPåAtMeldingScrollingSkalBliFerdig ->
+            IngenScrollAnimasjon
+
+        VenterPåÅScrolleTilInput ->
+            IngenScrollAnimasjon
+
+        ScrollerTilInput { startTidForScrolling, opprinneligViewport, sisteSpørsmålHeight } ->
+            ScrollerInnInputFelt { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, sisteSpørsmålHeight = sisteSpørsmålHeight }
+
+
+alleMeldingerVises : MeldingsLogg -> Bool
+alleMeldingerVises (MeldingsLogg info) =
+    case info.ikkeVist of
+        MeldingerIkkeFerdigAnimert _ ->
+            False
+
+        VenterPåAtMeldingScrollingSkalBliFerdig ->
+            True
+
+        VenterPåÅScrolleTilInput ->
+            True
+
+        ScrollerTilInput _ ->
+            True
+
+        AlleMeldingerFerdigAnimert ->
+            True
+
+
+visBrukerInput : MeldingsLogg -> Bool
+visBrukerInput (MeldingsLogg info) =
+    case info.ikkeVist of
+        MeldingerIkkeFerdigAnimert _ ->
+            False
+
+        VenterPåAtMeldingScrollingSkalBliFerdig ->
+            False
+
+        VenterPåÅScrolleTilInput ->
+            True
+
+        ScrollerTilInput _ ->
+            True
+
+        AlleMeldingerFerdigAnimert ->
+            True
+
+
+
+--- ANIMASJON OPPDATERING ---
 
 
 startÅSkrive : Time.Posix -> Viewport -> Dom.Element -> MeldingsLogg -> MeldingsLogg
@@ -551,44 +554,34 @@ avsluttScrollingTilInput (MeldingsLogg meldingsLoggInfo) =
             MeldingsLogg meldingsLoggInfo
 
 
-
---- FERDIGANIMERT ---
-
-
-type FerdigAnimertStatus
-    = FerdigAnimert FerdigAnimertMeldingsLogg
-    | MeldingerGjenstår
-
-
-type FerdigAnimertMeldingsLogg
-    = FerdigAnimertMeldingsLogg (List FerdigAnimertMeldingsGruppe)
-
-
-ferdigAnimert : MeldingsLogg -> FerdigAnimertStatus
-ferdigAnimert (MeldingsLogg info) =
+debugFullførAlleMeldinger : MeldingsLogg -> MeldingsLogg
+debugFullførAlleMeldinger (MeldingsLogg info) =
     case info.ikkeVist of
-        MeldingerIkkeFerdigAnimert _ ->
-            MeldingerGjenstår
+        MeldingerIkkeFerdigAnimert ikkeFerdigInfo ->
+            MeldingsLogg
+                { info
+                    | ikkeVist = AlleMeldingerFerdigAnimert
+                    , ferdigAnimert =
+                        info.ferdigAnimert
+                            ++ [ [ ikkeFerdigInfo.ferdigAnimerteMeldinger
+                                 , [ debugTilFerdiganimert ikkeFerdigInfo.nesteMelding ]
+                                 , List.map debugTilFerdiganimert ikkeFerdigInfo.ikkeAnimerteMeldinger
+                                 ]
+                                    |> List.concat
+                                    |> FerdigAnimertSpørsmålsGruppe
+                               ]
+                }
 
-        VenterPåAtMeldingScrollingSkalBliFerdig ->
-            MeldingerGjenstår
-
-        VenterPåÅScrolleTilInput ->
-            MeldingerGjenstår
-
-        ScrollerTilInput _ ->
-            MeldingerGjenstår
-
-        AlleMeldingerFerdigAnimert ->
-            FerdigAnimert (FerdigAnimertMeldingsLogg info.ferdigAnimert)
+        _ ->
+            MeldingsLogg { info | ikkeVist = AlleMeldingerFerdigAnimert }
 
 
-tilMeldingsLogg : FerdigAnimertMeldingsLogg -> MeldingsLogg
-tilMeldingsLogg (FerdigAnimertMeldingsLogg ferdigAnimert_) =
-    MeldingsLogg
-        { ferdigAnimert = ferdigAnimert_
-        , ikkeVist = AlleMeldingerFerdigAnimert
-        }
+debugTilFerdiganimert : Melding -> FerdigAnimertMelding
+debugTilFerdiganimert melding =
+    { melding = melding
+    , height = 0
+    , width = 0
+    }
 
 
 
