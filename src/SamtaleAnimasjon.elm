@@ -133,7 +133,15 @@ update debugStatus msg meldingsLogg =
         StartÅScrolleInnInput result ->
             case result of
                 Ok ( viewport, timestamp ) ->
-                    ( MeldingsLogg.startScrollingTilInput timestamp viewport meldingsLogg, Cmd.none )
+                    if (viewport.scene.height - (viewport.viewport.y + viewport.viewport.height)) >= 70 then
+                        ( MeldingsLogg.startScrollingTilInput timestamp viewport meldingsLogg, Cmd.none )
+
+                    else
+                        ( meldingsLogg
+                            |> MeldingsLogg.startScrollingTilInput timestamp viewport
+                            |> MeldingsLogg.avsluttScrollingTilInput
+                        , Cmd.none
+                        )
 
                 Err _ ->
                     ( meldingsLogg, Cmd.none )
@@ -377,7 +385,10 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
                 , startTidForScrolling = startTidForScrolling
                 }
     in
-    if scrollTilPosisjon >= (sluttPosisjon - 4) then
+    if opprinneligViewport.scene.height - (opprinneligViewport.viewport.y + opprinneligViewport.viewport.height) < 70 then
+        ( meldingsLogg, Cmd.none )
+
+    else if scrollTilPosisjon >= (sluttPosisjon - 4) then
         ( MeldingsLogg.avsluttScrollingTilInput meldingsLogg
         , Dom.setViewportOf "samtale" 0 scrollTilPosisjon
             |> Task.attempt ScrolletViewport
