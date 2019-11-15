@@ -34,6 +34,7 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Process
 import SamtaleAnimasjon
 import Task
+import Validering
 
 
 
@@ -117,6 +118,10 @@ type alias TilDatoInfo =
     , tilÅr : String
     , tillatÅViseFeilmeldingÅr : Bool
     }
+
+
+maxLengthBeskrivelse =
+    2000
 
 
 rolleTilBeskrivelse : String -> BeskrivelseInfo
@@ -267,7 +272,7 @@ update msg (Model model) =
         VilRegistrereBeskrivelse ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse input ->
-                    case Skjema.feilmeldingBeskrivelse input.beskrivelse of
+                    case Validering.feilmeldingMaxAntallTegn input.beskrivelse maxLengthBeskrivelse of
                         Nothing ->
                             ( input
                                 |> SpørOmBrukerVilLeggeInnTidsperiode
@@ -794,7 +799,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         RegistrerRolle _ ->
             [ Melding.spørsmål [ "Så bra at du har mer erfaring. Hvilken rolle har du hatt?" ]
             , Melding.spørsmål
-                [ "Har du jobbet som fotballtrener, kanskje besøksvenn eller noe helt annet?" ]
+                [ "Har du jobbet som fotballtrener, besøksvenn, eller noe helt annet?" ]
             ]
 
         RegistrerBeskrivelse _ ->
@@ -802,7 +807,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             ]
 
         SpørOmBrukerVilLeggeInnTidsperiode _ ->
-            [ Melding.spørsmål [ "Det kan være viktig for arbeidsgiver å vite hvor lenge du har hatt rollen. Har du lyst til å legge inn informasjonen om tidsperiode?" ]
+            [ Melding.spørsmål [ "Det kan være nyttig for en arbeidsgiver å vite hvor lenge du har hatt rollen. Vil du legge inn tidsperiode?" ]
             ]
 
         RegistrerFraMåned _ ->
@@ -838,10 +843,10 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             ]
 
         EndreOpplysninger _ ->
-            []
+            [ Melding.spørsmål [ "Nå kan du endre informasjonen." ] ]
 
         VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         LagrerSkjema _ _ ->
             []
@@ -949,7 +954,7 @@ viewBrukerInput (Model model) =
                 Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
                     [ info.beskrivelse
                         |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
-                        |> Textarea.withMaybeFeilmelding (Skjema.feilmeldingBeskrivelse info.beskrivelse)
+                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
                         |> Textarea.withId (inputIdTilString BeskrivelseId)
                         |> Textarea.toHtml
                     ]
@@ -1027,7 +1032,7 @@ viewBrukerInput (Model model) =
                     , skjema
                         |> Skjema.innholdTekstFelt Beskrivelse
                         |> Textarea.textarea { label = "Beskrivelse", msg = Tekst Beskrivelse >> SkjemaEndret }
-                        |> Textarea.withMaybeFeilmelding (Skjema.innholdTekstFelt Beskrivelse skjema |> Skjema.feilmeldingBeskrivelse)
+                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse skjema) maxLengthBeskrivelse)
                         |> Textarea.toHtml
                     , skjema
                         |> Skjema.harDatoer

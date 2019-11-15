@@ -340,7 +340,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         BrukerVilAvslutteSeksjonen ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ]) VenterPåAnimasjonFørFullføring
+            ( nesteSamtaleSteg model (Melding.svar [ "Nei, jeg har lagt inn språkene jeg kan" ]) VenterPåAnimasjonFørFullføring
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -548,7 +548,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre norsk" } ]
 
         LeggTilEngelsk ->
-            [ Melding.spørsmål [ "Hva med engelsk? Kan du det?" ] ]
+            [ Melding.spørsmål [ "Da går videre til engelsk? Kan du det?" ] ]
 
         VelgNyttSpråk _ ->
             [ Melding.spørsmål [ "Hvilket språk vil du legge til?" ] ]
@@ -567,7 +567,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
 
         LeggTilFlereSpråk ->
             [ Melding.spørsmål
-                [ "Supert! Da har du lagt inn "
+                [ "Bra! Nå har du lagt til "
                     ++ (model.språk
                             |> List.filterMap Spraakferdighet.sprak
                             |> List.map String.toLower
@@ -701,7 +701,7 @@ viewBrukerInput (Model model) =
                     Containers.knapper Flytende
                         [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
                             |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, jeg har lagt inn språkene jeg kan"
                             |> Knapp.toHtml
                         ]
 
@@ -827,7 +827,7 @@ viewBrukerInput (Model model) =
                 Containers.knapper Flytende
                     [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
                         |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, jeg har lagt inn språkene jeg kan"
                         |> Knapp.toHtml
                     ]
 

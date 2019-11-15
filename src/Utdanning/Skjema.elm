@@ -31,6 +31,7 @@ module Utdanning.Skjema exposing
 import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Dato exposing (Måned(..), TilDato(..), År)
 import Json.Encode
+import Validering
 
 
 type UtdanningSkjema
@@ -288,21 +289,25 @@ type alias ValidertUtdanningSkjemaInfo =
 
 validerSkjema : UtdanningSkjema -> Maybe ValidertUtdanningSkjema
 validerSkjema (UtdanningSkjema info) =
-    Maybe.map2
-        (\tilDato fraÅr ->
-            ValidertSkjema
-                { nivå = info.nivå
-                , studiested = info.studiested
-                , utdanningsretning = info.utdanningsretning
-                , beskrivelse = String.trim info.beskrivelse
-                , fraMåned = info.fraMåned
-                , fraÅr = fraÅr
-                , id = info.id
-                , tilDato = tilDato
-                }
-        )
-        (validerTilDato info.nåværende info.tilMåned info.tilÅr)
-        (Dato.stringTilÅr info.fraÅr)
+    if Validering.feilmeldingMaxAntallTegn info.beskrivelse 2000 /= Nothing then
+        Nothing
+
+    else
+        Maybe.map2
+            (\tilDato fraÅr ->
+                ValidertSkjema
+                    { nivå = info.nivå
+                    , studiested = info.studiested
+                    , utdanningsretning = info.utdanningsretning
+                    , beskrivelse = String.trim info.beskrivelse
+                    , fraMåned = info.fraMåned
+                    , fraÅr = fraÅr
+                    , id = info.id
+                    , tilDato = tilDato
+                    }
+            )
+            (validerTilDato info.nåværende info.tilMåned info.tilÅr)
+            (Dato.stringTilÅr info.fraÅr)
 
 
 validerTilDato : Bool -> Måned -> String -> Maybe TilDato
@@ -353,13 +358,13 @@ encodeNuskode nivå_ =
             Json.Encode.string "2"
 
         VideregåendeYrkesskole ->
-            Json.Encode.string "3"
-
-        Fagskole ->
             Json.Encode.string "4"
 
-        Folkehøyskole ->
+        Fagskole ->
             Json.Encode.string "5"
+
+        Folkehøyskole ->
+            Json.Encode.string "3"
 
         HøyereUtdanning1til4 ->
             Json.Encode.string "6"
@@ -367,5 +372,5 @@ encodeNuskode nivå_ =
         HøyereUtdanning4pluss ->
             Json.Encode.string "7"
 
-        Phd ->
+        Doktorgrad ->
             Json.Encode.string "8"
