@@ -1080,7 +1080,9 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             ]
 
         RegistrerBeskrivelse _ ->
-            [ Melding.spørsmål [ "Skriv noen ord om denne utdanningen. Har du fordypning i noen fag?" ] ]
+            [ Melding.spørsmål [ "Skriv noen ord om denne utdanningen. Har du fordypning i noen fag?" ]
+            , Melding.eksempel [ "Fordypning i offentlig politikk og administrasjon. Bacheloroppgave om ulik politisk utvikling i de skandinaviske landene etter 1970." ]
+            ]
 
         RegistrereFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du på utdanningen din?" ]

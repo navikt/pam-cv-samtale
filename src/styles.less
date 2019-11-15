@@ -89,7 +89,8 @@ html {
   display: flex;
 }
 
-.sporsmal {
+
+.robot-snakker {
   justify-content: flex-start;
 
   .melding {
@@ -97,7 +98,13 @@ html {
     color: #062140;
   }
 
-  .melding:after {
+  .eksempel {
+    background-color: #e6f4ef ;
+    color: #062140;
+  }
+
+  .melding:after,
+  .eksempel:after{
     content: '';
     position: absolute;
     left: 0;
@@ -117,6 +124,11 @@ html {
     align-self: center;
     padding-top: 15px;
     padding-right: 14px;
+  }
+
+
+  .eksempel-tittel {
+    font-weight: bold;
   }
 }
 
@@ -143,7 +155,8 @@ html {
   }
 }
 
-.melding {
+.melding,
+.eksempel {
   @media (min-width: 768px) {
     max-width: @meldingBredde;
   }

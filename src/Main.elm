@@ -1568,17 +1568,17 @@ viewMeldingsgruppe meldingsGruppe =
     case meldingsGruppe of
         SpørsmålGruppe meldingsGruppeMeldinger ->
             meldingsGruppeMeldinger
-                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding True "sporsmal")
+                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "robot-snakker")
                 |> div [ class "meldingsgruppe", ariaLabel "Roboten" ]
 
         SvarGruppe meldingsGruppeMeldinger ->
             meldingsGruppeMeldinger
-                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding False "svar")
+                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding "svar")
                 |> div [ class "meldingsgruppe", ariaLabel "Deg" ]
 
 
-viewMelding : Bool -> String -> MeldingsPlassering -> Melding -> Html msg
-viewMelding leggPåAriaLive meldingsTypeClass plassering melding =
+viewMelding : String -> MeldingsPlassering -> Melding -> Html msg
+viewMelding meldingsTypeClass plassering melding =
     div [ class ("meldingsrad " ++ meldingsTypeClass) ]
         [ case plassering of
             SisteSpørsmålIMeldingsgruppe ->
@@ -1586,47 +1586,16 @@ viewMelding leggPåAriaLive meldingsTypeClass plassering melding =
 
             IkkeSisteSpørsmål ->
                 div [ class "robot" ] []
-        , article
-            [ class "melding"
-            , if leggPåAriaLive then
-                ariaLive "polite"
-
-              else
-                noAttribute
-            ]
-            (melding
-                |> Melding.innhold
-                |> List.map viewTekstområde
-            )
+        , melding
+            |> Melding.toHtml
         ]
-
-
-noAttribute : Html.Attribute msg
-noAttribute =
-    classList []
-
-
-viewTekstområde : Tekstområde -> Html msg
-viewTekstområde tekstområde =
-    case tekstområde of
-        Avsnitt tekst ->
-            viewAvsnitt tekst
-
-        Seksjon labelTekst tekster ->
-            section [ ariaLabel labelTekst ]
-                (List.map viewAvsnitt tekster)
-
-
-viewAvsnitt : String -> Html msg
-viewAvsnitt string =
-    p [] [ text string ]
 
 
 viewSkriveStatus : MeldingsLogg -> Html msg
 viewSkriveStatus meldingsLogg =
     case MeldingsLogg.skriveStatus meldingsLogg of
         MeldingsLogg.Skriver ->
-            div [ class "meldingsrad sporsmal", ariaLive "off" ]
+            div [ class "meldingsrad robot-snakker", ariaLive "off" ]
                 [ div [ class "robot" ] [ RobotLogo.robotLogo ]
                 , div [ class "melding" ]
                     [ div [ class "skriver-melding" ]
