@@ -30,6 +30,7 @@ import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Process
 import SamtaleAnimasjon
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import SertifikatTypeahead exposing (SertifikatTypeahead)
@@ -1046,9 +1047,8 @@ settFokus samtale =
 
 settFokusCmd : InputId -> Cmd Msg
 settFokusCmd inputId =
-    inputId
-        |> inputIdTilString
-        |> Dom.focus
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
 
 
@@ -1081,154 +1081,153 @@ inputIdTilString inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case model.aktivSamtale of
-                RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
-                    Containers.typeaheadMedGåVidereKnapp VilRegistrereSertifikat
-                        [ typeaheadModel
-                            |> feilmeldingTypeahead
-                            |> maybeHvisTrue visFeilmelding
-                            |> Typeahead.view SertifikatTypeahead.label typeaheadModel
-                            |> Html.map TypeaheadMsg
-                        ]
+    if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
+        case model.aktivSamtale of
+            RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
+                Containers.typeaheadMedGåVidereKnapp VilRegistrereSertifikat
+                    [ typeaheadModel
+                        |> feilmeldingTypeahead
+                        |> maybeHvisTrue visFeilmelding
+                        |> Typeahead.view SertifikatTypeahead.label typeaheadModel
+                        |> Html.map TypeaheadMsg
+                    ]
 
-                RegistrerUtsteder input ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereUtsteder
-                        [ input.utsteder
-                            |> Input.input { label = "Utsteder", msg = OppdatererUtsteder }
-                            |> Input.withOnEnter VilRegistrereUtsteder
-                            |> Input.withId (inputIdTilString UtstederId)
+            RegistrerUtsteder input ->
+                Containers.inputMedGåVidereKnapp VilRegistrereUtsteder
+                    [ input.utsteder
+                        |> Input.input { label = "Utsteder", msg = OppdatererUtsteder }
+                        |> Input.withOnEnter VilRegistrereUtsteder
+                        |> Input.withId (inputIdTilString UtstederId)
+                        |> Input.toHtml
+                    ]
+
+            RegistrerFullførtMåned _ ->
+                MånedKnapper.månedKnapper FullførtMånedValgt
+
+            RegistrerFullførtÅr fullførtDatoInfo ->
+                Containers.inputMedGåVidereKnapp VilRegistrereFullførtÅr
+                    [ div [ class "år-wrapper" ]
+                        [ fullførtDatoInfo.fullførtÅr
+                            |> Input.input { label = "År", msg = OppdatererFullførtÅr }
+                            |> Input.withClass "aar"
+                            |> Input.withOnEnter VilRegistrereFullførtÅr
+                            |> Input.withOnBlur ÅrMisterFokus
+                            |> Input.withId (inputIdTilString FullførtÅrId)
+                            |> Input.withMaybeFeilmelding
+                                (fullførtDatoInfo.fullførtÅr
+                                    |> Dato.feilmeldingÅr
+                                    |> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtÅr
+                                )
                             |> Input.toHtml
                         ]
+                    ]
 
-                RegistrerFullførtMåned _ ->
-                    MånedKnapper.månedKnapper FullførtMånedValgt
+            SpørOmUtløpsdatoFinnes _ ->
+                Containers.knapper Flytende
+                    [ "Ja, sertifiseringen utløper"
+                        |> Knapp.knapp VilRegistrereUtløperMåned
+                        |> Knapp.toHtml
+                    , "Nei, sertifiseringen utløper ikke"
+                        |> Knapp.knapp VilIkkeRegistrereUtløpesdato
+                        |> Knapp.toHtml
+                    ]
 
-                RegistrerFullførtÅr fullførtDatoInfo ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereFullførtÅr
-                        [ div [ class "år-wrapper" ]
-                            [ fullførtDatoInfo.fullførtÅr
-                                |> Input.input { label = "År", msg = OppdatererFullførtÅr }
-                                |> Input.withClass "aar"
-                                |> Input.withOnEnter VilRegistrereFullførtÅr
-                                |> Input.withOnBlur ÅrMisterFokus
-                                |> Input.withId (inputIdTilString FullførtÅrId)
-                                |> Input.withMaybeFeilmelding
-                                    (fullførtDatoInfo.fullførtÅr
-                                        |> Dato.feilmeldingÅr
-                                        |> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtÅr
-                                    )
-                                |> Input.toHtml
-                            ]
-                        ]
+            RegistrerUtløperMåned _ ->
+                MånedKnapper.månedKnapper UtløperMånedValgt
 
-                SpørOmUtløpsdatoFinnes _ ->
-                    Containers.knapper Flytende
-                        [ "Ja, sertifiseringen utløper"
-                            |> Knapp.knapp VilRegistrereUtløperMåned
-                            |> Knapp.toHtml
-                        , "Nei, sertifiseringen utløper ikke"
-                            |> Knapp.knapp VilIkkeRegistrereUtløpesdato
-                            |> Knapp.toHtml
-                        ]
-
-                RegistrerUtløperMåned _ ->
-                    MånedKnapper.månedKnapper UtløperMånedValgt
-
-                RegistrerUtløperÅr utløpsdatoInfo ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereUtløperÅr
-                        [ div [ class "år-wrapper" ]
-                            [ utløpsdatoInfo.utløperÅr
-                                |> Input.input { label = "År", msg = OppdatererUtløperÅr }
-                                |> Input.withClass "aar"
-                                |> Input.withOnEnter VilRegistrereUtløperÅr
-                                |> Input.withOnBlur ÅrMisterFokus
-                                |> Input.withId (inputIdTilString UtløperÅrId)
-                                |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
-                                |> Input.toHtml
-                            ]
-                        ]
-
-                VisOppsummering _ ->
-                    viewBekreftOppsummering
-
-                VisOppsummeringEtterEndring _ ->
-                    viewBekreftOppsummering
-
-                EndreOpplysninger typeaheadModel skjema ->
-                    Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
-                        [ skjema
-                            |> Skjema.feilmeldingSertifikatFelt
-                            |> Typeahead.view SertifikatTypeahead.label typeaheadModel
-                            |> Html.map TypeaheadMsg
-                        , skjema
-                            |> Skjema.utsteder
-                            |> Input.input { label = "Utsteder", msg = Utsteder >> SkjemaEndret }
+            RegistrerUtløperÅr utløpsdatoInfo ->
+                Containers.inputMedGåVidereKnapp VilRegistrereUtløperÅr
+                    [ div [ class "år-wrapper" ]
+                        [ utløpsdatoInfo.utløperÅr
+                            |> Input.input { label = "År", msg = OppdatererUtløperÅr }
+                            |> Input.withClass "aar"
+                            |> Input.withOnEnter VilRegistrereUtløperÅr
+                            |> Input.withOnBlur ÅrMisterFokus
+                            |> Input.withId (inputIdTilString UtløperÅrId)
+                            |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
                             |> Input.toHtml
-                        , div [ class "DatoInput-fra-til-rad" ]
-                            [ DatoInput.datoInput
-                                { label = "Fullført"
-                                , onMånedChange = FullførtMåned >> SkjemaEndret
-                                , måned = Skjema.fullførtMåned skjema
-                                , onÅrChange = FullførtÅr >> SkjemaEndret
-                                , år = Skjema.fullførtÅr skjema
+                        ]
+                    ]
+
+            VisOppsummering _ ->
+                viewBekreftOppsummering
+
+            VisOppsummeringEtterEndring _ ->
+                viewBekreftOppsummering
+
+            EndreOpplysninger typeaheadModel skjema ->
+                Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                    [ skjema
+                        |> Skjema.feilmeldingSertifikatFelt
+                        |> Typeahead.view SertifikatTypeahead.label typeaheadModel
+                        |> Html.map TypeaheadMsg
+                    , skjema
+                        |> Skjema.utsteder
+                        |> Input.input { label = "Utsteder", msg = Utsteder >> SkjemaEndret }
+                        |> Input.toHtml
+                    , div [ class "DatoInput-fra-til-rad" ]
+                        [ DatoInput.datoInput
+                            { label = "Fullført"
+                            , onMånedChange = FullførtMåned >> SkjemaEndret
+                            , måned = Skjema.fullførtMåned skjema
+                            , onÅrChange = FullførtÅr >> SkjemaEndret
+                            , år = Skjema.fullførtÅr skjema
+                            }
+                            |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
+                            |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
+                            |> DatoInput.toHtml
+                        , if not (Skjema.utløperIkke skjema) then
+                            DatoInput.datoInput
+                                { label = "Utløper"
+                                , onMånedChange = UtløperMåned >> SkjemaEndret
+                                , måned = Skjema.utløperMåned skjema
+                                , onÅrChange = UtløperÅr >> SkjemaEndret
+                                , år = Skjema.utløperÅr skjema
                                 }
-                                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
-                                |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
+                                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
+                                |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
                                 |> DatoInput.toHtml
-                            , if not (Skjema.utløperIkke skjema) then
-                                DatoInput.datoInput
-                                    { label = "Utløper"
-                                    , onMånedChange = UtløperMåned >> SkjemaEndret
-                                    , måned = Skjema.utløperMåned skjema
-                                    , onÅrChange = UtløperÅr >> SkjemaEndret
-                                    , år = Skjema.utløperÅr skjema
-                                    }
-                                    |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
-                                    |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
-                                    |> DatoInput.toHtml
 
-                              else
-                                text ""
-                            ]
-                        , skjema
-                            |> Skjema.utløperIkke
-                            |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
-                            |> Checkbox.toHtml
+                          else
+                            text ""
                         ]
+                    , skjema
+                        |> Skjema.utløperIkke
+                        |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
+                        |> Checkbox.toHtml
+                    ]
 
-                LagrerSkjema _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                        LoggInnLenke.viewLoggInnLenke
+            LagrerSkjema _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
 
-                    else
-                        text ""
-
-                LagringFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp FerdigMedSertifikat "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp VilLagreSertifikat "Prøv igjen"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp FerdigMedSertifikat "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                VenterPåAnimasjonFørFullføring _ ->
+                else
                     text ""
 
-        MeldingerGjenstår ->
-            text ""
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp FerdigMedSertifikat "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp VilLagreSertifikat "Prøv igjen"
+                                |> Knapp.toHtml
+                            , Knapp.knapp FerdigMedSertifikat "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            VenterPåAnimasjonFørFullføring _ ->
+                text ""
+
+    else
+        text ""
 
 
 viewBekreftOppsummering : Html Msg

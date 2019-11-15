@@ -686,145 +686,18 @@ listeTilSetning list =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case model.aktivSamtale of
-                IntroLeggTilNorsk språkListe ->
-                    if List.isEmpty språkListe then
-                        Containers.knapper Flytende
-                            [ Knapp.knapp NorskErFørstespråk "Ja"
-                                |> Knapp.toHtml
-                            , Knapp.knapp NorskErIkkeFørstespråk "Nei"
-                                |> Knapp.toHtml
-                            ]
-
-                    else
-                        Containers.knapper Flytende
-                            [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                |> Knapp.toHtml
-                            ]
-
-                LeggTilNorskMuntlig ->
-                    Containers.knapper Kolonne
-                        [ muntligKnapp SpråkKode.norsk Nybegynner
-                        , muntligKnapp SpråkKode.norsk Godt
-                        , muntligKnapp SpråkKode.norsk VeldigGodt
-                        ]
-
-                LeggTilNorskSkriftlig _ ->
-                    Containers.knapper Kolonne
-                        [ skriftligKnapp SpråkKode.norsk Nybegynner
-                        , skriftligKnapp SpråkKode.norsk Godt
-                        , skriftligKnapp SpråkKode.norsk VeldigGodt
-                        ]
-
-                LagrerNorsk _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                        LoggInnLenke.viewLoggInnLenke
-
-                    else
-                        text ""
-
-                LagreNorskFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                LeggTilEngelsk ->
+    if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
+        case model.aktivSamtale of
+            IntroLeggTilNorsk språkListe ->
+                if List.isEmpty språkListe then
                     Containers.knapper Flytende
-                        [ Knapp.knapp BrukerKanEngelsk "Ja"
+                        [ Knapp.knapp NorskErFørstespråk "Ja"
                             |> Knapp.toHtml
-                        , Knapp.knapp BrukerKanIkkeEngelsk "Nei"
+                        , Knapp.knapp NorskErIkkeFørstespråk "Nei"
                             |> Knapp.toHtml
                         ]
 
-                LeggTilMuntlig språkKode ->
-                    Containers.knapper Kolonne
-                        [ muntligKnapp språkKode Nybegynner
-                        , muntligKnapp språkKode Godt
-                        , muntligKnapp språkKode VeldigGodt
-                        , muntligKnapp språkKode Førstespråk
-                        ]
-
-                LeggTilSkriftlig språkKode ->
-                    Containers.knapper Kolonne
-                        [ skriftligKnapp språkKode.språk Nybegynner
-                        , skriftligKnapp språkKode.språk Godt
-                        , skriftligKnapp språkKode.språk VeldigGodt
-                        , skriftligKnapp språkKode.språk Førstespråk
-                        ]
-
-                VelgNyttSpråk velgNyttSpråkInfo ->
-                    case model.språkKoder of
-                        Success list ->
-                            Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedValgtSpråk
-                                [ div [ class "select-i-samtaleflyt-wrapper" ]
-                                    [ Select.select "Språk"
-                                        BrukerHarValgtSpråkFraDropdown
-                                        (( "Velg språk", "Velg språk" )
-                                            :: List.map
-                                                (\el ->
-                                                    ( SpråkKode.kode el, SpråkKode.term el )
-                                                )
-                                                list
-                                        )
-                                        |> Select.withMaybeSelected (Maybe.map SpråkKode.kode velgNyttSpråkInfo.valgtSpråk)
-                                        |> Select.withMaybeFeilmelding velgNyttSpråkInfo.feilmelding
-                                        |> Select.toHtml
-                                    ]
-                                ]
-
-                        Loading ->
-                            text ""
-
-                        Failure _ ->
-                            -- TODO: Fiks feilhåndtering her
-                            Containers.knapper Flytende
-                                [ text "Noe gikk galt..." ]
-
-                LagrerSpråk _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                        LoggInnLenke.viewLoggInnLenke
-
-                    else
-                        text ""
-
-                LagringFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                LeggTilFlereSpråk ->
+                else
                     Containers.knapper Flytende
                         [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
                             |> Knapp.toHtml
@@ -832,19 +705,145 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         ]
 
-                SpråkKodeneFeilet _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilHenteSpråkKoderPåNytt "Ja, prøv på nytt"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, avslutt og gå videre"
-                            |> Knapp.toHtml
-                        ]
+            LeggTilNorskMuntlig ->
+                Containers.knapper Kolonne
+                    [ muntligKnapp SpråkKode.norsk Nybegynner
+                    , muntligKnapp SpråkKode.norsk Godt
+                    , muntligKnapp SpråkKode.norsk VeldigGodt
+                    ]
 
-                VenterPåAnimasjonFørFullføring ->
+            LeggTilNorskSkriftlig _ ->
+                Containers.knapper Kolonne
+                    [ skriftligKnapp SpråkKode.norsk Nybegynner
+                    , skriftligKnapp SpråkKode.norsk Godt
+                    , skriftligKnapp SpråkKode.norsk VeldigGodt
+                    ]
+
+            LagrerNorsk _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
+
+                else
                     text ""
 
-        MeldingerGjenstår ->
-            text ""
+            LagreNorskFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            LeggTilEngelsk ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerKanEngelsk "Ja"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerKanIkkeEngelsk "Nei"
+                        |> Knapp.toHtml
+                    ]
+
+            LeggTilMuntlig språkKode ->
+                Containers.knapper Kolonne
+                    [ muntligKnapp språkKode Nybegynner
+                    , muntligKnapp språkKode Godt
+                    , muntligKnapp språkKode VeldigGodt
+                    , muntligKnapp språkKode Førstespråk
+                    ]
+
+            LeggTilSkriftlig språkKode ->
+                Containers.knapper Kolonne
+                    [ skriftligKnapp språkKode.språk Nybegynner
+                    , skriftligKnapp språkKode.språk Godt
+                    , skriftligKnapp språkKode.språk VeldigGodt
+                    , skriftligKnapp språkKode.språk Førstespråk
+                    ]
+
+            VelgNyttSpråk velgNyttSpråkInfo ->
+                case model.språkKoder of
+                    Success list ->
+                        Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedValgtSpråk
+                            [ div [ class "select-i-samtaleflyt-wrapper" ]
+                                [ Select.select "Språk"
+                                    BrukerHarValgtSpråkFraDropdown
+                                    (( "Velg språk", "Velg språk" )
+                                        :: List.map
+                                            (\el ->
+                                                ( SpråkKode.kode el, SpråkKode.term el )
+                                            )
+                                            list
+                                    )
+                                    |> Select.withMaybeSelected (Maybe.map SpråkKode.kode velgNyttSpråkInfo.valgtSpråk)
+                                    |> Select.withMaybeFeilmelding velgNyttSpråkInfo.feilmelding
+                                    |> Select.toHtml
+                                ]
+                            ]
+
+                    Loading ->
+                        text ""
+
+                    Failure _ ->
+                        -- TODO: Fiks feilhåndtering her
+                        Containers.knapper Flytende
+                            [ text "Noe gikk galt..." ]
+
+            LagrerSpråk _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
+
+                else
+                    text ""
+
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            LeggTilFlereSpråk ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                        |> Knapp.toHtml
+                    ]
+
+            SpråkKodeneFeilet _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerVilHenteSpråkKoderPåNytt "Ja, prøv på nytt"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, avslutt og gå videre"
+                        |> Knapp.toHtml
+                    ]
+
+            VenterPåAnimasjonFørFullføring ->
+                text ""
+
+    else
+        text ""
 
 
 muntligKnapp : SpråkKode -> Ferdighet -> Html Msg

@@ -1589,7 +1589,9 @@ viewBrukerInput aktivSeksjon =
 
 brukerInputVises : SamtaleSeksjon -> Bool
 brukerInputVises aktivSeksjon =
-    (meldingsLoggFraSeksjon >> MeldingsLogg.ferdigAnimert) aktivSeksjon /= MeldingerGjenstår
+    aktivSeksjon
+        |> meldingsLoggFraSeksjon
+        |> MeldingsLogg.visBrukerInput
 
 
 viewBrukerInputForSeksjon : SamtaleSeksjon -> Html Msg

@@ -6,6 +6,7 @@ module MeldingsLogg exposing
     , MeldingsLogg
     , ScrollAnimasjonStatus(..)
     , SpørsmålsGruppeViewState
+    , alleMeldingerVises
     , antallOrdForrigeOgNesteMelding
     , avsluttScrollingTilInput
     , begynnÅViseBrukerInput
@@ -200,11 +201,29 @@ scrollAnimasjonStatus (MeldingsLogg info) =
             ScrollerInnInputFelt { startTidForScrolling = startTidForScrolling, opprinneligViewport = opprinneligViewport, sisteSpørsmålHeight = sisteSpørsmålHeight }
 
 
+alleMeldingerVises : MeldingsLogg -> Bool
+alleMeldingerVises (MeldingsLogg info) =
+    case info.ikkeVist of
+        MeldingerIkkeFerdigAnimert _ ->
+            False
+
+        VenterPåAtMeldingScrollingSkalBliFerdig ->
+            True
+
+        VenterPåÅScrolleTilInput ->
+            True
+
+        ScrollerTilInput _ ->
+            True
+
+        AlleMeldingerFerdigAnimert ->
+            True
+
+
 visBrukerInput : MeldingsLogg -> Bool
 visBrukerInput (MeldingsLogg info) =
-    -- TODO Endre til at ikkeVist blir satt til ScrollerTilInput etter siste melding
     case info.ikkeVist of
-        MeldingerIkkeFerdigAnimert meldingerIkkeFerdigAnimertInfo ->
+        MeldingerIkkeFerdigAnimert _ ->
             False
 
         VenterPåAtMeldingScrollingSkalBliFerdig ->
@@ -552,16 +571,13 @@ ferdigAnimert (MeldingsLogg info) =
             MeldingerGjenstår
 
         VenterPåAtMeldingScrollingSkalBliFerdig ->
-            -- TODO: Skal denne kanskje ikke være Ferdig
-            FerdigAnimert (FerdigAnimertMeldingsLogg info.ferdigAnimert)
+            MeldingerGjenstår
 
         VenterPåÅScrolleTilInput ->
-            -- TODO: Skal denne kanskje ikke være Ferdig
-            FerdigAnimert (FerdigAnimertMeldingsLogg info.ferdigAnimert)
+            MeldingerGjenstår
 
         ScrollerTilInput _ ->
-            -- TODO: Skal denne kanskje ikke være Ferdig
-            FerdigAnimert (FerdigAnimertMeldingsLogg info.ferdigAnimert)
+            MeldingerGjenstår
 
         AlleMeldingerFerdigAnimert ->
             FerdigAnimert (FerdigAnimertMeldingsLogg info.ferdigAnimert)

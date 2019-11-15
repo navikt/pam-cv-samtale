@@ -31,6 +31,7 @@ import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding, Tekstområde(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Process
 import SamtaleAnimasjon
 import Task
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
@@ -883,9 +884,8 @@ lagtTilSpørsmålCmd debugStatus =
 
 settFokusCmd : InputId -> Cmd Msg
 settFokusCmd inputId =
-    inputId
-        |> inputIdTilString
-        |> Dom.focus
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
 
 
@@ -1087,172 +1087,171 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case model.aktivSamtale of
-                Intro _ ->
-                    if List.isEmpty model.utdanningListe then
-                        Containers.knapper Flytende
-                            [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
-                                |> Knapp.toHtml
-                            , "Nei, jeg har ikke utdanning"
-                                |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg har ikke utdanning")
-                                |> Knapp.toHtml
-                            ]
-
-                    else
-                        Containers.knapper Flytende
-                            [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
-                                |> Knapp.toHtml
-                            , "Nei, jeg er ferdig"
-                                |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg er ferdig")
-                                |> Knapp.toHtml
-                            , "Jeg vil redigere det jeg har lagt inn"
-                                |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
-                                |> Knapp.toHtml
-                            ]
-
-                VelgEnUtdanningÅRedigere ->
-                    Containers.knapper Kolonne
-                        (lagUtdanningKnapper model.utdanningListe)
-
-                RegistrerNivå ->
-                    Containers.knapper Kolonne
-                        [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole)
-                            |> Knapp.toHtml
-                        , Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole)
-                            |> Knapp.toHtml
-                        , Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole)
-                            |> Knapp.toHtml
-                        , Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole)
-                            |> Knapp.toHtml
-                        , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4)
-                            |> Knapp.toHtml
-                        , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss)
-                            |> Knapp.toHtml
-                        , Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd)
-                            |> Knapp.toHtml
-                        ]
-
-                RegistrerSkole skoleinfo ->
-                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereSkole
-                        [ skoleinfo.skole
-                            |> Input.input { msg = OppdaterSkole, label = "Skole/studiested" }
-                            |> Input.withOnEnter BrukerVilRegistrereSkole
-                            |> Input.withId (inputIdTilString RegistrerSkoleInput)
-                            |> Input.toHtml
-                        ]
-
-                RegistrerRetning retningsinfo ->
-                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereRetning
-                        [ retningsinfo.retning
-                            |> Input.input { msg = OppdaterRetning, label = "Grad og utdanningsretning" }
-                            |> Input.withId (inputIdTilString RegistrerRetningInput)
-                            |> Input.withOnEnter BrukerVilRegistrereRetning
-                            |> Input.toHtml
-                        ]
-
-                RegistrerBeskrivelse beskrivelseinfo ->
-                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereBeskrivelse
-                        [ beskrivelseinfo.beskrivelse
-                            |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
-                            |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                            |> Textarea.toHtml
-                        ]
-
-                RegistrereFraMåned _ ->
-                    MånedKnapper.månedKnapper BrukerTrykketFraMånedKnapp
-
-                RegistrereFraÅr fraDatoInfo ->
-                    Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedFraÅr
-                        [ div [ class "år-wrapper" ]
-                            [ fraDatoInfo.fraÅr
-                                |> Input.input { label = "År", msg = OppdaterFraÅr }
-                                |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visÅrFeilmelding) fraDatoInfo.fraÅr)
-                                |> Input.withId (inputIdTilString RegistrereFraÅrInput)
-                                |> Input.withOnEnter BrukerVilGåVidereMedFraÅr
-                                |> Input.withOnBlur FraÅrMisterFokus
-                                |> Input.toHtml
-                            ]
-                        ]
-
-                RegistrereNåværende _ ->
+    if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
+        case model.aktivSamtale of
+            Intro _ ->
+                if List.isEmpty model.utdanningListe then
                     Containers.knapper Flytende
-                        [ Knapp.knapp BrukerSvarerJaTilNaavarende "Ja, jeg går på studiet"
+                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
                             |> Knapp.toHtml
-                        , Knapp.knapp BrukerSvarerNeiTilNaavarende "Nei, jeg er ferdig"
-                            |> Knapp.toHtml
-                        ]
-
-                RegistrereTilMåned _ ->
-                    MånedKnapper.månedKnapper BrukerTrykketTilMånedKnapp
-
-                RegistrereTilÅr tilDatoInfo ->
-                    Containers.inputMedGåVidereKnapp BrukerVilGåTilOppsummering
-                        [ div [ class "år-wrapper" ]
-                            [ tilDatoInfo.tilÅr
-                                |> Input.input { label = "År", msg = OppdaterTilÅr }
-                                |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visÅrFeilmelding) tilDatoInfo.tilÅr)
-                                |> Input.withId (inputIdTilString RegistrereTilÅrInput)
-                                |> Input.withOnEnter BrukerVilGåTilOppsummering
-                                |> Input.withOnBlur TilÅrMisterFokus
-                                |> Input.toHtml
-                            ]
-                        ]
-
-                Oppsummering _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
-                            |> Knapp.toHtml
-                        , Knapp.knapp OriginalOppsummeringBekreftet "Ja, informasjonen er riktig"
+                        , "Nei, jeg har ikke utdanning"
+                            |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg har ikke utdanning")
                             |> Knapp.toHtml
                         ]
 
-                EndrerOppsummering utdanningsskjema ->
-                    viewSkjema utdanningsskjema
-
-                LeggTilFlereUtdanninger ->
+                else
                     Containers.knapper Flytende
                         [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                             |> Knapp.toHtml
-                        , Knapp.knapp OriginalOppsummeringBekreftet "Nei, jeg er ferdig"
+                        , "Nei, jeg er ferdig"
+                            |> Knapp.knapp (GåTilArbeidserfaring "Nei, jeg er ferdig")
                             |> Knapp.toHtml
                         , "Jeg vil redigere det jeg har lagt inn"
                             |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
                             |> Knapp.toHtml
                         ]
 
-                LagrerSkjema _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+            VelgEnUtdanningÅRedigere ->
+                Containers.knapper Kolonne
+                    (lagUtdanningKnapper model.utdanningListe)
+
+            RegistrerNivå ->
+                Containers.knapper Kolonne
+                    [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole)
+                        |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole)
+                        |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole)
+                        |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole)
+                        |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4)
+                        |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss)
+                        |> Knapp.toHtml
+                    , Knapp.knapp (BrukerVilRegistrereNivå Phd) (nivåToString Phd)
+                        |> Knapp.toHtml
+                    ]
+
+            RegistrerSkole skoleinfo ->
+                Containers.inputMedGåVidereKnapp BrukerVilRegistrereSkole
+                    [ skoleinfo.skole
+                        |> Input.input { msg = OppdaterSkole, label = "Skole/studiested" }
+                        |> Input.withOnEnter BrukerVilRegistrereSkole
+                        |> Input.withId (inputIdTilString RegistrerSkoleInput)
+                        |> Input.toHtml
+                    ]
+
+            RegistrerRetning retningsinfo ->
+                Containers.inputMedGåVidereKnapp BrukerVilRegistrereRetning
+                    [ retningsinfo.retning
+                        |> Input.input { msg = OppdaterRetning, label = "Grad og utdanningsretning" }
+                        |> Input.withId (inputIdTilString RegistrerRetningInput)
+                        |> Input.withOnEnter BrukerVilRegistrereRetning
+                        |> Input.toHtml
+                    ]
+
+            RegistrerBeskrivelse beskrivelseinfo ->
+                Containers.inputMedGåVidereKnapp BrukerVilRegistrereBeskrivelse
+                    [ beskrivelseinfo.beskrivelse
+                        |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
+                        |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
+                        |> Textarea.toHtml
+                    ]
+
+            RegistrereFraMåned _ ->
+                MånedKnapper.månedKnapper BrukerTrykketFraMånedKnapp
+
+            RegistrereFraÅr fraDatoInfo ->
+                Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedFraÅr
+                    [ div [ class "år-wrapper" ]
+                        [ fraDatoInfo.fraÅr
+                            |> Input.input { label = "År", msg = OppdaterFraÅr }
+                            |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visÅrFeilmelding) fraDatoInfo.fraÅr)
+                            |> Input.withId (inputIdTilString RegistrereFraÅrInput)
+                            |> Input.withOnEnter BrukerVilGåVidereMedFraÅr
+                            |> Input.withOnBlur FraÅrMisterFokus
+                            |> Input.toHtml
+                        ]
+                    ]
+
+            RegistrereNåværende _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerSvarerJaTilNaavarende "Ja, jeg går på studiet"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerSvarerNeiTilNaavarende "Nei, jeg er ferdig"
+                        |> Knapp.toHtml
+                    ]
+
+            RegistrereTilMåned _ ->
+                MånedKnapper.månedKnapper BrukerTrykketTilMånedKnapp
+
+            RegistrereTilÅr tilDatoInfo ->
+                Containers.inputMedGåVidereKnapp BrukerVilGåTilOppsummering
+                    [ div [ class "år-wrapper" ]
+                        [ tilDatoInfo.tilÅr
+                            |> Input.input { label = "År", msg = OppdaterTilÅr }
+                            |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visÅrFeilmelding) tilDatoInfo.tilÅr)
+                            |> Input.withId (inputIdTilString RegistrereTilÅrInput)
+                            |> Input.withOnEnter BrukerVilGåTilOppsummering
+                            |> Input.withOnBlur TilÅrMisterFokus
+                            |> Input.toHtml
+                        ]
+                    ]
+
+            Oppsummering _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
+                        |> Knapp.toHtml
+                    , Knapp.knapp OriginalOppsummeringBekreftet "Ja, informasjonen er riktig"
+                        |> Knapp.toHtml
+                    ]
+
+            EndrerOppsummering utdanningsskjema ->
+                viewSkjema utdanningsskjema
+
+            LeggTilFlereUtdanninger ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
+                        |> Knapp.toHtml
+                    , Knapp.knapp OriginalOppsummeringBekreftet "Nei, jeg er ferdig"
+                        |> Knapp.toHtml
+                    , "Jeg vil redigere det jeg har lagt inn"
+                        |> Knapp.knapp (BrukerVilRedigereUtdanning "Jeg vil redigere det jeg har lagt inn")
+                        |> Knapp.toHtml
+                    ]
+
+            LagrerSkjema _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
+
+                else
+                    text ""
+
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv igjen"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-                    else
-                        text ""
+            VenterPåAnimasjonFørFullføring _ ->
+                div [] []
 
-                LagringFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv igjen"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                VenterPåAnimasjonFørFullføring _ ->
-                    div [] []
-
-        MeldingerGjenstår ->
-            text ""
+    else
+        text ""
 
 
 type InputId

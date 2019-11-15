@@ -107,24 +107,23 @@ update debugStatus msg meldingsLogg =
                 nyMeldingslogg =
                     MeldingsLogg.fullførAnimasjon meldingsLogg
             in
-            case MeldingsLogg.ferdigAnimert nyMeldingslogg of
-                FerdigAnimert _ ->
-                    ( nyMeldingslogg
-                    , meldingsLogg
-                        |> ventetidFørBrukerinputScrollesInn
-                        |> DebugStatus.meldingsTimeout debugStatus
-                        |> Process.sleep
-                        |> Task.attempt (always VisBrukerInput)
-                    )
+            if MeldingsLogg.alleMeldingerVises nyMeldingslogg then
+                ( nyMeldingslogg
+                , meldingsLogg
+                    |> ventetidFørBrukerinputScrollesInn
+                    |> DebugStatus.meldingsTimeout debugStatus
+                    |> Process.sleep
+                    |> Task.attempt (always VisBrukerInput)
+                )
 
-                MeldingerGjenstår ->
-                    ( nyMeldingslogg
-                    , 500
-                        |> DebugStatus.meldingsTimeout debugStatus
-                        |> Process.sleep
-                        |> Task.andThen (\_ -> getTimeViewportAndElement)
-                        |> Task.attempt StartÅSkrive
-                    )
+            else
+                ( nyMeldingslogg
+                , 500
+                    |> DebugStatus.meldingsTimeout debugStatus
+                    |> Process.sleep
+                    |> Task.andThen (\_ -> getTimeViewportAndElement)
+                    |> Task.attempt StartÅSkrive
+                )
 
         VisBrukerInput ->
             ( MeldingsLogg.begynnÅViseBrukerInput meldingsLogg

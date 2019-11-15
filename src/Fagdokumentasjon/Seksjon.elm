@@ -28,6 +28,7 @@ import Http exposing (Error(..))
 import Konsept exposing (Konsept)
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Process
 import SamtaleAnimasjon
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
@@ -702,9 +703,8 @@ settFokus samtale =
 
 settFokusCmd : InputId -> Cmd Msg
 settFokusCmd inputId =
-    inputId
-        |> inputIdTilString
-        |> Dom.focus
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
 
 
@@ -714,83 +714,82 @@ settFokusCmd inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case model.aktivSamtale of
-                RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
-                    Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereKonsept
-                        [ typeaheadModel
-                            |> feilmeldingTypeahead fagdokumentasjonType
-                            |> maybeHvisTrue visFeilmelding
-                            |> Typeahead.view Konsept.label typeaheadModel
-                            |> Html.map TypeaheadMsg
-                        ]
+    if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
+        case model.aktivSamtale of
+            RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
+                Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereKonsept
+                    [ typeaheadModel
+                        |> feilmeldingTypeahead fagdokumentasjonType
+                        |> maybeHvisTrue visFeilmelding
+                        |> Typeahead.view Konsept.label typeaheadModel
+                        |> Html.map TypeaheadMsg
+                    ]
 
-                RegistrerBeskrivelse _ beskrivelseinfo ->
-                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
-                        [ beskrivelseinfo.beskrivelse
-                            |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
-                            |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
-                            |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                            |> Textarea.toHtml
-                        ]
+            RegistrerBeskrivelse _ beskrivelseinfo ->
+                Containers.inputMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
+                    [ beskrivelseinfo.beskrivelse
+                        |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
+                        |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
+                        |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
+                        |> Textarea.toHtml
+                    ]
 
-                Oppsummering _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-                            |> Knapp.toHtml
-                        ]
+            Oppsummering _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+                        |> Knapp.toHtml
+                    ]
 
-                EndrerOppsummering typeaheadModel skjema ->
-                    Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre" }
-                        [ skjema
-                            |> Skjema.feilmeldingTypeahead
-                            |> Typeahead.view Konsept.label typeaheadModel
-                            |> Html.map TypeaheadMsg
-                        , skjema
-                            |> Skjema.beskrivelse
-                            |> Textarea.textarea { label = "Beskrivelse", msg = OppdaterFagdokumentasjonBeskrivelse }
-                            |> Textarea.withMaybeFeilmelding (Skjema.beskrivelse skjema |> feilmeldingBeskrivelsesfelt)
-                            |> Textarea.toHtml
-                        ]
+            EndrerOppsummering typeaheadModel skjema ->
+                Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre" }
+                    [ skjema
+                        |> Skjema.feilmeldingTypeahead
+                        |> Typeahead.view Konsept.label typeaheadModel
+                        |> Html.map TypeaheadMsg
+                    , skjema
+                        |> Skjema.beskrivelse
+                        |> Textarea.textarea { label = "Beskrivelse", msg = OppdaterFagdokumentasjonBeskrivelse }
+                        |> Textarea.withMaybeFeilmelding (Skjema.beskrivelse skjema |> feilmeldingBeskrivelsesfelt)
+                        |> Textarea.toHtml
+                    ]
 
-                OppsummeringEtterEndring _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-                            |> Knapp.toHtml
-                        ]
+            OppsummeringEtterEndring _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+                        |> Knapp.toHtml
+                    ]
 
-                Lagrer _ _ ->
-                    text ""
+            Lagrer _ _ ->
+                text ""
 
-                LagringFeilet _ error ->
-                    case ErrorHandtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+            LagringFeilet _ error ->
+                case ErrorHandtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
+                                |> Knapp.toHtml
+                            ]
 
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
+                                |> Knapp.toHtml
+                            ]
 
-                        LoggInn ->
-                            Common.viewLoggInnLenke
+                    LoggInn ->
+                        Common.viewLoggInnLenke
 
-                VenterPåAnimasjonFørFullføring _ ->
-                    text ""
+            VenterPåAnimasjonFørFullføring _ ->
+                text ""
 
-        MeldingerGjenstår ->
-            text ""
+    else
+        text ""
 
 
 type InputId

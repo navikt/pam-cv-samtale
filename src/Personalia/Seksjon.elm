@@ -491,89 +491,88 @@ viewDatoString datoString =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
-    case MeldingsLogg.ferdigAnimert seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case aktivSamtale of
-                BekreftOriginal _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen er riktig"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, jeg vil endre"
-                            |> Knapp.toHtml
-                        ]
+    if MeldingsLogg.visBrukerInput seksjonsMeldingsLogg then
+        case aktivSamtale of
+            BekreftOriginal _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen er riktig"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, jeg vil endre"
+                        |> Knapp.toHtml
+                    ]
 
-                EndreOriginal personaliaSkjema ->
-                    Containers.skjema { lagreMsg = PersonaliaskjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
+            EndreOriginal personaliaSkjema ->
+                Containers.skjema { lagreMsg = PersonaliaskjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
+                    [ personaliaSkjema
+                        |> Skjema.fornavn
+                        |> Input.input { label = "Fornavn*", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
+                        |> Input.withMaybeFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
+                        |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Fornavn)
+                        |> Input.toHtml
+                    , personaliaSkjema
+                        |> Skjema.etternavn
+                        |> Input.input { label = "Etternavn*", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
+                        |> Input.withMaybeFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
+                        |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Etternavn)
+                        |> Input.toHtml
+                    , personaliaSkjema
+                        |> Skjema.epost
+                        |> Input.input { label = "E-post*", msg = PersonaliaSkjemaEndret Skjema.Epost }
+                        |> Input.withMaybeFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
+                        |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Epost)
+                        |> Input.toHtml
+                    , viewTelefonISkjema personaliaSkjema
+                    , personaliaSkjema
+                        |> Skjema.gateadresse
+                        |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Gateadresse }
+                        |> Input.toHtml
+                    , div [ class "PersonaliaSeksjon-poststed" ]
                         [ personaliaSkjema
-                            |> Skjema.fornavn
-                            |> Input.input { label = "Fornavn*", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
-                            |> Input.withMaybeFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
-                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Fornavn)
+                            |> Skjema.postnummer
+                            |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Postnummer }
+                            |> Input.withMaybeFeilmelding (Skjema.postnummerFeilmelding personaliaSkjema)
+                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Postnummer)
                             |> Input.toHtml
                         , personaliaSkjema
-                            |> Skjema.etternavn
-                            |> Input.input { label = "Etternavn*", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
-                            |> Input.withMaybeFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
-                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Etternavn)
+                            |> Skjema.poststed
+                            |> Input.input { label = "Poststed", msg = PoststedfeltEndretSelvOmDetErDisabled }
+                            |> Input.withEnabled Input.Disabled
                             |> Input.toHtml
-                        , personaliaSkjema
-                            |> Skjema.epost
-                            |> Input.input { label = "E-post*", msg = PersonaliaSkjemaEndret Skjema.Epost }
-                            |> Input.withMaybeFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
-                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Epost)
-                            |> Input.toHtml
-                        , viewTelefonISkjema personaliaSkjema
-                        , personaliaSkjema
-                            |> Skjema.gateadresse
-                            |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Gateadresse }
-                            |> Input.toHtml
-                        , div [ class "PersonaliaSeksjon-poststed" ]
-                            [ personaliaSkjema
-                                |> Skjema.postnummer
-                                |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Postnummer }
-                                |> Input.withMaybeFeilmelding (Skjema.postnummerFeilmelding personaliaSkjema)
-                                |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Postnummer)
-                                |> Input.toHtml
-                            , personaliaSkjema
-                                |> Skjema.poststed
-                                |> Input.input { label = "Poststed", msg = PoststedfeltEndretSelvOmDetErDisabled }
-                                |> Input.withEnabled Input.Disabled
-                                |> Input.toHtml
-                            ]
                         ]
+                    ]
 
-                -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
-                LagrerEndring _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                        LoggInnLenke.viewLoggInnLenke
+            -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
+            LagrerEndring _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
 
-                    else
-                        text ""
-
-                LagringFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                VenterPåAnimasjonFørFullføring _ _ ->
+                else
                     text ""
 
-        MeldingerGjenstår ->
-            text ""
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            VenterPåAnimasjonFørFullføring _ _ ->
+                text ""
+
+    else
+        text ""
 
 
 viewTelefonISkjema : PersonaliaSkjema -> Html Msg
