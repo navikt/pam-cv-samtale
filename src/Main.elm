@@ -1381,7 +1381,7 @@ samtaleTilMeldingsLogg samtale =
         SkriverSammendrag _ ->
             [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
             , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
-            , Melding.spørsmål [ "Fyll ut sammendraget ditt i boksen under." ]
+            , Melding.spørsmål [ "Skriv sammendraget ditt i boksen under." ]
             ]
 
         LagrerSammendrag _ _ ->
