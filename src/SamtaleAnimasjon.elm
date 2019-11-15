@@ -22,7 +22,6 @@ type Msg
     | StartMeldingsanimasjon
     | RegistrerMeldingsdimensjoner (Result Dom.Error MeldingDimensjonInfo)
     | FullførMeldingsanimasjon
-    | ScrollInnMelding (Result Dom.Error ( Viewport, Time.Posix ))
     | VisBrukerInput
     | StartÅScrolleInnInput (Result Dom.Error ( Viewport, Time.Posix ))
     | AnimationFrame Time.Posix
@@ -151,26 +150,10 @@ update debugStatus msg meldingsLogg =
                     scrollTilSkriveIndikator meldingsLogg record posix
 
                 ScrollerInnMelding record ->
-                    ( meldingsLogg
-                    , getTimeAndViewport
-                        |> Task.attempt ScrollInnMelding
-                    )
+                    scrollTilMelding meldingsLogg record posix
 
                 ScrollerInnInputFelt record ->
                     scrollInnBrukerInput meldingsLogg record posix
-
-        ScrollInnMelding result ->
-            case result of
-                Ok ( viewport, posix ) ->
-                    case MeldingsLogg.scrollAnimasjonStatus meldingsLogg of
-                        ScrollerInnMelding record ->
-                            scrollTilMelding meldingsLogg record posix
-
-                        _ ->
-                            ( meldingsLogg, Cmd.none )
-
-                Err error ->
-                    ( meldingsLogg, Cmd.none )
 
 
 lengdePåSkriveindikatorIMillisekunder : MeldingsLogg -> Float

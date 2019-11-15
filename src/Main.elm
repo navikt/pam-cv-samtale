@@ -1369,10 +1369,6 @@ viewSuccess successModel =
                 [ successModel.aktivSeksjon
                     |> meldingsLoggFraSeksjon
                     |> viewMeldingsLogg
-
-                --            , successModel
-                --                |> meldingsLoggFraSeksjon
-                --                |> viewSkriveStatus
                 , viewBrukerInput successModel.aktivSeksjon
                 , div [ class "samtale-padding" ] []
                 ]
@@ -1402,21 +1398,8 @@ viewMeldingsgruppe meldingsGruppe =
 viewSpørsmål : SpørsmålViewState -> Html msg
 viewSpørsmål spørsmål =
     div [ class "meldingsrad sporsmal" ]
-        [ case SpørsmålViewState.ikonStatus spørsmål of
-            SkjultIkon ->
-                div [ class "robot skjult-robot-ikon" ] [ i [ class "Robotlogo" ] [] ]
-
-            MidtstiltIkonForFørsteSpørsmål ->
-                div [ class "robot forste-melding" ]
-                    [ i [ class "Robotlogo" ] [] ]
-
-            MidtstiltIkon ->
-                div [ class "robot" ]
-                    [ i [ class "Robotlogo" ] [] ]
-
-            IkonForNesteMelding height ->
-                div [ class "robot", transformForRobot height ]
-                    [ i [ class "Robotlogo" ] [] ]
+        [ div [ class "robot", robotAttribute spørsmål ]
+            [ i [ class "Robotlogo" ] [] ]
         , case SpørsmålViewState.spørsmålStyle spørsmål of
             FørSkriveindikator ->
                 div
@@ -1424,12 +1407,7 @@ viewSpørsmål spørsmål =
                     , ariaLive "off"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
-                    [ div [ class "skriver-melding" ]
-                        [ div [ class "bounce bounce1" ] []
-                        , div [ class "bounce bounce2" ] []
-                        , div [ class "bounce bounce3" ] []
-                        ]
-                    ]
+                    [ viewSkriveStatus ]
 
             Skriveindikator ->
                 div
@@ -1437,12 +1415,7 @@ viewSpørsmål spørsmål =
                     , ariaLive "off"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
-                    [ div [ class "skriver-melding" ]
-                        [ div [ class "bounce bounce1" ] []
-                        , div [ class "bounce bounce2" ] []
-                        , div [ class "bounce bounce3" ] []
-                        ]
-                    ]
+                    [ viewSkriveStatus ]
 
             StørrelseKalkuleres ->
                 article
@@ -1516,6 +1489,22 @@ ikkeSisteMelding spørsmål =
             True
 
 
+robotAttribute : SpørsmålViewState -> Html.Attribute msg
+robotAttribute spørsmål =
+    case SpørsmålViewState.ikonStatus spørsmål of
+        SkjultIkon ->
+            class "skjult-robot-ikon"
+
+        MidtstiltIkonForFørsteSpørsmål ->
+            class "forste-melding"
+
+        MidtstiltIkon ->
+            classList []
+
+        IkonForNesteMelding height ->
+            transformForRobot height
+
+
 transformForRobot : { height : Int } -> Html.Attribute msg
 transformForRobot { height } =
     let
@@ -1571,12 +1560,10 @@ viewAvsnitt string =
 
 viewSkriveStatus : Html msg
 viewSkriveStatus =
-    div [ class "melding skriveindikator", ariaLive "off" ]
-        [ div [ class "skriver-melding" ]
-            [ div [ class "bounce bounce1" ] []
-            , div [ class "bounce bounce2" ] []
-            , div [ class "bounce bounce3" ] []
-            ]
+    div [ class "skriver-melding" ]
+        [ div [ class "bounce bounce1" ] []
+        , div [ class "bounce bounce2" ] []
+        , div [ class "bounce bounce3" ] []
         ]
 
 
