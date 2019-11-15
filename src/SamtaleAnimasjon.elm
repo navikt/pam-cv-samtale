@@ -257,17 +257,25 @@ getTimeViewportAndElement =
 
 scrollTilSkriveIndikator : MeldingsLogg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
 scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewport, samtaleElement } tidNå =
-    ( meldingsLogg
-    , { animasjonstidMs = 400
-      , opprinneligViewport = opprinneligViewport
-      , sluttPosisjon = samtaleElement.element.height + 12 - 16 - opprinneligViewport.viewport.height
-      , tidNå = tidNå
-      , startTidForScrolling = startTidForScrolling
-      }
-        |> scrollPositionMeldinger
-        |> Dom.setViewportOf "samtale" 0
-        |> Task.attempt ScrolletViewport
-    )
+    let
+        sluttPosisjon =
+            samtaleElement.element.height + 12 - 16 - opprinneligViewport.viewport.height
+    in
+    if sluttPosisjon < 0 then
+        ( meldingsLogg, Cmd.none )
+
+    else
+        ( meldingsLogg
+        , { animasjonstidMs = 400
+          , opprinneligViewport = opprinneligViewport
+          , sluttPosisjon = samtaleElement.element.height + 12 - 16 - opprinneligViewport.viewport.height
+          , tidNå = tidNå
+          , startTidForScrolling = startTidForScrolling
+          }
+            |> scrollPositionMeldinger
+            |> Dom.setViewportOf "samtale" 0
+            |> Task.attempt ScrolletViewport
+        )
 
 
 scrollTilMelding : MeldingsLogg -> { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
@@ -282,17 +290,21 @@ scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewpor
         sluttPosisjon =
             forskjellMeldingstørrelse - (16 - ((samtaleElement.element.height + 12) - opprinneligViewport.viewport.height))
     in
-    ( meldingsLogg
-    , { animasjonstidMs = 400
-      , opprinneligViewport = opprinneligViewport
-      , sluttPosisjon = sluttPosisjon
-      , tidNå = tidNå
-      , startTidForScrolling = startTidForScrolling
-      }
-        |> scrollPositionMeldinger
-        |> Dom.setViewportOf "samtale" 0
-        |> Task.attempt ScrolletViewport
-    )
+    if sluttPosisjon < 0 then
+        ( meldingsLogg, Cmd.none )
+
+    else
+        ( meldingsLogg
+        , { animasjonstidMs = 400
+          , opprinneligViewport = opprinneligViewport
+          , sluttPosisjon = sluttPosisjon
+          , tidNå = tidNå
+          , startTidForScrolling = startTidForScrolling
+          }
+            |> scrollPositionMeldinger
+            |> Dom.setViewportOf "samtale" 0
+            |> Task.attempt ScrolletViewport
+        )
 
 
 scrollPositionMeldinger :
