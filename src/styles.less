@@ -143,29 +143,44 @@ html {
 
   .robot {
     align-self: center;
-    margin-top: 0.5rem;
     padding-right: 0.75rem;
+    margin-top: 0.5rem;
 
     @media (min-width: 672px) {
       width: 50px;
+      margin-top: 0.625rem;
+      margin-bottom: 0.125rem;
     }
     @media (max-width: 671px) {
-      width: 35px;
+      width: 36px;
+      margin-top: 1.0625rem;
+      margin-bottom: 0.5625rem;
     }
-    //height: 50px;
     margin-right: 0.75rem;
     transition: transform 0.4s ease-in-out;
 
+    &.skjult-robot-ikon {
+      .Robotlogo {
+        transition: opacity 0s;
+        opacity: 0;
+      }
+    }
+
+    &.forste-melding {
+      .Robotlogo {
+        transition: opacity 0.4s ease-in-out;
+      }
+    }
+
 
     .Robotlogo {
-
       @media (min-width: 672px) {
         width: 50px;
         height: 50px;
       }
       @media (max-width: 671px) {
-        width: 35px;
-        height: 35px;
+        width: 36px;
+        height: 36px;
       }
 
       display: inline-block;

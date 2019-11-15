@@ -1404,7 +1404,11 @@ viewSpørsmål spørsmål =
     div [ class "meldingsrad sporsmal" ]
         [ case SpørsmålViewState.ikonStatus spørsmål of
             SkjultIkon ->
-                div [ class "robot" ] []
+                div [ class "robot skjult-robot-ikon" ] [ i [ class "Robotlogo" ] [] ]
+
+            MidtstiltIkonForFørsteSpørsmål ->
+                div [ class "robot forste-melding" ]
+                    [ i [ class "Robotlogo" ] [] ]
 
             MidtstiltIkon ->
                 div [ class "robot" ]
@@ -1500,6 +1504,9 @@ ikkeSisteMelding : SpørsmålViewState -> Bool
 ikkeSisteMelding spørsmål =
     case SpørsmålViewState.ikonStatus spørsmål of
         SkjultIkon ->
+            True
+
+        MidtstiltIkonForFørsteSpørsmål ->
             True
 
         MidtstiltIkon ->

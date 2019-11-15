@@ -260,7 +260,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
     ( meldingsLogg
     , { animasjonstidMs = 400
       , opprinneligViewport = opprinneligViewport
-      , sluttPosisjon = 54 - (16 - ((samtaleElement.element.height + 12) - opprinneligViewport.viewport.height))
+      , sluttPosisjon = samtaleElement.element.height + 12 - 16 - opprinneligViewport.viewport.height
       , tidNå = tidNå
       , startTidForScrolling = startTidForScrolling
       }

@@ -650,30 +650,30 @@ ikkeFerdigAnimertTilViewState : List FerdigAnimertMelding -> MeldingerIkkeFerdig
 ikkeFerdigAnimertTilViewState ferdigAnimerte info =
     case ferdigAnimerte of
         [] ->
-            [ nesteMeldingTilViewState info ]
+            [ nesteMeldingTilViewState True info ]
 
         last :: [] ->
             case info.animasjonStatus of
                 IngenAnimasjon ->
                     [ SpørsmålViewState.initFerdigAnimert last.melding "test1"
-                    , nesteMeldingTilViewState info
+                    , nesteMeldingTilViewState False info
                     ]
 
                 SkriveAnimasjon _ ->
                     [ SpørsmålViewState.initFerdigAnimertFørNyMelding { height = last.height } last.melding "test1"
-                    , nesteMeldingTilViewState info
+                    , nesteMeldingTilViewState False info
                     ]
 
                 VenterPåÅFåRegistrertHøydeBredde ->
                     [ SpørsmålViewState.initFerdigAnimert last.melding "test1"
                         |> SpørsmålViewState.utenIkon
-                    , nesteMeldingTilViewState info
+                    , nesteMeldingTilViewState False info
                     ]
 
                 HarRegistrertHøyde { height, width } ->
                     [ SpørsmålViewState.initFerdigAnimert last.melding "test1"
                         |> SpørsmålViewState.utenIkon
-                    , nesteMeldingTilViewState info
+                    , nesteMeldingTilViewState False info
                     ]
 
         first :: rest ->
@@ -683,14 +683,19 @@ ikkeFerdigAnimertTilViewState ferdigAnimerte info =
                 :: ikkeFerdigAnimertTilViewState rest info
 
 
-nesteMeldingTilViewState : MeldingerIkkeFerdigAnimertInfo -> SpørsmålViewState
-nesteMeldingTilViewState meldingerIkkeFerdigAnimertInfo =
+nesteMeldingTilViewState : Bool -> MeldingerIkkeFerdigAnimertInfo -> SpørsmålViewState
+nesteMeldingTilViewState førsteMeldingIMeldingsgruppe meldingerIkkeFerdigAnimertInfo =
     case meldingerIkkeFerdigAnimertInfo.animasjonStatus of
         IngenAnimasjon ->
             SpørsmålViewState.init meldingerIkkeFerdigAnimertInfo.nesteMelding "test0"
 
         SkriveAnimasjon _ ->
-            SpørsmålViewState.initSkriver meldingerIkkeFerdigAnimertInfo.nesteMelding "test0"
+            if førsteMeldingIMeldingsgruppe then
+                SpørsmålViewState.initSkriver meldingerIkkeFerdigAnimertInfo.nesteMelding "test0"
+                    |> SpørsmålViewState.medIkonForFørsteMelding
+
+            else
+                SpørsmålViewState.initSkriver meldingerIkkeFerdigAnimertInfo.nesteMelding "test0"
 
         VenterPåÅFåRegistrertHøydeBredde ->
             SpørsmålViewState.initKalkuleres meldingerIkkeFerdigAnimertInfo.nesteMelding "test0"

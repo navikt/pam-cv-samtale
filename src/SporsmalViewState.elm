@@ -10,6 +10,7 @@ module SporsmalViewState exposing
     , initFerdigKalkulert
     , initKalkuleres
     , initSkriver
+    , medIkonForFørsteMelding
     , spørsmålStyle
     , tekst
     , utenIkon
@@ -37,6 +38,7 @@ type SpørsmålStyle
 
 type IkonStatus
     = SkjultIkon
+    | MidtstiltIkonForFørsteSpørsmål
     | MidtstiltIkon
     | IkonForNesteMelding { height : Int }
 
@@ -63,6 +65,11 @@ initSkriver melding id_ =
         , ikonStatus = SkjultIkon
         , id = id_
         }
+
+
+medIkonForFørsteMelding : SpørsmålViewState -> SpørsmålViewState
+medIkonForFørsteMelding (SpørsmålViewState info) =
+    SpørsmålViewState { info | ikonStatus = MidtstiltIkonForFørsteSpørsmål }
 
 
 initKalkuleres : Melding -> String -> SpørsmålViewState
