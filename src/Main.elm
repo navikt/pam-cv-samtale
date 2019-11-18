@@ -761,11 +761,11 @@ type Samtale
     | EndrerSammendrag String
     | LagrerSammendrag String LagreStatus
     | LagringAvSammendragFeilet Http.Error String
-    | UnderOppfølging
     | DelMedArbeidsgiver Bool
     | LagrerSynlighet Bool LagreStatus
     | LagringSynlighetFeilet Http.Error Bool
-    | SpørOmTilbakemelding
+    | SpørOmTilbakemeldingIkkeUnderOppfølging
+    | SpørOmTilbakemeldingUnderOppfølging
     | GiTilbakemelding
     | Avslutt Bool
 
@@ -1046,11 +1046,11 @@ updateAndreSamtaleSteg model msg info =
                     case result of
                         Ok _ ->
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                SpørOmTilbakemelding
+                                SpørOmTilbakemeldingIkkeUnderOppfølging
                                     |> nesteSamtaleSteg model info (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
 
                               else
-                                nesteSamtaleStegUtenSvar model info SpørOmTilbakemelding
+                                nesteSamtaleStegUtenSvar model info SpørOmTilbakemeldingIkkeUnderOppfølging
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
@@ -1104,7 +1104,7 @@ updateAndreSamtaleSteg model msg info =
                     ( model, Cmd.none )
 
         BrukerGirOppÅLagre knappeTekst ->
-            ( nesteSamtaleSteg model info (Melding.svar [ knappeTekst ]) SpørOmTilbakemelding
+            ( nesteSamtaleSteg model info (Melding.svar [ knappeTekst ]) SpørOmTilbakemeldingIkkeUnderOppfølging
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1275,7 +1275,7 @@ gåVidereFraSeksjonsvalg model info =
 gåTilAvslutning : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
 gåTilAvslutning model info =
     if Person.underOppfolging model.person then
-        ( nesteSamtaleStegUtenSvar model info UnderOppfølging
+        ( nesteSamtaleStegUtenSvar model info SpørOmTilbakemeldingUnderOppfølging
         , lagtTilSpørsmålCmd model.debugStatus
         )
 
@@ -1403,12 +1403,14 @@ samtaleTilMeldingsLogg samtale =
                     [ "Ønsker du at arbeidsgivere skal kunne se CV-en din?" ]
             ]
 
-        UnderOppfølging ->
+        SpørOmTilbakemeldingUnderOppfølging ->
             [ Melding.spørsmål [ "Arbeidsgivere og NAV-veiledere kan søke opp CV-en din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
             , Melding.spørsmål [ "CV-en din er synlig for arbeidsgivere og NAV-veiledere fordi du får oppfølging fra NAV." ]
+            , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
+            , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
             ]
 
-        SpørOmTilbakemelding ->
+        SpørOmTilbakemeldingIkkeUnderOppfølging ->
             [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
             , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
@@ -1765,16 +1767,11 @@ viewBrukerInputForAndreSamtaleSteg info =
                             |> Knapp.toHtml
                         ]
 
-                UnderOppfølging ->
-                    text ""
+                SpørOmTilbakemeldingUnderOppfølging ->
+                    viewSpørOmTilbakemelding
 
-                SpørOmTilbakemelding ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
-                            |> Knapp.toHtml
-                        , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
-                            |> Knapp.toHtml
-                        ]
+                SpørOmTilbakemeldingIkkeUnderOppfølging ->
+                    viewSpørOmTilbakemelding
 
                 GiTilbakemelding ->
                     Containers.lenke
@@ -1844,6 +1841,16 @@ viewLeggTilAnnet =
         [ seksjonsvalgKnapp AnnenErfaringValgt
         , seksjonsvalgKnapp KursValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
+            |> Knapp.toHtml
+        ]
+
+
+viewSpørOmTilbakemelding : Html AndreSamtaleStegMsg
+viewSpørOmTilbakemelding =
+    Containers.knapper Flytende
+        [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
+            |> Knapp.toHtml
+        , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
             |> Knapp.toHtml
         ]
 
