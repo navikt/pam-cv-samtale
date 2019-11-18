@@ -4,25 +4,30 @@ module Forerkort.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , subscriptions
     , update
     , viewBrukerInput
     )
 
 import Api
+import Browser.Events exposing (Visibility(..))
 import Cv.Forerkort as Forerkort exposing (Forerkort, Klasse(..))
 import Dato exposing (Dato, DatoValidering(..), Måned)
 import DebugStatus exposing (DebugStatus)
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
 import Forerkort.Skjema as Skjema exposing (FørerkortSkjema, ValidertFørerkortSkjema)
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Select as Select
 import FørerkortKode exposing (FørerkortKode)
 import Html exposing (..)
 import Html.Attributes exposing (class)
 import Html.Attributes.Aria exposing (ariaLive, role)
 import Http
+import LagreStatus exposing (LagreStatus)
 import List.Extra as List
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
@@ -51,20 +56,22 @@ type alias ModelInfo =
 
 type Samtale
     = IntroLeggTilKlasseB (List Forerkort)
+    | SvarteNeiPåKlasseB
     | VelgNyttFørerkort { valgtFørerkort : Maybe FørerkortKode, feilmelding : Maybe String }
     | RegistrereFraDato { valgtFørerkort : FørerkortKode, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
     | RegistrereTilDato { valgtFørerkort : FørerkortKode, fraDato : Maybe Dato, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
     | Oppsummering ValidertFørerkortSkjema
     | EndreSkjema { skjema : FørerkortSkjema, visFeilmelding : Bool }
     | OppsummeringEtterEndring ValidertFørerkortSkjema
-    | LagrerFørerkort ValidertFørerkortSkjema
+    | LagrerFørerkort ValidertFørerkortSkjema LagreStatus
+    | LagringFeilet Http.Error ValidertFørerkortSkjema
     | LeggTilFlereFørerkort
-    | VenterPåAnimasjonFørFullføring
+    | VenterPåAnimasjonFørFullføring (List Forerkort)
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig FerdigAnimertMeldingsLogg
+    | Ferdig (List Forerkort) FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -85,7 +92,7 @@ type Msg
     | FullførMelding
     | ViewportSatt
     | ErrorLogget
-    | BackendSvarerPåLagreRequest (Result Http.Error (List Forerkort))
+    | FørerkortLagret (Result Http.Error (List Forerkort))
     | BrukerVilGåVidereMedValgtFørerkort
     | BrukerHarValgtFørerkortFraDropdown String
     | BrukerEndrerFraDag String
@@ -101,6 +108,9 @@ type Msg
     | FraDatoLagreknappTrykket
     | SkjemaEndret SkjemaEndring
     | VilLagreEndretSkjema
+    | FerdigMedFørerkort
+    | SendSkjemaPåNytt
+    | WindowEndrerVisibility Visibility
 
 
 type SkjemaEndring
@@ -148,7 +158,7 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         HarKlasseB ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerFørerkort Skjema.klasseB)
+            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerFørerkort Skjema.klasseB LagreStatus.init)
             , Cmd.batch
                 [ leggTilFørerkortAPI Skjema.klasseB
                 , lagtTilSpørsmålCmd model.debugStatus
@@ -157,7 +167,7 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         BrukerVilAvslutteSeksjonen ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ]) VenterPåAnimasjonFørFullføring
+            ( nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ]) (VenterPåAnimasjonFørFullføring model.førerkort)
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -191,9 +201,12 @@ update msg (Model model) =
             ( Model model, Cmd.none ) |> IkkeFerdig
 
         HarIkkeKlasseB ->
-            ( Model model, Cmd.none )
+            ( nesteSamtaleSteg model (Melding.svar [ "Nei" ]) SvarteNeiPåKlasseB
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
                 |> IkkeFerdig
 
+        --SvarteNeiPåKlasseB
         BrukerHarFlereFørerkort ->
             ( { valgtFørerkort = Nothing, feilmelding = Nothing }
                 |> VelgNyttFørerkort
@@ -202,23 +215,64 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        BackendSvarerPåLagreRequest result ->
-            case result of
-                Ok førerkort ->
-                    case model.aktivSamtale of
-                        LagrerFørerkort _ ->
-                            ( nesteSamtaleStegUtenMelding { model | førerkort = førerkort } LeggTilFlereFørerkort
+        FørerkortLagret result ->
+            case model.aktivSamtale of
+                LagrerFørerkort skjema lagreStatus ->
+                    case result of
+                        Ok førerkort ->
+                            let
+                                oppdatertMeldingslogg =
+                                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et førerkort 👍" ] ]
+
+                                    else
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et førerkort 👍" ] ]
+                            in
+                            ( førerkort
+                                |> VenterPåAnimasjonFørFullføring
+                                |> oppdaterSamtaleSteg { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
-                        _ ->
-                            IkkeFerdig ( Model model, Cmd.none )
+                        Err error ->
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( LagreStatus.fraError error
+                                        |> LagrerFørerkort skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , Api.postFørerkort FørerkortLagret skjema
+                                    )
+                                        |> IkkeFerdig
 
-                Err error ->
-                    case model.aktivSamtale of
-                        _ ->
-                            IkkeFerdig ( Model model, logFeilmelding error "Lagre førerkort" )
+                                else
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtaleSteg model
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre førerkort" error
+                                    )
+                                        |> IkkeFerdig
+
+                            else
+                                ( skjema
+                                    |> LagringFeilet error
+                                    |> nesteSamtaleStegUtenMelding model
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre førerkort" error
+                                    ]
+                                )
+                                    |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerVilGåVidereMedValgtFørerkort ->
             case model.aktivSamtale of
@@ -238,7 +292,7 @@ update msg (Model model) =
                                     skjema =
                                         Skjema.fraFørerkortKode førerkortKode
                                 in
-                                ( LagrerFørerkort skjema
+                                ( LagrerFørerkort skjema LagreStatus.init
                                     |> nesteSamtaleSteg model (Melding.svar [ FørerkortKode.term førerkortKode ])
                                 , Cmd.batch
                                     [ leggTilFørerkortAPI skjema
@@ -513,6 +567,65 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
+        FerdigMedFørerkort ->
+            case model.aktivSamtale of
+                LagringFeilet _ _ ->
+                    ( model.førerkort
+                        |> VenterPåAnimasjonFørFullføring
+                        |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        SendSkjemaPåNytt ->
+            case model.aktivSamtale of
+                LagringFeilet error skjema ->
+                    ( error
+                        |> LagreStatus.fraError
+                        |> LagrerFørerkort skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, prøv på nytt" ])
+                    , Api.postFørerkort FørerkortLagret skjema
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagrerFørerkort skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerFørerkort skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        LagringFeilet error skjema ->
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                IkkeFerdig
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerFørerkort skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , Api.postFørerkort FørerkortLagret skjema
+                                    )
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                Hidden ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
 
 validertSkjemaTilSetninger : ValidertFørerkortSkjema -> List String
 validertSkjemaTilSetninger validertSkjema =
@@ -546,8 +659,8 @@ updateEtterAtBrukerHarValgtFørerkortFraDropdown aktivSamtale remoteFørerkortKo
 updateEtterLagreKnappTrykket : ModelInfo -> ValidertFørerkortSkjema -> Melding -> SamtaleStatus
 updateEtterLagreKnappTrykket model skjema svar =
     IkkeFerdig
-        ( skjema
-            |> LagrerFørerkort
+        ( LagreStatus.init
+            |> LagrerFørerkort skjema
             |> nesteSamtaleSteg model svar
         , Cmd.batch
             [ leggTilFørerkortAPI skjema
@@ -558,7 +671,7 @@ updateEtterLagreKnappTrykket model skjema svar =
 
 leggTilFørerkortAPI : ValidertFørerkortSkjema -> Cmd Msg
 leggTilFørerkortAPI skjema =
-    Api.postFørerkort BackendSvarerPåLagreRequest skjema
+    Api.postFørerkort FørerkortLagret skjema
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
@@ -581,8 +694,8 @@ updateEtterFullførtMelding model nyMeldingsLogg =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring ->
-                    Ferdig ferdigAnimertSamtale
+                VenterPåAnimasjonFørFullføring førerkortListe ->
+                    Ferdig førerkortListe ferdigAnimertSamtale
 
                 _ ->
                     ( Model
@@ -639,7 +752,7 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
                 , Melding.spørsmål [ "Vil du legge til flere?" ]
                 ]
 
-        VenterPåAnimasjonFørFullføring ->
+        VenterPåAnimasjonFørFullføring _ ->
             []
 
         LeggTilFlereFørerkort ->
@@ -661,7 +774,7 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
         VelgNyttFørerkort _ ->
             [ Melding.spørsmål [ "Hvilket førerkort vil du legge til?" ] ]
 
-        LagrerFørerkort _ ->
+        LagrerFørerkort _ _ ->
             []
 
         RegistrereFraDato _ ->
@@ -687,6 +800,12 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
 
         OppsummeringEtterEndring validertFørerkortSkjema ->
             [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
+
+        LagringFeilet error validertFørerkortSkjema ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre førerkort" } ]
+
+        SvarteNeiPåKlasseB ->
+            [ Melding.spørsmål [ "Har du andre førerkort?" ] ]
 
 
 klasseToString : Klasse -> String
@@ -812,7 +931,7 @@ viewBrukerInput (Model model) =
                                 |> Knapp.toHtml
                             ]
 
-                VenterPåAnimasjonFørFullføring ->
+                VenterPåAnimasjonFørFullføring _ ->
                     text ""
 
                 LeggTilFlereFørerkort ->
@@ -841,7 +960,7 @@ viewBrukerInput (Model model) =
                             ]
                         ]
 
-                LagrerFørerkort førerkortSkjema ->
+                LagrerFørerkort _ _ ->
                     text ""
 
                 RegistrereFraDato info ->
@@ -1039,6 +1158,33 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         ]
 
+                LagringFeilet error _ ->
+                    case ErrorHåndtering.operasjonEtterError error of
+                        ErrorHåndtering.GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp FerdigMedFørerkort "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        ErrorHåndtering.PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp SendSkjemaPåNytt "Prøv igjen"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp FerdigMedFørerkort "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        ErrorHåndtering.LoggInn ->
+                            LoggInnLenke.viewLoggInnLenke
+
+                SvarteNeiPåKlasseB ->
+                    Containers.knapper Flytende
+                        [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
+                            |> Knapp.toHtml
+                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                            |> Knapp.toHtml
+                        ]
+
         MeldingerGjenstår ->
             text ""
 
@@ -1070,3 +1216,8 @@ init debugStatus gammelMeldingsLogg førerkort =
         [ lagtTilSpørsmålCmd debugStatus
         ]
     )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Browser.Events.onVisibilityChange WindowEndrerVisibility

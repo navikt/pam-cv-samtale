@@ -6,6 +6,7 @@ module Cv.Cv exposing
     , fagdokumentasjoner
     , forerkort
     , kurs
+    , oppdaterFørerkort
     , sammendrag
     , sertifikater
     , spraakferdighet
@@ -115,6 +116,15 @@ kompetanseKladdListe (Cv info) =
 sammendrag : Cv -> Maybe Sammendrag
 sammendrag (Cv info) =
     info.sammendrag
+
+
+
+---SETTERS---
+
+
+oppdaterFørerkort : List Forerkort -> Cv -> Cv
+oppdaterFørerkort førerkort (Cv cvInfo) =
+    Cv { cvInfo | forerkort = førerkort }
 
 
 

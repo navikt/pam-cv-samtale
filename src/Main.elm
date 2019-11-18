@@ -560,8 +560,8 @@ updateSuccess successMsg model =
                             , Cmd.map FørerkortMsg cmd
                             )
 
-                        Forerkort.Seksjon.Ferdig meldingsLogg ->
-                            gåTilFlereAnnetValg model meldingsLogg
+                        Forerkort.Seksjon.Ferdig førerkort meldingsLogg ->
+                            gåTilFlereAnnetValg { model | cv = Cv.oppdaterFørerkort førerkort model.cv } meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -2032,7 +2032,9 @@ seksjonSubscriptions model =
                         |> Sub.map (AnnenErfaringMsg >> SuccessMsg)
 
                 FørerkortSeksjon førerkortModel ->
-                    Sub.none
+                    førerkortModel
+                        |> Forerkort.Seksjon.subscriptions
+                        |> Sub.map (FørerkortMsg >> SuccessMsg)
 
                 KursSeksjon kursModel ->
                     kursModel
