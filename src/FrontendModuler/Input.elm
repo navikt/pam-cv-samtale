@@ -3,6 +3,7 @@ module FrontendModuler.Input exposing
     , Input
     , InputOptions
     , input
+    , inputWithPlaceholder
     , toHtml
     , withClass
     , withEnabled
@@ -34,12 +35,20 @@ type alias Options msg =
     , onBlur : Maybe msg
     , id : Maybe String
     , enabled : Enabled
+    , placeholder : Maybe String
     }
 
 
 type alias InputOptions msg =
     { msg : String -> msg
     , label : String
+    }
+
+
+type alias InputOptionsWithPlaceholder msg =
+    { msg : String -> msg
+    , label : String
+    , placeholder : String
     }
 
 
@@ -55,6 +64,23 @@ input { msg, label } innhold =
         , onBlur = Nothing
         , id = Nothing
         , enabled = Enabled
+        , placeholder = Nothing
+        }
+
+
+inputWithPlaceholder : InputOptionsWithPlaceholder msg -> String -> Input msg
+inputWithPlaceholder { msg, label, placeholder } innhold =
+    Input
+        { msg = msg
+        , label = label
+        , innhold = innhold
+        , feilmelding = Nothing
+        , classes = []
+        , onEnter = Nothing
+        , onBlur = Nothing
+        , id = Nothing
+        , enabled = Enabled
+        , placeholder = Just placeholder
         }
 
 
@@ -134,6 +160,9 @@ toHtml (Input options) =
                     , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
                     ]
                 , optionClasses options.classes
+                , options.placeholder
+                    |> Maybe.map placeholder
+                    |> Maybe.withDefault noAttribute
                 , onInput options.msg
                 , options.id
                     |> Maybe.map id

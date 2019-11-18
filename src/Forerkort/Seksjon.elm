@@ -21,6 +21,7 @@ import FrontendModuler.Select as Select
 import FørerkortKode exposing (FørerkortKode)
 import Html exposing (..)
 import Html.Attributes exposing (class)
+import Html.Attributes.Aria exposing (ariaLive, role)
 import Http
 import List.Extra as List
 import Melding exposing (Melding)
@@ -51,10 +52,10 @@ type alias ModelInfo =
 type Samtale
     = IntroLeggTilKlasseB (List Forerkort)
     | VelgNyttFørerkort { valgtFørerkort : Maybe FørerkortKode, feilmelding : Maybe String }
-    | RegistrereFraDato { valgtFørerkort : FørerkortKode, dag : String, måned : Maybe Måned, år : String }
-    | RegistrereTilDato { valgtFørerkort : FørerkortKode, fraDato : Maybe Dato, dag : String, måned : Maybe Måned, år : String }
+    | RegistrereFraDato { valgtFørerkort : FørerkortKode, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
+    | RegistrereTilDato { valgtFørerkort : FørerkortKode, fraDato : Maybe Dato, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
     | Oppsummering ValidertFørerkortSkjema
-    | EndreSkjema FørerkortSkjema
+    | EndreSkjema { skjema : FørerkortSkjema, visFeilmelding : Bool }
     | OppsummeringEtterEndring ValidertFørerkortSkjema
     | LagrerFørerkort ValidertFørerkortSkjema
     | LeggTilFlereFørerkort
@@ -225,7 +226,7 @@ update msg (Model model) =
                     case velgNyttFørerkortInfo.valgtFørerkort of
                         Just førerkortKode ->
                             if FørerkortKode.spørOmDatoInfo førerkortKode then
-                                ( { valgtFørerkort = førerkortKode, dag = "", måned = Nothing, år = "" }
+                                ( { valgtFørerkort = førerkortKode, dag = "", måned = Nothing, år = "", visFeilmelding = False }
                                     |> RegistrereFraDato
                                     |> nesteSamtaleSteg model (Melding.svar [ FørerkortKode.term førerkortKode ])
                                 , lagtTilSpørsmålCmd model.debugStatus
@@ -320,6 +321,7 @@ update msg (Model model) =
                               , dag = ""
                               , måned = Nothing
                               , år = ""
+                              , visFeilmelding = False
                               }
                                 |> RegistrereTilDato
                                 |> nesteSamtaleSteg model (Melding.svar [ Dato.toString dato ])
@@ -328,7 +330,17 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         DatoValidererIkke ->
-                            IkkeFerdig ( Model model, Cmd.none )
+                            ( { valgtFørerkort = info.valgtFørerkort
+                              , dag = info.dag
+                              , måned = info.måned
+                              , år = info.år
+                              , visFeilmelding = True
+                              }
+                                |> RegistrereFraDato
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
 
                         DatoIkkeSkrevetInn ->
                             ( { valgtFørerkort = info.valgtFørerkort
@@ -336,6 +348,7 @@ update msg (Model model) =
                               , dag = ""
                               , måned = Nothing
                               , år = ""
+                              , visFeilmelding = False
                               }
                                 |> RegistrereTilDato
                                 |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
@@ -402,7 +415,18 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         DatoValidererIkke ->
-                            IkkeFerdig ( Model model, Cmd.none )
+                            ( { valgtFørerkort = info.valgtFørerkort
+                              , fraDato = info.fraDato
+                              , dag = info.dag
+                              , måned = info.måned
+                              , år = info.år
+                              , visFeilmelding = True
+                              }
+                                |> RegistrereTilDato
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
 
                         DatoIkkeSkrevetInn ->
                             ( { førerkort = info.valgtFørerkort
@@ -433,7 +457,7 @@ update msg (Model model) =
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering skjema ->
-                    ( Skjema.uvalidertSkjemaFraValidertSkjema skjema
+                    ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema, visFeilmelding = False }
                         |> EndreSkjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -441,7 +465,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 OppsummeringEtterEndring skjema ->
-                    ( Skjema.uvalidertSkjemaFraValidertSkjema skjema
+                    ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema, visFeilmelding = False }
                         |> EndreSkjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -454,7 +478,7 @@ update msg (Model model) =
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
                 EndreSkjema skjema ->
-                    case Skjema.valider skjema of
+                    case Skjema.valider skjema.skjema of
                         Just validertSkjema ->
                             ( validertSkjema
                                 |> OppsummeringEtterEndring
@@ -464,7 +488,14 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Nothing ->
-                            IkkeFerdig ( Model model, Cmd.none )
+                            ( { skjema = skjema.skjema
+                              , visFeilmelding = True
+                              }
+                                |> EndreSkjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -472,9 +503,7 @@ update msg (Model model) =
         SkjemaEndret skjemaEndring ->
             case model.aktivSamtale of
                 EndreSkjema skjema ->
-                    ( skjema
-                        |> oppdaterSkjema skjemaEndring
-                        |> EndreSkjema
+                    ( EndreSkjema { skjema = oppdaterSkjema skjemaEndring skjema.skjema, visFeilmelding = False }
                         |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
@@ -843,6 +872,19 @@ viewBrukerInput (Model model) =
                             , Input.input { label = "År", msg = BrukerEndrerFraÅr } info.år
                                 |> Input.toHtml
                             ]
+                        , case Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år } of
+                            Just feilmelding ->
+                                if info.visFeilmelding then
+                                    div [ role "alert", ariaLive "assertive" ]
+                                        [ div [ class "skjemaelement__feilmelding" ]
+                                            [ text feilmelding.feilmelding ]
+                                        ]
+
+                                else
+                                    text ""
+
+                            Nothing ->
+                                text ""
                         ]
 
                 RegistrereTilDato info ->
@@ -872,6 +914,19 @@ viewBrukerInput (Model model) =
                             , Input.input { label = "År", msg = BrukerEndrerTilÅr } info.år
                                 |> Input.toHtml
                             ]
+                        , case Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år } of
+                            Just feilmelding ->
+                                if info.visFeilmelding then
+                                    div [ role "alert", ariaLive "assertive" ]
+                                        [ div [ class "skjemaelement__feilmelding" ]
+                                            [ text feilmelding.feilmelding ]
+                                        ]
+
+                                else
+                                    text ""
+
+                            Nothing ->
+                                text ""
                         ]
 
                 Oppsummering _ ->
@@ -892,16 +947,16 @@ viewBrukerInput (Model model) =
                                 )
                                 model.førerkortKoder
                             )
-                            |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema))
+                            |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema.skjema))
                             |> Select.toHtml
                         , div [] [ text "Gyldig fra dato" ]
                         , div [ class "ForerkortSeksjon-datolinje" ]
-                            [ Input.input { label = "Dag", msg = FraDag >> SkjemaEndret } (Skjema.fraDagFraSkjema skjema)
+                            [ Input.inputWithPlaceholder { placeholder = "Dag", label = "", msg = FraDag >> SkjemaEndret } (Skjema.fraDagFraSkjema skjema.skjema)
                                 |> Input.toHtml
                             , Select.select
-                                "Måned"
+                                ""
                                 (FraMåned >> SkjemaEndret)
-                                [ ( "", "Velg måned" )
+                                [ ( "", "Måned" )
                                 , ( "Januar", "Januar" )
                                 , ( "Februar", "Februar" )
                                 , ( "Mars", "Mars" )
@@ -915,20 +970,33 @@ viewBrukerInput (Model model) =
                                 , ( "November", "November" )
                                 , ( "Desember", "Desember" )
                                 ]
-                                |> Select.withSelected (Dato.månedTilString (Skjema.fraMånedFraSkjema skjema))
+                                |> Select.withMaybeSelected (Maybe.map Dato.månedTilString (Skjema.fraMånedFraSkjema skjema.skjema))
                                 |> Select.withClass "DatoInput-måned"
                                 |> Select.toHtml
-                            , Input.input { label = "År", msg = FraÅr >> SkjemaEndret } (Skjema.fraÅrFraSkjema skjema)
+                            , Input.inputWithPlaceholder { placeholder = "År", label = "", msg = FraÅr >> SkjemaEndret } (Skjema.fraÅrFraSkjema skjema.skjema)
                                 |> Input.toHtml
                             ]
+                        , case Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema } of
+                            Just feilmelding ->
+                                if skjema.visFeilmelding then
+                                    div [ role "alert", ariaLive "assertive" ]
+                                        [ div [ class "skjemaelement__feilmelding" ]
+                                            [ text feilmelding.feilmelding ]
+                                        ]
+
+                                else
+                                    text ""
+
+                            Nothing ->
+                                text ""
                         , div [] [ text "Utløper dato" ]
                         , div [ class "ForerkortSeksjon-datolinje" ]
-                            [ Input.input { label = "Dag", msg = TilDag >> SkjemaEndret } (Skjema.tilDagFraSkjema skjema)
+                            [ Input.inputWithPlaceholder { placeholder = "Dag", label = "", msg = TilDag >> SkjemaEndret } (Skjema.tilDagFraSkjema skjema.skjema)
                                 |> Input.toHtml
                             , Select.select
-                                "Måned"
+                                ""
                                 (TilMåned >> SkjemaEndret)
-                                [ ( "", "Velg måned" )
+                                [ ( "", "Måned" )
                                 , ( "Januar", "Januar" )
                                 , ( "Februar", "Februar" )
                                 , ( "Mars", "Mars" )
@@ -942,12 +1010,25 @@ viewBrukerInput (Model model) =
                                 , ( "November", "November" )
                                 , ( "Desember", "Desember" )
                                 ]
-                                |> Select.withSelected (Dato.månedTilString (Skjema.tilMånedFraSkjema skjema))
+                                |> Select.withMaybeSelected (Maybe.map Dato.månedTilString (Skjema.tilMånedFraSkjema skjema.skjema))
                                 |> Select.withClass "DatoInput-måned"
                                 |> Select.toHtml
-                            , Input.input { label = "År", msg = TilÅr >> SkjemaEndret } (Skjema.tilÅrFraSkjema skjema)
+                            , Input.inputWithPlaceholder { placeholder = "År", label = "", msg = TilÅr >> SkjemaEndret } (Skjema.tilÅrFraSkjema skjema.skjema)
                                 |> Input.toHtml
                             ]
+                        , case Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema } of
+                            Just feilmelding ->
+                                if skjema.visFeilmelding then
+                                    div [ role "alert", ariaLive "assertive" ]
+                                        [ div [ class "skjemaelement__feilmelding" ]
+                                            [ text feilmelding.feilmelding ]
+                                        ]
+
+                                else
+                                    text ""
+
+                            Nothing ->
+                                text ""
                         ]
 
                 OppsummeringEtterEndring _ ->

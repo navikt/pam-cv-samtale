@@ -1,5 +1,6 @@
 module Dato exposing
     ( Dato
+    , DatoFeilmelding
     , DatoValidering(..)
     , Måned(..)
     , TilDato(..)
@@ -8,6 +9,7 @@ module Dato exposing
     , decodeMonthYear
     , encodeMaybeDato
     , encodeMonthYear
+    , feilmeldingForDato
     , feilmeldingÅr
     , formaterDag
     , getDatoDag
@@ -42,7 +44,6 @@ type Måned
     | Oktober
     | November
     | Desember
-    | Ikke_valgt
 
 
 type alias DatoInfo =
@@ -118,6 +119,50 @@ validerDato { dag, måned, år } =
                 DatoValidererIkke
 
 
+type alias DatoFeilmelding =
+    { feilmelding : String
+    , feilPåDag : Bool
+    , feilPåMåned : Bool
+    , feilPåÅr : Bool
+    }
+
+
+feilmeldingForDato : { dag : String, måned : Maybe Måned, år : String } -> Maybe DatoFeilmelding
+feilmeldingForDato { dag, måned, år } =
+    case måned of
+        Just måned_ ->
+            if not (validerÅr år) then
+                Just
+                    { feilmelding = "År kan kun ha fire siffer"
+                    , feilPåDag = False
+                    , feilPåMåned = False
+                    , feilPåÅr = True
+                    }
+
+            else if not (validerDag dag) then
+                Just
+                    { feilmelding = "Dag må være et tall mellom 1 og 31"
+                    , feilPåDag = True
+                    , feilPåMåned = False
+                    , feilPåÅr = False
+                    }
+
+            else
+                Nothing
+
+        Nothing ->
+            if String.isEmpty dag && String.isEmpty år then
+                Nothing
+
+            else
+                Just
+                    { feilmelding = "Du må velge månede"
+                    , feilPåDag = False
+                    , feilPåMåned = True
+                    , feilPåÅr = False
+                    }
+
+
 formaterDag : String -> String
 formaterDag dag =
     if String.length dag == 1 then
@@ -185,9 +230,6 @@ månedTilString mnd =
 
         Desember ->
             "Desember"
-
-        Ikke_valgt ->
-            ""
 
 
 stringTilMåned : String -> Måned
@@ -350,9 +392,6 @@ månedTilNummerMåned maaned =
 
         Desember ->
             "12"
-
-        Ikke_valgt ->
-            ""
 
 
 validerÅr : String -> Bool

@@ -153,14 +153,14 @@ fraÅrFraSkjema (FørerkortSkjema info) =
     info.fraÅr
 
 
-fraMånedFraSkjema : FørerkortSkjema -> Måned
+fraMånedFraSkjema : FørerkortSkjema -> Maybe Måned
 fraMånedFraSkjema (FørerkortSkjema info) =
     case info.fraMåned of
         Just måned ->
-            måned
+            Just måned
 
         Nothing ->
-            Dato.Ikke_valgt
+            Nothing
 
 
 tilDagFraSkjema : FørerkortSkjema -> String
@@ -173,14 +173,14 @@ tilÅrFraSkjema (FørerkortSkjema info) =
     info.tilÅr
 
 
-tilMånedFraSkjema : FørerkortSkjema -> Måned
+tilMånedFraSkjema : FørerkortSkjema -> Maybe Måned
 tilMånedFraSkjema (FørerkortSkjema info) =
     case info.tilMåned of
         Just måned ->
-            måned
+            Just måned
 
         Nothing ->
-            Dato.Ikke_valgt
+            Nothing
 
 
 tilDatoFraValidertSkjema : ValidertFørerkortSkjema -> String
