@@ -261,12 +261,12 @@ visAlleFeilmeldinger skjema =
 valider : SertifikatSkjema -> Maybe ValidertSertifikatSkjema
 valider (UvalidertSkjema uvalidert) =
     Maybe.map3
-        (\sertifikatFelt utlopsdato fullføtÅr_ ->
+        (\sertifikatFelt utlopsdato fullførtÅr_ ->
             ValidertSkjema
                 { sertifikatFelt = sertifikatFelt
                 , utsteder = uvalidert.utsteder
                 , fullførtMåned = uvalidert.fullførtMåned
-                , fullførtÅr = fullføtÅr_
+                , fullførtÅr = fullførtÅr_
                 , utløpsdato = utlopsdato
                 , id = uvalidert.id
                 }
@@ -331,7 +331,7 @@ tilUvalidertSkjema (ValidertSkjema validert) =
 
 
 
--- ENCODE --
+--- ENCODE ---
 
 
 encode : ValidertSertifikatSkjema -> Json.Encode.Value
@@ -360,8 +360,8 @@ encodeSertifikatFelt sertifikatFelt =
 
 
 encodeTilDato : Utløpsdato -> Json.Encode.Value
-encodeTilDato utløpsdagto =
-    case utløpsdagto of
+encodeTilDato utløpsdato =
+    case utløpsdato of
         IkkeOppgitt ->
             Json.Encode.null
 

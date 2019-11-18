@@ -3,20 +3,27 @@ module FrontendModuler.Select exposing
     , select
     , toHtml
     , withClass
+    , withLabelId
     , withMaybeFeilmelding
     , withMaybeSelected
     , withSelected
     )
 
+import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Attributes.Aria exposing (..)
+import Html.Attributes.Aria exposing (ariaLabelledby)
 import Html.Events exposing (onInput)
+
+
+type Label
+    = Label String
+    | LabelId String
 
 
 type Select msg
     = Select
-        { label : String
+        { label : Label
         , msg : String -> msg
         , listOfOptions : List ( String, String )
         , selectedValue : Maybe String
@@ -28,13 +35,18 @@ type Select msg
 select : String -> (String -> msg) -> List ( String, String ) -> Select msg
 select label msg listOfOptions =
     Select
-        { label = label
+        { label = Label label
         , msg = msg
         , listOfOptions = listOfOptions
         , selectedValue = Nothing
         , feilmelding = Nothing
         , class = Nothing
         }
+
+
+withLabelId : String -> Select msg -> Select msg
+withLabelId id (Select options) =
+    Select { options | label = LabelId id }
 
 
 withSelected : String -> Select msg -> Select msg
@@ -60,26 +72,39 @@ withClass class (Select options) =
 toHtml : Select msg -> Html msg
 toHtml (Select options) =
     div [ class "skjemaelement" ]
-        [ label [ class "skjemaelement__label" ] [ text options.label ]
-        , div [ class "selectContainer input--fullbredde" ]
-            [ List.map (optionToHtml options.selectedValue) options.listOfOptions
-                |> Html.select
-                    [ onInput options.msg
-                    , classList
-                        [ ( "skjemaelement__input", True )
-                        , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
-                        ]
-                    , options.class
-                        |> Maybe.map class
-                        |> Maybe.withDefault noAttribute
+        (case options.label of
+            Label label_ ->
+                [ label []
+                    [ span [ class "skjemaelement__label" ] [ text label_ ]
+                    , htmlSelect (Select options) Nothing
                     ]
-            ]
-        , case options.feilmelding of
-            Just feilemlding ->
-                div [ role "alert", ariaLive "assertive" ] [ div [ class "skjemaelement__feilmelding" ] [ text feilemlding ] ]
+                , htmlFeilmelding options.feilmelding
+                ]
 
-            Nothing ->
-                text ""
+            LabelId id_ ->
+                [ htmlSelect (Select options) (Just id_)
+                , htmlFeilmelding options.feilmelding
+                ]
+        )
+
+
+htmlSelect : Select msg -> Maybe String -> Html msg
+htmlSelect (Select options) labelId =
+    div [ class "selectContainer input--fullbredde" ]
+        [ List.map (optionToHtml options.selectedValue) options.listOfOptions
+            |> Html.select
+                [ onInput options.msg
+                , classList
+                    [ ( "skjemaelement__input", True )
+                    , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
+                    ]
+                , options.class
+                    |> Maybe.map class
+                    |> Maybe.withDefault noAttribute
+                , labelId
+                    |> Maybe.map ariaLabelledby
+                    |> Maybe.withDefault noAttribute
+                ]
         ]
 
 

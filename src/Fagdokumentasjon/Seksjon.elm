@@ -6,21 +6,25 @@ module Fagdokumentasjon.Seksjon exposing
     , initFagbrev
     , initMesterbrev
     , meldingsLogg
+    , subscriptions
     , update
     , viewBrukerInput
     )
 
 import Api
 import Browser.Dom as Dom
+import Browser.Events exposing (Visibility(..))
 import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
+import ErrorHandtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as Common
 import FrontendModuler.Textarea as Textarea
 import Html exposing (Html, text)
-import Http
+import Http exposing (Error(..))
 import Konsept exposing (Konsept)
 import Melding exposing (Melding)
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
@@ -52,9 +56,15 @@ type Samtale
     | Oppsummering ValidertFagdokumentasjonSkjema
     | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
     | OppsummeringEtterEndring ValidertFagdokumentasjonSkjema
-    | Lagrer ValidertFagdokumentasjonSkjema
+    | Lagrer LagreStatus ValidertFagdokumentasjonSkjema
     | LagringFeilet ValidertFagdokumentasjonSkjema Http.Error
     | VenterPåAnimasjonFørFullføring (List Fagdokumentasjon)
+
+
+type LagreStatus
+    = LagrerFørsteGang
+    | LagrerPåNyttEtterError Http.Error
+    | ForsøkÅLagrePåNyttEtterDetteForsøket
 
 
 type SamtaleStatus
@@ -101,6 +111,7 @@ type Msg
     | StartÅSkrive
     | FullførMelding
     | ViewportSatt (Result Dom.Error ())
+    | WindowEndrerVisibility Visibility
     | FokusSatt (Result Dom.Error ())
     | ErrorLogget (Result Http.Error ())
 
@@ -208,10 +219,12 @@ update msg (Model model) =
         BrukerVilLagreIOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    LagrerFørsteGang
+                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
 
                 OppsummeringEtterEndring skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    LagrerFørsteGang
+                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -281,19 +294,35 @@ update msg (Model model) =
 
         FagbrevSendtTilApi result ->
             case model.aktivSamtale of
-                Lagrer skjema ->
+                Lagrer lagreStatus skjema ->
                     case result of
                         Ok fagdokumentasjoner ->
-                            ( Model
-                                { model
-                                    | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
-                                    , seksjonsMeldingsLogg =
-                                        model.seksjonsMeldingsLogg
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Da har jeg lagret det!" ] ]
-                                }
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
+                            if lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus then
+                                ( Model
+                                    { model
+                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
+                                        , seksjonsMeldingsLogg =
+                                            model.seksjonsMeldingsLogg
+                                                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg vil logge inn" ])
+                                                |> MeldingsLogg.leggTilSpørsmål
+                                                    [ meldingForLagringSuccess skjema ]
+                                    }
+                                , lagtTilSpørsmålCmd model.debugStatus
+                                )
+                                    |> IkkeFerdig
+
+                            else
+                                ( Model
+                                    { model
+                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
+                                        , seksjonsMeldingsLogg =
+                                            model.seksjonsMeldingsLogg
+                                                |> MeldingsLogg.leggTilSpørsmål
+                                                    [ meldingForLagringSuccess skjema ]
+                                    }
+                                , lagtTilSpørsmålCmd model.debugStatus
+                                )
+                                    |> IkkeFerdig
 
                         Err error ->
                             ( error
@@ -301,7 +330,7 @@ update msg (Model model) =
                                 |> nesteSamtaleStegUtenSvar model
                             , Cmd.batch
                                 [ lagtTilSpørsmålCmd model.debugStatus
-                                , logFeilmelding error "Lagre fagbrev" --TODO: Trekk ut i funksjon
+                                , logFeilmelding error "Lagre fagbrev"
                                 ]
                             )
                                 |> IkkeFerdig
@@ -309,10 +338,38 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagringFeilet skjema ((BadStatus 401) as error) ->
+                            ( skjema
+                                |> Lagrer (LagrerPåNyttEtterError error)
+                                |> nesteSamtaleStegUtenSvar model
+                            , Api.postFagdokumentasjon FagbrevSendtTilApi skjema
+                            )
+                                |> IkkeFerdig
+
+                        Lagrer (LagrerPåNyttEtterError (BadStatus 401)) skjema ->
+                            ( skjema
+                                |> Lagrer ForsøkÅLagrePåNyttEtterDetteForsøket
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                Hidden ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         BrukerVilPrøveÅLagrePåNytt ->
             case model.aktivSamtale of
-                LagringFeilet skjema _ ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, prøv på nytt" ])
+                LagringFeilet skjema error ->
+                    error
+                        |> LagrerPåNyttEtterError
+                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, prøv på nytt" ])
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -482,17 +539,49 @@ hentTypeaheadSuggestions query fagdokumentasjonType =
             Api.getAutorisasjonTypeahead HentetTypeahead query
 
 
-updateEtterLagreKnappTrykket : ModelInfo -> ValidertFagdokumentasjonSkjema -> Melding -> SamtaleStatus
-updateEtterLagreKnappTrykket model skjema svar =
+updateEtterLagreKnappTrykket : ModelInfo -> ValidertFagdokumentasjonSkjema -> Melding -> LagreStatus -> SamtaleStatus
+updateEtterLagreKnappTrykket model skjema svar lagreStatus =
     IkkeFerdig
         ( skjema
-            |> Lagrer
+            |> Lagrer lagreStatus
             |> nesteSamtaleSteg model svar
         , Cmd.batch
             [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
             , lagtTilSpørsmålCmd model.debugStatus
             ]
         )
+
+
+meldingForLagringSuccess : ValidertFagdokumentasjonSkjema -> Melding
+meldingForLagringSuccess skjema =
+    let
+        fagdokumentasjonType =
+            skjema
+                |> Skjema.tilSkjema
+                |> Skjema.fagdokumentasjonType
+    in
+    case fagdokumentasjonType of
+        SvennebrevFagbrev ->
+            Melding.spørsmål [ "Nå er det lagret! Så bra at du har fagbrev/svennebrev, arbeidsgivere etterspør det." ]
+
+        Mesterbrev ->
+            Melding.spørsmål [ "Nå er det lagret! Så bra at du har mesterbrev, det er mangel på jobbsøkere med mesterbrev." ]
+
+        Autorisasjon ->
+            Melding.spørsmål [ "Nå er det lagret. Så bra at du har autorisasjon!" ]
+
+
+lagringFeiletTidligerePåGrunnAvInnlogging : LagreStatus -> Bool
+lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus =
+    case lagreStatus of
+        LagrerFørsteGang ->
+            False
+
+        LagrerPåNyttEtterError error ->
+            ErrorHandtering.operasjonEtterError error == LoggInn
+
+        ForsøkÅLagrePåNyttEtterDetteForsøket ->
+            True
 
 
 updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
@@ -583,21 +672,29 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
                     [ Melding.spørsmål [ "Hva er navnet på fagbrevet/svennebrevet ditt?" ]
-                    , Melding.spørsmål [ "Begynn å skrive inn fagbrevet/svennebrevet ditt. Velg et av forslagene fra listen som kommer opp." ]
+                    , Melding.spørsmål [ "Begynn å skriv inn fagbrevet/svennebrevet. Velg et av forslagene fra listen som kommer opp." ]
                     ]
 
                 Mesterbrev ->
                     [ Melding.spørsmål [ "Hva er navnet på mesterbrevet ditt?" ]
-                    , Melding.spørsmål [ "Begynn å skrive inn mesterbrevet ditt. Velg fra listen med forslag som kommer opp." ]
+                    , Melding.spørsmål [ "Begynn å skriv inn mesterbrevet. Velg fra listen med forslag som kommer opp." ]
                     ]
 
                 Autorisasjon ->
                     [ Melding.spørsmål [ "Hva er navnet på autorisasjonen din?" ]
-                    , Melding.spørsmål [ "Begynn å skrive inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
+                    , Melding.spørsmål [ "Begynn å skriv inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
                     ]
 
-        RegistrerBeskrivelse _ _ ->
-            [ Melding.spørsmål [ "Hva lærte du?" ] ]
+        RegistrerBeskrivelse fagdokumentasjonType _ ->
+            case fagdokumentasjonType of
+                SvennebrevFagbrev ->
+                    [ Melding.spørsmål [ "Beskriv kort fagbrevet/svennebrevet ditt." ] ]
+
+                Mesterbrev ->
+                    [ Melding.spørsmål [ "Beskriv kort mesterbrevet ditt." ] ]
+
+                Autorisasjon ->
+                    [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ] ]
 
         Oppsummering skjema ->
             [ Melding.spørsmål
@@ -610,20 +707,49 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                 ]
             ]
 
-        OppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
+        EndrerOppsummering _ skjema ->
+            case Skjema.fagdokumentasjonType skjema of
+                SvennebrevFagbrev ->
+                    [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
-        LagringFeilet _ _ ->
-            [ Melding.spørsmål [ "Oops... Jeg klarte ikke å lagre. Vil du prøve lagre på nytt?" ] ]
+                Mesterbrev ->
+                    [ Melding.spørsmål [ "Nå kan du endre i feltene under." ] ]
+
+                Autorisasjon ->
+                    [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
+
+        OppsummeringEtterEndring _ ->
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+        LagringFeilet validertSkjema error ->
+            [ ErrorHandtering.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
 
         VenterPåAnimasjonFørFullføring _ ->
             []
 
-        Lagrer _ ->
+        Lagrer _ _ ->
             []
 
-        EndrerOppsummering _ _ ->
-            []
+
+lagreOperasjonStringFraSkjema : ValidertFagdokumentasjonSkjema -> String
+lagreOperasjonStringFraSkjema skjema =
+    skjema
+        |> Skjema.tilSkjema
+        |> Skjema.fagdokumentasjonType
+        |> lagreOperasjonStringFraFagdokumentasjonType
+
+
+lagreOperasjonStringFraFagdokumentasjonType : FagdokumentasjonType -> String
+lagreOperasjonStringFraFagdokumentasjonType fagdokumentasjonType =
+    case fagdokumentasjonType of
+        SvennebrevFagbrev ->
+            "lagre fagbrevet/svennebrevet"
+
+        Mesterbrev ->
+            "lagre mesterbrevet"
+
+        Autorisasjon ->
+            "lagre autorisasjonen"
 
 
 settFokus : Samtale -> Cmd Msg
@@ -683,7 +809,7 @@ viewBrukerInput (Model model) =
                         ]
 
                 EndrerOppsummering typeaheadModel skjema ->
-                    Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre" }
+                    Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre endringer" }
                         [ skjema
                             |> Skjema.feilmeldingTypeahead
                             |> Typeahead.view Konsept.label typeaheadModel
@@ -703,16 +829,27 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         ]
 
-                Lagrer _ ->
+                Lagrer _ _ ->
                     text ""
 
-                LagringFeilet _ _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Ja, prøv på nytt"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Nei, gå videre uten å lagre"
-                            |> Knapp.toHtml
-                        ]
+                LagringFeilet _ error ->
+                    case ErrorHandtering.operasjonEtterError error of
+                        GiOpp ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        PrøvPåNytt ->
+                            Containers.knapper Flytende
+                                [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
+                                    |> Knapp.toHtml
+                                , Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
+                                    |> Knapp.toHtml
+                                ]
+
+                        LoggInn ->
+                            Common.viewLoggInnLenke
 
                 VenterPåAnimasjonFørFullføring _ ->
                     text ""
@@ -817,3 +954,8 @@ initMesterbrev =
 initAutorisasjon : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
 initAutorisasjon =
     init Autorisasjon
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Browser.Events.onVisibilityChange WindowEndrerVisibility

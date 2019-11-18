@@ -1,6 +1,7 @@
 module Dato exposing
     ( Dato
     , DatoFeilmelding
+    , DatoPeriode(..)
     , DatoValidering(..)
     , Måned(..)
     , TilDato(..)
@@ -10,6 +11,7 @@ module Dato exposing
     , encodeMaybeDato
     , encodeMonthYear
     , feilmeldingForDato
+    , feilmeldingValgfriMåned
     , feilmeldingÅr
     , formaterDag
     , getDatoDag
@@ -539,3 +541,21 @@ tilDatoTilString tilDato =
 datoTilString : Måned -> År -> String
 datoTilString måned_ år_ =
     månedTilString måned_ ++ " " ++ årTilString år_
+
+
+
+--- Valgfri Periode ---
+
+
+type DatoPeriode
+    = IkkeOppgitt
+    | Oppgitt Måned År TilDato
+
+
+feilmeldingValgfriMåned : Maybe Måned -> Maybe String
+feilmeldingValgfriMåned måned_ =
+    if måned_ == Nothing then
+        Just "Velg måned"
+
+    else
+        Nothing

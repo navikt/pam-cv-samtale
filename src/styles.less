@@ -154,6 +154,7 @@ html {
   border-radius: 12px;
   position: relative;
   margin-top: 0.5rem;
+  overflow-wrap: break-word;
 
   p {
     margin: 0;
@@ -232,7 +233,8 @@ html {
     max-width: @meldingBredde;
   }
 
-  .knapper--måneder {
+  .knapper--måneder,
+  .knapper--varighet {
     display: grid;
     @media (min-width: @meldingBredde) {
       width: 30rem;
@@ -400,6 +402,63 @@ html {
     margin-left: 1rem;
   }
 }
+
+.ValgfriDatoInput-kolonne {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+
+
+  .Dato-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+
+    .skjemaelement {
+      margin-bottom: 0;
+    }
+
+    .skjemaelement__input.input--fullbredde.aar {
+      width: 5rem;
+    }
+
+    .DatoInput-måned {
+      padding-right: 2.5rem;
+    }
+
+    .DatoInput-år-wrapper {
+      margin-left: 1rem;
+    }
+  }
+
+}
+
+.Varighet-kolonne {
+  display: flex;
+  flex-direction: column;
+
+  .Inputs-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .Select-wrapper {
+    width: 8rem;
+  }
+
+  .Varighet-enhet {
+    padding-right: 2.5rem;
+  }
+
+  .Varighet-antall {
+    width: 5rem;
+    margin-left: 1rem;
+  }
+
+}
+
+
 .ForlateSiden {
   text-decoration: none;
 
