@@ -712,6 +712,19 @@ gåTilKurs model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilFørerkort : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilFørerkort model ferdigAnimertMeldingsLogg =
+    let
+        ( førerkortModel, førerkortCmd ) =
+            Forerkort.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.forerkort model.cv)
+    in
+    ( { model
+        | aktivSeksjon = FørerkortSeksjon førerkortModel
+      }
+    , Cmd.map FørerkortMsg førerkortCmd
+    )
+
+
 gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilAutorisasjoner
@@ -826,6 +839,7 @@ type ValgtSeksjon
     | SertifiseringValgt
     | AnnenErfaringValgt
     | KursValgt
+    | FørerkortValgt
 
 
 updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
@@ -1256,6 +1270,9 @@ gåTilValgtSeksjon model info valgtSeksjon =
 
                 KursValgt ->
                     gåTilKurs model ferdigAnimertMeldingsLogg
+
+                FørerkortValgt ->
+                    gåTilFørerkort model ferdigAnimertMeldingsLogg
 
         MeldingerGjenstår ->
             ( { info | meldingsLogg = meldingsLogg }
@@ -1871,6 +1888,7 @@ viewLeggTilAnnet =
     Containers.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
         , seksjonsvalgKnapp KursValgt
+        , seksjonsvalgKnapp FørerkortValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
             |> Knapp.toHtml
         ]
@@ -1924,6 +1942,9 @@ seksjonsvalgTilString seksjonsvalg =
 
         KursValgt ->
             "Kurs"
+
+        FørerkortValgt ->
+            "Førerkort"
 
 
 
