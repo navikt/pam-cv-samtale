@@ -1,4 +1,4 @@
-module SamtaleAnimasjon exposing (Msg, scrollTilBunn, startAnimasjon, subscriptions, update)
+module SamtaleAnimasjon exposing (Msg, startAnimasjon, subscriptions, update)
 
 import Browser.Dom as Dom exposing (Element, Viewport)
 import Browser.Events
@@ -8,13 +8,6 @@ import MeldingsLogg exposing (AntallOrdNesteOgForrigeMelding(..), FerdigAnimertS
 import Process
 import Task exposing (Task)
 import Time
-
-
-scrollTilBunn : (Result Dom.Error () -> msg) -> Cmd msg
-scrollTilBunn msgKonstruktør =
-    Dom.getViewportOf "samtale"
-        |> Task.andThen (\viewportInfo -> Dom.setViewportOf "samtale" 0 (viewportInfo.scene.height - viewportInfo.viewport.height))
-        |> Task.attempt msgKonstruktør
 
 
 type Msg
@@ -199,9 +192,8 @@ ventetidFørBrukerinputScrollesInn meldingsLogg =
                 |> clamp 500 3600
 
 
-hoppOverMeldingsanimasjon : MeldingsLogg -> ( MeldingsLogg, Cmd Msg )
-hoppOverMeldingsanimasjon meldingsLogg =
-    ( MeldingsLogg.debugFullførAlleMeldinger meldingsLogg, scrollTilBunn ScrolletViewport )
+
+--- DOM TASKS ---
 
 
 tilMeldingDimensjoner : Element -> Viewport -> Time.Posix -> Element -> MeldingDimensjonInfo
@@ -243,6 +235,10 @@ getTimeViewportAndElement =
         (Dom.getViewportOf "samtale")
         Time.now
         (Dom.getElement "samtale-innhold")
+
+
+
+--- SCROLLING ---
 
 
 scrollTilSkriveIndikator : MeldingsLogg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
@@ -399,6 +395,26 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
         , Dom.setViewportOf "samtale" 0 scrollTilPosisjon
             |> Task.attempt ScrolletViewport
         )
+
+
+
+--- DEBUG MODUS ---
+
+
+hoppOverMeldingsanimasjon : MeldingsLogg -> ( MeldingsLogg, Cmd Msg )
+hoppOverMeldingsanimasjon meldingsLogg =
+    ( MeldingsLogg.debugFullførAlleMeldinger meldingsLogg, scrollTilBunn ScrolletViewport )
+
+
+scrollTilBunn : (Result Dom.Error () -> msg) -> Cmd msg
+scrollTilBunn msgKonstruktør =
+    Dom.getViewportOf "samtale"
+        |> Task.andThen (\viewportInfo -> Dom.setViewportOf "samtale" 0 (viewportInfo.scene.height - viewportInfo.viewport.height))
+        |> Task.attempt msgKonstruktør
+
+
+
+--- SUBSCRIPTIONS ---
 
 
 subscriptions : MeldingsLogg -> Sub Msg
