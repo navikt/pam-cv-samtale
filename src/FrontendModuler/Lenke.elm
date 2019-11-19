@@ -34,6 +34,7 @@ toHtml (Lenke options) =
                 [ href options.url
                 , class "lenke"
                 , target "_blank"
+                , rel "noopener noreferrer"
                 ]
                 [ span [] [ text options.tekst ]
                 , i [ class "ForlateSiden__icon" ] []

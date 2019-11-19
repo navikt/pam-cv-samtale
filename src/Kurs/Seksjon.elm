@@ -22,7 +22,6 @@ import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Select as Select
-import FrontendModuler.Textarea as Textarea
 import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -190,10 +189,8 @@ type Msg
     | VilLagreEndretSkjema
     | KursLagret (Result Http.Error (List Kurs))
     | FerdigMedKurs
-    | StartÅSkrive
-    | FullførMelding
     | WindowEndrerVisibility Visibility
-    | ViewportSatt (Result Dom.Error ())
+    | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
     | FeltMisterFokus
     | ErrorLogget
@@ -582,22 +579,6 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        StartÅSkrive ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
-                }
-            , Cmd.batch
-                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> DebugStatus.meldingsTimeout model.debugStatus
-                    |> Process.sleep
-                    |> Task.perform (always FullførMelding)
-                ]
-            )
-                |> IkkeFerdig
-
         WindowEndrerVisibility visibility ->
             case visibility of
                 Visible ->
@@ -630,13 +611,9 @@ update msg (Model model) =
                 Hidden ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        FullførMelding ->
-            model.seksjonsMeldingsLogg
-                |> MeldingsLogg.fullførMelding
+        SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
+            SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
                 |> updateEtterFullførtMelding model
-
-        ViewportSatt _ ->
-            IkkeFerdig ( Model model, Cmd.none )
 
         FokusSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -676,8 +653,8 @@ oppdaterSkjema endring skjema =
             Skjema.tillatÅViseFeilmeldingVarighet skjema
 
 
-updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
-updateEtterFullførtMelding model nyMeldingsLogg =
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
@@ -685,25 +662,17 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     Ferdig kursListe ferdigAnimertSamtale
 
                 _ ->
-                    ( Model
-                        { model
-                            | seksjonsMeldingsLogg =
-                                nyMeldingsLogg
-                        }
+                    ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
                     , Cmd.batch
-                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        [ Cmd.map SamtaleAnimasjonMsg cmd
                         , settFokus model.aktivSamtale
                         ]
                     )
                         |> IkkeFerdig
 
         MeldingerGjenstår ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        nyMeldingsLogg
-                }
-            , lagtTilSpørsmålCmd model.debugStatus
+            ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
+            , Cmd.map SamtaleAnimasjonMsg cmd
             )
                 |> IkkeFerdig
 
@@ -731,13 +700,8 @@ updateEtterLagreKnappTrykket model skjema melding =
 
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
-    Cmd.batch
-        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , 200
-            |> DebugStatus.meldingsTimeout debugStatus
-            |> Process.sleep
-            |> Task.perform (always StartÅSkrive)
-        ]
+    SamtaleAnimasjon.startAnimasjon debugStatus
+        |> Cmd.map SamtaleAnimasjonMsg
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -816,10 +780,10 @@ samtaleTilMeldingsLogg kursSeksjon =
             ]
 
         EndreOpplysninger _ ->
-            []
+            [ Melding.spørsmål [ "Gjør endringene du ønsker i feltene under." ] ]
 
         VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Da har du endret! Er informasjonen riktig nå?" ] ]
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         LagrerSkjema _ _ ->
             []
@@ -872,9 +836,8 @@ settFokus samtale =
 
 settFokusCmd : InputId -> Cmd Msg
 settFokusCmd inputId =
-    inputId
-        |> inputIdTilString
-        |> Dom.focus
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
 
 
@@ -907,151 +870,150 @@ inputIdTilString inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case model.aktivSamtale of
-                RegistrerKursnavn info ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereKursnavn
-                        [ info.kursnavn
-                            |> Input.input { label = "Kursets navn", msg = OppdatererKursnavn }
-                            |> Input.withOnEnter VilRegistrereKursnavn
-                            |> Input.withId (inputIdTilString KursnavnId)
+    if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
+        case model.aktivSamtale of
+            RegistrerKursnavn info ->
+                Containers.inputMedGåVidereKnapp VilRegistrereKursnavn
+                    [ info.kursnavn
+                        |> Input.input { label = "Kursets navn", msg = OppdatererKursnavn }
+                        |> Input.withOnEnter VilRegistrereKursnavn
+                        |> Input.withId (inputIdTilString KursnavnId)
+                        |> Input.withOnBlur FeltMisterFokus
+                        |> Input.withMaybeFeilmelding
+                            (info.kursnavn
+                                |> Skjema.feilmeldingKursnavn
+                                |> maybeHvisTrue info.tillatÅViseFeilmeldingKursnavn
+                            )
+                        |> Input.toHtml
+                    ]
+
+            RegistrerKursholder info ->
+                Containers.inputMedGåVidereKnapp VilRegistrereKursholder
+                    [ info.kursholder
+                        |> Input.input { label = "Kursets arrangør", msg = OppdatererKursholder }
+                        |> Input.withOnEnter VilRegistrereKursholder
+                        |> Input.withMaybeFeilmelding (Skjema.feilmeldingKursholder info.kursholder)
+                        |> Input.withId (inputIdTilString KursholderId)
+                        |> Input.toHtml
+                    ]
+
+            SpørOmBrukerVilLeggeInnFullførtDato _ ->
+                Containers.knapper Flytende
+                    [ "Ja, det vil jeg"
+                        |> Knapp.knapp SvarerJaTilFullførtDato
+                        |> Knapp.toHtml
+                    , "Nei, det vil jeg ikke"
+                        |> Knapp.knapp SvarerNeiTilFullførtDato
+                        |> Knapp.toHtml
+                    ]
+
+            RegistrerFullførtMåned _ ->
+                MånedKnapper.månedKnapper FullførtMånedValgt
+
+            RegistrerFullførtÅr fullførtDatoInfo ->
+                Containers.inputMedGåVidereKnapp VilRegistrereFullførtÅr
+                    [ div [ class "år-wrapper" ]
+                        [ fullførtDatoInfo.fullførtÅr
+                            |> Input.input { label = "År", msg = OppdatererFullførtÅr }
+                            |> Input.withClass "aar"
+                            |> Input.withOnEnter VilRegistrereFullførtÅr
                             |> Input.withOnBlur FeltMisterFokus
+                            |> Input.withId (inputIdTilString FullførtÅrId)
                             |> Input.withMaybeFeilmelding
-                                (info.kursnavn
-                                    |> Skjema.feilmeldingKursnavn
-                                    |> maybeHvisTrue info.tillatÅViseFeilmeldingKursnavn
+                                (fullførtDatoInfo.fullførtÅr
+                                    |> Dato.feilmeldingÅr
+                                    |> maybeHvisTrue fullførtDatoInfo.tillatÅViseFeilmeldingÅr
                                 )
                             |> Input.toHtml
                         ]
+                    ]
 
-                RegistrerKursholder info ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereKursholder
-                        [ info.kursholder
-                            |> Input.input { label = "Kursets arrangør", msg = OppdatererKursholder }
-                            |> Input.withOnEnter VilRegistrereKursholder
-                            |> Input.withMaybeFeilmelding (Skjema.feilmeldingKursholder info.kursholder)
-                            |> Input.withId (inputIdTilString KursholderId)
+            RegistrerVarighetEnhet _ ->
+                varighetEnhetKnapper
+
+            RegistrerVarighet info ->
+                Containers.inputMedGåVidereKnapp VilRegistrereVarighet
+                    [ div [ class "år-wrapper" ]
+                        [ info.varighet
+                            |> Input.input { label = "Antall", msg = OppdatererVarighet }
+                            |> Input.withOnEnter VilRegistrereVarighet
+                            |> Input.withOnBlur FeltMisterFokus
+                            |> Input.withId (inputIdTilString VarighetId)
+                            |> Input.withMaybeFeilmelding
+                                (info.varighet
+                                    |> Skjema.feilmeldingVarighet
+                                    |> maybeHvisTrue info.tillatÅViseFeilmeldingVarighet
+                                )
                             |> Input.toHtml
                         ]
+                    ]
 
-                SpørOmBrukerVilLeggeInnFullførtDato _ ->
-                    Containers.knapper Flytende
-                        [ "Ja, det vil jeg"
-                            |> Knapp.knapp SvarerJaTilFullførtDato
-                            |> Knapp.toHtml
-                        , "Nei, det vil jeg ikke"
-                            |> Knapp.knapp SvarerNeiTilFullførtDato
-                            |> Knapp.toHtml
+            VisOppsummering _ ->
+                viewBekreftOppsummering
+
+            VisOppsummeringEtterEndring _ ->
+                viewBekreftOppsummering
+
+            EndreOpplysninger skjema ->
+                Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                    [ skjema
+                        |> Skjema.innholdTekstFelt Kursnavn
+                        |> Input.input { label = "Kursnavn", msg = Tekst Kursnavn >> SkjemaEndret }
+                        |> Input.withMaybeFeilmelding (Skjema.feilmeldingKursnavnHvisSynlig skjema)
+                        |> Input.withOnBlur (SkjemaEndret KursnavnBlurred)
+                        |> Input.toHtml
+                    , skjema
+                        |> Skjema.innholdTekstFelt Kursholder
+                        |> Input.input { label = "Kursholder", msg = Tekst Kursholder >> SkjemaEndret }
+                        |> Input.withMaybeFeilmelding (Skjema.innholdTekstFelt Kursholder skjema |> Skjema.feilmeldingKursholder)
+                        |> Input.toHtml
+                    , div [ class "DatoInput-fra-til-rad" ]
+                        [ ValgfriDatoInput.datoInput
+                            { label = "Fullført"
+                            , onMånedChange = FullførtMåned >> SkjemaEndret
+                            , måned = Skjema.fullførtMåned skjema
+                            , onÅrChange = Tekst FullførtÅr >> SkjemaEndret
+                            , år = Skjema.innholdTekstFelt FullførtÅr skjema
+                            }
+                            |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingValgfrittFullførtÅr skjema)
+                            |> ValgfriDatoInput.withMaybeFeilmeldingPeriode (Skjema.feilmeldingPeriode skjema)
+                            |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrBlurred)
+                            |> ValgfriDatoInput.toHtml
+                        , viewVarighet skjema
                         ]
+                    ]
 
-                RegistrerFullførtMåned _ ->
-                    MånedKnapper.månedKnapper FullførtMånedValgt
+            LagrerSkjema _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
 
-                RegistrerFullførtÅr fullførtDatoInfo ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereFullførtÅr
-                        [ div [ class "år-wrapper" ]
-                            [ fullførtDatoInfo.fullførtÅr
-                                |> Input.input { label = "År", msg = OppdatererFullførtÅr }
-                                |> Input.withClass "aar"
-                                |> Input.withOnEnter VilRegistrereFullførtÅr
-                                |> Input.withOnBlur FeltMisterFokus
-                                |> Input.withId (inputIdTilString FullførtÅrId)
-                                |> Input.withMaybeFeilmelding
-                                    (fullførtDatoInfo.fullførtÅr
-                                        |> Dato.feilmeldingÅr
-                                        |> maybeHvisTrue fullførtDatoInfo.tillatÅViseFeilmeldingÅr
-                                    )
-                                |> Input.toHtml
+                else
+                    text ""
+
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    ErrorHåndtering.GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp FerdigMedKurs "Gå videre"
+                                |> Knapp.toHtml
                             ]
-                        ]
 
-                RegistrerVarighetEnhet _ ->
-                    varighetEnhetKnapper
-
-                RegistrerVarighet info ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereVarighet
-                        [ div [ class "år-wrapper" ]
-                            [ info.varighet
-                                |> Input.input { label = "Antall", msg = OppdatererVarighet }
-                                |> Input.withOnEnter VilRegistrereVarighet
-                                |> Input.withOnBlur FeltMisterFokus
-                                |> Input.withId (inputIdTilString VarighetId)
-                                |> Input.withMaybeFeilmelding
-                                    (info.varighet
-                                        |> Skjema.feilmeldingVarighet
-                                        |> maybeHvisTrue info.tillatÅViseFeilmeldingVarighet
-                                    )
-                                |> Input.toHtml
+                    ErrorHåndtering.PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp FerdigMedKurs "Prøv igjen"
+                                |> Knapp.toHtml
+                            , Knapp.knapp FerdigMedKurs "Gå videre"
+                                |> Knapp.toHtml
                             ]
-                        ]
 
-                VisOppsummering _ ->
-                    viewBekreftOppsummering
-
-                VisOppsummeringEtterEndring _ ->
-                    viewBekreftOppsummering
-
-                EndreOpplysninger skjema ->
-                    Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
-                        [ skjema
-                            |> Skjema.innholdTekstFelt Kursnavn
-                            |> Input.input { label = "Kursnavn", msg = Tekst Kursnavn >> SkjemaEndret }
-                            |> Input.withMaybeFeilmelding (Skjema.feilmeldingKursnavnHvisSynlig skjema)
-                            |> Input.withOnBlur (SkjemaEndret KursnavnBlurred)
-                            |> Input.toHtml
-                        , skjema
-                            |> Skjema.innholdTekstFelt Kursholder
-                            |> Input.input { label = "Kursholder", msg = Tekst Kursholder >> SkjemaEndret }
-                            |> Input.withMaybeFeilmelding (Skjema.innholdTekstFelt Kursholder skjema |> Skjema.feilmeldingKursholder)
-                            |> Input.toHtml
-                        , div [ class "DatoInput-fra-til-rad" ]
-                            [ ValgfriDatoInput.datoInput
-                                { label = "Fullført"
-                                , onMånedChange = FullførtMåned >> SkjemaEndret
-                                , måned = Skjema.fullførtMåned skjema
-                                , onÅrChange = Tekst FullførtÅr >> SkjemaEndret
-                                , år = Skjema.innholdTekstFelt FullførtÅr skjema
-                                }
-                                |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingValgfrittFullførtÅr skjema)
-                                |> ValgfriDatoInput.withMaybeFeilmeldingPeriode (Skjema.feilmeldingPeriode skjema)
-                                |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrBlurred)
-                                |> ValgfriDatoInput.toHtml
-                            , viewVarighet skjema
-                            ]
-                        ]
-
-                LagrerSkjema _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-                    else
-                        text ""
+            VenterPåAnimasjonFørFullføring _ ->
+                div [] []
 
-                LagringFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        ErrorHåndtering.GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp FerdigMedKurs "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        ErrorHåndtering.PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp FerdigMedKurs "Prøv igjen"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp FerdigMedKurs "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        ErrorHåndtering.LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                VenterPåAnimasjonFørFullføring _ ->
-                    div [] []
-
-        MeldingerGjenstår ->
-            text ""
+    else
+        text ""
 
 
 varighetEnhetKnapper : Html Msg
@@ -1148,5 +1110,10 @@ init debugStatus gammelMeldingsLogg kursListe =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Browser.Events.onVisibilityChange WindowEndrerVisibility
+subscriptions (Model model) =
+    Sub.batch
+        [ Browser.Events.onVisibilityChange WindowEndrerVisibility
+        , model.seksjonsMeldingsLogg
+            |> SamtaleAnimasjon.subscriptions
+            |> Sub.map SamtaleAnimasjonMsg
+        ]
