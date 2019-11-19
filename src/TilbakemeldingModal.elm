@@ -78,8 +78,9 @@ update msg (Model model) =
 
 view : Model -> Html Msg
 view _ =
-    div [ class "modal__overlay" ]
-        [ div [ id "tilbakemeldings-modal-id", class "modal tilbakemelding-modal", tabindex -1, role "dialog", ariaLabel "Modal - Gi tilbakemelding" ]
+    div [ class "modal__overlay", Html.Attributes.attribute "aria-modal" "true" ]
+        [ div [ class "modal__overlay gjennomsiktig", onClick TrykketLukkeKnapp ] []
+        , div [ id modalId, class "modal tilbakemelding-modal", tabindex -1, role "dialog", ariaLabel "Modal - Gi tilbakemelding" ]
             [ button
                 [ class "lukknapp lukknapp--overstHjorne modal__lukknapp--shake"
                 , onClick TrykketLukkeKnapp
@@ -115,6 +116,11 @@ inputIdTilString inputId =
 
         AvsluttLenke ->
             "tilbakemelding-modal--avslutt-lenke"
+
+
+modalId : String
+modalId =
+    "tilbakemeldings-modal-id"
 
 
 type InputId
@@ -167,6 +173,10 @@ subscriptions _ =
 --- INIT ---
 
 
-init : Model
+init : ( Model, Cmd Msg )
 init =
-    Model { sisteElementMedFokus = LukkeKnapp }
+    ( Model { sisteElementMedFokus = LukkeKnapp }
+    , modalId
+        |> Browser.Dom.focus
+        |> Task.attempt SattFocus
+    )

@@ -164,8 +164,12 @@ update msg extendedModel =
             )
 
         ÅpneTilbakemeldingModal ->
-            ( { extendedModel | modalStatus = TilbakemeldingModalÅpen TilbakemeldingModal.init }
-            , Cmd.none
+            let
+                ( modalModel, cmd ) =
+                    TilbakemeldingModal.init
+            in
+            ( { extendedModel | modalStatus = TilbakemeldingModalÅpen modalModel }
+            , Cmd.map ModalMsg cmd
             )
 
         ModalMsg modalMsg ->
