@@ -245,7 +245,7 @@ scrollTilSkriveIndikator : MeldingsLogg -> { startTidForScrolling : Time.Posix, 
 scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewport, samtaleElement } tidNå =
     let
         sluttPosisjon =
-            samtaleElement.element.height + 12 - 16 - opprinneligViewport.viewport.height
+            samtaleElement.element.height + 40 - 16 - opprinneligViewport.viewport.height
     in
     if sluttPosisjon < 0 then
         ( meldingsLogg, Cmd.none )
@@ -254,7 +254,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
         ( meldingsLogg
         , { animasjonstidMs = 400
           , opprinneligViewport = opprinneligViewport
-          , sluttPosisjon = samtaleElement.element.height + 12 - 16 - opprinneligViewport.viewport.height
+          , sluttPosisjon = sluttPosisjon
           , tidNå = tidNå
           , startTidForScrolling = startTidForScrolling
           }
@@ -274,7 +274,7 @@ scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewpor
             heightPlussPadding - 54
 
         sluttPosisjon =
-            forskjellMeldingstørrelse - (16 - ((samtaleElement.element.height + 12) - opprinneligViewport.viewport.height))
+            forskjellMeldingstørrelse - (16 - ((samtaleElement.element.height + 40) - opprinneligViewport.viewport.height))
     in
     if sluttPosisjon < 0 then
         ( meldingsLogg, Cmd.none )
