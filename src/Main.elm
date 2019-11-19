@@ -1582,10 +1582,10 @@ viewSpørsmål spørsmål =
                         16
 
                     snakkebobleHeight =
-                        height + (2 * padding)
+                        height + (2 * padding) + 1
 
                     snakkebobleWidth =
-                        width + (2 * padding)
+                        width + (2 * padding) + 1
                 in
                 article
                     [ class "melding ferdiganimert"
