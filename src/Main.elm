@@ -1500,14 +1500,21 @@ meldingsLoggFraSeksjon aktivSeksjon =
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
-    div [ class "samtale-wrapper", id "samtale" ]
-        [ div [ class "samtale" ]
-            [ div [ id "samtale-innhold" ]
-                [ successModel.aktivSeksjon
-                    |> meldingsLoggFraSeksjon
-                    |> viewMeldingsLogg
-                , viewBrukerInput successModel.aktivSeksjon
-                , div [ class "samtale-padding" ] []
+    div [ class "cv-samtale", id "samtale" ]
+        [ div [ id "samtale-innhold" ]
+            [ div [ class "samtale-header" ]
+                [ i [ class "Robotlogo-header" ] []
+                , h1 [] [ text "Få hjelp til å lage CV-en" ]
+                , p [] [ text "Her starter samtalen din med roboten" ]
+                ]
+            , div [ class "samtale-wrapper" ]
+                [ div [ class "samtale" ]
+                    [ successModel.aktivSeksjon
+                        |> meldingsLoggFraSeksjon
+                        |> viewMeldingsLogg
+                    , viewBrukerInput successModel.aktivSeksjon
+                    , div [ class "samtale-padding" ] []
+                    ]
                 ]
             ]
         ]
