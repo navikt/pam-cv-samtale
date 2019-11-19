@@ -83,19 +83,36 @@ html {
   flex-direction: column;
   border-bottom: 1px solid #d8d8d8;
   align-items: center;
-  margin: 2rem auto 2.5rem;
+  margin: 2.5rem auto 1.25rem;
 
-  .robot {
-    width: 80px;
-    height: 80px;
+
+  .Robotlogo-header {
+    @media (min-width: 672px) {
+      width: 80px;
+      height: 80px;
+    }
+    @media (max-width: 671px) {
+      width: 60px;
+      height: 60px;
+    }
+
+    background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
   }
 
   h1 {
     margin: 1rem 0 0.5rem;
+    font-size: 24px;
+    font-weight: bold;
+
+    @media (max-width: 671px) {
+      font-size: 20px;
+      margin-bottom: 0;
+    }
   }
 
   p {
     margin-top: 0;
+    margin-bottom: 2.5rem;
     font-size: 18px;
   }
 }

@@ -1509,8 +1509,7 @@ viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div [ class "CV-samtale" ]
         [ div [ class "samtale-header" ]
-            [ div [ class "robot", robotAttribute spørsmål ]
-                [ i [ class "Robotlogo" ] [] ]
+            [ i [ class "Robotlogo-header" ] []
             , h1 [] [ text "Få hjelp til å lage CV-en" ]
             , p [] [ text "Her starter samtalen din med roboten" ]
             ]
