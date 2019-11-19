@@ -1583,7 +1583,7 @@ viewSpørsmål spørsmål =
                         16
 
                     snakkebobleHeight =
-                        height + (2 * padding) + 1
+                        Konstanter.meldingHøyde height
 
                     snakkebobleWidth =
                         width + (2 * padding) + 1
@@ -1654,7 +1654,7 @@ transformForRobot : { height : Int } -> Html.Attribute msg
 transformForRobot { height } =
     let
         avstand =
-            ((Konstanter.meldingHøyde height + Konstanter.skriveIndikatorHøyde) / 2) + Konstanter.meldingMarginTop
+            (toFloat (Konstanter.meldingHøyde height + Konstanter.skriveIndikatorHøyde) / 2) + toFloat Konstanter.meldingMarginTop
     in
     style "transform" ("translateY(" ++ String.fromFloat avstand ++ "px)")
 

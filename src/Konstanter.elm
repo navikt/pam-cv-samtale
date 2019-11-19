@@ -1,7 +1,7 @@
 module Konstanter exposing (meldingHøyde, meldingMarginTop, skriveIndikatorHøyde)
 
 
-meldingMarginTop : Float
+meldingMarginTop : Int
 meldingMarginTop =
     8
 
@@ -11,12 +11,11 @@ meldingPadding =
     16
 
 
-meldingHøyde : Int -> Float
+meldingHøyde : Int -> Int
 meldingHøyde height =
     let
         meldingHøydeMaks =
-            (height + (2 * meldingPadding))
-                |> toFloat
+            height + (2 * meldingPadding)
     in
     if meldingHøydeMaks <= 56 then
         56
@@ -25,6 +24,6 @@ meldingHøyde height =
         meldingHøydeMaks
 
 
-skriveIndikatorHøyde : Float
+skriveIndikatorHøyde : Int
 skriveIndikatorHøyde =
     56
