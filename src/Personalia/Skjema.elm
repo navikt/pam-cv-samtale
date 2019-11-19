@@ -21,6 +21,7 @@ module Personalia.Skjema exposing
     , poststed
     , telefon
     , telefonFeilmelding
+    , tilUvalidertSkjema
     , validerSkjema
     )
 
@@ -65,6 +66,25 @@ init personalia =
         , gateadresse = Personalia.gateadresse personalia |> Maybe.withDefault ""
         , postnummer = Personalia.postnummer personalia |> Maybe.withDefault ""
         , poststed = Poststed.fraPersonalia personalia
+        , visFeilmeldingFornavn = False
+        , visFeilmeldingEtternavn = False
+        , visFeilmeldingEpost = False
+        , visFeilmeldingTelefon = False
+        , visFeilmeldingPostnummer = False
+        }
+
+
+tilUvalidertSkjema : ValidertPersonaliaSkjema -> PersonaliaSkjema
+tilUvalidertSkjema (ValidertPersonaliaSkjema info) =
+    PersonaliaSkjema
+        { fornavn = info.fornavn
+        , etternavn = info.etternavn
+        , fodselsdato = info.fodselsdato
+        , epost = info.epost
+        , telefon = info.telefon
+        , gateadresse = info.gateadresse
+        , postnummer = info.postnummer
+        , poststed = info.poststed
         , visFeilmeldingFornavn = False
         , visFeilmeldingEtternavn = False
         , visFeilmeldingEpost = False

@@ -778,8 +778,8 @@ type AndreSamtaleStegMsg
     | SammendragEndret String
     | VilLagreSammendragSkjema
     | VilLagreBekreftetSammendrag
+    | VilIkkeLagreSammendrag
     | SammendragOppdatert (Result Http.Error Sammendrag)
-    | BrukerVilIkkeRedigereSammendrag
     | SeksjonValgt ValgtSeksjon
     | IngenAvAutorisasjonSeksjoneneValgt
     | IngenAvDeAndreSeksjoneneValgt
@@ -923,16 +923,9 @@ updateAndreSamtaleSteg model msg info =
 
                 BekreftSammendrag bekreftSammendragState ->
                     case bekreftSammendragState of
-                        OpprinneligSammendrag opprinnelig ->
-                            let
-                                sammendrag =
-                                    Sammendrag.toString opprinnelig
-                            in
-                            ( LagreStatus.init
-                                |> LagrerSammendrag sammendrag
-                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
-                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
-                            )
+                        OpprinneligSammendrag _ ->
+                            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg er fornøyd" ]) }
+                                |> gåTilAvslutning model
 
                         NyttSammendrag sammendrag ->
                             ( LagreStatus.init
@@ -951,8 +944,8 @@ updateAndreSamtaleSteg model msg info =
                 _ ->
                     ( model, Cmd.none )
 
-        BrukerVilIkkeRedigereSammendrag ->
-            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg er fornøyd" ]) }
+        VilIkkeLagreSammendrag ->
+            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Gå videre uten å lagre" ]) }
                 |> gåTilAvslutning model
 
         SammendragOppdatert result ->
@@ -1508,14 +1501,21 @@ meldingsLoggFraSeksjon aktivSeksjon =
 
 viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
-    div [ class "samtale-wrapper", id "samtale" ]
-        [ div [ class "samtale" ]
-            [ div [ id "samtale-innhold" ]
-                [ successModel.aktivSeksjon
-                    |> meldingsLoggFraSeksjon
-                    |> viewMeldingsLogg
-                , viewBrukerInput successModel.aktivSeksjon
-                , div [ class "samtale-padding" ] []
+    div [ class "cv-samtale", id "samtale" ]
+        [ div [ id "samtale-innhold" ]
+            [ div [ class "samtale-header" ]
+                [ i [ class "Robotlogo-header" ] []
+                , h1 [] [ text "Få hjelp til å lage CV-en" ]
+                , p [] [ text "Her starter samtalen din med roboten" ]
+                ]
+            , div [ class "samtale-wrapper" ]
+                [ div [ class "samtale" ]
+                    [ successModel.aktivSeksjon
+                        |> meldingsLoggFraSeksjon
+                        |> viewMeldingsLogg
+                    , viewBrukerInput successModel.aktivSeksjon
+                    , div [ class "samtale-padding" ] []
+                    ]
                 ]
             ]
         ]
@@ -1774,13 +1774,13 @@ viewBrukerInputForAndreSamtaleSteg info =
             BekreftSammendrag bekreftSammendragState ->
                 case bekreftSammendragState of
                     OpprinneligSammendrag _ ->
-                        viewBekreftSammendrag BrukerVilIkkeRedigereSammendrag
+                        viewBekreftSammendrag
 
                     NyttSammendrag _ ->
-                        viewBekreftSammendrag VilLagreBekreftetSammendrag
+                        viewBekreftSammendrag
 
                     EndretSammendrag _ ->
-                        viewBekreftSammendrag VilLagreBekreftetSammendrag
+                        viewBekreftSammendrag
 
             EndrerSammendrag sammendrag ->
                 Containers.skjema { lagreMsg = VilLagreSammendragSkjema, lagreKnappTekst = "Lagre endringer" }
@@ -1801,7 +1801,7 @@ viewBrukerInputForAndreSamtaleSteg info =
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
                         Containers.knapper Flytende
-                            [ Knapp.knapp BrukerVilIkkeRedigereSammendrag "Gå videre uten å lagre"
+                            [ Knapp.knapp VilIkkeLagreSammendrag "Gå videre uten å lagre"
                                 |> Knapp.toHtml
                             ]
 
@@ -1809,7 +1809,7 @@ viewBrukerInputForAndreSamtaleSteg info =
                         Containers.knapper Flytende
                             [ Knapp.knapp VilLagreBekreftetSammendrag "Prøv på nytt"
                                 |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilIkkeRedigereSammendrag "Gå videre uten å lagre"
+                            , Knapp.knapp VilIkkeLagreSammendrag "Gå videre uten å lagre"
                                 |> Knapp.toHtml
                             ]
 
@@ -1934,10 +1934,10 @@ viewSammendragInput sammendrag =
     ]
 
 
-viewBekreftSammendrag : AndreSamtaleStegMsg -> Html AndreSamtaleStegMsg
-viewBekreftSammendrag bekreftMsg =
+viewBekreftSammendrag : Html AndreSamtaleStegMsg
+viewBekreftSammendrag =
     Containers.knapper Flytende
-        [ Knapp.knapp bekreftMsg "Ja, jeg er fornøyd"
+        [ Knapp.knapp VilLagreBekreftetSammendrag "Ja, jeg er fornøyd"
             |> Knapp.toHtml
         , Knapp.knapp BrukerVilEndreSammendrag "Nei, jeg vil endre"
             |> Knapp.toHtml
