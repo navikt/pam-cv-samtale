@@ -130,8 +130,8 @@ html {
   .brukerInput-padding {
     margin-bottom: 2.5rem;
   }
+
   .samtale-padding {
-    //min-height: 1rem; TODO :Skal denne være så høy som under
     min-height: 2.5rem;
   }
 }
@@ -153,10 +153,12 @@ html {
     width: 0;
     padding: 0;
     margin-top: 0;
+
     .skriver-melding {
       opacity: 0;
     }
   }
+
   .melding.skriveindikator {
     height: 54px;
     width: 62px;
@@ -235,32 +237,6 @@ html {
   }
 }
 
-.robotkolonne {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  margin-top: 1.25rem;
-  //transition-property: padding-bottom, opacity;
-  //transition-duration: 0.4s;
-  //transition-timing-function: ease-in-out;
-}
-
-//.robot {
-//  align-self: center;
-//  padding-right: 0.75rem;
-//  transition-property: margin-bottom, opacity;
-//  transition-duration: 0.4s;
-//  transition-timing-function: ease-in-out;
-//
-//  .Robotlogo {
-//    width: 50px;
-//    height: 50px;
-//    display: inline-block;
-//    vertical-align: middle;
-//    background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
-//  }
-//}
-
 .svar {
   justify-content: flex-end;
 
@@ -308,12 +284,8 @@ html {
   overflow-wrap: break-word;
 
   // Animasjon
-  //transition: height 0.15s ease-in-out;
-
-  //transition: height, width 0.4s ease-in-out;
   transition-property: height, width, padding, margin;
   transition-duration: 0.4s;
-  //transition-duration: 1s;
   transition-timing-function: ease-in-out;
 
   .meldinginnhold-wrapper {
@@ -334,9 +306,7 @@ html {
       }
     }
     width: max-content;
-    //transition: opacity 0.4s ease-in-out;
     transition: opacity 0.2s ease-in-out 0.2s;
-    //transition: opacity 1s ease-in-out;
   }
 
   .meldinginnhold-overflow-hidden {
@@ -351,16 +321,12 @@ html {
     .meldinginnhold-wrapper {
       opacity: 0;
     }
-
-    //padding: 0;
   }
 
   &.ferdiganimert {
     .meldinginnhold-wrapper {
       opacity: 1;
     }
-
-    //padding: 0;
   }
 
   p {
