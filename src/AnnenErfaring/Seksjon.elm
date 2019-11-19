@@ -212,9 +212,7 @@ type Msg
     | AnnenErfaringLagret (Result Http.Error (List AnnenErfaring))
     | FerdigMedAnnenErfaring
     | WindowEndrerVisibility Visibility
-    | StartÅSkrive
-    | FullførMelding
-    | ViewportSatt (Result Dom.Error ())
+    | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
     | FeltMisterFokus
     | ErrorLogget
@@ -665,29 +663,9 @@ update msg (Model model) =
                 Hidden ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        StartÅSkrive ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
-                }
-            , Cmd.batch
-                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> DebugStatus.meldingsTimeout model.debugStatus
-                    |> Process.sleep
-                    |> Task.perform (always FullførMelding)
-                ]
-            )
-                |> IkkeFerdig
-
-        FullførMelding ->
-            model.seksjonsMeldingsLogg
-                |> MeldingsLogg.fullførMelding
+        SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
+            SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
                 |> updateEtterFullførtMelding model
-
-        ViewportSatt _ ->
-            IkkeFerdig ( Model model, Cmd.none )
 
         FokusSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -733,8 +711,8 @@ oppdaterSkjema endring skjema =
             Skjema.tillatÅViseFeilmeldingRolle skjema
 
 
-updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
-updateEtterFullførtMelding model nyMeldingsLogg =
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
@@ -742,25 +720,17 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     Ferdig annenErfaringListe ferdigAnimertSamtale
 
                 _ ->
-                    ( Model
-                        { model
-                            | seksjonsMeldingsLogg =
-                                nyMeldingsLogg
-                        }
+                    ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
                     , Cmd.batch
-                        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                        [ Cmd.map SamtaleAnimasjonMsg cmd
                         , settFokus model.aktivSamtale
                         ]
                     )
                         |> IkkeFerdig
 
         MeldingerGjenstår ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        nyMeldingsLogg
-                }
-            , lagtTilSpørsmålCmd model.debugStatus
+            ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
+            , Cmd.map SamtaleAnimasjonMsg cmd
             )
                 |> IkkeFerdig
 
@@ -788,13 +758,8 @@ updateEtterLagreKnappTrykket model skjema melding =
 
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
-    Cmd.batch
-        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , 200
-            |> DebugStatus.meldingsTimeout debugStatus
-            |> Process.sleep
-            |> Task.perform (always StartÅSkrive)
-        ]
+    SamtaleAnimasjon.startAnimasjon debugStatus
+        |> Cmd.map SamtaleAnimasjonMsg
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -834,7 +799,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         RegistrerRolle _ ->
             [ Melding.spørsmål [ "Så bra at du har mer erfaring. Hvilken rolle har du hatt?" ]
             , Melding.spørsmål
-                [ "Har du jobbet som fotballtrener, kanskje besøksvenn eller noe helt annet?" ]
+                [ "Har du jobbet som fotballtrener, besøksvenn, eller noe helt annet?" ]
             ]
 
         RegistrerBeskrivelse _ ->
@@ -842,7 +807,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             ]
 
         SpørOmBrukerVilLeggeInnTidsperiode _ ->
-            [ Melding.spørsmål [ "Det kan være viktig for arbeidsgiver å vite hvor lenge du har hatt rollen. Har du lyst til å legge inn informasjonen om tidsperiode?" ]
+            [ Melding.spørsmål [ "Det kan være nyttig for en arbeidsgiver å vite hvor lenge du har hatt rollen. Vil du legge inn tidsperiode?" ]
             ]
 
         RegistrerFraMåned _ ->
@@ -878,10 +843,10 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             ]
 
         EndreOpplysninger _ ->
-            []
+            [ Melding.spørsmål [ "Nå kan du endre informasjonen." ] ]
 
         VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         LagrerSkjema _ _ ->
             []
@@ -934,9 +899,8 @@ settFokus samtale =
 
 settFokusCmd : InputId -> Cmd Msg
 settFokusCmd inputId =
-    inputId
-        |> inputIdTilString
-        |> Dom.focus
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
 
 
@@ -969,150 +933,149 @@ inputIdTilString inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case model.aktivSamtale of
-                RegistrerRolle info ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereRolle
-                        [ info.rolle
-                            |> Input.input { label = "Rolle", msg = OppdatererRolle }
-                            |> Input.withOnEnter VilRegistrereRolle
-                            |> Input.withId (inputIdTilString RolleId)
+    if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
+        case model.aktivSamtale of
+            RegistrerRolle info ->
+                Containers.inputMedGåVidereKnapp VilRegistrereRolle
+                    [ info.rolle
+                        |> Input.input { label = "Rolle", msg = OppdatererRolle }
+                        |> Input.withOnEnter VilRegistrereRolle
+                        |> Input.withId (inputIdTilString RolleId)
+                        |> Input.withOnBlur FeltMisterFokus
+                        |> Input.withMaybeFeilmelding
+                            (info.rolle
+                                |> Skjema.feilmeldingRolle
+                                |> maybeHvisTrue info.tillatÅViseFeilmeldingRolle
+                            )
+                        |> Input.toHtml
+                    ]
+
+            RegistrerBeskrivelse info ->
+                Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
+                    [ info.beskrivelse
+                        |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
+                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
+                        |> Textarea.withId (inputIdTilString BeskrivelseId)
+                        |> Textarea.toHtml
+                    ]
+
+            SpørOmBrukerVilLeggeInnTidsperiode _ ->
+                Containers.knapper Flytende
+                    [ "Ja, det vil jeg"
+                        |> Knapp.knapp SvarerJaTilTidsperiode
+                        |> Knapp.toHtml
+                    , "Nei, det vil jeg ikke"
+                        |> Knapp.knapp SvarerNeiTilTidsperiode
+                        |> Knapp.toHtml
+                    ]
+
+            RegistrerFraMåned _ ->
+                MånedKnapper.månedKnapper FraMånedValgt
+
+            RegistrerFraÅr fraDatoInfo ->
+                Containers.inputMedGåVidereKnapp VilRegistrereFraÅr
+                    [ div [ class "år-wrapper" ]
+                        [ fraDatoInfo.fraÅr
+                            |> Input.input { label = "År", msg = OppdatererFraÅr }
+                            |> Input.withClass "aar"
+                            |> Input.withOnEnter VilRegistrereFraÅr
                             |> Input.withOnBlur FeltMisterFokus
+                            |> Input.withId (inputIdTilString FraÅrId)
                             |> Input.withMaybeFeilmelding
-                                (info.rolle
-                                    |> Skjema.feilmeldingRolle
-                                    |> maybeHvisTrue info.tillatÅViseFeilmeldingRolle
+                                (fraDatoInfo.fraÅr
+                                    |> Dato.feilmeldingÅr
+                                    |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
                                 )
                             |> Input.toHtml
                         ]
+                    ]
 
-                RegistrerBeskrivelse info ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
-                        [ info.beskrivelse
-                            |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
-                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
-                            |> Textarea.withId (inputIdTilString BeskrivelseId)
-                            |> Textarea.toHtml
-                        ]
+            RegistrerNåværende _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp SvarerJaTilNåværende "Ja"
+                        |> Knapp.toHtml
+                    , Knapp.knapp SvarerNeiTilNåværende "Nei"
+                        |> Knapp.toHtml
+                    ]
 
-                SpørOmBrukerVilLeggeInnTidsperiode _ ->
-                    Containers.knapper Flytende
-                        [ "Ja, det vil jeg"
-                            |> Knapp.knapp SvarerJaTilTidsperiode
-                            |> Knapp.toHtml
-                        , "Nei, det vil jeg ikke"
-                            |> Knapp.knapp SvarerNeiTilTidsperiode
-                            |> Knapp.toHtml
-                        ]
+            RegistrerTilMåned _ ->
+                MånedKnapper.månedKnapper TilMånedValgt
 
-                RegistrerFraMåned _ ->
-                    MånedKnapper.månedKnapper FraMånedValgt
-
-                RegistrerFraÅr fraDatoInfo ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereFraÅr
-                        [ div [ class "år-wrapper" ]
-                            [ fraDatoInfo.fraÅr
-                                |> Input.input { label = "År", msg = OppdatererFraÅr }
-                                |> Input.withClass "aar"
-                                |> Input.withOnEnter VilRegistrereFraÅr
-                                |> Input.withOnBlur FeltMisterFokus
-                                |> Input.withId (inputIdTilString FraÅrId)
-                                |> Input.withMaybeFeilmelding
-                                    (fraDatoInfo.fraÅr
-                                        |> Dato.feilmeldingÅr
-                                        |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
-                                    )
-                                |> Input.toHtml
-                            ]
-                        ]
-
-                RegistrerNåværende _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp SvarerJaTilNåværende "Ja"
-                            |> Knapp.toHtml
-                        , Knapp.knapp SvarerNeiTilNåværende "Nei"
-                            |> Knapp.toHtml
-                        ]
-
-                RegistrerTilMåned _ ->
-                    MånedKnapper.månedKnapper TilMånedValgt
-
-                RegistrerTilÅr tilDatoInfo ->
-                    Containers.inputMedGåVidereKnapp VilRegistrereTilÅr
-                        [ div [ class "år-wrapper" ]
-                            [ tilDatoInfo.tilÅr
-                                |> Input.input { label = "År", msg = OppdatererTilÅr }
-                                |> Input.withClass "aar"
-                                |> Input.withOnEnter VilRegistrereTilÅr
-                                |> Input.withOnBlur FeltMisterFokus
-                                |> Input.withId (inputIdTilString TilÅrId)
-                                |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
-                                |> Input.toHtml
-                            ]
-                        ]
-
-                VisOppsummering _ ->
-                    viewBekreftOppsummering
-
-                VisOppsummeringEtterEndring _ ->
-                    viewBekreftOppsummering
-
-                EndreOpplysninger skjema ->
-                    Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
-                        [ skjema
-                            |> Skjema.innholdTekstFelt Rolle
-                            |> Input.input { label = "Rolle", msg = Tekst Rolle >> SkjemaEndret }
-                            |> Input.withMaybeFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
-                            |> Input.withOnBlur (SkjemaEndret RolleBlurred)
+            RegistrerTilÅr tilDatoInfo ->
+                Containers.inputMedGåVidereKnapp VilRegistrereTilÅr
+                    [ div [ class "år-wrapper" ]
+                        [ tilDatoInfo.tilÅr
+                            |> Input.input { label = "År", msg = OppdatererTilÅr }
+                            |> Input.withClass "aar"
+                            |> Input.withOnEnter VilRegistrereTilÅr
+                            |> Input.withOnBlur FeltMisterFokus
+                            |> Input.withId (inputIdTilString TilÅrId)
+                            |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
                             |> Input.toHtml
-                        , skjema
-                            |> Skjema.innholdTekstFelt Beskrivelse
-                            |> Textarea.textarea { label = "Beskrivelse", msg = Tekst Beskrivelse >> SkjemaEndret }
-                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse skjema) maxLengthBeskrivelse)
-                            |> Textarea.toHtml
-                        , skjema
-                            |> Skjema.harDatoer
-                            |> Checkbox.checkbox "Jeg vil legge inn tidsperiode" (SkjemaEndret HarDatoerToggled)
-                            |> Checkbox.toHtml
-                        , if Skjema.harDatoer skjema then
-                            viewDatoPeriode skjema
-
-                          else
-                            text ""
                         ]
+                    ]
 
-                LagrerSkjema _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                        LoggInnLenke.viewLoggInnLenke
+            VisOppsummering _ ->
+                viewBekreftOppsummering
 
-                    else
+            VisOppsummeringEtterEndring _ ->
+                viewBekreftOppsummering
+
+            EndreOpplysninger skjema ->
+                Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                    [ skjema
+                        |> Skjema.innholdTekstFelt Rolle
+                        |> Input.input { label = "Rolle", msg = Tekst Rolle >> SkjemaEndret }
+                        |> Input.withMaybeFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
+                        |> Input.withOnBlur (SkjemaEndret RolleBlurred)
+                        |> Input.toHtml
+                    , skjema
+                        |> Skjema.innholdTekstFelt Beskrivelse
+                        |> Textarea.textarea { label = "Beskrivelse", msg = Tekst Beskrivelse >> SkjemaEndret }
+                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse skjema) maxLengthBeskrivelse)
+                        |> Textarea.toHtml
+                    , skjema
+                        |> Skjema.harDatoer
+                        |> Checkbox.checkbox "Jeg vil legge inn tidsperiode" (SkjemaEndret HarDatoerToggled)
+                        |> Checkbox.toHtml
+                    , if Skjema.harDatoer skjema then
+                        viewDatoPeriode skjema
+
+                      else
                         text ""
+                    ]
 
-                LagringFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        ErrorHåndtering.GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+            LagrerSkjema _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
 
-                        ErrorHåndtering.PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp VilLagreAnnenErfaring "Prøv igjen"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        ErrorHåndtering.LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                VenterPåAnimasjonFørFullføring _ ->
+                else
                     text ""
 
-        MeldingerGjenstår ->
-            text ""
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    ErrorHåndtering.GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    ErrorHåndtering.PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp VilLagreAnnenErfaring "Prøv igjen"
+                                |> Knapp.toHtml
+                            , Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    ErrorHåndtering.LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            VenterPåAnimasjonFørFullføring _ ->
+                text ""
+
+    else
+        text ""
 
 
 viewBekreftOppsummering : Html Msg
@@ -1194,5 +1157,10 @@ init debugStatus gammelMeldingsLogg annenErfaringListe =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Browser.Events.onVisibilityChange WindowEndrerVisibility
+subscriptions (Model model) =
+    Sub.batch
+        [ Browser.Events.onVisibilityChange WindowEndrerVisibility
+        , model.seksjonsMeldingsLogg
+            |> SamtaleAnimasjon.subscriptions
+            |> Sub.map SamtaleAnimasjonMsg
+        ]

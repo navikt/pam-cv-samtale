@@ -1,4 +1,4 @@
-module DebugStatus exposing (DebugStatus, fromUrl, meldingsTimeout)
+module DebugStatus exposing (DebugStatus, fromUrl, hoppOverMeldingsanimasjon, meldingsTimeout)
 
 import Url exposing (Url)
 
@@ -6,15 +6,6 @@ import Url exposing (Url)
 type DebugStatus
     = Debug
     | Regular
-
-
-
---debugParser : Parser DebugStatus
---debugParser =
---    succeed Debug
---        |. Parser.chompUntil "?"
---        |. Parser.chompUntil "debug=true"
---        |. Parser.symbol "&"
 
 
 fromUrl : Url -> DebugStatus
@@ -45,3 +36,8 @@ meldingsTimeout status timeout =
 
         Regular ->
             timeout
+
+
+hoppOverMeldingsanimasjon : DebugStatus -> Bool
+hoppOverMeldingsanimasjon debugStatus =
+    debugStatus == Debug

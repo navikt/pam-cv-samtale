@@ -18,24 +18,22 @@ import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
 import FrontendModuler.Lenke as Lenke
 import FrontendModuler.LoggInnLenke as LoggInnLenke
-import FrontendModuler.Modal as Modal
-import FrontendModuler.RobotLogo as RobotLogo
 import FrontendModuler.Spinner as Spinner
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Attributes.Aria exposing (ariaLabel, ariaLive, role)
+import Html.Attributes.Aria exposing (ariaLabel, ariaLive)
 import Http
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding, Tekstområde(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppe(..), MeldingsLogg, MeldingsPlassering(..), SkriveStatus(..))
+import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
 import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Personalia.Seksjon
-import Process
 import SamtaleAnimasjon
 import Sertifikat.Seksjon
+import SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
 import Sprak.Seksjon
 import Task
 import TilbakemeldingModal
@@ -386,10 +384,8 @@ modelFraLoadingState debugStatus state =
                 , aktivSeksjon = initialiserSamtale state.personalia
                 , debugStatus = debugStatus
                 }
-            , 200
-                |> DebugStatus.meldingsTimeout debugStatus
-                |> Process.sleep
-                |> Task.perform (always (SuccessMsg (AndreSamtaleStegMsg StartÅSkrive)))
+            , lagtTilSpørsmålCmd debugStatus
+                |> Cmd.map SuccessMsg
             )
 
         _ ->
@@ -792,22 +788,28 @@ type alias AndreSamtaleStegInfo =
     }
 
 
+type BekreftSammendragState
+    = OpprinneligSammendrag Sammendrag
+    | NyttSammendrag String
+    | EndretSammendrag String
+
+
 type Samtale
     = Introduksjon Personalia
     | LeggTilAutorisasjoner
     | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
     | LeggTilFlereAnnet
-    | HarIkkeSammendrag
-    | BekreftEksisterendeSammendrag Sammendrag
+    | BekreftSammendrag BekreftSammendragState
+    | SkriverSammendrag String
     | EndrerSammendrag String
     | LagrerSammendrag String LagreStatus
     | LagringAvSammendragFeilet Http.Error String
-    | UnderOppfølging
     | DelMedArbeidsgiver Bool
     | LagrerSynlighet Bool LagreStatus
     | LagringSynlighetFeilet Http.Error Bool
-    | SpørOmTilbakemelding
+    | SpørOmTilbakemeldingIkkeUnderOppfølging
+    | SpørOmTilbakemeldingUnderOppfølging
     | GiTilbakemelding
     | Avslutt Bool
 
@@ -818,11 +820,10 @@ type Samtale
 
 type AndreSamtaleStegMsg
     = BrukerSierHeiIIntroduksjonen
-    | OriginalSammendragBekreftet
-    | BrukerVilLeggeTilSammendrag
     | BrukerVilEndreSammendrag
     | SammendragEndret String
-    | BrukerVilLagreSammendrag String
+    | VilLagreSammendragSkjema
+    | VilLagreBekreftetSammendrag
     | SammendragOppdatert (Result Http.Error Sammendrag)
     | BrukerVilIkkeRedigereSammendrag
     | SeksjonValgt ValgtSeksjon
@@ -836,9 +837,7 @@ type AndreSamtaleStegMsg
     | VilIkkeGiTilbakemelding
     | SynlighetPostet (Result Http.Error Bool)
     | WindowEndrerVisibility Visibility
-    | StartÅSkrive
-    | FullførMelding
-    | ViewportSatt (Result Dom.Error ())
+    | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | ErrorLogget
 
 
@@ -849,7 +848,6 @@ type ValgtSeksjon
     | SertifiseringValgt
     | AnnenErfaringValgt
     | KursValgt
-    | FørerkortValgt
 
 
 updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
@@ -884,36 +882,31 @@ updateAndreSamtaleSteg model msg info =
         IngenAvDeAndreSeksjoneneValgt ->
             gåVidereFraSeksjonsvalg model info
 
-        OriginalSammendragBekreftet ->
-            { info
-                | meldingsLogg =
-                    info.meldingsLogg
-                        |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ])
-                        |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Flott! Da er vi nesten ferdige!" ] ]
-            }
-                |> gåTilAvslutning model
-
-        BrukerVilLeggeTilSammendrag ->
-            case info.aktivSamtale of
-                HarIkkeSammendrag ->
-                    ( ""
-                        |> EndrerSammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Jeg vil legge til" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
-
         BrukerVilEndreSammendrag ->
             case info.aktivSamtale of
-                BekreftEksisterendeSammendrag sammendrag ->
-                    ( sammendrag
-                        |> Sammendrag.toString
-                        |> EndrerSammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg vil se over" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
+                BekreftSammendrag bekreftSammendragState ->
+                    case bekreftSammendragState of
+                        OpprinneligSammendrag sammendrag ->
+                            ( sammendrag
+                                |> Sammendrag.toString
+                                |> EndrerSammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+
+                        NyttSammendrag sammendrag ->
+                            ( sammendrag
+                                |> EndrerSammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+
+                        EndretSammendrag sammendrag ->
+                            ( sammendrag
+                                |> EndrerSammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
 
                 _ ->
                     ( model, Cmd.none )
@@ -927,36 +920,85 @@ updateAndreSamtaleSteg model msg info =
                     , Cmd.none
                     )
 
+                SkriverSammendrag _ ->
+                    ( tekst
+                        |> SkriverSammendrag
+                        |> oppdaterSamtaleSteg model info
+                    , Cmd.none
+                    )
+
                 _ ->
                     ( model, Cmd.none )
 
-        BrukerVilLagreSammendrag sammendrag ->
+        VilLagreSammendragSkjema ->
+            case info.aktivSamtale of
+                EndrerSammendrag tekst ->
+                    case Validering.feilmeldingMaxAntallTegn tekst 4000 of
+                        Just _ ->
+                            ( model, Cmd.none )
+
+                        Nothing ->
+                            ( BekreftSammendrag (EndretSammendrag tekst)
+                                |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+
+                SkriverSammendrag tekst ->
+                    case Validering.feilmeldingMaxAntallTegn tekst 4000 of
+                        Just _ ->
+                            ( model, Cmd.none )
+
+                        Nothing ->
+                            ( BekreftSammendrag (NyttSammendrag tekst)
+                                |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        VilLagreBekreftetSammendrag ->
             case info.aktivSamtale of
                 LagringAvSammendragFeilet error feiletSammendrag ->
                     ( error
                         |> LagreStatus.fraError
                         |> LagrerSammendrag feiletSammendrag
                         |> nesteSamtaleSteg model info (Melding.svar [ "Prøv på nytt" ])
-                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
                     )
 
-                EndrerSammendrag tekst ->
-                    case Validering.feilmeldingMaxAntallTegn tekst 4000 of
-                        Nothing ->
+                BekreftSammendrag bekreftSammendragState ->
+                    case bekreftSammendragState of
+                        OpprinneligSammendrag opprinnelig ->
+                            let
+                                sammendrag =
+                                    Sammendrag.toString opprinnelig
+                            in
                             ( LagreStatus.init
                                 |> LagrerSammendrag sammendrag
-                                |> nesteSamtaleSteg model info (Melding.svar [ sammendrag ])
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
                             , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                             )
 
-                        Just _ ->
-                            ( model, Cmd.none )
+                        NyttSammendrag sammendrag ->
+                            ( LagreStatus.init
+                                |> LagrerSammendrag sammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
+                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                            )
+
+                        EndretSammendrag sammendrag ->
+                            ( LagreStatus.init
+                                |> LagrerSammendrag sammendrag
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
+                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                            )
 
                 _ ->
                     ( model, Cmd.none )
 
         BrukerVilIkkeRedigereSammendrag ->
-            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ]) }
+            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg er fornøyd" ]) }
                 |> gåTilAvslutning model
 
         SammendragOppdatert result ->
@@ -1046,11 +1088,11 @@ updateAndreSamtaleSteg model msg info =
                     case result of
                         Ok _ ->
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                SpørOmTilbakemelding
+                                SpørOmTilbakemeldingIkkeUnderOppfølging
                                     |> nesteSamtaleSteg model info (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
 
                               else
-                                nesteSamtaleStegUtenSvar model info SpørOmTilbakemelding
+                                nesteSamtaleStegUtenSvar model info SpørOmTilbakemeldingIkkeUnderOppfølging
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
@@ -1104,7 +1146,7 @@ updateAndreSamtaleSteg model msg info =
                     ( model, Cmd.none )
 
         BrukerGirOppÅLagre knappeTekst ->
-            ( nesteSamtaleSteg model info (Melding.svar [ knappeTekst ]) SpørOmTilbakemelding
+            ( nesteSamtaleSteg model info (Melding.svar [ knappeTekst ]) SpørOmTilbakemeldingIkkeUnderOppfølging
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1166,44 +1208,17 @@ updateAndreSamtaleSteg model msg info =
                 Hidden ->
                     ( model, Cmd.none )
 
-        StartÅSkrive ->
-            ( { info | meldingsLogg = MeldingsLogg.startÅSkrive info.meldingsLogg }
-                |> AndreSamtaleSteg
-                |> oppdaterSamtaleSeksjon model
-            , Cmd.batch
-                [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> AndreSamtaleStegMsg)
-                , MeldingsLogg.nesteMeldingToString info.meldingsLogg
-                    * 1000.0
-                    |> DebugStatus.meldingsTimeout model.debugStatus
-                    |> Process.sleep
-                    |> Task.perform (always (AndreSamtaleStegMsg FullførMelding))
-                ]
-            )
-
-        FullførMelding ->
+        SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             let
-                nyMeldingslogg =
-                    MeldingsLogg.fullførMelding info.meldingsLogg
+                ( nyMeldingslogg, cmd ) =
+                    SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg info.meldingsLogg
             in
             ( { info | meldingsLogg = nyMeldingslogg }
                 |> AndreSamtaleSteg
                 |> oppdaterSamtaleSeksjon model
-            , Cmd.batch
-                [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> AndreSamtaleStegMsg)
-                , case MeldingsLogg.ferdigAnimert nyMeldingslogg of
-                    FerdigAnimert _ ->
-                        Cmd.none
-
-                    MeldingerGjenstår ->
-                        200
-                            |> DebugStatus.meldingsTimeout model.debugStatus
-                            |> Process.sleep
-                            |> Task.perform (always (AndreSamtaleStegMsg StartÅSkrive))
-                ]
+            , cmd
+                |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
             )
-
-        ViewportSatt _ ->
-            ( model, Cmd.none )
 
         ErrorLogget ->
             ( model, Cmd.none )
@@ -1237,9 +1252,6 @@ gåTilValgtSeksjon model info valgtSeksjon =
                 KursValgt ->
                     gåTilKurs model ferdigAnimertMeldingsLogg
 
-                FørerkortValgt ->
-                    ( model, Cmd.none )
-
         MeldingerGjenstår ->
             ( { info | meldingsLogg = meldingsLogg }
                 |> AndreSamtaleSteg
@@ -1255,13 +1267,13 @@ gåVidereFraSeksjonsvalg model info =
             case Cv.sammendrag model.cv of
                 Just sammendrag ->
                     if String.isEmpty (String.trim (Sammendrag.toString sammendrag)) then
-                        HarIkkeSammendrag
+                        SkriverSammendrag ""
 
                     else
-                        BekreftEksisterendeSammendrag sammendrag
+                        BekreftSammendrag (OpprinneligSammendrag sammendrag)
 
                 Nothing ->
-                    HarIkkeSammendrag
+                    EndrerSammendrag ""
     in
     ( { meldingsLogg =
             info.meldingsLogg
@@ -1278,7 +1290,7 @@ gåVidereFraSeksjonsvalg model info =
 gåTilAvslutning : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
 gåTilAvslutning model info =
     if Person.underOppfolging model.person then
-        ( nesteSamtaleStegUtenSvar model info UnderOppfølging
+        ( nesteSamtaleStegUtenSvar model info SpørOmTilbakemeldingUnderOppfølging
         , lagtTilSpørsmålCmd model.debugStatus
         )
 
@@ -1327,14 +1339,14 @@ samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg samtale =
     case samtale of
         Introduksjon personalia ->
-            [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ "! Jeg er roboten Cvert, og jeg kan hjelpe deg å lage en CV." ]
-            , Melding.spørsmål [ "Først skal du legge inn utdanning, arbeidserfaring, språk og sammendrag. Etter det kan du legge til kurs, fagbrev, sertifisering og førerkort." ]
-            , Melding.spørsmål [ "Husk at du ikke skal legge inn noe om helse, religion eller politiske oppfatning." ]
+            [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ ", nå starter vi på CV-en din!" ]
+            , Melding.spørsmål [ "Først legger du inn utdanning, arbeidserfaring, språk og førerkort. Etter det kan du legge inn fagbrev, kurs, sertifisering og sammendrag." ]
+            , Melding.spørsmål [ "Du skal ikke skrive inn noe om helse, religion eller politiske oppfatning." ]
             , Melding.spørsmål [ "Er du klar til å begynne?" ]
             ]
 
         LeggTilAutorisasjoner ->
-            [ Melding.spørsmål [ "Nå begynner CV-en din å ta form. Er det noe mer du kan legge inn?" ]
+            [ Melding.spørsmål [ "Nå har du lagt inn mye i CV-en din. Er det noe mer du kan ta med?" ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
@@ -1345,25 +1357,47 @@ samtaleTilMeldingsLogg samtale =
             [ Melding.spørsmål [ "Det er viktig å få med alt du kan på CV-en." ]
             , Melding.spørsmål [ "Har du jobbet som frivillig eller har hatt verv? Legg til annen erfaring." ]
             , Melding.spørsmål [ "Har du tatt norskprøve? Legg til kurs." ]
-            , Melding.spørsmål [ "Hva med førerkort? Husk å legge det inn i CV-en din. Mange arbeidsgivere ser etter jobbsøkere som kan kjøre." ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
         LeggTilFlereAnnet ->
             [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
 
-        HarIkkeSammendrag ->
-            [ Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ] ]
+        BekreftSammendrag bekreftState ->
+            case bekreftState of
+                OpprinneligSammendrag sammendrag ->
+                    [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
+                    , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
+                    , Melding.spørsmål
+                        [ "Du har allerede skrevet dette:"
+                        , Melding.tomLinje
+                        , Sammendrag.toString sammendrag
+                        , Melding.tomLinje
+                        , "Er du fornøyd? "
+                        ]
+                    ]
 
-        BekreftEksisterendeSammendrag sammendrag ->
-            [ Melding.spørsmål [ "Nå skal vi skrive et sammendrag." ]
-            , Melding.spørsmål [ "Du har allerede skrevet dette..." ]
-            , Melding.spørsmål [ Sammendrag.toString sammendrag ]
-            , Melding.spørsmål [ "Vil du legge til eller endre på noe?" ]
-            ]
+                NyttSammendrag sammendrag ->
+                    [ Melding.spørsmål
+                        [ "Du la inn dette:"
+                        , Melding.tomLinje
+                        , sammendrag
+                        , Melding.tomLinje
+                        , "Er du fornøyd? "
+                        ]
+                    ]
+
+                EndretSammendrag _ ->
+                    [ Melding.spørsmål [ "Nå har du endret. Er du fornøyd?" ] ]
 
         EndrerSammendrag _ ->
-            [ Melding.spørsmål [ "Ok! Fyll ut sammendraget ditt i boksen under." ] ]
+            [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
+
+        SkriverSammendrag _ ->
+            [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
+            , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
+            , Melding.spørsmål [ "Skriv sammendraget ditt i boksen under." ]
+            ]
 
         LagrerSammendrag _ _ ->
             []
@@ -1372,7 +1406,7 @@ samtaleTilMeldingsLogg samtale =
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre sammendrag" } ]
 
         DelMedArbeidsgiver synlig ->
-            [ Melding.spørsmål [ "I denne CV-tjenesten kan arbeidsgivere søke opp CV-en din. Hvis de har en ledig jobb du kan passe til, kan de ta kontakt." ]
+            [ Melding.spørsmål [ "Du kan velge om arbeidsgivere skal få se CV-en din. Da kan de ta kontakt hvis de har en jobb du kan passe til. " ]
             , if synlig then
                 Melding.spørsmål
                     [ "CV-en din er allerede synlig for arbeidsgivere!"
@@ -1384,15 +1418,17 @@ samtaleTilMeldingsLogg samtale =
                     [ "Ønsker du at arbeidsgivere skal kunne se CV-en din?" ]
             ]
 
-        UnderOppfølging ->
-            [ Melding.spørsmål [ "I denne CV-tjenesten kan arbeidsgivere og NAV-veiledere søke opp CV-en din. De kan kontakte deg hvis de har en jobb du kan passe til." ]
-            , Melding.spørsmål [ "Fordi du får oppfølging fra NAV, vil CV-en din være synlig for arbeidsgivere og NAV-veiledere." ]
+        SpørOmTilbakemeldingUnderOppfølging ->
+            [ Melding.spørsmål [ "Arbeidsgivere og NAV-veiledere kan søke opp CV-en din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
+            , Melding.spørsmål [ "CV-en din er synlig for arbeidsgivere og NAV-veiledere fordi du får oppfølging fra NAV." ]
+            , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
+            , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
             ]
 
-        SpørOmTilbakemelding ->
+        SpørOmTilbakemeldingIkkeUnderOppfølging ->
             [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ]
             , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du må svare på 3 spørsmål, og du er anonym 😊 Vil du svare?" ]
+            , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
             ]
 
         GiTilbakemelding ->
@@ -1417,13 +1453,8 @@ samtaleTilMeldingsLogg samtale =
 
 lagtTilSpørsmålCmd : DebugStatus -> Cmd SuccessMsg
 lagtTilSpørsmålCmd debugStatus =
-    Cmd.batch
-        [ SamtaleAnimasjon.scrollTilBunn (ViewportSatt >> AndreSamtaleStegMsg)
-        , 200
-            |> DebugStatus.meldingsTimeout debugStatus
-            |> Process.sleep
-            |> Task.perform (always StartÅSkrive >> AndreSamtaleStegMsg)
-        ]
+    SamtaleAnimasjon.startAnimasjon debugStatus
+        |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
 
 
 
@@ -1506,9 +1537,9 @@ viewLoading =
         ]
 
 
-meldingsLoggFraSeksjon : SuccessModel -> MeldingsLogg
-meldingsLoggFraSeksjon successModel =
-    case successModel.aktivSeksjon of
+meldingsLoggFraSeksjon : SamtaleSeksjon -> MeldingsLogg
+meldingsLoggFraSeksjon aktivSeksjon =
+    case aktivSeksjon of
         PersonaliaSeksjon model ->
             Personalia.Seksjon.meldingsLogg model
 
@@ -1541,14 +1572,13 @@ viewSuccess : SuccessModel -> Html Msg
 viewSuccess successModel =
     div [ class "samtale-wrapper", id "samtale" ]
         [ div [ class "samtale" ]
-            [ successModel
-                |> meldingsLoggFraSeksjon
-                |> viewMeldingsLogg
-            , successModel
-                |> meldingsLoggFraSeksjon
-                |> viewSkriveStatus
-            , viewBrukerInput successModel.aktivSeksjon
-            , div [ class "samtale-padding" ] []
+            [ div [ id "samtale-innhold" ]
+                [ successModel.aktivSeksjon
+                    |> meldingsLoggFraSeksjon
+                    |> viewMeldingsLogg
+                , viewBrukerInput successModel.aktivSeksjon
+                , div [ class "samtale-padding" ] []
+                ]
             ]
         ]
 
@@ -1560,47 +1590,163 @@ viewMeldingsLogg meldingsLogg =
         |> div []
 
 
-viewMeldingsgruppe : MeldingsGruppe -> Html msg
+viewMeldingsgruppe : MeldingsGruppeViewState -> Html msg
 viewMeldingsgruppe meldingsGruppe =
     case meldingsGruppe of
-        SpørsmålGruppe meldingsGruppeMeldinger ->
-            meldingsGruppeMeldinger
-                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding True "sporsmal")
+        SpørsmålGruppe spørsmålGruppe ->
+            spørsmålGruppe
+                |> MeldingsLogg.mapSpørsmålsgruppe viewSpørsmål
                 |> div [ class "meldingsgruppe", ariaLabel "Roboten" ]
 
-        SvarGruppe meldingsGruppeMeldinger ->
-            meldingsGruppeMeldinger
-                |> MeldingsLogg.mapMeldingsGruppeMeldinger (viewMelding False "svar")
-                |> div [ class "meldingsgruppe", ariaLabel "Deg" ]
+        SvarGruppe melding ->
+            viewSvar melding
 
 
-viewMelding : Bool -> String -> MeldingsPlassering -> Melding -> Html msg
-viewMelding leggPåAriaLive meldingsTypeClass plassering melding =
-    div [ class ("meldingsrad " ++ meldingsTypeClass) ]
-        [ case plassering of
-            SisteSpørsmålIMeldingsgruppe ->
-                div [ class "robot" ] [ RobotLogo.robotLogo ]
+viewSpørsmål : SpørsmålViewState -> Html msg
+viewSpørsmål spørsmål =
+    div [ class "meldingsrad sporsmal" ]
+        [ div [ class "robot", robotAttribute spørsmål ]
+            [ i [ class "Robotlogo" ] [] ]
+        , case SpørsmålViewState.spørsmålStyle spørsmål of
+            FørSkriveindikator ->
+                div
+                    [ class "melding skjult"
+                    , ariaLive "off"
+                    , id (SpørsmålViewState.id spørsmål)
+                    ]
+                    [ viewSkriveStatus ]
 
-            IkkeSisteSpørsmål ->
-                div [ class "robot" ] []
-        , article
-            [ class "melding"
-            , if leggPåAriaLive then
-                ariaLive "polite"
+            Skriveindikator ->
+                div
+                    [ class "melding skriveindikator"
+                    , ariaLive "off"
+                    , id (SpørsmålViewState.id spørsmål)
+                    ]
+                    [ viewSkriveStatus ]
 
-              else
-                noAttribute
-            ]
-            (melding
-                |> Melding.innhold
-                |> List.map viewTekstområde
-            )
+            StørrelseKalkuleres ->
+                article
+                    [ class "melding kalkulerer"
+                    , ariaLive "polite"
+                    , id (SpørsmålViewState.id spørsmål)
+                    ]
+                    [ div [ class "meldinginnhold-overflow-hidden" ]
+                        [ div [ class "meldinginnhold-wrapper", id "test" ]
+                            (spørsmål
+                                |> SpørsmålViewState.tekst
+                                |> List.map viewTekstområde
+                            )
+                        ]
+                    ]
+
+            MeldingAnimeres { height, width } ->
+                let
+                    padding =
+                        16
+
+                    snakkebobleHeight =
+                        height + (2 * padding)
+
+                    snakkebobleWidth =
+                        width + (2 * padding)
+                in
+                article
+                    [ class "melding ferdiganimert"
+                    , ariaLive "polite"
+                    , style "height" (String.fromInt snakkebobleHeight ++ "px")
+                    , style "width" (String.fromInt snakkebobleWidth ++ "px")
+                    , id (SpørsmålViewState.id spørsmål)
+                    ]
+                    [ div [ class "meldinginnhold-overflow-hidden" ]
+                        [ div [ class "meldinginnhold-wrapper" ]
+                            (spørsmål
+                                |> SpørsmålViewState.tekst
+                                |> List.map viewTekstområde
+                            )
+                        ]
+                    ]
+
+            MeldingFerdigAnimert ->
+                article
+                    [ class "melding"
+                    , classList [ ( "ikke-siste", ikkeSisteMelding spørsmål ) ]
+                    , ariaLive "polite"
+                    , id (SpørsmålViewState.id spørsmål)
+                    ]
+                    (spørsmål
+                        |> SpørsmålViewState.tekst
+                        |> List.map viewTekstområde
+                    )
         ]
 
 
-noAttribute : Html.Attribute msg
-noAttribute =
-    classList []
+ikkeSisteMelding : SpørsmålViewState -> Bool
+ikkeSisteMelding spørsmål =
+    case SpørsmålViewState.ikonStatus spørsmål of
+        SkjultIkon ->
+            True
+
+        MidtstiltIkonForFørsteSpørsmål ->
+            True
+
+        MidtstiltIkon ->
+            False
+
+        IkonForNesteMelding _ ->
+            True
+
+
+robotAttribute : SpørsmålViewState -> Html.Attribute msg
+robotAttribute spørsmål =
+    case SpørsmålViewState.ikonStatus spørsmål of
+        SkjultIkon ->
+            class "skjult-robot-ikon"
+
+        MidtstiltIkonForFørsteSpørsmål ->
+            class "forste-melding"
+
+        MidtstiltIkon ->
+            classList []
+
+        IkonForNesteMelding height ->
+            transformForRobot height
+
+
+transformForRobot : { height : Int } -> Html.Attribute msg
+transformForRobot { height } =
+    let
+        padding =
+            16
+
+        margin =
+            8
+
+        skriveIndikatorHøyde =
+            54
+
+        meldingHøyde =
+            (height + (2 * padding))
+                |> toFloat
+
+        avstand =
+            ((meldingHøyde + skriveIndikatorHøyde) / 2) + margin
+    in
+    style "transform" ("translateY(" ++ String.fromFloat avstand ++ "px)")
+
+
+viewSvar : Melding -> Html msg
+viewSvar melding =
+    div [ class "meldingsgruppe", ariaLabel "Deg" ]
+        [ div [ class "meldingsrad svar" ]
+            [ article
+                [ class "melding"
+                ]
+                (melding
+                    |> Melding.innhold
+                    |> List.map viewTekstområde
+                )
+            ]
+        ]
 
 
 viewTekstområde : Tekstområde -> Html msg
@@ -1619,28 +1765,32 @@ viewAvsnitt string =
     p [] [ text string ]
 
 
-viewSkriveStatus : MeldingsLogg -> Html msg
-viewSkriveStatus meldingsLogg =
-    case MeldingsLogg.skriveStatus meldingsLogg of
-        MeldingsLogg.Skriver ->
-            div [ class "meldingsrad sporsmal", ariaLive "off" ]
-                [ div [ class "robot" ] [ RobotLogo.robotLogo ]
-                , div [ class "melding" ]
-                    [ div [ class "skriver-melding" ]
-                        [ div [ class "bounce bounce1" ] []
-                        , div [ class "bounce bounce2" ] []
-                        , div [ class "bounce bounce3" ] []
-                        ]
-                    ]
-                ]
-
-        MeldingsLogg.SkriverIkke ->
-            text ""
+viewSkriveStatus : Html msg
+viewSkriveStatus =
+    div [ class "skriver-melding" ]
+        [ div [ class "bounce bounce1" ] []
+        , div [ class "bounce bounce2" ] []
+        , div [ class "bounce bounce3" ] []
+        ]
 
 
 viewBrukerInput : SamtaleSeksjon -> Html Msg
-viewBrukerInput aktivSamtale =
-    case aktivSamtale of
+viewBrukerInput aktivSeksjon =
+    div [ classList [ ( "brukerInput-padding", brukerInputVises aktivSeksjon ) ] ]
+        [ viewBrukerInputForSeksjon aktivSeksjon
+        ]
+
+
+brukerInputVises : SamtaleSeksjon -> Bool
+brukerInputVises aktivSeksjon =
+    aktivSeksjon
+        |> meldingsLoggFraSeksjon
+        |> MeldingsLogg.visBrukerInput
+
+
+viewBrukerInputForSeksjon : SamtaleSeksjon -> Html Msg
+viewBrukerInputForSeksjon aktivSeksjon =
+    case aktivSeksjon of
         PersonaliaSeksjon personaliaSeksjon ->
             personaliaSeksjon
                 |> Personalia.Seksjon.viewBrukerInput
@@ -1688,140 +1838,128 @@ viewBrukerInput aktivSamtale =
 
 viewBrukerInputForAndreSamtaleSteg : AndreSamtaleStegInfo -> Html AndreSamtaleStegMsg
 viewBrukerInputForAndreSamtaleSteg info =
-    case MeldingsLogg.ferdigAnimert info.meldingsLogg of
-        FerdigAnimert _ ->
-            case info.aktivSamtale of
-                Introduksjon _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerSierHeiIIntroduksjonen "Ja!"
-                            |> Knapp.toHtml
-                        ]
+    if MeldingsLogg.visBrukerInput info.meldingsLogg then
+        case info.aktivSamtale of
+            Introduksjon _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerSierHeiIIntroduksjonen "Ja!"
+                        |> Knapp.toHtml
+                    ]
 
-                HarIkkeSammendrag ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilLeggeTilSammendrag "Jeg vil legge til sammendrag"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilIkkeRedigereSammendrag "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+            BekreftSammendrag bekreftSammendragState ->
+                case bekreftSammendragState of
+                    OpprinneligSammendrag _ ->
+                        viewBekreftSammendrag BrukerVilIkkeRedigereSammendrag
 
-                BekreftEksisterendeSammendrag _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilEndreSammendrag "Ja, jeg vil se over"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilIkkeRedigereSammendrag "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
+                    NyttSammendrag _ ->
+                        viewBekreftSammendrag VilLagreBekreftetSammendrag
 
-                EndrerSammendrag sammendrag ->
-                    Containers.inputMedGåVidereKnapp (BrukerVilLagreSammendrag sammendrag)
-                        [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
-                            |> Textarea.withTextAreaClass "textarea_stor"
-                            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
-                            |> Textarea.withId sammendragId
-                            |> Textarea.toHtml
-                        ]
+                    EndretSammendrag _ ->
+                        viewBekreftSammendrag VilLagreBekreftetSammendrag
 
-                LagrerSammendrag _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                        LoggInnLenke.viewLoggInnLenke
+            EndrerSammendrag sammendrag ->
+                Containers.skjema { lagreMsg = VilLagreSammendragSkjema, lagreKnappTekst = "Lagre endringer" }
+                    (viewSammendragInput sammendrag)
 
-                    else
-                        text ""
+            SkriverSammendrag sammendrag ->
+                Containers.inputMedGåVidereKnapp VilLagreSammendragSkjema
+                    (viewSammendragInput sammendrag)
 
-                LagringAvSammendragFeilet error sammendrag ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilIkkeRedigereSammendrag "Gå videre uten å lagre"
-                                    |> Knapp.toHtml
-                                ]
+            LagrerSammendrag _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
 
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp (BrukerVilLagreSammendrag sammendrag) "Prøv på nytt"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilIkkeRedigereSammendrag "Gå videre uten å lagre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                LeggTilAutorisasjoner ->
-                    viewLeggTilAutorisasjoner
-
-                LeggTilFlereAutorisasjoner ->
-                    viewLeggTilAutorisasjoner
-
-                LeggTilAnnet ->
-                    viewLeggTilAnnet
-
-                LeggTilFlereAnnet ->
-                    viewLeggTilAnnet
-
-                DelMedArbeidsgiver _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en skal bare være synlig for meg"
-                            |> Knapp.toHtml
-                        ]
-
-                UnderOppfølging ->
+                else
                     text ""
 
-                SpørOmTilbakemelding ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
-                            |> Knapp.toHtml
-                        , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
-                            |> Knapp.toHtml
-                        ]
-
-                GiTilbakemelding ->
-                    Containers.lenke
-                        (Lenke.lenke { tekst = "Gi tilbakemelding", url = "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585" }
-                            |> Lenke.withTargetBlank
-                            |> Lenke.toHtml
-                        )
-
-                Avslutt _ ->
-                    Containers.knapper Flytende
-                        [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
-                            [ div [ class "Knapp" ]
-                                [ text "Avslutt og vis CV-en min" ]
+            LagringAvSammendragFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilIkkeRedigereSammendrag "Gå videre uten å lagre"
+                                |> Knapp.toHtml
                             ]
-                        ]
 
-                LagrerSynlighet _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp VilLagreBekreftetSammendrag "Prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilIkkeRedigereSammendrag "Gå videre uten å lagre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-                    else
-                        text ""
+            LeggTilAutorisasjoner ->
+                viewLeggTilAutorisasjoner
 
-                LagringSynlighetFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp (BrukerGirOppÅLagre "Gå videre") "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+            LeggTilFlereAutorisasjoner ->
+                viewLeggTilAutorisasjoner
 
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilPrøveÅLagreSynlighetPåNytt "Prøv på nytt"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp (BrukerGirOppÅLagre "Gå videre") "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+            LeggTilAnnet ->
+                viewLeggTilAnnet
 
-                        LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
+            LeggTilFlereAnnet ->
+                viewLeggTilAnnet
 
-        MeldingerGjenstår ->
-            text ""
+            DelMedArbeidsgiver _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en skal bare være synlig for meg"
+                        |> Knapp.toHtml
+                    ]
+
+            SpørOmTilbakemeldingUnderOppfølging ->
+                viewSpørOmTilbakemelding
+
+            SpørOmTilbakemeldingIkkeUnderOppfølging ->
+                viewSpørOmTilbakemelding
+
+            GiTilbakemelding ->
+                Containers.lenke
+                    (Lenke.lenke { tekst = "Gi tilbakemelding", url = "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585" }
+                        |> Lenke.withTargetBlank
+                        |> Lenke.toHtml
+                    )
+
+            Avslutt _ ->
+                Containers.knapper Flytende
+                    [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
+                        [ div [ class "Knapp" ]
+                            [ text "Avslutt og vis CV-en min" ]
+                        ]
+                    ]
+
+            LagrerSynlighet _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
+
+                else
+                    text ""
+
+            LagringSynlighetFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp (BrukerGirOppÅLagre "Gå videre") "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilPrøveÅLagreSynlighetPåNytt "Prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp (BrukerGirOppÅLagre "Gå videre") "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+    else
+        text ""
 
 
 sammendragId : String
@@ -1846,8 +1984,37 @@ viewLeggTilAnnet =
     Containers.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
         , seksjonsvalgKnapp KursValgt
-        , seksjonsvalgKnapp FørerkortValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
+            |> Knapp.toHtml
+        ]
+
+
+viewSpørOmTilbakemelding : Html AndreSamtaleStegMsg
+viewSpørOmTilbakemelding =
+    Containers.knapper Flytende
+        [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
+            |> Knapp.toHtml
+        , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
+            |> Knapp.toHtml
+        ]
+
+
+viewSammendragInput : String -> List (Html AndreSamtaleStegMsg)
+viewSammendragInput sammendrag =
+    [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
+        |> Textarea.withTextAreaClass "textarea_stor"
+        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
+        |> Textarea.withId sammendragId
+        |> Textarea.toHtml
+    ]
+
+
+viewBekreftSammendrag : AndreSamtaleStegMsg -> Html AndreSamtaleStegMsg
+viewBekreftSammendrag bekreftMsg =
+    Containers.knapper Flytende
+        [ Knapp.knapp bekreftMsg "Ja, jeg er fornøyd"
+            |> Knapp.toHtml
+        , Knapp.knapp BrukerVilEndreSammendrag "Nei, jeg vil endre"
             |> Knapp.toHtml
         ]
 
@@ -1857,42 +2024,14 @@ seksjonsvalgKnapp seksjonsvalg =
     seksjonsvalg
         |> seksjonsvalgTilString
         |> Knapp.knapp (SeksjonValgt seksjonsvalg)
-        |> Knapp.withEnabled (seksjonsvalgDisabled seksjonsvalg)
         |> Knapp.toHtml
-
-
-seksjonsvalgDisabled : ValgtSeksjon -> Enabled
-seksjonsvalgDisabled seksjonsvalg =
-    -- TODO: enable når implementert
-    -- TODO: Slett denne når alle er implementert
-    case seksjonsvalg of
-        FagbrevSvennebrevValgt ->
-            Enabled
-
-        MesterbrevValgt ->
-            Enabled
-
-        AutorisasjonValgt ->
-            Enabled
-
-        SertifiseringValgt ->
-            Enabled
-
-        AnnenErfaringValgt ->
-            Enabled
-
-        KursValgt ->
-            Enabled
-
-        FørerkortValgt ->
-            Disabled
 
 
 seksjonsvalgTilString : ValgtSeksjon -> String
 seksjonsvalgTilString seksjonsvalg =
     case seksjonsvalg of
         FagbrevSvennebrevValgt ->
-            "Fagbrev/Svennebrev"
+            "Fagbrev/svennebrev"
 
         MesterbrevValgt ->
             "Mesterbrev"
@@ -1908,9 +2047,6 @@ seksjonsvalgTilString seksjonsvalg =
 
         KursValgt ->
             "Kurs"
-
-        FørerkortValgt ->
-            "Førerkort"
 
 
 
@@ -2010,5 +2146,10 @@ seksjonSubscriptions model =
                         |> Kurs.Seksjon.subscriptions
                         |> Sub.map (KursMsg >> SuccessMsg)
 
-                AndreSamtaleSteg _ ->
-                    Browser.Events.onVisibilityChange (WindowEndrerVisibility >> AndreSamtaleStegMsg >> SuccessMsg)
+                AndreSamtaleSteg info ->
+                    Sub.batch
+                        [ Browser.Events.onVisibilityChange (WindowEndrerVisibility >> AndreSamtaleStegMsg >> SuccessMsg)
+                        , info.meldingsLogg
+                            |> SamtaleAnimasjon.subscriptions
+                            |> Sub.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg >> SuccessMsg)
+                        ]
