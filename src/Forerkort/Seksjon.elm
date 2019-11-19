@@ -985,7 +985,6 @@ viewBrukerInput (Model model) =
                                 , ( "November", "November" )
                                 , ( "Desember", "Desember" )
                                 ]
-                                --|> Select.withSelected (Dato.månedTilString options.måned)
                                 |> Select.withClass "DatoInput-måned"
                                 |> Select.toHtml
                             , Input.input { label = "År", msg = BrukerEndrerFraÅr } info.år
