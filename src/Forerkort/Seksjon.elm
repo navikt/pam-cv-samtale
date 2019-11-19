@@ -1070,7 +1070,9 @@ viewBrukerInput (Model model) =
                             |> Select.toHtml
                         , div [] [ text "Gyldig fra dato" ]
                         , div [ class "ForerkortSeksjon-datolinje" ]
-                            [ Input.inputWithPlaceholder { placeholder = "Dag", label = "", msg = FraDag >> SkjemaEndret } (Skjema.fraDagFraSkjema skjema.skjema)
+                            [ Skjema.fraDagFraSkjema skjema.skjema
+                                |> Input.input { label = "", msg = FraDag >> SkjemaEndret }
+                                |> Input.withPlaceholder "Dag"
                                 |> Input.toHtml
                             , Select.select
                                 ""
@@ -1092,7 +1094,9 @@ viewBrukerInput (Model model) =
                                 |> Select.withMaybeSelected (Maybe.map Dato.månedTilString (Skjema.fraMånedFraSkjema skjema.skjema))
                                 |> Select.withClass "DatoInput-måned"
                                 |> Select.toHtml
-                            , Input.inputWithPlaceholder { placeholder = "År", label = "", msg = FraÅr >> SkjemaEndret } (Skjema.fraÅrFraSkjema skjema.skjema)
+                            , Skjema.fraÅrFraSkjema skjema.skjema
+                                |> Input.input { label = "", msg = FraÅr >> SkjemaEndret }
+                                |> Input.withPlaceholder "År"
                                 |> Input.toHtml
                             ]
                         , case Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema } of
@@ -1110,7 +1114,9 @@ viewBrukerInput (Model model) =
                                 text ""
                         , div [] [ text "Utløper dato" ]
                         , div [ class "ForerkortSeksjon-datolinje" ]
-                            [ Input.inputWithPlaceholder { placeholder = "Dag", label = "", msg = TilDag >> SkjemaEndret } (Skjema.tilDagFraSkjema skjema.skjema)
+                            [ Skjema.tilDagFraSkjema skjema.skjema
+                                |> Input.input { label = "", msg = TilDag >> SkjemaEndret }
+                                |> Input.withPlaceholder "Dag"
                                 |> Input.toHtml
                             , Select.select
                                 ""
@@ -1132,7 +1138,9 @@ viewBrukerInput (Model model) =
                                 |> Select.withMaybeSelected (Maybe.map Dato.månedTilString (Skjema.tilMånedFraSkjema skjema.skjema))
                                 |> Select.withClass "DatoInput-måned"
                                 |> Select.toHtml
-                            , Input.inputWithPlaceholder { placeholder = "År", label = "", msg = TilÅr >> SkjemaEndret } (Skjema.tilÅrFraSkjema skjema.skjema)
+                            , Skjema.tilÅrFraSkjema skjema.skjema
+                                |> Input.input { label = "", msg = TilÅr >> SkjemaEndret }
+                                |> Input.withPlaceholder "År"
                                 |> Input.toHtml
                             ]
                         , case Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema } of

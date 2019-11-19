@@ -3,7 +3,6 @@ module FrontendModuler.Input exposing
     , Input
     , InputOptions
     , input
-    , inputWithPlaceholder
     , toHtml
     , withClass
     , withEnabled
@@ -13,6 +12,7 @@ module FrontendModuler.Input exposing
     , withMaybeFeilmelding
     , withOnBlur
     , withOnEnter
+    , withPlaceholder
     )
 
 import FrontendModuler.Feilmelding as Feilmelding
@@ -53,13 +53,6 @@ type alias InputOptions msg =
     }
 
 
-type alias InputOptionsWithPlaceholder msg =
-    { msg : String -> msg
-    , label : String
-    , placeholder : String
-    }
-
-
 input : InputOptions msg -> String -> Input msg
 input { msg, label } innhold =
     Input
@@ -73,23 +66,6 @@ input { msg, label } innhold =
         , id = Nothing
         , enabled = Enabled
         , placeholder = Nothing
-        , ariaLabelledby = Nothing
-        }
-
-
-inputWithPlaceholder : InputOptionsWithPlaceholder msg -> String -> Input msg
-inputWithPlaceholder { msg, label, placeholder } innhold =
-    Input
-        { msg = msg
-        , label = Label label
-        , innhold = innhold
-        , feilmelding = Nothing
-        , classes = []
-        , onEnter = Nothing
-        , onBlur = Nothing
-        , id = Nothing
-        , enabled = Enabled
-        , placeholder = Just placeholder
         , ariaLabelledby = Nothing
         }
 
@@ -137,6 +113,11 @@ withOnBlur msg (Input info) =
 withId : String -> Input msg -> Input msg
 withId id (Input info) =
     Input { info | id = Just id }
+
+
+withPlaceholder : String -> Input msg -> Input msg
+withPlaceholder placeholder (Input info) =
+    Input { info | placeholder = Just placeholder }
 
 
 
