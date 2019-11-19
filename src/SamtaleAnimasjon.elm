@@ -4,6 +4,7 @@ import Browser.Dom as Dom exposing (Element, Viewport)
 import Browser.Events
 import DebugStatus exposing (DebugStatus)
 import Ease
+import Konstanter
 import MeldingsLogg exposing (AntallOrdNesteOgForrigeMelding(..), FerdigAnimertStatus(..), MeldingsLogg, ScrollAnimasjonStatus(..))
 import Process
 import Task exposing (Task)
@@ -254,7 +255,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
         ( meldingsLogg
         , { animasjonstidMs = 400
           , opprinneligViewport = opprinneligViewport
-          , sluttPosisjon = samtaleElement.element.height + 12 - 16 - opprinneligViewport.viewport.height
+          , sluttPosisjon = sluttPosisjon
           , tidNå = tidNå
           , startTidForScrolling = startTidForScrolling
           }
@@ -267,11 +268,8 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
 scrollTilMelding : MeldingsLogg -> { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
 scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewport, samtaleElement } tidNå =
     let
-        heightPlussPadding =
-            toFloat height + (2 * 16)
-
         forskjellMeldingstørrelse =
-            heightPlussPadding - 54
+            Konstanter.meldingHøyde height - Konstanter.skriveIndikatorHøyde
 
         sluttPosisjon =
             forskjellMeldingstørrelse - (16 - ((samtaleElement.element.height + 12) - opprinneligViewport.viewport.height))

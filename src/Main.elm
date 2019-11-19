@@ -24,6 +24,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabel, ariaLive)
 import Http
+import Konstanter
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding, Tekstområde(..))
@@ -1652,21 +1653,8 @@ robotAttribute spørsmål =
 transformForRobot : { height : Int } -> Html.Attribute msg
 transformForRobot { height } =
     let
-        padding =
-            16
-
-        margin =
-            8
-
-        skriveIndikatorHøyde =
-            54
-
-        meldingHøyde =
-            (height + (2 * padding))
-                |> toFloat
-
         avstand =
-            ((meldingHøyde + skriveIndikatorHøyde) / 2) + margin
+            ((Konstanter.meldingHøyde height + Konstanter.skriveIndikatorHøyde) / 2) + Konstanter.meldingMarginTop
     in
     style "transform" ("translateY(" ++ String.fromFloat avstand ++ "px)")
 
