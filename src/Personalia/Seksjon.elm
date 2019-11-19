@@ -10,7 +10,6 @@ module Personalia.Seksjon exposing
     )
 
 import Api
-import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
@@ -30,9 +29,7 @@ import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..)
 import Personalia exposing (Personalia)
 import Personalia.Skjema as Skjema exposing (PersonaliaSkjema, ValidertPersonaliaSkjema)
 import Poststed exposing (Poststed)
-import Process
 import SamtaleAnimasjon
-import Task
 
 
 
@@ -96,9 +93,7 @@ type Msg
     | BrukerVilGåVidereUtenÅLagre
     | BrukerVilPrøveÅLagrePåNytt
     | WindowEndrerVisibility Visibility
-    | ViewportSatt (Result Dom.Error ())
-    | StartÅSkrive
-    | FullførMelding
+    | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | ErrorLogget
 
 
@@ -380,29 +375,8 @@ update msg (Model model) =
                 Hidden ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        ViewportSatt _ ->
-            IkkeFerdig ( Model model, Cmd.none )
-
-        StartÅSkrive ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
-                }
-            , Cmd.batch
-                [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-                , MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg
-                    * 1000.0
-                    |> DebugStatus.meldingsTimeout model.debugStatus
-                    |> Process.sleep
-                    |> Task.perform (always FullførMelding)
-                ]
-            )
-                |> IkkeFerdig
-
-        FullførMelding ->
-            model.seksjonsMeldingsLogg
-                |> MeldingsLogg.fullførMelding
+        SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
+            SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
                 |> updateEtterFullførtMelding model
 
         ErrorLogget ->
@@ -418,8 +392,8 @@ fullførtStatusEtterOkLagring lagreStatus =
         LagringLyktesEtterFlereForsøk
 
 
-updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
-updateEtterFullførtMelding model nyMeldingsLogg =
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
@@ -427,22 +401,14 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     Ferdig personalia ferdigAnimertSamtale
 
                 _ ->
-                    ( Model
-                        { model
-                            | seksjonsMeldingsLogg =
-                                nyMeldingsLogg
-                        }
-                    , SamtaleAnimasjon.scrollTilBunn ViewportSatt
+                    ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
+                    , Cmd.map SamtaleAnimasjonMsg cmd
                     )
                         |> IkkeFerdig
 
         MeldingerGjenstår ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        nyMeldingsLogg
-                }
-            , lagtTilSpørsmålCmd model.debugStatus
+            ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
+            , Cmd.map SamtaleAnimasjonMsg cmd
             )
                 |> IkkeFerdig
 
@@ -460,13 +426,8 @@ fullførSeksjonHvisMeldingsloggErFerdig personalia (Model model) =
 
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
-    Cmd.batch
-        [ SamtaleAnimasjon.scrollTilBunn ViewportSatt
-        , 200
-            |> DebugStatus.meldingsTimeout debugStatus
-            |> Process.sleep
-            |> Task.perform (always StartÅSkrive)
-        ]
+    SamtaleAnimasjon.startAnimasjon debugStatus
+        |> Cmd.map SamtaleAnimasjonMsg
 
 
 nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
@@ -577,89 +538,88 @@ viewDatoString datoString =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
-    case MeldingsLogg.ferdigAnimert seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case aktivSamtale of
-                BekreftPersonalia bekreftPersonaliaState ->
-                    case bekreftPersonaliaState of
-                        OpprinneligPersonalia _ ->
-                            viewBekreftPersonalia
+    if MeldingsLogg.visBrukerInput seksjonsMeldingsLogg then
+        case aktivSamtale of
+            BekreftPersonalia bekreftPersonaliaState ->
+                case bekreftPersonaliaState of
+                    OpprinneligPersonalia _ ->
+                        viewBekreftPersonalia
 
-                        EndretPersonalia _ ->
-                            viewBekreftPersonalia
+                    EndretPersonalia _ ->
+                        viewBekreftPersonalia
 
-                EndrerPersonalia personaliaSkjema ->
-                    Containers.skjema { lagreMsg = PersonaliaskjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
+            EndrerPersonalia personaliaSkjema ->
+                Containers.skjema { lagreMsg = PersonaliaskjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
+                    [ personaliaSkjema
+                        |> Skjema.fornavn
+                        |> Input.input { label = "Fornavn*", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
+                        |> Input.withMaybeFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
+                        |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Fornavn)
+                        |> Input.toHtml
+                    , personaliaSkjema
+                        |> Skjema.etternavn
+                        |> Input.input { label = "Etternavn*", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
+                        |> Input.withMaybeFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
+                        |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Etternavn)
+                        |> Input.toHtml
+                    , personaliaSkjema
+                        |> Skjema.epost
+                        |> Input.input { label = "E-post*", msg = PersonaliaSkjemaEndret Skjema.Epost }
+                        |> Input.withMaybeFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
+                        |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Epost)
+                        |> Input.toHtml
+                    , viewTelefonISkjema personaliaSkjema
+                    , personaliaSkjema
+                        |> Skjema.gateadresse
+                        |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Gateadresse }
+                        |> Input.toHtml
+                    , div [ class "PersonaliaSeksjon-poststed" ]
                         [ personaliaSkjema
-                            |> Skjema.fornavn
-                            |> Input.input { label = "Fornavn*", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
-                            |> Input.withMaybeFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
-                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Fornavn)
+                            |> Skjema.postnummer
+                            |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Postnummer }
+                            |> Input.withMaybeFeilmelding (Skjema.postnummerFeilmelding personaliaSkjema)
+                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Postnummer)
                             |> Input.toHtml
                         , personaliaSkjema
-                            |> Skjema.etternavn
-                            |> Input.input { label = "Etternavn*", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
-                            |> Input.withMaybeFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
-                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Etternavn)
+                            |> Skjema.poststed
+                            |> Input.input { label = "Poststed", msg = PoststedfeltEndretSelvOmDetErDisabled }
+                            |> Input.withEnabled Input.Disabled
                             |> Input.toHtml
-                        , personaliaSkjema
-                            |> Skjema.epost
-                            |> Input.input { label = "E-post*", msg = PersonaliaSkjemaEndret Skjema.Epost }
-                            |> Input.withMaybeFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
-                            |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Epost)
-                            |> Input.toHtml
-                        , viewTelefonISkjema personaliaSkjema
-                        , personaliaSkjema
-                            |> Skjema.gateadresse
-                            |> Input.input { label = "Gateadresse", msg = PersonaliaSkjemaEndret Skjema.Gateadresse }
-                            |> Input.toHtml
-                        , div [ class "PersonaliaSeksjon-poststed" ]
-                            [ personaliaSkjema
-                                |> Skjema.postnummer
-                                |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Postnummer }
-                                |> Input.withMaybeFeilmelding (Skjema.postnummerFeilmelding personaliaSkjema)
-                                |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Postnummer)
-                                |> Input.toHtml
-                            , personaliaSkjema
-                                |> Skjema.poststed
-                                |> Input.input { label = "Poststed", msg = PoststedfeltEndretSelvOmDetErDisabled }
-                                |> Input.withEnabled Input.Disabled
-                                |> Input.toHtml
-                            ]
                         ]
+                    ]
 
-                -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
-                LagrerPersonalia _ lagreStatus ->
-                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                        LoggInnLenke.viewLoggInnLenke
+            -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
+            LagrerPersonalia _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
 
-                    else
-                        text ""
-
-                LagringFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
-
-                        LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                VenterPåAnimasjonFørFullføring _ _ ->
+                else
                     text ""
 
-        MeldingerGjenstår ->
-            text ""
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilGåVidereUtenÅLagre "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            VenterPåAnimasjonFørFullføring _ _ ->
+                text ""
+
+    else
+        text ""
 
 
 viewTelefonISkjema : PersonaliaSkjema -> Html Msg
@@ -725,5 +685,10 @@ init debugStatus personalia gammelMeldingsLogg =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Browser.Events.onVisibilityChange WindowEndrerVisibility
+subscriptions (Model model) =
+    Sub.batch
+        [ Browser.Events.onVisibilityChange WindowEndrerVisibility
+        , model.seksjonsMeldingsLogg
+            |> SamtaleAnimasjon.subscriptions
+            |> Sub.map SamtaleAnimasjonMsg
+        ]
