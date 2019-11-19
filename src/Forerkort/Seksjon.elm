@@ -18,6 +18,7 @@ import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
 import Forerkort.Skjema as Skjema exposing (FørerkortSkjema, ValidertFørerkortSkjema)
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
+import FrontendModuler.DatoInputMedDag as DatoInputMedDag
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
@@ -965,86 +966,34 @@ viewBrukerInput (Model model) =
 
                 RegistrereFraDato info ->
                     Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedFraDato
-                        [ div [ class "ForerkortSeksjon-datolinje" ]
-                            [ Input.input { label = "Dag", msg = BrukerEndrerFraDag } info.dag
-                                |> Input.toHtml
-                            , Select.select
-                                "Måned"
-                                BrukerEndrerFraMåned
-                                [ ( "", "Velg måned" )
-                                , ( "Januar", "Januar" )
-                                , ( "Februar", "Februar" )
-                                , ( "Mars", "Mars" )
-                                , ( "April", "April" )
-                                , ( "Mai", "Mai" )
-                                , ( "Juni", "Juni" )
-                                , ( "Juli", "Juli" )
-                                , ( "August", "August" )
-                                , ( "September", "September" )
-                                , ( "Oktober", "Oktober" )
-                                , ( "November", "November" )
-                                , ( "Desember", "Desember" )
-                                ]
-                                |> Select.withClass "DatoInput-måned"
-                                |> Select.toHtml
-                            , Input.input { label = "År", msg = BrukerEndrerFraÅr } info.år
-                                |> Input.toHtml
-                            ]
-                        , case Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år } of
-                            Just feilmelding ->
-                                if info.visFeilmelding then
-                                    div [ role "alert", ariaLive "assertive" ]
-                                        [ div [ class "skjemaelement__feilmelding" ]
-                                            [ text feilmelding.feilmelding ]
-                                        ]
-
-                                else
-                                    text ""
-
-                            Nothing ->
-                                text ""
+                        [ div [] [ text "Fra dato" ]
+                        , { label = "Gyldig fra dato"
+                          , onDagChange = BrukerEndrerFraDag
+                          , dag = info.dag
+                          , år = info.år
+                          , onÅrChange = BrukerEndrerFraÅr
+                          , måned = info.måned
+                          , onMånedChange = BrukerEndrerFraMåned
+                          }
+                            |> DatoInputMedDag.datoInputMedDag
+                            |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
+                            |> DatoInputMedDag.toHtml
                         ]
 
                 RegistrereTilDato info ->
                     Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedTilDato
-                        [ div [ class "ForerkortSeksjon-datolinje" ]
-                            [ Input.input { label = "Dag", msg = BrukerEndrerTilDag } info.dag
-                                |> Input.toHtml
-                            , Select.select
-                                "Måned"
-                                BrukerEndrerTilMåned
-                                [ ( "", "Velg måned" )
-                                , ( "Januar", "Januar" )
-                                , ( "Februar", "Februar" )
-                                , ( "Mars", "Mars" )
-                                , ( "April", "April" )
-                                , ( "Mai", "Mai" )
-                                , ( "Juni", "Juni" )
-                                , ( "Juli", "Juli" )
-                                , ( "August", "August" )
-                                , ( "September", "September" )
-                                , ( "Oktober", "Oktober" )
-                                , ( "November", "November" )
-                                , ( "Desember", "Desember" )
-                                ]
-                                |> Select.withClass "DatoInput-måned"
-                                |> Select.toHtml
-                            , Input.input { label = "År", msg = BrukerEndrerTilÅr } info.år
-                                |> Input.toHtml
-                            ]
-                        , case Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år } of
-                            Just feilmelding ->
-                                if info.visFeilmelding then
-                                    div [ role "alert", ariaLive "assertive" ]
-                                        [ div [ class "skjemaelement__feilmelding" ]
-                                            [ text feilmelding.feilmelding ]
-                                        ]
-
-                                else
-                                    text ""
-
-                            Nothing ->
-                                text ""
+                        [ div [] [ text "Utløper dato" ]
+                        , { label = "Utløper dato"
+                          , onDagChange = BrukerEndrerTilDag
+                          , dag = info.dag
+                          , år = info.år
+                          , onÅrChange = BrukerEndrerTilÅr
+                          , måned = info.måned
+                          , onMånedChange = BrukerEndrerTilMåned
+                          }
+                            |> DatoInputMedDag.datoInputMedDag
+                            |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
+                            |> DatoInputMedDag.toHtml
                         ]
 
                 Oppsummering _ ->
@@ -1067,94 +1016,32 @@ viewBrukerInput (Model model) =
                             )
                             |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema.skjema))
                             |> Select.toHtml
-                        , div [] [ text "Gyldig fra dato" ]
-                        , div [ class "ForerkortSeksjon-datolinje" ]
-                            [ Skjema.fraDagFraSkjema skjema.skjema
-                                |> Input.input { label = "", msg = FraDag >> SkjemaEndret }
-                                |> Input.withPlaceholder "Dag"
-                                |> Input.toHtml
-                            , Select.select
-                                ""
-                                (FraMåned >> SkjemaEndret)
-                                [ ( "", "Måned" )
-                                , ( "Januar", "Januar" )
-                                , ( "Februar", "Februar" )
-                                , ( "Mars", "Mars" )
-                                , ( "April", "April" )
-                                , ( "Mai", "Mai" )
-                                , ( "Juni", "Juni" )
-                                , ( "Juli", "Juli" )
-                                , ( "August", "August" )
-                                , ( "September", "September" )
-                                , ( "Oktober", "Oktober" )
-                                , ( "November", "November" )
-                                , ( "Desember", "Desember" )
-                                ]
-                                |> Select.withMaybeSelected (Maybe.map Dato.månedTilString (Skjema.fraMånedFraSkjema skjema.skjema))
-                                |> Select.withClass "DatoInput-måned"
-                                |> Select.toHtml
-                            , Skjema.fraÅrFraSkjema skjema.skjema
-                                |> Input.input { label = "", msg = FraÅr >> SkjemaEndret }
-                                |> Input.withPlaceholder "År"
-                                |> Input.toHtml
+                        , div [] [ text "Fra dato" ]
+                        , div [ class "ForerkortSeksjon-dato" ]
+                            [ { label = "Gyldig fra dato"
+                              , onDagChange = FraDag >> SkjemaEndret
+                              , dag = Skjema.fraDagFraSkjema skjema.skjema
+                              , år = Skjema.fraÅrFraSkjema skjema.skjema
+                              , onÅrChange = FraÅr >> SkjemaEndret
+                              , måned = Skjema.fraMånedFraSkjema skjema.skjema
+                              , onMånedChange = FraMåned >> SkjemaEndret
+                              }
+                                |> DatoInputMedDag.datoInputMedDag
+                                |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema })
+                                |> DatoInputMedDag.toHtml
+                            , div [] [ text "Utløper dato" ]
+                            , { label = "Gyldig til dato"
+                              , onDagChange = TilDag >> SkjemaEndret
+                              , dag = Skjema.tilDagFraSkjema skjema.skjema
+                              , år = Skjema.tilÅrFraSkjema skjema.skjema
+                              , onÅrChange = TilÅr >> SkjemaEndret
+                              , måned = Skjema.tilMånedFraSkjema skjema.skjema
+                              , onMånedChange = TilMåned >> SkjemaEndret
+                              }
+                                |> DatoInputMedDag.datoInputMedDag
+                                |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema })
+                                |> DatoInputMedDag.toHtml
                             ]
-                        , case Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema } of
-                            Just feilmelding ->
-                                if skjema.visFeilmelding then
-                                    div [ role "alert", ariaLive "assertive" ]
-                                        [ div [ class "skjemaelement__feilmelding" ]
-                                            [ text feilmelding.feilmelding ]
-                                        ]
-
-                                else
-                                    text ""
-
-                            Nothing ->
-                                text ""
-                        , div [] [ text "Utløper dato" ]
-                        , div [ class "ForerkortSeksjon-datolinje" ]
-                            [ Skjema.tilDagFraSkjema skjema.skjema
-                                |> Input.input { label = "", msg = TilDag >> SkjemaEndret }
-                                |> Input.withPlaceholder "Dag"
-                                |> Input.toHtml
-                            , Select.select
-                                ""
-                                (TilMåned >> SkjemaEndret)
-                                [ ( "", "Måned" )
-                                , ( "Januar", "Januar" )
-                                , ( "Februar", "Februar" )
-                                , ( "Mars", "Mars" )
-                                , ( "April", "April" )
-                                , ( "Mai", "Mai" )
-                                , ( "Juni", "Juni" )
-                                , ( "Juli", "Juli" )
-                                , ( "August", "August" )
-                                , ( "September", "September" )
-                                , ( "Oktober", "Oktober" )
-                                , ( "November", "November" )
-                                , ( "Desember", "Desember" )
-                                ]
-                                |> Select.withMaybeSelected (Maybe.map Dato.månedTilString (Skjema.tilMånedFraSkjema skjema.skjema))
-                                |> Select.withClass "DatoInput-måned"
-                                |> Select.toHtml
-                            , Skjema.tilÅrFraSkjema skjema.skjema
-                                |> Input.input { label = "", msg = TilÅr >> SkjemaEndret }
-                                |> Input.withPlaceholder "År"
-                                |> Input.toHtml
-                            ]
-                        , case Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema } of
-                            Just feilmelding ->
-                                if skjema.visFeilmelding then
-                                    div [ role "alert", ariaLive "assertive" ]
-                                        [ div [ class "skjemaelement__feilmelding" ]
-                                            [ text feilmelding.feilmelding ]
-                                        ]
-
-                                else
-                                    text ""
-
-                            Nothing ->
-                                text ""
                         ]
 
                 OppsummeringEtterEndring _ ->

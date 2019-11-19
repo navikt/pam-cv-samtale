@@ -347,19 +347,26 @@ html {
 
 .ForerkortSeksjon-datolinje {
   display: flex;
+  align-items: flex-end;
 
-  :first-child.skjemaelement {
-    width: 6rem;
+  .DatoInputMedDag-dag-wrapper {
+    margin-right: 1rem;
   }
 
-  :nth-child(2).skjemaelement {
-    width: 8rem;
-    padding-left: 1rem;
+  .DatoInputMedDag-mnd-wrapper {
+    margin-right: 1rem;
+    width: 12rem;
   }
 
-  :last-child.skjemaelement {
-    padding-left: 1rem;
-    width: 6rem;
+
+}
+
+.ForerkortSeksjon-dato {
+
+  margin-bottom: 1rem;
+
+  .skjemaelement__feilmelding {
+    margin-top: 0;
   }
 }
 
