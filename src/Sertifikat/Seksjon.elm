@@ -944,14 +944,14 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
         RegistrerSertifikatFelt _ _ ->
             [ Melding.spørsmål [ "Hva slags sertifikat eller sertifisering har du?" ]
             , Melding.spørsmål
-                [ "Kanskje du har truckførerbevis T1, eller noe helt annet? :)" ]
+                [ "Kanskje du har truckførerbevis T1, eller noe helt annet? 😊" ]
             ]
 
         RegistrerUtsteder _ ->
             [ Melding.spørsmål
                 [ "Hvilken organisasjon sertifiserte deg?" ]
             , Melding.spørsmål
-                [ "Er du usikker på hvem som har ansvar for sertifiseringen? Det står ofte på beviset ditt" ]
+                [ "Er du usikker på hvem som har ansvar for sertifiseringen? Det står ofte på beviset ditt." ]
             ]
 
         RegistrerFullførtMåned _ ->

@@ -1092,8 +1092,12 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre utdanning" } ]
 
-        VenterPåAnimasjonFørFullføring _ ->
-            [ Melding.spørsmål [ "Bra jobba! Da går vi videre." ] ]
+        VenterPåAnimasjonFørFullføring liste ->
+            if List.isEmpty liste then
+                [ Melding.spørsmål [ "Siden du ikke har utdanning, går vi videre til arbeidserfaring." ] ]
+
+            else
+                [ Melding.spørsmål [ "Bra jobba! Da går vi videre." ] ]
 
         LagrerSkjema _ _ ->
             []

@@ -48,17 +48,21 @@ type alias ModelInfo =
     }
 
 
+type BekreftPersonaliaState
+    = OpprinneligPersonalia Personalia
+    | EndretPersonalia ValidertPersonaliaSkjema
+
+
 type Samtale
-    = BekreftOriginal Personalia
-    | EndreOriginal PersonaliaSkjema
-    | LagrerEndring ValidertPersonaliaSkjema LagreStatus
+    = BekreftPersonalia BekreftPersonaliaState
+    | EndrerPersonalia PersonaliaSkjema
+    | LagrerPersonalia ValidertPersonaliaSkjema LagreStatus
     | LagringFeilet Http.Error ValidertPersonaliaSkjema
     | VenterPåAnimasjonFørFullføring Personalia FullføringStatus
 
 
 type FullføringStatus
-    = BekreftetOriginal
-    | LagringLyktesFørsteGang
+    = LagringLyktesFørsteGang
     | LagringLyktesEtterFlereForsøk
     | BrukerGikkVidere
 
@@ -78,14 +82,14 @@ meldingsLogg (Model model) =
 
 
 type Msg
-    = OriginalPersonaliaBekreftet
-    | BrukerVilEndreOriginalPersonalia
+    = BrukerVilEndrePersonalia
     | PersonaliaSkjemaEndret Skjema.Felt String
     | PersonaliaSkjemaFeltMistetFokus Skjema.Felt
     | PoststedHentet String (Result Http.Error Poststed)
     | PoststedfeltEndretSelvOmDetErDisabled String
     | PersonaliaskjemaLagreknappTrykket
     | PersonaliaOppdatert (Result Http.Error Personalia)
+    | VilLagreBekreftetPersonalia
     | BrukerVilGåVidereUtenÅLagre
     | BrukerVilPrøveÅLagrePåNytt
     | WindowEndrerVisibility Visibility
@@ -96,26 +100,36 @@ type Msg
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        OriginalPersonaliaBekreftet ->
-            BekreftetOriginal
-                |> VenterPåAnimasjonFørFullføring model.personalia
-                |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
-                |> fullførSeksjonHvisMeldingsloggErFerdig model.personalia
+        BrukerVilEndrePersonalia ->
+            case model.aktivSamtale of
+                BekreftPersonalia bekreftPersonaliaState ->
+                    case bekreftPersonaliaState of
+                        OpprinneligPersonalia personalia ->
+                            ( personalia
+                                |> Skjema.init
+                                |> EndrerPersonalia
+                                |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
-        BrukerVilEndreOriginalPersonalia ->
-            ( model.personalia
-                |> Skjema.init
-                |> EndreOriginal
-                |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
+                        EndretPersonalia personaliaSkjema ->
+                            ( personaliaSkjema
+                                |> Skjema.tilUvalidertSkjema
+                                |> EndrerPersonalia
+                                |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         PersonaliaSkjemaEndret felt string ->
             case model.aktivSamtale of
-                EndreOriginal skjema ->
+                EndrerPersonalia skjema ->
                     ( Skjema.oppdaterFelt felt skjema string
-                        |> EndreOriginal
+                        |> EndrerPersonalia
                         |> oppdaterSamtaleSteg model
                     , case felt of
                         Skjema.Postnummer ->
@@ -136,10 +150,10 @@ update msg (Model model) =
 
         PersonaliaSkjemaFeltMistetFokus felt ->
             case model.aktivSamtale of
-                EndreOriginal skjema ->
+                EndrerPersonalia skjema ->
                     ( felt
                         |> Skjema.gjørFeilmeldingSynligForFelt skjema
-                        |> EndreOriginal
+                        |> EndrerPersonalia
                         |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
@@ -153,10 +167,10 @@ update msg (Model model) =
             case result of
                 Ok poststed ->
                     case model.aktivSamtale of
-                        EndreOriginal skjema ->
+                        EndrerPersonalia skjema ->
                             ( skjema
                                 |> Skjema.oppdaterPoststed poststed
-                                |> EndreOriginal
+                                |> EndrerPersonalia
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
@@ -184,29 +198,19 @@ update msg (Model model) =
 
         PersonaliaskjemaLagreknappTrykket ->
             case model.aktivSamtale of
-                EndreOriginal skjema ->
+                EndrerPersonalia skjema ->
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
-                            ( LagreStatus.init
-                                |> LagrerEndring validertSkjema
-                                |> nesteSamtaleSteg model
-                                    (skjema
-                                        |> personaliaSkjemaOppsummering
-                                        |> Melding.svar
-                                    )
-                            , Cmd.batch
-                                [ model.personalia
-                                    |> Personalia.id
-                                    |> Api.putPersonalia PersonaliaOppdatert validertSkjema
-                                , lagtTilSpørsmålCmd model.debugStatus
-                                ]
+                            ( BekreftPersonalia (EndretPersonalia validertSkjema)
+                                |> nesteSamtaleSteg model (Melding.svar (personaliaSkjemaOppsummering skjema))
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
                         Nothing ->
                             ( skjema
                                 |> Skjema.gjørAlleFeilmeldingerSynlig
-                                |> EndreOriginal
+                                |> EndrerPersonalia
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
@@ -218,7 +222,7 @@ update msg (Model model) =
 
         PersonaliaOppdatert result ->
             case model.aktivSamtale of
-                LagrerEndring skjema lagreStatus ->
+                LagrerPersonalia skjema lagreStatus ->
                     case result of
                         Ok personalia ->
                             if LagreStatus.lagrerEtterUtlogging lagreStatus then
@@ -240,7 +244,7 @@ update msg (Model model) =
                                 if LagreStatus.forsøkPåNytt lagreStatus then
                                     ( error
                                         |> LagreStatus.fraError
-                                        |> LagrerEndring skjema
+                                        |> LagrerPersonalia skjema
                                         |> oppdaterSamtaleSteg model
                                     , model.personalia
                                         |> Personalia.id
@@ -276,12 +280,53 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilLagreBekreftetPersonalia ->
+            case model.aktivSamtale of
+                LagringFeilet error feiletPersonalia ->
+                    ( error
+                        |> LagreStatus.fraError
+                        |> LagrerPersonalia feiletPersonalia
+                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv på nytt" ])
+                    , Cmd.batch
+                        [ model.personalia
+                            |> Personalia.id
+                            |> Api.putPersonalia PersonaliaOppdatert feiletPersonalia
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        ]
+                    )
+                        |> IkkeFerdig
+
+                BekreftPersonalia bekreftPersonaliaState ->
+                    case bekreftPersonaliaState of
+                        OpprinneligPersonalia _ ->
+                            LagringLyktesFørsteGang
+                                |> VenterPåAnimasjonFørFullføring model.personalia
+                                |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
+                                |> fullførSeksjonHvisMeldingsloggErFerdig model.personalia
+
+                        EndretPersonalia personalia ->
+                            ( LagreStatus.init
+                                |> LagrerPersonalia personalia
+                                |> nesteSamtaleSteg model
+                                    (Melding.svar [ "Ja, informasjonen er riktig" ])
+                            , Cmd.batch
+                                [ model.personalia
+                                    |> Personalia.id
+                                    |> Api.putPersonalia PersonaliaOppdatert personalia
+                                , lagtTilSpørsmålCmd model.debugStatus
+                                ]
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         BrukerVilPrøveÅLagrePåNytt ->
             case model.aktivSamtale of
                 LagringFeilet error skjema ->
                     ( error
                         |> LagreStatus.fraError
-                        |> LagrerEndring skjema
+                        |> LagrerPersonalia skjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Prøv på nytt" ])
                     , Cmd.batch
                         [ model.personalia
@@ -307,7 +352,7 @@ update msg (Model model) =
                         LagringFeilet error skjema ->
                             ( error
                                 |> LagreStatus.fraError
-                                |> LagrerEndring skjema
+                                |> LagrerPersonalia skjema
                                 |> oppdaterSamtaleSteg model
                             , model.personalia
                                 |> Personalia.id
@@ -315,10 +360,10 @@ update msg (Model model) =
                             )
                                 |> IkkeFerdig
 
-                        LagrerEndring skjema lagreStatus ->
+                        LagrerPersonalia skjema lagreStatus ->
                             ( lagreStatus
                                 |> LagreStatus.setForsøkPåNytt
-                                |> LagrerEndring skjema
+                                |> LagrerPersonalia skjema
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
                             )
@@ -419,25 +464,30 @@ oppdaterSamtaleSteg model samtaleSeksjon =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg personaliaSeksjon =
     case personaliaSeksjon of
-        BekreftOriginal personalia ->
-            [ Melding.spørsmål [ "Da setter vi i gang 😊" ]
-            , Melding.spørsmål [ "Jeg har hentet inn kontaktinformasjonen din, den vises på CV-en. Sjekk at den er riktig, slik at arbeidsgivere kan kontakte deg." ]
-            , Melding.spørsmål
-                (List.concat
-                    [ personalia
-                        |> Skjema.init
-                        |> personaliaSkjemaOppsummering
-                    , [ Melding.tomLinje
-                      , "Er kontaktinformasjonen riktig?"
-                      ]
+        BekreftPersonalia bekreftState ->
+            case bekreftState of
+                OpprinneligPersonalia personalia ->
+                    [ Melding.spørsmål [ "Da setter vi i gang 😊" ]
+                    , Melding.spørsmål [ "Jeg har hentet inn kontaktinformasjonen din. Den vises på CV-en. Sjekk at den er riktig, slik at arbeidsgivere kan kontakte deg." ]
+                    , Melding.spørsmål
+                        (List.concat
+                            [ personalia
+                                |> Skjema.init
+                                |> personaliaSkjemaOppsummering
+                            , [ Melding.tomLinje
+                              , "Er kontaktinformasjonen riktig?"
+                              ]
+                            ]
+                        )
                     ]
-                )
-            ]
 
-        EndreOriginal _ ->
+                EndretPersonalia _ ->
+                    [ Melding.spørsmål [ "Da har du endret👍 Er det riktig nå?" ] ]
+
+        EndrerPersonalia _ ->
             [ Melding.spørsmål [ "Ok! Skriv inn riktig informasjon i feltene under." ] ]
 
-        LagrerEndring _ _ ->
+        LagrerPersonalia _ _ ->
             []
 
         LagringFeilet error _ ->
@@ -445,13 +495,10 @@ samtaleTilMeldingsLogg personaliaSeksjon =
 
         VenterPåAnimasjonFørFullføring _ fullføringStatus ->
             case fullføringStatus of
-                BekreftetOriginal ->
+                LagringLyktesFørsteGang ->
                     [ Melding.spørsmål [ "Så bra! 😊 Nå kan arbeidsgivere kontakte deg." ]
                     , Melding.spørsmål [ "Da går vi videre til utdanning." ]
                     ]
-
-                LagringLyktesFørsteGang ->
-                    [ Melding.spørsmål [ "Da har du endret👍 Er det riktig nå?" ] ]
 
                 LagringLyktesEtterFlereForsøk ->
                     [ Melding.spørsmål [ "Supert! Nå fikk jeg det til. Kontaktinformasjonen er lagret. La oss fortsette 😊" ] ]
@@ -493,15 +540,15 @@ viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
     if MeldingsLogg.visBrukerInput seksjonsMeldingsLogg then
         case aktivSamtale of
-            BekreftOriginal _ ->
-                Containers.knapper Flytende
-                    [ Knapp.knapp OriginalPersonaliaBekreftet "Ja, informasjonen er riktig"
-                        |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilEndreOriginalPersonalia "Nei, jeg vil endre"
-                        |> Knapp.toHtml
-                    ]
+            BekreftPersonalia bekreftPersonaliaState ->
+                case bekreftPersonaliaState of
+                    OpprinneligPersonalia _ ->
+                        viewBekreftPersonalia
 
-            EndreOriginal personaliaSkjema ->
+                    EndretPersonalia _ ->
+                        viewBekreftPersonalia
+
+            EndrerPersonalia personaliaSkjema ->
                 Containers.skjema { lagreMsg = PersonaliaskjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
                     [ personaliaSkjema
                         |> Skjema.fornavn
@@ -542,7 +589,7 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                     ]
 
             -- Lenken for å logge seg inn skal alltid være synlig hvis man har blitt utlogget, selv under lagring
-            LagrerEndring _ lagreStatus ->
+            LagrerPersonalia _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then
                     LoggInnLenke.viewLoggInnLenke
 
@@ -604,6 +651,16 @@ viewTelefonISkjema personaliaSkjema =
         ]
 
 
+viewBekreftPersonalia : Html Msg
+viewBekreftPersonalia =
+    Containers.knapper Flytende
+        [ Knapp.knapp VilLagreBekreftetPersonalia "Ja, informasjonen er riktig"
+            |> Knapp.toHtml
+        , Knapp.knapp BrukerVilEndrePersonalia "Nei, jeg vil endre"
+            |> Knapp.toHtml
+        ]
+
+
 
 --- INIT ---
 
@@ -612,7 +669,7 @@ init : DebugStatus -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
 init debugStatus personalia gammelMeldingsLogg =
     let
         aktivSamtale =
-            BekreftOriginal personalia
+            BekreftPersonalia (OpprinneligPersonalia personalia)
     in
     ( Model
         { seksjonsMeldingsLogg =
