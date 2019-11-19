@@ -249,11 +249,7 @@ update msg (Model model) =
                                 ( validertSkjema
                                     |> OppsummeringEtterEndring
                                     |> nesteSamtaleSteg model
-                                        (Melding.svar
-                                            [ Skjema.konseptStringFraValidertSkjema validertSkjema
-                                            , Skjema.beskrivelseFraValidertSkjema validertSkjema
-                                            ]
-                                        )
+                                        (Melding.svar (validertSkjemaTilSetninger validertSkjema))
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
 
@@ -411,6 +407,17 @@ update msg (Model model) =
 
         ErrorLogget _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+validertSkjemaTilSetninger : ValidertFagdokumentasjonSkjema -> List String
+validertSkjemaTilSetninger validertSkjema =
+    let
+        skjema =
+            Skjema.tilSkjema validertSkjema
+    in
+    [ typeaheadLabel (Skjema.fagdokumentasjonType skjema) ++ ": " ++ Skjema.konseptStringFraValidertSkjema validertSkjema
+    , "Beskrivelse: " ++ Skjema.beskrivelseFraValidertSkjema validertSkjema
+    ]
 
 
 initRedigeringAvValidertSkjema : ModelInfo -> ValidertFagdokumentasjonSkjema -> SamtaleStatus
@@ -697,14 +704,16 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                     [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ] ]
 
         Oppsummering skjema ->
-            [ Melding.spørsmål
-                [ "Du har lagt inn dette:"
+            [ [ [ "Du har lagt inn dette:"
                 , Melding.tomLinje
-                , Skjema.konseptStringFraValidertSkjema skjema
-                , Skjema.beskrivelseFraValidertSkjema skjema
-                , Melding.tomLinje
+                ]
+              , validertSkjemaTilSetninger skjema
+              , [ Melding.tomLinje
                 , "Er informasjonen riktig?"
                 ]
+              ]
+                |> List.concat
+                |> Melding.spørsmål
             ]
 
         EndrerOppsummering _ skjema ->

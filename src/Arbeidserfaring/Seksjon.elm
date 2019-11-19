@@ -86,7 +86,7 @@ type Samtale
     | VisOppsummeringEtterEndring ValidertArbeidserfaringSkjema
     | LagrerArbeidserfaring ValidertArbeidserfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
-    | SpørOmBrukerVilLeggeInnMer
+    | SpørOmBrukerVilLeggeInnMer Bool
     | StartNyArbeidserfaring (Typeahead.Model Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
     | VenterPåAnimasjonFørFullføring String
 
@@ -285,7 +285,7 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         BrukerHopperOverArbeidserfaring ->
-            ( VenterPåAnimasjonFørFullføring "Ok, da går vi videre. Du kan alltid komme tilbake og legge til om du kommer på noe!"
+            ( VenterPåAnimasjonFørFullføring "Ok, da går vi videre."
                 |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg er ferdig" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -431,7 +431,7 @@ update msg (Model model) =
                     ( jobbtittelInfo
                         |> jobbtittelInfoTilBedriftnavnsInfo
                         |> RegistrereBedriftsnavn
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil kalle det noe annet" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke kalle det noe annet" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -794,12 +794,16 @@ update msg (Model model) =
                 LagrerArbeidserfaring skjema lagreStatus ->
                     case result of
                         Ok arbeidserfaringer ->
+                            let
+                                harEndretEksisterende =
+                                    List.length model.arbeidserfaringListe == List.length arbeidserfaringer
+                            in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                SpørOmBrukerVilLeggeInnMer
+                                SpørOmBrukerVilLeggeInnMer harEndretEksisterende
                                     |> nesteSamtaleSteg { model | arbeidserfaringListe = arbeidserfaringer } (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
 
                               else
-                                SpørOmBrukerVilLeggeInnMer
+                                SpørOmBrukerVilLeggeInnMer harEndretEksisterende
                                     |> nesteSamtaleStegUtenSvar { model | arbeidserfaringListe = arbeidserfaringer }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -928,7 +932,7 @@ update msg (Model model) =
 
         FerdigMedArbeidserfaring knappeTekst ->
             if List.isEmpty model.arbeidserfaringListe then
-                ( VenterPåAnimasjonFørFullføring "Ok, da går vi videre. Du kan alltid komme tilbake og legge til om du kommer på noe!"
+                ( VenterPåAnimasjonFørFullføring "Ok, da går vi videre."
                     |> nesteSamtaleSteg model
                         (Melding.svar [ knappeTekst ])
                 , lagtTilSpørsmålCmd model.debugStatus
@@ -1182,7 +1186,7 @@ visFeilmeldingRegistrerYrke model typeaheadModel =
 oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
 oppdaterSamtaleSteg modelInfo samtaleSeksjon =
     case samtaleSeksjon of
-        SpørOmBrukerVilLeggeInnMer ->
+        SpørOmBrukerVilLeggeInnMer _ ->
             Model
                 { modelInfo
                     | aktivSamtale = samtaleSeksjon
@@ -1247,7 +1251,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             ]
 
         SpørOmBrukerVilEndreJobbtittel info ->
-            [ Melding.spørsmål [ "Du valgte " ++ Yrke.label info.tidligereInfo ++ ". Hvis dette ikke stemmer helt, kan du gi yrket et nytt navn. Det navnet vil vises på CV-en din. Ønsker du å kalle det noe annet? " ]
+            [ Melding.spørsmål [ "Du valgte «" ++ Yrke.label info.tidligereInfo ++ "» . Hvis dette ikke stemmer helt, kan du gi yrket et nytt navn. Det navnet vil vises på CV-en din. Ønsker du å kalle det noe annet? " ]
             ]
 
         EndreJobbtittel _ ->
@@ -1260,7 +1264,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Hvor holder bedriften til?" ] ]
 
         RegistrereArbeidsoppgaver _ ->
-            [ Melding.spørsmål [ "Fortell om hvilke arbeidsoppgaver du har hatt og hva som var rollen din." ] ]
+            [ Melding.spørsmål [ "Fortell hvilke arbeidsoppgaver du har hatt og hva som var rollen din." ] ]
 
         RegistrereFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du i jobben?" ] ]
@@ -1307,8 +1311,12 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre arbeidserfaringen" } ]
 
-        SpørOmBrukerVilLeggeInnMer ->
-            [ Melding.spørsmål [ "Flott! Nå er arbeidserfaringen lagret." ]
+        SpørOmBrukerVilLeggeInnMer harEndretEksisterende ->
+            [ if harEndretEksisterende then
+                Melding.spørsmål [ "Flott! Nå er arbeidserfaringen endret." ]
+
+              else
+                Melding.spørsmål [ "Flott! Nå er arbeidserfaringen lagret." ]
             , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
             ]
 
@@ -1588,7 +1596,7 @@ viewBrukerInput (Model model) =
                         LoggInn ->
                             LoggInnLenke.viewLoggInnLenke
 
-                SpørOmBrukerVilLeggeInnMer ->
+                SpørOmBrukerVilLeggeInnMer _ ->
                     Containers.knapper Flytende
                         [ Knapp.knapp NyArbeidserfaring "Ja, legg til en arbeidserfaring"
                             |> Knapp.toHtml

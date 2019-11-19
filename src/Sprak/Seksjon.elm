@@ -64,7 +64,7 @@ type Samtale
     | LeggTilSkriftlig SpråkMedMuntlig
     | LagrerSpråk SpråkSkjema LagreStatus
     | LagringFeilet Http.Error SpråkSkjema
-    | LeggTilFlereSpråk
+    | LeggTilFlereSpråk Bool
     | SpråkKodeneFeilet (Maybe Http.Error)
     | VenterPåAnimasjonFørFullføring
 
@@ -212,7 +212,7 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         BrukerKanIkkeEngelsk ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Nei" ]) (IntroLeggTilNorsk model.språk)
+            ( nesteSamtaleSteg model (Melding.svar [ "Nei" ]) (LeggTilFlereSpråk False)
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -274,7 +274,7 @@ update msg (Model model) =
                             lagringLykkes model språk lagreStatus LeggTilEngelsk
 
                         LagrerSpråk _ lagreStatus ->
-                            lagringLykkes model språk lagreStatus LeggTilFlereSpråk
+                            lagringLykkes model språk lagreStatus (LeggTilFlereSpråk True)
 
                         _ ->
                             IkkeFerdig ( Model model, Cmd.none )
@@ -586,7 +586,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre norsk" } ]
 
         LeggTilEngelsk ->
-            [ Melding.spørsmål [ "Da går videre til engelsk? Kan du det?" ] ]
+            [ Melding.spørsmål [ "Da går videre til engelsk. Kan du det?" ] ]
 
         VelgNyttSpråk _ ->
             [ Melding.spørsmål [ "Hvilket språk vil du legge til?" ] ]
@@ -603,19 +603,23 @@ samtaleTilMeldingsLogg model språkSeksjon =
         LagringFeilet error skjema ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre " ++ String.toLower (Skjema.språkNavn skjema) } ]
 
-        LeggTilFlereSpråk ->
-            [ Melding.spørsmål
-                [ "Bra! Nå har du lagt til "
-                    ++ (model.språk
-                            |> List.filterMap Spraakferdighet.sprak
-                            |> List.map String.toLower
-                            |> listeTilSetning
-                       )
-                    ++ "."
-                ]
-            , Melding.spørsmål
-                [ "Kan du flere språk?"
-                ]
+        LeggTilFlereSpråk medOppsummering ->
+            [ [ if medOppsummering then
+                    [ "Bra! Nå har du lagt til "
+                        ++ (model.språk
+                                |> List.filterMap Spraakferdighet.sprak
+                                |> List.map String.toLower
+                                |> listeTilSetning
+                           )
+                        ++ "."
+                    ]
+
+                else
+                    []
+              , [ "Kan du flere språk?" ]
+              ]
+                |> List.concat
+                |> Melding.spørsmål
             ]
 
         SpråkKodeneFeilet _ ->
@@ -862,7 +866,7 @@ viewBrukerInput (Model model) =
                         LoggInn ->
                             LoggInnLenke.viewLoggInnLenke
 
-                LeggTilFlereSpråk ->
+                LeggTilFlereSpråk _ ->
                     Containers.knapper Flytende
                         [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
                             |> Knapp.toHtml
