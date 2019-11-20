@@ -1,12 +1,12 @@
-module Cv.Forerkort exposing (Forerkort, Klasse(..), decode, id, klasse)
+module Cv.Forerkort exposing (Førerkort, Klasse(..), decode, id, klasse)
 
 import Date exposing (Date)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 
 
-type Forerkort
-    = Forerkort ForerkortInfo
+type Førerkort
+    = Førerkort ForerkortInfo
 
 
 type alias ForerkortInfo =
@@ -36,13 +36,13 @@ type Klasse
     | Snøscooter
 
 
-id : Forerkort -> String
-id (Forerkort info) =
+id : Førerkort -> String
+id (Førerkort info) =
     info.id
 
 
-klasse : Forerkort -> Klasse
-klasse (Forerkort info) =
+klasse : Førerkort -> Klasse
+klasse (Førerkort info) =
     info.klasse
 
 
@@ -50,7 +50,7 @@ klasse (Forerkort info) =
 ---- Decoder ----
 
 
-decode : Decoder Forerkort
+decode : Decoder Førerkort
 decode =
     decodeBackendData
         |> Json.Decode.andThen tilForerkortInfo
@@ -112,18 +112,29 @@ decodeKlasse klasse_ =
 
 decodeDateString : Maybe String -> Maybe Date
 decodeDateString dato =
-    Nothing
+    case dato of
+        Just dato_ ->
+            case Date.fromIsoString dato_ of
+                Ok date__ ->
+                    Just date__
+
+                Err err ->
+                    Nothing
+
+        Nothing ->
+            Nothing
 
 
-tilForerkortInfo : BackendData -> Decoder Forerkort
+tilForerkortInfo : BackendData -> Decoder Førerkort
 tilForerkortInfo backendData =
-    Json.Decode.map (lagForerkort backendData)
-        (decodeKlasse backendData.klasse)
+    backendData.klasse
+        |> decodeKlasse
+        |> Json.Decode.map (lagForerkort backendData)
 
 
-lagForerkort : BackendData -> Klasse -> Forerkort
+lagForerkort : BackendData -> Klasse -> Førerkort
 lagForerkort backendData klasse_ =
-    Forerkort
+    Førerkort
         { id = backendData.id
         , klasse = klasse_
         , fraDato = decodeDateString backendData.fraDato

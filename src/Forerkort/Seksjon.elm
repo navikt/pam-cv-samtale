@@ -12,7 +12,7 @@ module Forerkort.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Forerkort as Forerkort exposing (Forerkort, Klasse(..))
+import Cv.Forerkort as Forerkort exposing (Førerkort, Klasse(..))
 import Dato exposing (Dato, DatoValidering(..), Måned)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
@@ -20,14 +20,12 @@ import Feilmelding
 import Forerkort.Skjema as Skjema exposing (FørerkortSkjema, ValidertFørerkortSkjema)
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInputMedDag as DatoInputMedDag
-import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Select as Select
 import FørerkortKode exposing (FørerkortKode)
 import Html exposing (..)
 import Html.Attributes exposing (class)
-import Html.Attributes.Aria exposing (ariaLive, role)
 import Http
 import LagreStatus exposing (LagreStatus)
 import List.Extra as List
@@ -50,14 +48,14 @@ type Model
 type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
-    , førerkort : List Forerkort
+    , førerkort : List Førerkort
     , førerkortKoder : List FørerkortKode
     , debugStatus : DebugStatus
     }
 
 
 type Samtale
-    = IntroLeggTilKlasseB (List Forerkort)
+    = IntroLeggTilKlasseB (List Førerkort)
     | SvarteNeiPåKlasseB
     | VelgNyttFørerkort { valgtFørerkort : Maybe FørerkortKode, feilmelding : Maybe String }
     | RegistrereFraDato { valgtFørerkort : FørerkortKode, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
@@ -66,14 +64,15 @@ type Samtale
     | EndreSkjema { skjema : FørerkortSkjema, visFeilmelding : Bool }
     | OppsummeringEtterEndring ValidertFørerkortSkjema
     | LagrerFørerkort ValidertFørerkortSkjema LagreStatus
+    | LagrerFørerkortKlasseB ValidertFørerkortSkjema LagreStatus
     | LagringFeilet Http.Error ValidertFørerkortSkjema
     | LeggTilFlereFørerkort
-    | VenterPåAnimasjonFørFullføring (List Forerkort)
+    | VenterPåAnimasjonFørFullføring (List Førerkort)
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Forerkort) FerdigAnimertMeldingsLogg
+    | Ferdig (List Førerkort) FerdigAnimertMeldingsLogg
 
 
 type InputId
@@ -95,9 +94,8 @@ type Msg
     | HarIkkeKlasseB
     | BrukerHarFlereFørerkort
     | BrukerVilAvslutteSeksjonen
-    | ViewportSatt
     | ErrorLogget
-    | FørerkortLagret (Result Http.Error (List Forerkort))
+    | FørerkortLagret (Result Http.Error (List Førerkort))
     | BrukerVilGåVidereMedValgtFørerkort
     | BrukerHarValgtFørerkortFraDropdown String
     | BrukerEndrerFraDag String
@@ -165,7 +163,8 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         HarKlasseB ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Ja" ]) (LagrerFørerkort Skjema.klasseB LagreStatus.init)
+            ( LagrerFørerkortKlasseB Skjema.klasseB LagreStatus.init
+                |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg har førerkort klasse B" ])
             , Cmd.batch
                 [ leggTilFørerkortAPI Skjema.klasseB
                 , lagtTilSpørsmålCmd model.debugStatus
@@ -174,25 +173,22 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         BrukerVilAvslutteSeksjonen ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ]) (VenterPåAnimasjonFørFullføring model.førerkort)
+            ( VenterPåAnimasjonFørFullføring model.førerkort
+                |> nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
-                |> IkkeFerdig
-
-        ViewportSatt ->
-            ( Model model, Cmd.none )
                 |> IkkeFerdig
 
         ErrorLogget ->
             ( Model model, Cmd.none ) |> IkkeFerdig
 
         HarIkkeKlasseB ->
-            ( nesteSamtaleSteg model (Melding.svar [ "Nei" ]) SvarteNeiPåKlasseB
+            ( SvarteNeiPåKlasseB
+                |> nesteSamtaleSteg model (Melding.svar [ "Nei, det har jeg ikke" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
 
-        --SvarteNeiPåKlasseB
         BrukerHarFlereFørerkort ->
             ( { valgtFørerkort = Nothing, feilmelding = Nothing }
                 |> VelgNyttFørerkort
@@ -211,14 +207,19 @@ update msg (Model model) =
                                     if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et førerkort 👍" ] ]
+                                            |> MeldingsLogg.leggTilSpørsmål
+                                                [ Melding.spørsmål [ "Supert. Nå har du lagt til førerkortet " ++ String.toLower (Skjema.førerkortFraValidertSkjema skjema) ++ "." ]
+                                                , Melding.spørsmål [ "Har du andre førerkort? " ]
+                                                ]
 
                                     else
                                         model.seksjonsMeldingsLogg
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et førerkort 👍" ] ]
+                                            |> MeldingsLogg.leggTilSpørsmål
+                                                [ Melding.spørsmål [ "Supert. Nå har du lagt til førerkortet " ++ String.toLower (Skjema.førerkortFraValidertSkjema skjema) ++ "." ]
+                                                , Melding.spørsmål [ "Har du andre førerkort? " ]
+                                                ]
                             in
-                            ( førerkort
-                                |> VenterPåAnimasjonFørFullføring
+                            ( LeggTilFlereFørerkort
                                 |> oppdaterSamtaleSteg { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -229,6 +230,65 @@ update msg (Model model) =
                                 if LagreStatus.forsøkPåNytt lagreStatus then
                                     ( LagreStatus.fraError error
                                         |> LagrerFørerkort skjema
+                                        |> oppdaterSamtaleSteg model
+                                    , Api.postFørerkort FørerkortLagret skjema
+                                    )
+                                        |> IkkeFerdig
+
+                                else
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtaleSteg model
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre førerkort" error
+                                    )
+                                        |> IkkeFerdig
+
+                            else
+                                ( skjema
+                                    |> LagringFeilet error
+                                    |> nesteSamtaleStegUtenMelding model
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre førerkort" error
+                                    ]
+                                )
+                                    |> IkkeFerdig
+
+                LagrerFørerkortKlasseB skjema lagreStatus ->
+                    case result of
+                        Ok førerkort ->
+                            let
+                                oppdatertMeldingslogg =
+                                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                            |> MeldingsLogg.leggTilSpørsmål
+                                                [ Melding.spørsmål [ "Så bra. Det kan være nyttig informasjon for en arbeidsgiver. " ]
+                                                , Melding.spørsmål [ "Har du andre førerkort? " ]
+                                                ]
+
+                                    else
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSpørsmål
+                                                [ Melding.spørsmål [ "Så bra. Det kan være nyttig informasjon for en arbeidsgiver. " ]
+                                                , Melding.spørsmål [ "Har du andre førerkort? " ]
+                                                ]
+                            in
+                            ( LeggTilFlereFørerkort
+                                |> oppdaterSamtaleSteg { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg }
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( LagreStatus.fraError error
+                                        |> LagrerFørerkortKlasseB skjema
                                         |> oppdaterSamtaleSteg model
                                     , Api.postFørerkort FørerkortLagret skjema
                                     )
@@ -499,7 +559,7 @@ update msg (Model model) =
                 Oppsummering skjema ->
                     ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema, visFeilmelding = False }
                         |> EndreSkjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -507,7 +567,7 @@ update msg (Model model) =
                 OppsummeringEtterEndring skjema ->
                     ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema, visFeilmelding = False }
                         |> EndreSkjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Endre" ])
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -593,6 +653,15 @@ update msg (Model model) =
                             )
                                 |> IkkeFerdig
 
+                        LagrerFørerkortKlasseB skjema lagreStatus ->
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerFørerkortKlasseB skjema
+                                |> oppdaterSamtaleSteg model
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
                         LagringFeilet error skjema ->
                             if ErrorHåndtering.operasjonEtterError error == LoggInn then
                                 IkkeFerdig
@@ -623,8 +692,8 @@ update msg (Model model) =
 validertSkjemaTilSetninger : ValidertFørerkortSkjema -> List String
 validertSkjemaTilSetninger validertSkjema =
     [ "Førerkort: " ++ Skjema.førerkortFraValidertSkjema validertSkjema
-    , "Fra dato: " ++ Skjema.fraDatoFraValidertSkjema validertSkjema
-    , "Utløper dato: " ++ Skjema.tilDatoFraValidertSkjema validertSkjema
+    , "Førerrett til: " ++ Skjema.tilDatoFraValidertSkjema validertSkjema
+    , "Førerrett fra: " ++ Skjema.fraDatoFraValidertSkjema validertSkjema
     ]
 
 
@@ -747,11 +816,12 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
     case førerkortSeksjon of
         IntroLeggTilKlasseB førerkortListe_ ->
             if List.isEmpty førerkortListe_ then
-                [ Melding.spørsmål [ "Har du førerkort klasse B? Det vil si vanlig førerkort for å kjøre personbil." ]
+                [ Melding.spørsmål [ "Da var vi ferdige med språk. Det neste er førerkort." ]
+                , Melding.spørsmål [ "Har du førerkort klasse B? Det vil si vanlig førerkort for å kjøre personbil." ]
                 ]
 
             else
-                [ Melding.spørsmål [ "Nå skal du legge inn førerkort." ]
+                [ Melding.spørsmål [ "Da var vi ferdige med språk. Det neste er førerkort." ]
                 , Melding.spørsmål
                     [ "Jeg ser at du har lagt inn disse førerkortene allerede:"
                     , førerkortListe_
@@ -762,7 +832,7 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
                         |> String.toSentenceCase
                         |> (\setning -> setning ++ ".")
                     ]
-                , Melding.spørsmål [ "Vil du legge til flere?" ]
+                , Melding.spørsmål [ "Har du andre førerkort?" ]
                 ]
 
         VenterPåAnimasjonFørFullføring _ ->
@@ -780,14 +850,17 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
                     ++ "."
                 ]
             , Melding.spørsmål
-                [ "Har du flere førerkort?"
+                [ "Har du andre førerkort?"
                 ]
             ]
 
         VelgNyttFørerkort _ ->
-            [ Melding.spørsmål [ "Hvilket førerkort vil du legge til?" ] ]
+            [ Melding.spørsmål [ "Hvilket førerkort har du?" ] ]
 
         LagrerFørerkort _ _ ->
+            []
+
+        LagrerFørerkortKlasseB _ _ ->
             []
 
         RegistrereFraDato _ ->
@@ -801,24 +874,24 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
                 [ "Du har lagt inn dette:"
                 , Melding.tomLinje
                 , "Førerkort: " ++ Skjema.førerkortFraValidertSkjema validertFørerkortSkjema
-                , "Gyldig fra dato: " ++ Skjema.fraDatoFraValidertSkjema validertFørerkortSkjema
-                , "Utløpsdato: " ++ Skjema.tilDatoFraValidertSkjema validertFørerkortSkjema
+                , "Førerrett til: " ++ Skjema.tilDatoFraValidertSkjema validertFørerkortSkjema
+                , "Førerrett fra " ++ Skjema.fraDatoFraValidertSkjema validertFørerkortSkjema
                 , Melding.tomLinje
                 , "Er informasjonen riktig?"
                 ]
             ]
 
-        EndreSkjema førerkortSkjema ->
-            []
+        EndreSkjema _ ->
+            [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
         OppsummeringEtterEndring validertFørerkortSkjema ->
-            [ Melding.spørsmål [ "Er informasjonen riktig nå?" ] ]
+            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         LagringFeilet error validertFørerkortSkjema ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre førerkort" } ]
 
         SvarteNeiPåKlasseB ->
-            [ Melding.spørsmål [ "Har du andre førerkort?" ] ]
+            [ Melding.spørsmål [ "Ok. Har du andre førerkort?" ] ]
 
 
 klasseToString : Klasse -> String
@@ -924,30 +997,18 @@ maybeHvisTrue bool maybe =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
-    case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-        FerdigAnimert _ ->
-            case model.aktivSamtale of
-                IntroLeggTilKlasseB førerkortliste ->
-                    if List.isEmpty førerkortliste then
-                        Containers.knapper Flytende
-                            [ Knapp.knapp HarKlasseB "Ja"
-                                |> Knapp.toHtml
-                            , Knapp.knapp HarIkkeKlasseB "Nei"
-                                |> Knapp.toHtml
-                            ]
+    if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
+        case model.aktivSamtale of
+            IntroLeggTilKlasseB førerkortliste ->
+                if List.isEmpty førerkortliste then
+                    Containers.knapper Flytende
+                        [ Knapp.knapp HarKlasseB "Ja, jeg har førerkort klasse B"
+                            |> Knapp.toHtml
+                        , Knapp.knapp HarIkkeKlasseB "Nei, det har jeg ikke"
+                            |> Knapp.toHtml
+                        ]
 
-                    else
-                        Containers.knapper Flytende
-                            [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
-                                |> Knapp.toHtml
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                                |> Knapp.toHtml
-                            ]
-
-                VenterPåAnimasjonFørFullføring _ ->
-                    text ""
-
-                LeggTilFlereFørerkort ->
+                else
                     Containers.knapper Flytende
                         [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
                             |> Knapp.toHtml
@@ -955,153 +1016,167 @@ viewBrukerInput (Model model) =
                             |> Knapp.toHtml
                         ]
 
-                VelgNyttFørerkort velgNyttFørerkortInfo ->
-                    Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedValgtFørerkort
-                        [ div [ class "select-i-samtaleflyt-wrapper" ]
-                            [ Select.select "Førerkort"
-                                BrukerHarValgtFørerkortFraDropdown
-                                (( "Velg førerkort", "Velg førerkort" )
-                                    :: List.map
-                                        (\el ->
-                                            ( FørerkortKode.kode el, FørerkortKode.term el )
-                                        )
-                                        model.førerkortKoder
-                                )
-                                |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode velgNyttFørerkortInfo.valgtFørerkort)
-                                |> Select.withMaybeFeilmelding velgNyttFørerkortInfo.feilmelding
-                                |> Select.toHtml
-                            ]
-                        ]
+            VenterPåAnimasjonFørFullføring _ ->
+                text ""
 
-                LagrerFørerkort _ _ ->
-                    text ""
+            LeggTilFlereFørerkort ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                        |> Knapp.toHtml
+                    ]
 
-                RegistrereFraDato info ->
-                    Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedFraDato
-                        [ div [] [ text "Fra dato" ]
-                        , { label = "Gyldig fra dato"
-                          , onDagChange = BrukerEndrerFraDag
-                          , dag = info.dag
-                          , år = info.år
-                          , onÅrChange = BrukerEndrerFraÅr
-                          , måned = info.måned
-                          , onMånedChange = BrukerEndrerFraMåned
-                          }
-                            |> DatoInputMedDag.datoInputMedDag
-                            |> DatoInputMedDag.withId (inputIdTilString FraDatoId)
-                            |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
-                            |> DatoInputMedDag.toHtml
-                        ]
-
-                RegistrereTilDato info ->
-                    Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedTilDato
-                        [ div [] [ text "Utløper dato" ]
-                        , { label = "Utløper dato"
-                          , onDagChange = BrukerEndrerTilDag
-                          , dag = info.dag
-                          , år = info.år
-                          , onÅrChange = BrukerEndrerTilÅr
-                          , måned = info.måned
-                          , onMånedChange = BrukerEndrerTilMåned
-                          }
-                            |> DatoInputMedDag.datoInputMedDag
-                            |> DatoInputMedDag.withId (inputIdTilString TilDatoId)
-                            |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
-                            |> DatoInputMedDag.toHtml
-                        ]
-
-                Oppsummering _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-                            |> Knapp.toHtml
-                        ]
-
-                EndreSkjema skjema ->
-                    Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+            VelgNyttFørerkort velgNyttFørerkortInfo ->
+                Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedValgtFørerkort
+                    [ div [ class "select-i-samtaleflyt-wrapper" ]
                         [ Select.select "Førerkort"
-                            (Førerkort >> SkjemaEndret)
-                            (List.map
-                                (\el ->
-                                    ( FørerkortKode.kode el, FørerkortKode.term el )
-                                )
-                                model.førerkortKoder
+                            BrukerHarValgtFørerkortFraDropdown
+                            (( "Velg førerkort", "Velg førerkort" )
+                                :: List.map
+                                    (\el ->
+                                        ( FørerkortKode.kode el, FørerkortKode.term el )
+                                    )
+                                    model.førerkortKoder
                             )
-                            |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema.skjema))
+                            |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode velgNyttFørerkortInfo.valgtFørerkort)
+                            |> Select.withMaybeFeilmelding velgNyttFørerkortInfo.feilmelding
                             |> Select.toHtml
-                        , div [] [ text "Fra dato" ]
-                        , div [ class "ForerkortSeksjon-dato" ]
-                            [ { label = "Gyldig fra dato"
-                              , onDagChange = FraDag >> SkjemaEndret
-                              , dag = Skjema.fraDagFraSkjema skjema.skjema
-                              , år = Skjema.fraÅrFraSkjema skjema.skjema
-                              , onÅrChange = FraÅr >> SkjemaEndret
-                              , måned = Skjema.fraMånedFraSkjema skjema.skjema
-                              , onMånedChange = FraMåned >> SkjemaEndret
-                              }
-                                |> DatoInputMedDag.datoInputMedDag
-                                |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema })
-                                |> DatoInputMedDag.toHtml
-                            , div [] [ text "Utløper dato" ]
-                            , { label = "Gyldig til dato"
-                              , onDagChange = TilDag >> SkjemaEndret
-                              , dag = Skjema.tilDagFraSkjema skjema.skjema
-                              , år = Skjema.tilÅrFraSkjema skjema.skjema
-                              , onÅrChange = TilÅr >> SkjemaEndret
-                              , måned = Skjema.tilMånedFraSkjema skjema.skjema
-                              , onMånedChange = TilMåned >> SkjemaEndret
-                              }
-                                |> DatoInputMedDag.datoInputMedDag
-                                |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema })
-                                |> DatoInputMedDag.toHtml
+                        ]
+                    ]
+
+            LagrerFørerkort _ _ ->
+                text ""
+
+            LagrerFørerkortKlasseB _ _ ->
+                text ""
+
+            RegistrereFraDato info ->
+                Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedFraDato
+                    [ div [] [ text "Fra dato" ]
+                    , { label = "Gyldig fra dato"
+                      , onDagChange = BrukerEndrerFraDag
+                      , dag = info.dag
+                      , år = info.år
+                      , onÅrChange = BrukerEndrerFraÅr
+                      , måned = info.måned
+                      , onMånedChange = BrukerEndrerFraMåned
+                      }
+                        |> DatoInputMedDag.datoInputMedDag
+                        |> DatoInputMedDag.withId (inputIdTilString FraDatoId)
+                        |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
+                        |> DatoInputMedDag.toHtml
+                    ]
+
+            RegistrereTilDato info ->
+                Containers.inputMedGåVidereKnapp BrukerVilGåVidereMedTilDato
+                    [ div [] [ text "Utløper dato" ]
+                    , { label = "Utløper dato"
+                      , onDagChange = BrukerEndrerTilDag
+                      , dag = info.dag
+                      , år = info.år
+                      , onÅrChange = BrukerEndrerTilÅr
+                      , måned = info.måned
+                      , onMånedChange = BrukerEndrerTilMåned
+                      }
+                        |> DatoInputMedDag.datoInputMedDag
+                        |> DatoInputMedDag.withId (inputIdTilString TilDatoId)
+                        |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
+                        |> DatoInputMedDag.toHtml
+                    ]
+
+            Oppsummering _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+                        |> Knapp.toHtml
+                    ]
+
+            EndreSkjema skjema ->
+                Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                    [ Select.select "Førerkort"
+                        (Førerkort >> SkjemaEndret)
+                        (List.map
+                            (\el ->
+                                ( FørerkortKode.kode el, FørerkortKode.term el )
+                            )
+                            model.førerkortKoder
+                        )
+                        |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema.skjema))
+                        |> Select.toHtml
+                    , div [] [ text "Førerrett til" ]
+                    , div [ class "ForerkortSeksjon-dato" ]
+                        [ { label = "Gyldig til dato"
+                          , onDagChange = TilDag >> SkjemaEndret
+                          , dag = Skjema.tilDagFraSkjema skjema.skjema
+                          , år = Skjema.tilÅrFraSkjema skjema.skjema
+                          , onÅrChange = TilÅr >> SkjemaEndret
+                          , måned = Skjema.tilMånedFraSkjema skjema.skjema
+                          , onMånedChange = TilMåned >> SkjemaEndret
+                          }
+                            |> DatoInputMedDag.datoInputMedDag
+                            |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema })
+                            |> DatoInputMedDag.toHtml
+                        , div [] [ text "Førerrett fra" ]
+                        , { label = "Gyldig fra dato"
+                          , onDagChange = FraDag >> SkjemaEndret
+                          , dag = Skjema.fraDagFraSkjema skjema.skjema
+                          , år = Skjema.fraÅrFraSkjema skjema.skjema
+                          , onÅrChange = FraÅr >> SkjemaEndret
+                          , måned = Skjema.fraMånedFraSkjema skjema.skjema
+                          , onMånedChange = FraMåned >> SkjemaEndret
+                          }
+                            |> DatoInputMedDag.datoInputMedDag
+                            |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema })
+                            |> DatoInputMedDag.toHtml
+                        ]
+                    ]
+
+            OppsummeringEtterEndring _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+                        |> Knapp.toHtml
+                    ]
+
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    ErrorHåndtering.GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp FerdigMedFørerkort "Gå videre"
+                                |> Knapp.toHtml
                             ]
-                        ]
 
-                OppsummeringEtterEndring _ ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-                            |> Knapp.toHtml
-                        ]
+                    ErrorHåndtering.PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp SendSkjemaPåNytt "Prøv igjen"
+                                |> Knapp.toHtml
+                            , Knapp.knapp FerdigMedFørerkort "Gå videre"
+                                |> Knapp.toHtml
+                            ]
 
-                LagringFeilet error _ ->
-                    case ErrorHåndtering.operasjonEtterError error of
-                        ErrorHåndtering.GiOpp ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp FerdigMedFørerkort "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+                    ErrorHåndtering.LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
 
-                        ErrorHåndtering.PrøvPåNytt ->
-                            Containers.knapper Flytende
-                                [ Knapp.knapp SendSkjemaPåNytt "Prøv igjen"
-                                    |> Knapp.toHtml
-                                , Knapp.knapp FerdigMedFørerkort "Gå videre"
-                                    |> Knapp.toHtml
-                                ]
+            SvarteNeiPåKlasseB ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
+                        |> Knapp.toHtml
+                    , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                        |> Knapp.toHtml
+                    ]
 
-                        ErrorHåndtering.LoggInn ->
-                            LoggInnLenke.viewLoggInnLenke
-
-                SvarteNeiPåKlasseB ->
-                    Containers.knapper Flytende
-                        [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
-                            |> Knapp.toHtml
-                        , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
-                            |> Knapp.toHtml
-                        ]
-
-        MeldingerGjenstår ->
-            text ""
+    else
+        text ""
 
 
 
 --- INIT ---
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Forerkort -> ( Model, Cmd Msg )
+init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Førerkort -> ( Model, Cmd Msg )
 init debugStatus gammelMeldingsLogg førerkort =
     let
         aktivSamtale =
@@ -1127,5 +1202,10 @@ init debugStatus gammelMeldingsLogg førerkort =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Browser.Events.onVisibilityChange WindowEndrerVisibility
+subscriptions (Model model) =
+    Sub.batch
+        [ Browser.Events.onVisibilityChange WindowEndrerVisibility
+        , model.seksjonsMeldingsLogg
+            |> SamtaleAnimasjon.subscriptions
+            |> Sub.map SamtaleAnimasjonMsg
+        ]

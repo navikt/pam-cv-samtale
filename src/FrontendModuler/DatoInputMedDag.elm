@@ -4,7 +4,6 @@ module FrontendModuler.DatoInputMedDag exposing
     , toHtml
     , withId
     , withMaybeFeilmelding
-    , withOnBlurÅr
     )
 
 import Dato exposing (DatoFeilmelding, Måned)
@@ -64,11 +63,6 @@ datoInputMedDag { label, år, onÅrChange, måned, onMånedChange, dag, onDagCha
 withMaybeFeilmelding : Maybe DatoFeilmelding -> DatoInputMedDag msg -> DatoInputMedDag msg
 withMaybeFeilmelding feilmelding (DatoInputMedDag info) =
     DatoInputMedDag { info | feilmelding = feilmelding }
-
-
-withOnBlurÅr : msg -> DatoInputMedDag msg -> DatoInputMedDag msg
-withOnBlurÅr onBlur (DatoInputMedDag info) =
-    DatoInputMedDag { info | onBlurÅr = Just onBlur }
 
 
 withId : String -> DatoInputMedDag msg -> DatoInputMedDag msg

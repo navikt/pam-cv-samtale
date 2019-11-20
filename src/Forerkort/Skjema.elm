@@ -59,78 +59,32 @@ type alias FørerkortSkjemaInfo =
     }
 
 
-oppdaterFørerkort : FørerkortSkjema -> Maybe FørerkortKode -> FørerkortSkjema
-oppdaterFørerkort (FørerkortSkjema info) kode =
-    FørerkortSkjema { info | førerkort = kode }
+
+--- INIT ---
 
 
-oppdaterFraÅr : FørerkortSkjema -> String -> FørerkortSkjema
-oppdaterFraÅr (FørerkortSkjema info) fraÅr =
-    FørerkortSkjema { info | fraÅr = fraÅr }
+init : FørerkortSkjemaInfo -> FørerkortSkjema
+init info =
+    FørerkortSkjema info
 
 
-oppdaterFraMåned : FørerkortSkjema -> Maybe Måned -> FørerkortSkjema
-oppdaterFraMåned (FørerkortSkjema info) fraMåned =
-    FørerkortSkjema { info | fraMåned = fraMåned }
+initValidert : ValidertFørerkortSkjemaInfo -> ValidertFørerkortSkjema
+initValidert validertFørerkortSkjemaInfo =
+    ValidertFørerkortSkjema validertFørerkortSkjemaInfo
 
 
-oppdaterFraDag : FørerkortSkjema -> String -> FørerkortSkjema
-oppdaterFraDag (FørerkortSkjema info) fraDag =
-    FørerkortSkjema { info | fraDag = fraDag }
+
+--- INNHOLD ---
 
 
-oppdaterTilÅr : FørerkortSkjema -> String -> FørerkortSkjema
-oppdaterTilÅr (FørerkortSkjema info) tilÅr =
-    FørerkortSkjema { info | tilÅr = tilÅr }
-
-
-oppdaterTilMåned : FørerkortSkjema -> Maybe Måned -> FørerkortSkjema
-oppdaterTilMåned (FørerkortSkjema info) tilMåned =
-    FørerkortSkjema { info | tilMåned = tilMåned }
-
-
-oppdaterTilDag : FørerkortSkjema -> String -> FørerkortSkjema
-oppdaterTilDag (FørerkortSkjema info) tilDag =
-    FørerkortSkjema { info | tilDag = tilDag }
+klasseB : ValidertFørerkortSkjema
+klasseB =
+    ValidertFørerkortSkjema { førerkort = FørerkortKode.klasseB, fraDato = Nothing, tilDato = Nothing }
 
 
 førerkortKodeFraSkjema : FørerkortSkjema -> Maybe FørerkortKode
 førerkortKodeFraSkjema (FørerkortSkjema info) =
     info.førerkort
-
-
-uvalidertSkjemaFraValidertSkjema : ValidertFørerkortSkjema -> FørerkortSkjema
-uvalidertSkjemaFraValidertSkjema (ValidertFørerkortSkjema info) =
-    FørerkortSkjema
-        { førerkort = Just info.førerkort
-        , fraÅr =
-            info.fraDato
-                |> Maybe.map Dato.getDatoÅr
-                |> Maybe.withDefault ""
-        , fraMåned =
-            info.fraDato
-                |> Maybe.map Dato.getDatoMåned
-        , fraDag =
-            info.fraDato
-                |> Maybe.map Dato.getDatoDag
-                |> Maybe.withDefault ""
-        , tilÅr =
-            info.tilDato
-                |> Maybe.map Dato.getDatoÅr
-                |> Maybe.withDefault ""
-        , tilMåned =
-            info.tilDato
-                |> Maybe.map Dato.getDatoMåned
-        , tilDag =
-            info.tilDato
-                |> Maybe.map Dato.getDatoDag
-                |> Maybe.withDefault ""
-        }
-
-
-førerkortFraValidertSkjema : ValidertFørerkortSkjema -> String
-førerkortFraValidertSkjema (ValidertFørerkortSkjema info) =
-    FørerkortKode.term info.førerkort
 
 
 fraDatoFraValidertSkjema : ValidertFørerkortSkjema -> String
@@ -183,14 +137,52 @@ tilMånedFraSkjema (FørerkortSkjema info) =
             Nothing
 
 
-tilDatoFraValidertSkjema : ValidertFørerkortSkjema -> String
-tilDatoFraValidertSkjema (ValidertFørerkortSkjema info) =
-    case info.tilDato of
-        Just dato ->
-            Dato.toString dato
+fraFørerkortKode : FørerkortKode -> ValidertFørerkortSkjema
+fraFørerkortKode kode =
+    ValidertFørerkortSkjema { førerkort = kode, fraDato = Nothing, tilDato = Nothing }
 
-        Nothing ->
-            ""
+
+
+--- OPPDATERING ---
+
+
+oppdaterFørerkort : FørerkortSkjema -> Maybe FørerkortKode -> FørerkortSkjema
+oppdaterFørerkort (FørerkortSkjema info) kode =
+    FørerkortSkjema { info | førerkort = kode }
+
+
+oppdaterFraÅr : FørerkortSkjema -> String -> FørerkortSkjema
+oppdaterFraÅr (FørerkortSkjema info) fraÅr =
+    FørerkortSkjema { info | fraÅr = fraÅr }
+
+
+oppdaterFraMåned : FørerkortSkjema -> Maybe Måned -> FørerkortSkjema
+oppdaterFraMåned (FørerkortSkjema info) fraMåned =
+    FørerkortSkjema { info | fraMåned = fraMåned }
+
+
+oppdaterFraDag : FørerkortSkjema -> String -> FørerkortSkjema
+oppdaterFraDag (FørerkortSkjema info) fraDag =
+    FørerkortSkjema { info | fraDag = fraDag }
+
+
+oppdaterTilÅr : FørerkortSkjema -> String -> FørerkortSkjema
+oppdaterTilÅr (FørerkortSkjema info) tilÅr =
+    FørerkortSkjema { info | tilÅr = tilÅr }
+
+
+oppdaterTilMåned : FørerkortSkjema -> Maybe Måned -> FørerkortSkjema
+oppdaterTilMåned (FørerkortSkjema info) tilMåned =
+    FørerkortSkjema { info | tilMåned = tilMåned }
+
+
+oppdaterTilDag : FørerkortSkjema -> String -> FørerkortSkjema
+oppdaterTilDag (FørerkortSkjema info) tilDag =
+    FørerkortSkjema { info | tilDag = tilDag }
+
+
+
+--- VALIDERING ---
 
 
 valider : FørerkortSkjema -> Maybe ValidertFørerkortSkjema
@@ -227,24 +219,52 @@ valider (FørerkortSkjema uvalidert) =
             Nothing
 
 
-initValidert : ValidertFørerkortSkjemaInfo -> ValidertFørerkortSkjema
-initValidert validertFørerkortSkjemaInfo =
-    ValidertFørerkortSkjema validertFørerkortSkjemaInfo
+uvalidertSkjemaFraValidertSkjema : ValidertFørerkortSkjema -> FørerkortSkjema
+uvalidertSkjemaFraValidertSkjema (ValidertFørerkortSkjema info) =
+    FørerkortSkjema
+        { førerkort = Just info.førerkort
+        , fraÅr =
+            info.fraDato
+                |> Maybe.map Dato.getDatoÅr
+                |> Maybe.withDefault ""
+        , fraMåned =
+            info.fraDato
+                |> Maybe.map Dato.getDatoMåned
+        , fraDag =
+            info.fraDato
+                |> Maybe.map Dato.getDatoDag
+                |> Maybe.withDefault ""
+        , tilÅr =
+            info.tilDato
+                |> Maybe.map Dato.getDatoÅr
+                |> Maybe.withDefault ""
+        , tilMåned =
+            info.tilDato
+                |> Maybe.map Dato.getDatoMåned
+        , tilDag =
+            info.tilDato
+                |> Maybe.map Dato.getDatoDag
+                |> Maybe.withDefault ""
+        }
 
 
-fraFørerkortKode : FørerkortKode -> ValidertFørerkortSkjema
-fraFørerkortKode kode =
-    ValidertFørerkortSkjema { førerkort = kode, fraDato = Nothing, tilDato = Nothing }
+førerkortFraValidertSkjema : ValidertFørerkortSkjema -> String
+førerkortFraValidertSkjema (ValidertFørerkortSkjema info) =
+    FørerkortKode.term info.førerkort
 
 
-klasseB : ValidertFørerkortSkjema
-klasseB =
-    ValidertFørerkortSkjema { førerkort = FørerkortKode.klasseB, fraDato = Nothing, tilDato = Nothing }
+tilDatoFraValidertSkjema : ValidertFørerkortSkjema -> String
+tilDatoFraValidertSkjema (ValidertFørerkortSkjema info) =
+    case info.tilDato of
+        Just dato ->
+            Dato.toString dato
+
+        Nothing ->
+            ""
 
 
-init : FørerkortSkjemaInfo -> FørerkortSkjema
-init info =
-    FørerkortSkjema info
+
+--- ENCODE ---
 
 
 encode : ValidertFørerkortSkjema -> Json.Encode.Value

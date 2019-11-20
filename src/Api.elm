@@ -39,7 +39,7 @@ import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
-import Cv.Forerkort exposing (Forerkort)
+import Cv.Forerkort exposing (Førerkort)
 import Cv.Kurs exposing (Kurs)
 import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
 import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
@@ -117,7 +117,7 @@ putPersonalia msgConstructor skjema id =
         }
 
 
-postFørerkort : (Result Error (List Forerkort) -> msg) -> Forerkort.Skjema.ValidertFørerkortSkjema -> Cmd msg
+postFørerkort : (Result Error (List Førerkort) -> msg) -> Forerkort.Skjema.ValidertFørerkortSkjema -> Cmd msg
 postFørerkort msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/forerkort"

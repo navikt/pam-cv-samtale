@@ -754,7 +754,7 @@ gåTilFørerkort : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, 
 gåTilFørerkort model ferdigAnimertMeldingsLogg =
     let
         ( førerkortModel, førerkortCmd ) =
-            Forerkort.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.forerkort model.cv)
+            Forerkort.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.førerkort model.cv)
     in
     ( { model
         | aktivSeksjon = FørerkortSeksjon førerkortModel

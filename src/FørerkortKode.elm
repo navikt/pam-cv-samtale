@@ -44,7 +44,7 @@ klasseB =
     FørerkortKode
         { kode = "B"
         , term = "Personbil"
-        , spørOmDatoInfo = True
+        , spørOmDatoInfo = False
         }
 
 
