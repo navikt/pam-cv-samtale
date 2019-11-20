@@ -531,7 +531,7 @@ updateSuccess successMsg model =
                             )
 
                         Sprak.Seksjon.Ferdig meldingsLogg ->
-                            gåTilSeksjonsValg model meldingsLogg
+                            gåTilFørerkort model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -599,7 +599,7 @@ updateSuccess successMsg model =
                             )
 
                         Forerkort.Seksjon.Ferdig førerkort meldingsLogg ->
-                            gåTilFlereAnnetValg { model | cv = Cv.oppdaterFørerkort førerkort model.cv } meldingsLogg
+                            gåTilSeksjonsValg { model | cv = Cv.oppdaterFørerkort førerkort model.cv } meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -2002,7 +2002,6 @@ viewLeggTilAnnet =
     Containers.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
         , seksjonsvalgKnapp KursValgt
-        , seksjonsvalgKnapp FørerkortValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
             |> Knapp.toHtml
         ]
