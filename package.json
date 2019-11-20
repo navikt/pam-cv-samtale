@@ -24,6 +24,8 @@
     "less": "^3.9.0",
     "nav-frontend-core": "^4.0.9",
     "nav-frontend-lenker-style": "^0.2.21",
+    "nav-frontend-lukknapp-style": "^0.2.21",
+    "nav-frontend-modal-style": "^0.3.31",
     "nav-frontend-paneler-style": "^0.3.15",
     "nav-frontend-skjema-style": "^1.0.40",
     "nav-frontend-spinner-style": "^0.2.5",
