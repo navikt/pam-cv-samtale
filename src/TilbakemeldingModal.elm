@@ -38,38 +38,38 @@ type ModalStatus
 
 
 update : Msg -> Model -> ModalStatus
-update msg (Model model) =
+update msg ((Model { sisteElementMedFokus }) as model) =
     case msg of
         TrykketLukkeKnapp ->
             Closed
 
         ElementFikkFokus inputId ->
-            Open (Model { model | sisteElementMedFokus = inputId }) Cmd.none
+            Open (Model { sisteElementMedFokus = inputId }) Cmd.none
 
         TabTrykket ->
-            if model.sisteElementMedFokus == AvsluttLenke then
+            if sisteElementMedFokus == AvsluttLenke then
                 LukkeKnapp
                     |> inputIdTilString
                     |> Browser.Dom.focus
                     |> Task.attempt SattFocus
-                    |> Open (Model model)
+                    |> Open model
 
             else
-                Open (Model model) Cmd.none
+                Open model Cmd.none
 
         ShiftTabTrykket ->
-            if model.sisteElementMedFokus == LukkeKnapp then
+            if sisteElementMedFokus == LukkeKnapp then
                 AvsluttLenke
                     |> inputIdTilString
                     |> Browser.Dom.focus
                     |> Task.attempt SattFocus
-                    |> Open (Model model)
+                    |> Open model
 
             else
-                Open (Model model) Cmd.none
+                Open model Cmd.none
 
         SattFocus _ ->
-            Open (Model model) Cmd.none
+            Open model Cmd.none
 
 
 
@@ -105,6 +105,12 @@ view _ =
         ]
 
 
+type InputId
+    = LukkeKnapp
+    | GiTilbakemeldingLenke
+    | AvsluttLenke
+
+
 inputIdTilString : InputId -> String
 inputIdTilString inputId =
     case inputId of
@@ -121,12 +127,6 @@ inputIdTilString inputId =
 modalId : String
 modalId =
     "tilbakemeldings-modal-id"
-
-
-type InputId
-    = LukkeKnapp
-    | GiTilbakemeldingLenke
-    | AvsluttLenke
 
 
 

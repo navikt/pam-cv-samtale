@@ -83,17 +83,6 @@ type Model
     | Failure Http.Error
 
 
-type InputId
-    = TilbakemeldingsModalId
-
-
-inputIdTilString : InputId -> String
-inputIdTilString inputId =
-    case inputId of
-        TilbakemeldingsModalId ->
-            "tilbakemeldings-modal-id"
-
-
 
 --- UPDATE ---
 
@@ -1522,14 +1511,6 @@ view { model, windowWidth, modalStatus } =
                             [ text "error"
                             ]
         ]
-
-
-settFokusCmd : InputId -> Cmd Msg
-settFokusCmd inputId =
-    inputId
-        |> inputIdTilString
-        |> Dom.focus
-        |> Task.attempt FokusSatt
 
 
 viewLoading : Html msg
