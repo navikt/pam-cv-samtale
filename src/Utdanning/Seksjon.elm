@@ -1040,7 +1040,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         RegistrerRetning _ ->
             [ Melding.spørsmål [ "Hvis du har fagbrev/svennebrev, mesterbrev eller autorisasjon, kan du legge inn dette senere." ]
             , Melding.spørsmål [ "Hva er navnet på graden din, og hvilken utdanningsretning gikk du?" ]
-            , Melding.spørsmål [ "Kanksje du har en bachelor i historie, eller elektrofag fra videregående?" ]
+            , Melding.spørsmål [ "Kanskje du har en bachelor i historie, eller elektrofag fra videregående?" ]
             ]
 
         RegistrerBeskrivelse _ ->
