@@ -24,6 +24,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabel, ariaLive)
 import Http
+import Konstanter
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding, Tekstområde(..))
@@ -1630,7 +1631,7 @@ viewSpørsmål spørsmål =
                         16
 
                     snakkebobleHeight =
-                        height + (2 * padding) + 1
+                        Konstanter.meldingHøyde height
 
                     snakkebobleWidth =
                         width + (2 * padding) + 1
@@ -1700,21 +1701,8 @@ robotAttribute spørsmål =
 transformForRobot : { height : Int } -> Html.Attribute msg
 transformForRobot { height } =
     let
-        padding =
-            16
-
-        margin =
-            8
-
-        skriveIndikatorHøyde =
-            54
-
-        meldingHøyde =
-            (height + (2 * padding))
-                |> toFloat
-
         avstand =
-            ((meldingHøyde + skriveIndikatorHøyde) / 2) + margin
+            (toFloat (Konstanter.meldingHøyde height + Konstanter.skriveIndikatorHøyde) / 2) + toFloat Konstanter.meldingMarginTop
     in
     style "transform" ("translateY(" ++ String.fromFloat avstand ++ "px)")
 

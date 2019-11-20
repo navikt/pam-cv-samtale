@@ -4,6 +4,7 @@ import Browser.Dom as Dom exposing (Element, Viewport)
 import Browser.Events
 import DebugStatus exposing (DebugStatus)
 import Ease
+import Konstanter
 import MeldingsLogg exposing (AntallOrdNesteOgForrigeMelding(..), FerdigAnimertStatus(..), MeldingsLogg, ScrollAnimasjonStatus(..))
 import Process
 import Task exposing (Task)
@@ -267,14 +268,11 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
 scrollTilMelding : MeldingsLogg -> { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
 scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewport, samtaleElement } tidNå =
     let
-        heightPlussPadding =
-            toFloat height + (2 * 16)
-
         forskjellMeldingstørrelse =
-            heightPlussPadding - 54
+            Konstanter.meldingHøyde height - Konstanter.skriveIndikatorHøyde
 
         sluttPosisjon =
-            forskjellMeldingstørrelse - (16 - ((samtaleElement.element.height + 40) - opprinneligViewport.viewport.height))
+            samtaleElement.element.height + 40 - 16 - opprinneligViewport.viewport.height + toFloat forskjellMeldingstørrelse
     in
     if sluttPosisjon < 0 then
         ( meldingsLogg, Cmd.none )
@@ -348,8 +346,8 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
         spørsmålHeight =
             case sisteSpørsmålHeight of
                 Just height ->
-                    -- høyde på innhold + melding-padding + padding-bottom-samtale + margin over melding
-                    toFloat (height + (2 * 16) + 16 + 8)
+                    -- høyde på melding + padding-bottom-samtale
+                    toFloat (Konstanter.meldingHøyde height + Konstanter.meldingMarginTop + 16)
 
                 Nothing ->
                     0
