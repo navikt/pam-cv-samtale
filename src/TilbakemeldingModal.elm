@@ -101,6 +101,10 @@ view _ =
                     |> Lenke.withOnFocus (ElementFikkFokus AvsluttLenke)
                     |> Lenke.toHtml
                 ]
+            , div [ tabindex 0 ]
+                [-- Denne er her sånn at nettleseren (spesifikt Firefox) skal ha noe å fokusere på etter Avslutt-lenken,
+                 -- for default-oppførselen er at den fokuserer på selve fanen over nettsiden, og da kan vi ikke sette fokus lenger
+                ]
             ]
         ]
 

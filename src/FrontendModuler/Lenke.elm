@@ -50,6 +50,7 @@ toHtml (Lenke options) =
                 , class "lenke"
                 , target "_blank"
                 , rel "noopener noreferrer"
+                , tabindex 0
                 , options.id
                     |> Maybe.map id
                     |> Maybe.withDefault noAttribute
@@ -72,6 +73,7 @@ toHtml (Lenke options) =
             , options.onFocus
                 |> Maybe.map onFocus
                 |> Maybe.withDefault noAttribute
+            , tabindex 0
             ]
             [ text options.tekst ]
 

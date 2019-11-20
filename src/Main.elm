@@ -22,7 +22,7 @@ import FrontendModuler.Spinner as Spinner
 import FrontendModuler.Textarea as Textarea
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Attributes.Aria exposing (ariaLabel, ariaLive)
+import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
 import Http
 import Konstanter
 import Kurs.Seksjon
@@ -1458,9 +1458,7 @@ viewDocument extendedModel =
 view : ExtendedModel -> Html Msg
 view { model, windowWidth, modalStatus } =
     div [ class "app" ]
-        [ Header.header windowWidth ÅpneTilbakemeldingModal
-            |> Header.toHtml
-        , case modalStatus of
+        [ case modalStatus of
             TilbakemeldingModalÅpen typeaheadModel ->
                 typeaheadModel
                     |> TilbakemeldingModal.view
@@ -1468,42 +1466,46 @@ view { model, windowWidth, modalStatus } =
 
             ModalLukket ->
                 text ""
-        , case model of
-            Loading _ ->
-                viewLoading
+        , div [ ariaHidden (modalStatus /= ModalLukket) ]
+            [ Header.header windowWidth ÅpneTilbakemeldingModal
+                |> Header.toHtml
+            , case model of
+                Loading _ ->
+                    viewLoading
 
-            Success successModel ->
-                viewSuccess successModel
+                Success successModel ->
+                    viewSuccess successModel
 
-            Failure error ->
-                case error of
-                    Http.BadUrl string ->
-                        div []
-                            [ text ("Fant ingenting her: " ++ string)
-                            , text "Er du sikker på at du leter på riktig sted?"
-                            ]
+                Failure error ->
+                    case error of
+                        Http.BadUrl string ->
+                            div []
+                                [ text ("Fant ingenting her: " ++ string)
+                                , text "Er du sikker på at du leter på riktig sted?"
+                                ]
 
-                    Http.Timeout ->
-                        div []
-                            [ text "Forespørselen tok for lang tid. Det kan være noe feil hos oss."
-                            , text "Forsæk å laste inn siden på nytt eller prøv gjerne igen senere"
-                            ]
+                        Http.Timeout ->
+                            div []
+                                [ text "Forespørselen tok for lang tid. Det kan være noe feil hos oss."
+                                , text "Forsæk å laste inn siden på nytt eller prøv gjerne igen senere"
+                                ]
 
-                    Http.BadStatus int ->
-                        div []
-                            [ text ("Fikk en " ++ String.fromInt int ++ " feilmelding. Vennligst prøv igjen senere!")
-                            ]
+                        Http.BadStatus int ->
+                            div []
+                                [ text ("Fikk en " ++ String.fromInt int ++ " feilmelding. Vennligst prøv igjen senere!")
+                                ]
 
-                    Http.BadBody _ ->
-                        div []
-                            [ text "Det set ut til at du ikke har godkjent vilkårene på arbeidsplassen.no/cv."
-                            , text "Vennligst gjøre dette før du benytter det av tjenesten."
-                            ]
+                        Http.BadBody _ ->
+                            div []
+                                [ text "Det set ut til at du ikke har godkjent vilkårene på arbeidsplassen.no/cv."
+                                , text "Vennligst gjøre dette før du benytter det av tjenesten."
+                                ]
 
-                    _ ->
-                        div []
-                            [ text "error"
-                            ]
+                        _ ->
+                            div []
+                                [ text "error"
+                                ]
+            ]
         ]
 
 
