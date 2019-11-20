@@ -2,7 +2,9 @@
 
 
 @meldingBredde: 27rem;
-@meldingBreddeMobil: 80%;
+@meldingBreddeMedium: 21rem;
+@meldingBreddeMobil: 15rem;
+@meldingBreddeLitenMobil: 14rem;
 
 @storSkjermSkjema: 432px;
 @litenSkjermSkjema: 431px;
@@ -56,7 +58,7 @@ html {
 
 // SAMTALE
 
-.samtale-wrapper {
+.cv-samtale{
   position: absolute;
   top: 4.5rem;
   left: 0;
@@ -66,18 +68,67 @@ html {
   margin-bottom: 0;
   overflow-y: scroll;
   -webkit-overflow-scrolling: touch;
+}
+
+.samtale-wrapper {
+
   display: flex;
   justify-content: center;
 }
 
+.samtale-header {
+  width: 100%;
+  max-width: 40rem;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid #d8d8d8;
+  align-items: center;
+  margin: 2.5rem auto 1.25rem;
+
+
+  .Robotlogo-header {
+    @media (min-width: 672px) {
+      width: 80px;
+      height: 80px;
+    }
+    @media (max-width: 671px) {
+      width: 60px;
+      height: 60px;
+    }
+
+    background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
+  }
+
+  h1 {
+    margin: 1rem 0 0.5rem;
+    font-size: 1.5em;
+    font-weight: bold;
+
+    @media (max-width: 671px) {
+      font-size: 1.25em;
+      margin-bottom: 0;
+    }
+  }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 2.5rem;
+    font-size: 18px;
+  }
+}
+
 .samtale {
-  @media (min-width: 768px) {
+  @media (min-width: 672px) {
     width: 40rem;
   }
-  @media (max-width: 767px) {
+  @media (max-width: 671px) {
     width: 100%;
     margin-left: 1rem;
     margin-right: 1rem;
+  }
+
+  .brukerInput-padding {
+    margin-bottom: 2.5rem;
   }
 
   .samtale-padding {
@@ -98,13 +149,29 @@ html {
     color: #062140;
   }
 
+  .melding.skjult {
+    height: 0;
+    width: 0;
+    padding: 0;
+    margin-top: 0;
+
+    .skriver-melding {
+      opacity: 0;
+    }
+  }
+
+  .melding.skriveindikator {
+    height: 54px;
+    width: 62px;
+  }
+
   .eksempel {
     background-color: #e6f4ef ;
     color: #062140;
   }
 
   .melding:after,
-  .eksempel:after{
+  .eksempel:after {
     content: '';
     position: absolute;
     left: 0;
@@ -116,14 +183,64 @@ html {
     border-left: 0;
     margin-top: -6px;
     margin-left: -6px;
+    opacity: 1;
+    transition: opacity 0.4s ease-in-out;
+  }
+
+  .skjult.melding:after {
+    opacity: 0;
+  }
+
+  .ikke-siste.melding:after {
+    opacity: 0;
   }
 
   .robot {
-    width: 50px;
-    height: 50px;
     align-self: center;
-    padding-top: 15px;
-    padding-right: 14px;
+    padding-right: 0.75rem;
+    margin-top: 0.5rem;
+
+    @media (min-width: 672px) {
+      width: 50px;
+      margin-top: 0.625rem;
+      margin-bottom: 0.125rem;
+    }
+    @media (max-width: 671px) {
+      width: 36px;
+      margin-top: 1.0625rem;
+      margin-bottom: 0.5625rem;
+    }
+    margin-right: 0.75rem;
+    transition: transform 0.4s ease-in-out;
+
+    &.skjult-robot-ikon {
+      .Robotlogo {
+        transition: opacity 0s;
+        opacity: 0;
+      }
+    }
+
+    &.forste-melding {
+      .Robotlogo {
+        transition: opacity 0.4s ease-in-out;
+      }
+    }
+
+
+    .Robotlogo {
+      @media (min-width: 672px) {
+        width: 50px;
+        height: 50px;
+      }
+      @media (max-width: 671px) {
+        width: 36px;
+        height: 36px;
+      }
+
+      display: inline-block;
+      vertical-align: middle;
+      background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
+    }
   }
 
 
@@ -156,18 +273,74 @@ html {
 }
 
 .melding,
-.eksempel {
-  @media (min-width: 768px) {
+.eksempel{
+  @media (min-width: 672px) {
     max-width: @meldingBredde;
   }
-  @media (max-width: 767px) {
-    max-width: @meldingBreddeMobil;
+  @media (max-width: 671px) {
+    @media (min-width: 480px) {
+      max-width: @meldingBreddeMedium;
+    }
+    @media (max-width: 479px) {
+      @media (min-width: 360px) {
+        max-width: @meldingBreddeMobil;
+      }
+      @media (max-width: 359px) {
+        max-width: @meldingBreddeLitenMobil;
+      }
+    }
   }
   padding: 1rem;
   border-radius: 12px;
   position: relative;
   margin-top: 0.5rem;
   overflow-wrap: break-word;
+
+  // Animasjon
+  transition-property: height, width, padding, margin;
+  transition-duration: 0.4s;
+  transition-timing-function: ease-in-out;
+
+  .meldinginnhold-wrapper {
+    @media (min-width: 672px) {
+      max-width: calc(@meldingBredde - 2rem);
+    }
+    @media (max-width: 671px) {
+      @media (min-width: 480px) {
+        max-width: calc(@meldingBreddeMedium - 2rem);
+      }
+      @media (max-width: 479px) {
+        @media (min-width: 360px) {
+          max-width: calc(@meldingBreddeMobil - 2rem);
+        }
+        @media (max-width: 359px) {
+          max-width: calc(@meldingBreddeLitenMobil - 2rem);
+        }
+      }
+    }
+    width: max-content;
+    transition: opacity 0.2s ease-in-out 0.2s;
+  }
+
+  .meldinginnhold-overflow-hidden {
+    overflow: hidden;
+    height: 100%;
+  }
+
+  &.kalkulerer {
+    height: 54px;
+    width: 62px;
+
+    .meldinginnhold-wrapper {
+      opacity: 0;
+    }
+  }
+
+  &.ferdiganimert {
+    .meldinginnhold-wrapper {
+      opacity: 1;
+    }
+  }
 
   p {
     margin: 0;
@@ -179,7 +352,10 @@ html {
 }
 
 .skriver-melding {
+  transition-property: opacity;
+  transition-delay: 0.4s;
   opacity: 0.2;
+  overflow: hidden;
 
   .bounce {
     width: 10px;
@@ -286,13 +462,7 @@ html {
 .skjema-wrapper {
   display: flex;
   flex-direction: column;
-  margin-top: 1rem;
-  @media (min-width: 768px) {
-    margin-top: 1.25rem;
-  }
-  @media (max-width: 767px) {
-    margin-top: 1rem;
-  }
+  margin-top: 1.25rem;
 }
 
 .skjema {

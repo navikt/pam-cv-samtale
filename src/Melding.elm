@@ -1,6 +1,7 @@
 module Melding exposing
     ( Melding
     , Tekstområde(..)
+    , antallOrd
     , eksempel
     , innhold
     , spørsmål
@@ -138,6 +139,27 @@ erstattTommeLinjer linje =
 tomLinje : String
 tomLinje =
     "\u{00A0}"
+
+
+antallOrd : Melding -> Int
+antallOrd (Melding tekstområder) =
+    tekstområder
+        |> List.map antallOrdITekstområde
+        |> List.sum
+
+
+antallOrdITekstområde : Tekstområde -> Int
+antallOrdITekstområde tekstområde =
+    case tekstområde of
+        Avsnitt string ->
+            string
+                |> String.split " "
+                |> List.length
+
+        Seksjon _ list ->
+            list
+                |> List.map (String.split " " >> List.length)
+                |> List.sum
 
 
 toHtml : Melding -> Html msg
