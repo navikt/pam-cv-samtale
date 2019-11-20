@@ -26,7 +26,7 @@ import Html.Attributes.Aria exposing (ariaLabel, ariaLive)
 import Http
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding, Tekstområde(..))
+import Melding exposing (Melding, MeldingsType(..), Tekstområde(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
 import Person exposing (Person)
 import Personalia exposing (Personalia)
@@ -1286,7 +1286,7 @@ samtaleTilMeldingsLogg samtale =
     case samtale of
         Introduksjon personalia ->
             [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ ", nå starter vi på CV-en din!" ]
-            , Melding.spørsmål [ "Først legger du inn utdanning, arbeidserfaring, språk og førerkort. Etter det kan du legge inn fagbrev, kurs, sertifisering og sammendrag." ]
+            , Melding.eksempel [ "Først legger du inn utdanning, arbeidserfaring, språk og førerkort. Etter det kan du legge inn fagbrev, kurs, sertifisering og sammendrag." ]
             , Melding.spørsmål [ "Du skal ikke skrive inn noe om helse, religion eller politiske oppfatning." ]
             , Melding.spørsmål [ "Er du klar til å begynne?" ]
             ]
@@ -1541,13 +1541,25 @@ viewMeldingsgruppe meldingsGruppe =
 
 viewSpørsmål : SpørsmålViewState -> Html msg
 viewSpørsmål spørsmål =
+    let
+        spørsmålClass =
+            case SpørsmålViewState.meldingsType spørsmål of
+                Spørsmål _ ->
+                    "melding "
+
+                Eksempel _ _ ->
+                    "eksempel "
+
+                Svar _ ->
+                    ""
+    in
     div [ class "meldingsrad robot-snakker" ]
         [ div [ class "robot", robotAttribute spørsmål ]
             [ i [ class "Robotlogo" ] [] ]
         , case SpørsmålViewState.spørsmålStyle spørsmål of
             FørSkriveindikator ->
                 div
-                    [ class "melding skjult"
+                    [ class (spørsmålClass ++ "skjult")
                     , ariaLive "off"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
@@ -1555,7 +1567,7 @@ viewSpørsmål spørsmål =
 
             Skriveindikator ->
                 div
-                    [ class "melding skriveindikator"
+                    [ class (spørsmålClass ++ "skriveindikator")
                     , ariaLive "off"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
@@ -1563,7 +1575,7 @@ viewSpørsmål spørsmål =
 
             StørrelseKalkuleres ->
                 article
-                    [ class "melding kalkulerer"
+                    [ class (spørsmålClass ++ "kalkulerer")
                     , ariaLive "polite"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
@@ -1588,7 +1600,7 @@ viewSpørsmål spørsmål =
                         width + (2 * padding) + 1
                 in
                 article
-                    [ class "melding ferdiganimert"
+                    [ class (spørsmålClass ++ "ferdiganimert")
                     , ariaLive "polite"
                     , style "height" (String.fromInt snakkebobleHeight ++ "px")
                     , style "width" (String.fromInt snakkebobleWidth ++ "px")
@@ -1605,14 +1617,22 @@ viewSpørsmål spørsmål =
 
             MeldingFerdigAnimert ->
                 article
-                    [ class "melding"
+                    [ class spørsmålClass
                     , classList [ ( "ikke-siste", ikkeSisteMelding spørsmål ) ]
                     , ariaLive "polite"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
-                    (spørsmål
+                    ([ case SpørsmålViewState.meldingsType spørsmål of
+                        Eksempel tittel _ ->
+                            [ viewEksempelTittel tittel ]
+
+                        _ ->
+                            []
+                     , spørsmål
                         |> SpørsmålViewState.tekst
                         |> List.map viewTekstområde
+                     ]
+                        |> List.concat
                     )
         ]
 
@@ -1695,6 +1715,11 @@ viewTekstområde tekstområde =
         Seksjon labelTekst tekster ->
             section [ ariaLabel labelTekst ]
                 (List.map viewAvsnitt tekster)
+
+
+viewEksempelTittel : String -> Html msg
+viewEksempelTittel tittel =
+    span [ class "eksempel-tittel" ] [ text tittel ]
 
 
 viewAvsnitt : String -> Html msg

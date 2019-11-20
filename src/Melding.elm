@@ -1,19 +1,16 @@
 module Melding exposing
     ( Melding
+    , MeldingsType(..)
     , Tekstområde(..)
     , antallOrd
     , eksempel
     , innhold
+    , meldingstype
     , spørsmål
     , spørsmålMedTekstområder
     , svar
-    , toHtml
     , tomLinje
     )
-
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Attributes.Aria exposing (..)
 
 
 type Melding
@@ -22,7 +19,7 @@ type Melding
 
 type MeldingsType
     = Spørsmål (List Tekstområde)
-    | Eksempel (List Tekstområde)
+    | Eksempel String (List Tekstområde)
     | Svar (List Tekstområde)
 
 
@@ -50,13 +47,24 @@ melding options =
         }
 
 
+eksempelWithTittel : String -> List String -> Melding
+eksempelWithTittel tittel list =
+    Melding
+        { meldingsType =
+            list
+                |> List.map Avsnitt
+                |> Eksempel tittel
+        , withAriaLive = False
+        }
+
+
 eksempel : List String -> Melding
 eksempel list =
     Melding
         { meldingsType =
             list
                 |> List.map Avsnitt
-                |> Eksempel
+                |> Eksempel "Eksempel: "
         , withAriaLive = False
         }
 
@@ -104,10 +112,15 @@ innhold (Melding options) =
                 |> List.map splitInnhold
                 |> List.concat
 
-        Eksempel tekstområder ->
+        Eksempel _ tekstområder ->
             tekstområder
                 |> List.map splitInnhold
                 |> List.concat
+
+
+meldingstype : Melding -> MeldingsType
+meldingstype (Melding options) =
+    options.meldingsType
 
 
 splitInnhold : Tekstområde -> List Tekstområde
@@ -142,10 +155,26 @@ tomLinje =
 
 
 antallOrd : Melding -> Int
-antallOrd (Melding tekstområder) =
-    tekstområder
-        |> List.map antallOrdITekstområde
-        |> List.sum
+antallOrd (Melding options) =
+    case options.meldingsType of
+        Spørsmål tekstområder ->
+            tekstområder
+                |> List.map antallOrdITekstområde
+                |> List.sum
+
+        Svar tekstområder ->
+            tekstområder
+                |> List.map antallOrdITekstområde
+                |> List.sum
+
+        Eksempel tittel tekstområder ->
+            ([ tekstområder
+             , [ Avsnitt tittel ]
+             ]
+                |> List.concat
+            )
+                |> List.map antallOrdITekstområde
+                |> List.sum
 
 
 antallOrdITekstområde : Tekstområde -> Int
@@ -160,53 +189,3 @@ antallOrdITekstområde tekstområde =
             list
                 |> List.map (String.split " " >> List.length)
                 |> List.sum
-
-
-toHtml : Melding -> Html msg
-toHtml (Melding options) =
-    case options.meldingsType of
-        Spørsmål _ ->
-            article [ class "melding", ariaLive "polite" ]
-                (Melding options
-                    |> innhold
-                    |> List.map viewTekstområde
-                )
-
-        Svar _ ->
-            article [ class "melding" ]
-                (Melding options
-                    |> innhold
-                    |> List.map viewTekstområde
-                )
-
-        Eksempel _ ->
-            article [ class "eksempel", ariaLive "polite" ]
-                (List.concat
-                    [ [ span [ class "eksempel-tittel" ] [ text "Eksempel:" ] ]
-                    , Melding options
-                        |> innhold
-                        |> List.map viewTekstområde
-                    ]
-                )
-
-
-
-{--
-                
---}
-
-
-viewTekstområde : Tekstområde -> Html msg
-viewTekstområde tekstområde =
-    case tekstområde of
-        Avsnitt tekst ->
-            viewAvsnitt tekst
-
-        Seksjon labelTekst tekster ->
-            section [ ariaLabel labelTekst ]
-                (List.map viewAvsnitt tekster)
-
-
-viewAvsnitt : String -> Html msg
-viewAvsnitt string =
-    p [] [ text string ]
