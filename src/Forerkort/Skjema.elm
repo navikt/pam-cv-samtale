@@ -203,13 +203,13 @@ valider (FørerkortSkjema uvalidert) =
                         Dato.DatoValiderer tilDato ->
                             Just (ValidertFørerkortSkjema { førerkort = førerkort, fraDato = Just fraDato, tilDato = Just tilDato })
 
-                        Dato.DatoValidererIkke ->
+                        Dato.DatoValideringsfeil ->
                             Nothing
 
                         Dato.DatoIkkeSkrevetInn ->
                             Just (ValidertFørerkortSkjema { førerkort = førerkort, fraDato = Just fraDato, tilDato = Nothing })
 
-                Dato.DatoValidererIkke ->
+                Dato.DatoValideringsfeil ->
                     Nothing
 
                 Dato.DatoIkkeSkrevetInn ->
@@ -217,7 +217,7 @@ valider (FørerkortSkjema uvalidert) =
                         Dato.DatoValiderer tilDato ->
                             Just (ValidertFørerkortSkjema { førerkort = førerkort, fraDato = Nothing, tilDato = Just tilDato })
 
-                        Dato.DatoValidererIkke ->
+                        Dato.DatoValideringsfeil ->
                             Nothing
 
                         Dato.DatoIkkeSkrevetInn ->

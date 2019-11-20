@@ -93,7 +93,7 @@ getDatoDag (Dato info) =
 
 type DatoValidering
     = DatoValiderer Dato
-    | DatoValidererIkke
+    | DatoValideringsfeil
     | DatoIkkeSkrevetInn
 
 
@@ -111,14 +111,14 @@ validerDato { dag, måned, år } =
                     )
 
             else
-                DatoValidererIkke
+                DatoValideringsfeil
 
         Nothing ->
             if String.isEmpty dag && String.isEmpty år then
                 DatoIkkeSkrevetInn
 
             else
-                DatoValidererIkke
+                DatoValideringsfeil
 
 
 type alias DatoFeilmelding =
@@ -158,7 +158,7 @@ feilmeldingForDato { dag, måned, år } =
 
             else
                 Just
-                    { feilmelding = "Du må velge månede"
+                    { feilmelding = "Du må velge måned"
                     , feilPåDag = False
                     , feilPåMåned = True
                     , feilPåÅr = False

@@ -2,6 +2,7 @@ module FrontendModuler.DatoInputMedDag exposing
     ( DatoInputMedDag
     , datoInputMedDag
     , toHtml
+    , withId
     , withMaybeFeilmelding
     , withOnBlurÅr
     )
@@ -26,6 +27,7 @@ type alias Info msg =
     , måned : Maybe Måned
     , onMånedChange : String -> msg
     , onBlurÅr : Maybe msg
+    , id : Maybe String
     , dag : String
     , onDagChange : String -> msg
     , feilmelding : Maybe DatoFeilmelding
@@ -55,6 +57,7 @@ datoInputMedDag { label, år, onÅrChange, måned, onMånedChange, dag, onDagCha
         , dag = dag
         , onDagChange = onDagChange
         , feilmelding = Nothing
+        , id = Nothing
         }
 
 
@@ -68,6 +71,11 @@ withOnBlurÅr onBlur (DatoInputMedDag info) =
     DatoInputMedDag { info | onBlurÅr = Just onBlur }
 
 
+withId : String -> DatoInputMedDag msg -> DatoInputMedDag msg
+withId id (DatoInputMedDag info) =
+    DatoInputMedDag { info | id = Just id }
+
+
 toHtml : DatoInputMedDag msg -> Html msg
 toHtml (DatoInputMedDag options) =
     div []
@@ -77,6 +85,9 @@ toHtml (DatoInputMedDag options) =
                     [ Html.input
                         [ type_ "text"
                         , value options.dag
+                        , options.id
+                            |> Maybe.map id
+                            |> Maybe.withDefault noAttribute
                         , classList
                             [ ( "skjemaelement__input", True )
                             , ( "input--fullbredde", True )
@@ -167,3 +178,8 @@ withMaybeOnBlur maybeOnBlur input =
 
         Nothing ->
             input
+
+
+noAttribute : Html.Attribute msg
+noAttribute =
+    classList []

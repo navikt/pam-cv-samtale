@@ -10,6 +10,7 @@ module Forerkort.Seksjon exposing
     )
 
 import Api
+import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Forerkort as Forerkort exposing (Forerkort, Klasse(..))
 import Dato exposing (Dato, DatoValidering(..), Måned)
@@ -75,6 +76,11 @@ type SamtaleStatus
     | Ferdig (List Forerkort) FerdigAnimertMeldingsLogg
 
 
+type InputId
+    = FraDatoId
+    | TilDatoId
+
+
 meldingsLogg : Model -> MeldingsLogg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
@@ -89,8 +95,6 @@ type Msg
     | HarIkkeKlasseB
     | BrukerHarFlereFørerkort
     | BrukerVilAvslutteSeksjonen
-    | StartÅSkrive
-    | FullførMelding
     | ViewportSatt
     | ErrorLogget
     | FørerkortLagret (Result Http.Error (List Forerkort))
@@ -112,6 +116,8 @@ type Msg
     | FerdigMedFørerkort
     | SendSkjemaPåNytt
     | WindowEndrerVisibility Visibility
+    | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
+    | FokusSatt (Result Dom.Error ())
 
 
 type SkjemaEndring
@@ -172,27 +178,6 @@ update msg (Model model) =
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
-
-        StartÅSkrive ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        MeldingsLogg.startÅSkrive model.seksjonsMeldingsLogg
-                }
-            , Cmd.batch
-                [ SamtaleAnimasjon.scrollTilBunn (always ViewportSatt)
-                , (MeldingsLogg.nesteMeldingToString model.seksjonsMeldingsLogg * 1000.0)
-                    |> DebugStatus.meldingsTimeout model.debugStatus
-                    |> Process.sleep
-                    |> Task.perform (always FullførMelding)
-                ]
-            )
-                |> IkkeFerdig
-
-        FullførMelding ->
-            model.seksjonsMeldingsLogg
-                |> MeldingsLogg.fullførMelding
-                |> updateEtterFullførtMelding model
 
         ViewportSatt ->
             ( Model model, Cmd.none )
@@ -384,7 +369,7 @@ update msg (Model model) =
                             )
                                 |> IkkeFerdig
 
-                        DatoValidererIkke ->
+                        DatoValideringsfeil ->
                             ( { valgtFørerkort = info.valgtFørerkort
                               , dag = info.dag
                               , måned = info.måned
@@ -469,7 +454,7 @@ update msg (Model model) =
                             )
                                 |> IkkeFerdig
 
-                        DatoValidererIkke ->
+                        DatoValideringsfeil ->
                             ( { valgtFørerkort = info.valgtFørerkort
                               , fraDato = info.fraDato
                               , dag = info.dag
@@ -627,6 +612,13 @@ update msg (Model model) =
                 Hidden ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
+            SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
+                |> updateEtterFullførtMelding model
+
+        FokusSatt _ ->
+            IkkeFerdig ( Model model, Cmd.none )
+
 
 validertSkjemaTilSetninger : ValidertFørerkortSkjema -> List String
 validertSkjemaTilSetninger validertSkjema =
@@ -690,8 +682,8 @@ oppdaterSamtaleSteg model samtaleSeksjon =
         }
 
 
-updateEtterFullførtMelding : ModelInfo -> MeldingsLogg -> SamtaleStatus
-updateEtterFullførtMelding model nyMeldingsLogg =
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
@@ -699,35 +691,55 @@ updateEtterFullførtMelding model nyMeldingsLogg =
                     Ferdig førerkortListe ferdigAnimertSamtale
 
                 _ ->
-                    ( Model
-                        { model
-                            | seksjonsMeldingsLogg =
-                                nyMeldingsLogg
-                        }
-                    , SamtaleAnimasjon.scrollTilBunn (always ViewportSatt)
+                    ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
+                    , Cmd.batch
+                        [ Cmd.map SamtaleAnimasjonMsg cmd
+                        , settFokus model.aktivSamtale
+                        ]
                     )
                         |> IkkeFerdig
 
         MeldingerGjenstår ->
-            ( Model
-                { model
-                    | seksjonsMeldingsLogg =
-                        nyMeldingsLogg
-                }
-            , lagtTilSpørsmålCmd model.debugStatus
+            ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
+            , Cmd.map SamtaleAnimasjonMsg cmd
             )
                 |> IkkeFerdig
 
 
+settFokus : Samtale -> Cmd Msg
+settFokus samtale =
+    case samtale of
+        RegistrereFraDato _ ->
+            settFokusCmd FraDatoId
+
+        RegistrereTilDato _ ->
+            settFokusCmd TilDatoId
+
+        _ ->
+            Cmd.none
+
+
+settFokusCmd : InputId -> Cmd Msg
+settFokusCmd inputId =
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
+        |> Task.attempt FokusSatt
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        FraDatoId ->
+            "førerkort-fradato-id"
+
+        TilDatoId ->
+            "førerkort-tildato-id"
+
+
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
-    Cmd.batch
-        [ SamtaleAnimasjon.scrollTilBunn (always ViewportSatt)
-        , 200
-            |> DebugStatus.meldingsTimeout debugStatus
-            |> Process.sleep
-            |> Task.perform (always StartÅSkrive)
-        ]
+    SamtaleAnimasjon.startAnimasjon debugStatus
+        |> Cmd.map SamtaleAnimasjonMsg
 
 
 samtaleTilMeldingsLogg : ModelInfo -> Samtale -> List Melding
@@ -976,6 +988,7 @@ viewBrukerInput (Model model) =
                           , onMånedChange = BrukerEndrerFraMåned
                           }
                             |> DatoInputMedDag.datoInputMedDag
+                            |> DatoInputMedDag.withId (inputIdTilString FraDatoId)
                             |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
                             |> DatoInputMedDag.toHtml
                         ]
@@ -992,6 +1005,7 @@ viewBrukerInput (Model model) =
                           , onMånedChange = BrukerEndrerTilMåned
                           }
                             |> DatoInputMedDag.datoInputMedDag
+                            |> DatoInputMedDag.withId (inputIdTilString TilDatoId)
                             |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
                             |> DatoInputMedDag.toHtml
                         ]
