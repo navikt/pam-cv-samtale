@@ -36,6 +36,7 @@ import Sertifikat.Seksjon
 import SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
 import Sprak.Seksjon
 import Task
+import TilbakemeldingModal
 import Url
 import Utdanning.Seksjon
 import Validering
@@ -67,7 +68,13 @@ type alias ExtendedModel =
     , navigationKey : Navigation.Key
     , debugStatus : DebugStatus
     , windowWidth : Int
+    , modalStatus : ModalStatus
     }
+
+
+type ModalStatus
+    = ModalLukket
+    | TilbakemeldingModalÅpen TilbakemeldingModal.Model
 
 
 type Model
@@ -88,6 +95,9 @@ type Msg
     | WindowResized Int Int
     | UrlChanged Url.Url
     | UrlRequestChanged Browser.UrlRequest
+    | ÅpneTilbakemeldingModal
+    | ModalMsg TilbakemeldingModal.Msg
+    | FokusSatt (Result Dom.Error ())
 
 
 update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
@@ -117,6 +127,7 @@ update msg extendedModel =
             ( { model = extendedModel.model
               , navigationKey = extendedModel.navigationKey
               , debugStatus = extendedModel.debugStatus
+              , modalStatus = extendedModel.modalStatus
               , windowWidth = windowWidth
               }
             , Cmd.none
@@ -135,10 +146,38 @@ update msg extendedModel =
             ( { model = extendedModel.model
               , navigationKey = extendedModel.navigationKey
               , debugStatus = extendedModel.debugStatus
+              , modalStatus = extendedModel.modalStatus
               , windowWidth = round viewport.scene.width
               }
             , Cmd.none
             )
+
+        ÅpneTilbakemeldingModal ->
+            let
+                ( modalModel, cmd ) =
+                    TilbakemeldingModal.init
+            in
+            ( { extendedModel | modalStatus = TilbakemeldingModalÅpen modalModel }
+            , Cmd.map ModalMsg cmd
+            )
+
+        ModalMsg modalMsg ->
+            case extendedModel.modalStatus of
+                ModalLukket ->
+                    ( extendedModel, Cmd.none )
+
+                TilbakemeldingModalÅpen model ->
+                    case TilbakemeldingModal.update modalMsg model of
+                        TilbakemeldingModal.Open nyModel cmd ->
+                            ( { extendedModel | modalStatus = TilbakemeldingModalÅpen nyModel }
+                            , Cmd.map ModalMsg cmd
+                            )
+
+                        TilbakemeldingModal.Closed ->
+                            ( { extendedModel | modalStatus = ModalLukket }, Cmd.none )
+
+        FokusSatt _ ->
+            ( extendedModel, Cmd.none )
 
 
 mapTilExtendedModel : ExtendedModel -> ( Model, Cmd Msg ) -> ( ExtendedModel, Cmd Msg )
@@ -147,6 +186,7 @@ mapTilExtendedModel extendedModel ( model, cmd ) =
       , windowWidth = extendedModel.windowWidth
       , debugStatus = extendedModel.debugStatus
       , navigationKey = extendedModel.navigationKey
+      , modalStatus = extendedModel.modalStatus
       }
     , cmd
     )
@@ -1415,10 +1455,18 @@ viewDocument extendedModel =
 
 
 view : ExtendedModel -> Html Msg
-view { model, windowWidth } =
+view { model, windowWidth, modalStatus } =
     div [ class "app" ]
-        [ Header.header windowWidth
+        [ Header.header windowWidth ÅpneTilbakemeldingModal
             |> Header.toHtml
+        , case modalStatus of
+            TilbakemeldingModalÅpen typeaheadModel ->
+                typeaheadModel
+                    |> TilbakemeldingModal.view
+                    |> Html.map ModalMsg
+
+            ModalLukket ->
+                text ""
         , case model of
             Loading _ ->
                 viewLoading
@@ -2007,6 +2055,7 @@ init _ url navigationKey =
       , windowWidth = 1000
       , navigationKey = navigationKey
       , debugStatus = DebugStatus.fromUrl url
+      , modalStatus = ModalLukket
       }
     , Cmd.batch
         [ Api.getPerson (PersonHentet >> LoadingMsg)
@@ -2017,10 +2066,17 @@ init _ url navigationKey =
 
 
 subscriptions : ExtendedModel -> Sub Msg
-subscriptions { model } =
+subscriptions { model, modalStatus } =
     Sub.batch
         [ Browser.Events.onResize WindowResized
         , seksjonSubscriptions model
+        , case modalStatus of
+            ModalLukket ->
+                Sub.none
+
+            TilbakemeldingModalÅpen modalModel ->
+                TilbakemeldingModal.subscriptions modalModel
+                    |> Sub.map ModalMsg
         ]
 
 

@@ -1,32 +1,47 @@
-module FrontendModuler.Lenke exposing (Lenke, lenke, toHtml, withTargetBlank)
+module FrontendModuler.Lenke exposing (Lenke, lenke, toHtml, withId, withOnFocus, withTargetBlank)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onFocus)
 
 
-type Lenke
+type Lenke msg
     = Lenke
         { tekst : String
         , url : String
         , åpneINyFane : Bool
+        , id : Maybe String
+        , onFocus : Maybe msg
         }
 
 
-lenke : { tekst : String, url : String } -> Lenke
+lenke : { tekst : String, url : String } -> Lenke msg
 lenke { tekst, url } =
     Lenke
         { tekst = tekst
         , url = url
         , åpneINyFane = False
+        , id = Nothing
+        , onFocus = Nothing
         }
 
 
-withTargetBlank : Lenke -> Lenke
+withTargetBlank : Lenke msg -> Lenke msg
 withTargetBlank (Lenke options) =
     Lenke { options | åpneINyFane = True }
 
 
-toHtml : Lenke -> Html msg
+withId : String -> Lenke msg -> Lenke msg
+withId id (Lenke options) =
+    Lenke { options | id = Just id }
+
+
+withOnFocus : msg -> Lenke msg -> Lenke msg
+withOnFocus onFocus (Lenke options) =
+    Lenke { options | onFocus = Just onFocus }
+
+
+toHtml : Lenke msg -> Html msg
 toHtml (Lenke options) =
     if options.åpneINyFane then
         span [ class "ForlateSiden" ]
@@ -35,6 +50,12 @@ toHtml (Lenke options) =
                 , class "lenke"
                 , target "_blank"
                 , rel "noopener noreferrer"
+                , options.id
+                    |> Maybe.map id
+                    |> Maybe.withDefault noAttribute
+                , options.onFocus
+                    |> Maybe.map onFocus
+                    |> Maybe.withDefault noAttribute
                 ]
                 [ span [] [ text options.tekst ]
                 , i [ class "ForlateSiden__icon" ] []
@@ -45,6 +66,12 @@ toHtml (Lenke options) =
         a
             [ href options.url
             , class "lenke"
+            , options.id
+                |> Maybe.map id
+                |> Maybe.withDefault noAttribute
+            , options.onFocus
+                |> Maybe.map onFocus
+                |> Maybe.withDefault noAttribute
             ]
             [ text options.tekst ]
 
