@@ -562,7 +562,7 @@ updateSuccess successMsg model =
                             )
 
                         Sertifikat.Seksjon.Ferdig sertifikatListe meldingsLogg ->
-                            gåTilFlereSeksjonsValg model meldingsLogg
+                            gåTilFlereAnnetValg model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -1948,7 +1948,6 @@ viewLeggTilAutorisasjoner =
         [ seksjonsvalgKnapp FagbrevSvennebrevValgt
         , seksjonsvalgKnapp MesterbrevValgt
         , seksjonsvalgKnapp AutorisasjonValgt
-        , seksjonsvalgKnapp SertifiseringValgt
         , Knapp.knapp IngenAvAutorisasjonSeksjoneneValgt "Nei, gå videre"
             |> Knapp.toHtml
         ]
@@ -1959,6 +1958,7 @@ viewLeggTilAnnet =
     Containers.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
         , seksjonsvalgKnapp KursValgt
+        , seksjonsvalgKnapp SertifiseringValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
             |> Knapp.toHtml
         ]
