@@ -1,4 +1,4 @@
-module FrontendModuler.Lenke exposing (Lenke, lenke, toHtml, withId, withOnFocus, withTargetBlank)
+module FrontendModuler.Lenke exposing (Lenke, lenke, toHtml, withClass, withId, withOnFocus, withTargetBlank)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -11,6 +11,7 @@ type Lenke msg
         , url : String
         , åpneINyFane : Bool
         , id : Maybe String
+        , class : Maybe String
         , onFocus : Maybe msg
         }
 
@@ -22,6 +23,7 @@ lenke { tekst, url } =
         , url = url
         , åpneINyFane = False
         , id = Nothing
+        , class = Nothing
         , onFocus = Nothing
         }
 
@@ -34,6 +36,11 @@ withTargetBlank (Lenke options) =
 withId : String -> Lenke msg -> Lenke msg
 withId id (Lenke options) =
     Lenke { options | id = Just id }
+
+
+withClass : String -> Lenke msg -> Lenke msg
+withClass class (Lenke options) =
+    Lenke { options | class = Just class }
 
 
 withOnFocus : msg -> Lenke msg -> Lenke msg
@@ -54,6 +61,9 @@ toHtml (Lenke options) =
                 , options.id
                     |> Maybe.map id
                     |> Maybe.withDefault noAttribute
+                , options.class
+                    |> Maybe.map class
+                    |> Maybe.withDefault noAttribute
                 , options.onFocus
                     |> Maybe.map onFocus
                     |> Maybe.withDefault noAttribute
@@ -69,6 +79,9 @@ toHtml (Lenke options) =
             , class "lenke"
             , options.id
                 |> Maybe.map id
+                |> Maybe.withDefault noAttribute
+            , options.class
+                |> Maybe.map class
                 |> Maybe.withDefault noAttribute
             , options.onFocus
                 |> Maybe.map onFocus

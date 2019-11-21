@@ -92,9 +92,10 @@ view _ =
                 , Lenke.lenke { tekst = "Gi tilbakemelding", url = "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585" }
                     |> Lenke.withTargetBlank
                     |> Lenke.withId (inputIdTilString GiTilbakemeldingLenke)
+                    |> Lenke.withClass "gi-tilbakemelding-lenke"
                     |> Lenke.withOnFocus (ElementFikkFokus GiTilbakemeldingLenke)
                     |> Lenke.toHtml
-                , Lenke.lenke { tekst = "Avslutt CV-registreringen", url = "/cv" }
+                , Lenke.lenke { tekst = "Avslutt CV-registreringen", url = "/cv/forhandsvis" }
                     |> Lenke.withId (inputIdTilString AvsluttLenke)
                     |> Lenke.withOnFocus (ElementFikkFokus AvsluttLenke)
                     |> Lenke.toHtml
