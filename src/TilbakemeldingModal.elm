@@ -1,6 +1,7 @@
 module TilbakemeldingModal exposing (ModalStatus(..), Model, Msg, init, subscriptions, update, view)
 
 import Browser.Dom
+import Browser.Events
 import FrontendModuler.Lenke as Lenke
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -25,6 +26,7 @@ type Model
 
 type Msg
     = TrykketLukkeKnapp
+    | EscapeTrykket
     | ElementFikkFokus InputId
     | TabTrykket
     | ShiftTabTrykket
@@ -40,6 +42,9 @@ update : Msg -> Model -> ModalStatus
 update msg ((Model { sisteElementMedFokus }) as model) =
     case msg of
         TrykketLukkeKnapp ->
+            Closed
+
+        EscapeTrykket ->
             Closed
 
         ElementFikkFokus inputId ->
@@ -196,8 +201,22 @@ type alias KeyPressInfo =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    --    Browser.Events.onKeyDown decodeTab1
-    Sub.none
+    Browser.Events.onKeyDown decodeEscape
+
+
+decodeEscape : Decoder Msg
+decodeEscape =
+    decodeKeypressInfo
+        |> Json.Decode.andThen keyPressInfoTilEscapeMsg
+
+
+keyPressInfoTilEscapeMsg : KeyPressInfo -> Decoder Msg
+keyPressInfoTilEscapeMsg keyPressInfo =
+    if keyPressInfo.key == "Escape" then
+        Json.Decode.succeed EscapeTrykket
+
+    else
+        Json.Decode.fail ""
 
 
 
