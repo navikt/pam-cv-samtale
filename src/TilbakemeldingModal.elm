@@ -1,12 +1,11 @@
 module TilbakemeldingModal exposing (ModalStatus(..), Model, Msg, init, subscriptions, update, view)
 
 import Browser.Dom
-import Browser.Events
 import FrontendModuler.Lenke as Lenke
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (..)
-import Html.Events exposing (onClick, onFocus)
+import Html.Events exposing (onClick, onFocus, preventDefaultOn)
 import Json.Decode exposing (Decoder)
 import Json.Decode.Pipeline
 import Task
@@ -47,26 +46,20 @@ update msg ((Model { sisteElementMedFokus }) as model) =
             Open (Model { sisteElementMedFokus = inputId }) Cmd.none
 
         TabTrykket ->
-            if sisteElementMedFokus == AvsluttLenke then
-                LukkeKnapp
-                    |> inputIdTilString
-                    |> Browser.Dom.focus
-                    |> Task.attempt SattFocus
-                    |> Open model
-
-            else
-                Open model Cmd.none
+            sisteElementMedFokus
+                |> nesteInput
+                |> inputIdTilString
+                |> Browser.Dom.focus
+                |> Task.attempt SattFocus
+                |> Open model
 
         ShiftTabTrykket ->
-            if sisteElementMedFokus == LukkeKnapp then
-                AvsluttLenke
-                    |> inputIdTilString
-                    |> Browser.Dom.focus
-                    |> Task.attempt SattFocus
-                    |> Open model
-
-            else
-                Open model Cmd.none
+            sisteElementMedFokus
+                |> forrigeInput
+                |> inputIdTilString
+                |> Browser.Dom.focus
+                |> Task.attempt SattFocus
+                |> Open model
 
         SattFocus _ ->
             Open model Cmd.none
@@ -80,7 +73,7 @@ view : Model -> Html Msg
 view _ =
     div [ class "modal__overlay", Html.Attributes.attribute "aria-modal" "true" ]
         [ div [ class "modal__overlay gjennomsiktig", onClick TrykketLukkeKnapp ] []
-        , div [ id modalId, class "modal tilbakemelding-modal", tabindex -1, role "dialog", ariaLabel "Modal - Gi tilbakemelding" ]
+        , div [ id (inputIdTilString SelveModalen), class "modal tilbakemelding-modal", tabindex -1, role "dialog", ariaLabel "Modal - Gi tilbakemelding", onTab ]
             [ button
                 [ class "lukknapp lukknapp--overstHjorne modal__lukknapp--shake"
                 , onClick TrykketLukkeKnapp
@@ -101,25 +94,54 @@ view _ =
                     |> Lenke.withOnFocus (ElementFikkFokus AvsluttLenke)
                     |> Lenke.toHtml
                 ]
-            , div [ tabindex 0 ]
-                [-- Denne er her sånn at nettleseren (spesifikt Firefox) skal ha noe å fokusere på etter Avslutt-lenken,
-                 -- for default-oppførselen er at den fokuserer på selve fanen over nettsiden, og da kan vi ikke sette fokus lenger
-                ]
             ]
         ]
 
 
 type InputId
-    = LukkeKnapp
+    = SelveModalen
     | GiTilbakemeldingLenke
     | AvsluttLenke
+    | LukkeKnapp
+
+
+nesteInput : InputId -> InputId
+nesteInput inputId =
+    case inputId of
+        SelveModalen ->
+            GiTilbakemeldingLenke
+
+        GiTilbakemeldingLenke ->
+            AvsluttLenke
+
+        AvsluttLenke ->
+            LukkeKnapp
+
+        LukkeKnapp ->
+            GiTilbakemeldingLenke
+
+
+forrigeInput : InputId -> InputId
+forrigeInput inputId =
+    case inputId of
+        SelveModalen ->
+            LukkeKnapp
+
+        GiTilbakemeldingLenke ->
+            LukkeKnapp
+
+        AvsluttLenke ->
+            GiTilbakemeldingLenke
+
+        LukkeKnapp ->
+            AvsluttLenke
 
 
 inputIdTilString : InputId -> String
 inputIdTilString inputId =
     case inputId of
-        LukkeKnapp ->
-            "tilbakemelding-modal--lukke-knapp"
+        SelveModalen ->
+            "tilbakemeldings-modal-id"
 
         GiTilbakemeldingLenke ->
             "tilbakemelding-modal--gi-tilbakemelding-lenke"
@@ -127,29 +149,29 @@ inputIdTilString inputId =
         AvsluttLenke ->
             "tilbakemelding-modal--avslutt-lenke"
 
-
-modalId : String
-modalId =
-    "tilbakemeldings-modal-id"
+        LukkeKnapp ->
+            "tilbakemelding-modal--lukke-knapp"
 
 
+onTab : Html.Attribute Msg
+onTab =
+    decodeTab
+        |> preventDefaultOn "keydown"
 
---- SUBSCRIPTIONS ---
 
-
-decodeTab : Decoder Msg
+decodeTab : Decoder ( Msg, Bool )
 decodeTab =
     decodeKeypressInfo
         |> Json.Decode.andThen keyPressInfoTilMsg
 
 
-keyPressInfoTilMsg : KeyPressInfo -> Decoder Msg
+keyPressInfoTilMsg : KeyPressInfo -> Decoder ( Msg, Bool )
 keyPressInfoTilMsg keyPressInfo =
     if keyPressInfo.key == "Tab" && not keyPressInfo.shiftPressed then
-        Json.Decode.succeed TabTrykket
+        Json.Decode.succeed ( TabTrykket, True )
 
     else if keyPressInfo.key == "Tab" && keyPressInfo.shiftPressed then
-        Json.Decode.succeed ShiftTabTrykket
+        Json.Decode.succeed ( ShiftTabTrykket, True )
 
     else
         Json.Decode.fail ""
@@ -168,9 +190,14 @@ type alias KeyPressInfo =
     }
 
 
+
+--- SUBSCRIPTIONS ---
+
+
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Browser.Events.onKeyDown decodeTab
+    --    Browser.Events.onKeyDown decodeTab1
+    Sub.none
 
 
 
@@ -180,7 +207,8 @@ subscriptions _ =
 init : ( Model, Cmd Msg )
 init =
     ( Model { sisteElementMedFokus = LukkeKnapp }
-    , modalId
+    , SelveModalen
+        |> inputIdTilString
         |> Browser.Dom.focus
         |> Task.attempt SattFocus
     )
