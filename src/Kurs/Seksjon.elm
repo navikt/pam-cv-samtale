@@ -749,7 +749,7 @@ samtaleTilMeldingsLogg kursSeksjon =
             ]
 
         SpørOmBrukerVilLeggeInnFullførtDato _ ->
-            [ Melding.spørsmål [ "Vil du legge inn informasjon om når du fullførte kurset?" ]
+            [ Melding.spørsmål [ "Det kan være nyttig for en arbeidsgiver å vite når du fullførte kurset. Vil du legge inn det?" ]
             ]
 
         RegistrerFullførtMåned _ ->
