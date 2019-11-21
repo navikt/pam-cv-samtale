@@ -12,7 +12,7 @@ import FrontendModuler.Select as Select
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLive, role)
-import Html.Events exposing (onInput)
+import Html.Events exposing (onBlur, onInput)
 
 
 type DatoInputMedDag msg
@@ -25,7 +25,6 @@ type alias Info msg =
     , onÅrChange : String -> msg
     , måned : Maybe Måned
     , onMånedChange : String -> msg
-    , onBlurÅr : Maybe msg
     , id : Maybe String
     , dag : String
     , onDagChange : String -> msg
@@ -52,7 +51,6 @@ datoInputMedDag { label, år, onÅrChange, måned, onMånedChange, dag, onDagCha
         , onÅrChange = onÅrChange
         , måned = måned
         , onMånedChange = onMånedChange
-        , onBlurÅr = Nothing
         , dag = dag
         , onDagChange = onDagChange
         , feilmelding = Nothing

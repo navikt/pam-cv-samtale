@@ -1064,7 +1064,13 @@ viewBrukerInput (Model model) =
                       }
                         |> DatoInputMedDag.datoInputMedDag
                         |> DatoInputMedDag.withId (inputIdTilString FraDatoId)
-                        |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
+                        |> DatoInputMedDag.withMaybeFeilmelding
+                            (if info.visFeilmelding then
+                                Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år }
+
+                             else
+                                Nothing
+                            )
                         |> DatoInputMedDag.toHtml
                     ]
 
@@ -1081,7 +1087,13 @@ viewBrukerInput (Model model) =
                       }
                         |> DatoInputMedDag.datoInputMedDag
                         |> DatoInputMedDag.withId (inputIdTilString TilDatoId)
-                        |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år })
+                        |> DatoInputMedDag.withMaybeFeilmelding
+                            (if info.visFeilmelding then
+                                Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år }
+
+                             else
+                                Nothing
+                            )
                         |> DatoInputMedDag.toHtml
                     ]
 
