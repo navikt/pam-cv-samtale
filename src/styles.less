@@ -51,9 +51,6 @@ html {
     padding-right: 1.25rem;
   }
 
-  .header-hoyre {
-    display: flex;
-  }
 }
 
 // SAMTALE
@@ -70,8 +67,11 @@ html {
   -webkit-overflow-scrolling: touch;
 }
 
-.samtale-wrapper {
+#samtale-innhold {
+  margin-top: 2.5rem; // Samme som margin-top i samtale-header
+}
 
+.samtale-wrapper {
   display: flex;
   justify-content: center;
 }
@@ -84,6 +84,7 @@ html {
   border-bottom: 1px solid #d8d8d8;
   align-items: center;
   margin: 2.5rem auto 1.25rem;
+  color: #062140;
 
 
   .Robotlogo-header {
@@ -138,19 +139,24 @@ html {
 
 .meldingsrad {
   display: flex;
+  margin-top: 0.5rem;
 }
 
 
 .robot-snakker {
   justify-content: flex-start;
+  align-items: center;
 
   .melding {
     background-color: #f1f1f1;
     color: #062140;
+    min-height: 56px;
   }
 
   .melding.skjult {
     height: 0;
+    max-height: 0;
+    min-height: 0;
     width: 0;
     padding: 0;
     margin-top: 0;
@@ -197,18 +203,15 @@ html {
 
   .robot {
     align-self: center;
-    padding-right: 0.75rem;
-    margin-top: 0.5rem;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
 
     @media (min-width: 672px) {
       width: 50px;
-      margin-top: 0.625rem;
-      margin-bottom: 0.125rem;
     }
     @media (max-width: 671px) {
       width: 36px;
-      margin-top: 1.0625rem;
-      margin-bottom: 0.5625rem;
     }
     margin-right: 0.75rem;
     transition: transform 0.4s ease-in-out;
@@ -238,7 +241,6 @@ html {
       }
 
       display: inline-block;
-      vertical-align: middle;
       background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
     }
   }
@@ -293,11 +295,10 @@ html {
   padding: 1rem;
   border-radius: 12px;
   position: relative;
-  margin-top: 0.5rem;
   overflow-wrap: break-word;
 
   // Animasjon
-  transition-property: height, width, padding, margin;
+  transition-property: min-height, height, width, padding, margin;
   transition-duration: 0.4s;
   transition-timing-function: ease-in-out;
 
@@ -730,3 +731,27 @@ html {
   }
 }
 
+
+// Modal
+.modal__overlay.gjennomsiktig {
+  opacity: 0;
+}
+
+.modal.tilbakemelding-modal {
+  padding: 2rem;
+  width: 40rem;
+  border-radius: 0;
+
+  h2 {
+    margin: 0;
+  }
+
+  p {
+    margin-top: 2rem;
+    margin-bottom: 2.5rem;
+  }
+
+  a:first-child {
+    margin-right: 1rem;
+  }
+}
