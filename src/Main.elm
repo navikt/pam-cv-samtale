@@ -13,6 +13,7 @@ import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Seksjon
 import Feilmelding
+import Forerkort.Seksjon
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
@@ -442,6 +443,7 @@ type SamtaleSeksjon
     | FagdokumentasjonSeksjon Fagdokumentasjon.Seksjon.Model
     | SertifikatSeksjon Sertifikat.Seksjon.Model
     | AnnenErfaringSeksjon AnnenErfaring.Seksjon.Model
+    | FørerkortSeksjon Forerkort.Seksjon.Model
     | KursSeksjon Kurs.Seksjon.Model
     | AndreSamtaleSteg AndreSamtaleStegInfo
 
@@ -458,6 +460,7 @@ type SuccessMsg
     | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
     | SertifikatMsg Sertifikat.Seksjon.Msg
     | AnnenErfaringMsg AnnenErfaring.Seksjon.Msg
+    | FørerkortMsg Forerkort.Seksjon.Msg
     | KursMsg Kurs.Seksjon.Msg
     | AndreSamtaleStegMsg AndreSamtaleStegMsg
 
@@ -528,7 +531,7 @@ updateSuccess successMsg model =
                             )
 
                         Sprak.Seksjon.Ferdig meldingsLogg ->
-                            gåTilSeksjonsValg model meldingsLogg
+                            gåTilFørerkort model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -580,6 +583,23 @@ updateSuccess successMsg model =
 
                         AnnenErfaring.Seksjon.Ferdig _ meldingsLogg ->
                             gåTilFlereAnnetValg model meldingsLogg
+
+                _ ->
+                    ( model, Cmd.none )
+
+        FørerkortMsg msg ->
+            case model.aktivSeksjon of
+                FørerkortSeksjon førerkortModel ->
+                    case Forerkort.Seksjon.update msg førerkortModel of
+                        Forerkort.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> FørerkortSeksjon
+                                |> oppdaterSamtaleSeksjon model
+                            , Cmd.map FørerkortMsg cmd
+                            )
+
+                        Forerkort.Seksjon.Ferdig førerkort meldingsLogg ->
+                            gåTilSeksjonsValg { model | cv = Cv.oppdaterFørerkort førerkort model.cv } meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -730,6 +750,19 @@ gåTilKurs model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilFørerkort : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilFørerkort model ferdigAnimertMeldingsLogg =
+    let
+        ( førerkortModel, førerkortCmd ) =
+            Forerkort.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.førerkort model.cv)
+    in
+    ( { model
+        | aktivSeksjon = FørerkortSeksjon førerkortModel
+      }
+    , Cmd.map FørerkortMsg førerkortCmd
+    )
+
+
 gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilAutorisasjoner
@@ -842,6 +875,7 @@ type ValgtSeksjon
     | SertifiseringValgt
     | AnnenErfaringValgt
     | KursValgt
+    | FørerkortValgt
 
 
 updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
@@ -1239,6 +1273,9 @@ gåTilValgtSeksjon model info valgtSeksjon =
                 KursValgt ->
                     gåTilKurs model ferdigAnimertMeldingsLogg
 
+                FørerkortValgt ->
+                    gåTilFørerkort model ferdigAnimertMeldingsLogg
+
         MeldingerGjenstår ->
             ( { info | meldingsLogg = meldingsLogg }
                 |> AndreSamtaleSteg
@@ -1542,6 +1579,9 @@ meldingsLoggFraSeksjon aktivSeksjon =
         AnnenErfaringSeksjon model ->
             AnnenErfaring.Seksjon.meldingsLogg model
 
+        FørerkortSeksjon model ->
+            Forerkort.Seksjon.meldingsLogg model
+
         KursSeksjon model ->
             Kurs.Seksjon.meldingsLogg model
 
@@ -1801,6 +1841,11 @@ viewBrukerInputForSeksjon aktivSeksjon =
                 |> AnnenErfaring.Seksjon.viewBrukerInput
                 |> Html.map (AnnenErfaringMsg >> SuccessMsg)
 
+        FørerkortSeksjon førerkortSeksjon ->
+            førerkortSeksjon
+                |> Forerkort.Seksjon.viewBrukerInput
+                |> Html.map (FørerkortMsg >> SuccessMsg)
+
         KursSeksjon kursSeksjon ->
             kursSeksjon
                 |> Kurs.Seksjon.viewBrukerInput
@@ -2023,6 +2068,9 @@ seksjonsvalgTilString seksjonsvalg =
         KursValgt ->
             "Kurs"
 
+        FørerkortValgt ->
+            "Førerkort"
+
 
 
 --- PROGRAM ---
@@ -2115,6 +2163,11 @@ seksjonSubscriptions model =
                     annenErfaringModel
                         |> AnnenErfaring.Seksjon.subscriptions
                         |> Sub.map (AnnenErfaringMsg >> SuccessMsg)
+
+                FørerkortSeksjon førerkortModel ->
+                    førerkortModel
+                        |> Forerkort.Seksjon.subscriptions
+                        |> Sub.map (FørerkortMsg >> SuccessMsg)
 
                 KursSeksjon kursModel ->
                     kursModel

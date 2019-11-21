@@ -17,6 +17,7 @@ module Api exposing
     , postArbeidserfaring
     , postCv
     , postFagdokumentasjon
+    , postFørerkort
     , postKurs
     , postPerson
     , postPersonalia
@@ -38,6 +39,7 @@ import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
+import Cv.Forerkort exposing (Førerkort)
 import Cv.Kurs exposing (Kurs)
 import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
 import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
@@ -45,6 +47,7 @@ import Cv.Spraakferdighet exposing (Spraakferdighet)
 import Cv.Utdanning exposing (Utdanning)
 import Fagdokumentasjon.Skjema
 import Feilmelding exposing (Feilmelding)
+import Forerkort.Skjema
 import Http exposing (..)
 import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
@@ -111,6 +114,15 @@ putPersonalia msgConstructor skjema id =
         { url = "/cv-samtale/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
         , body = Personalia.Skjema.encode skjema id |> jsonBody
+        }
+
+
+postFørerkort : (Result Error (List Førerkort) -> msg) -> Forerkort.Skjema.ValidertFørerkortSkjema -> Cmd msg
+postFørerkort msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/forerkort"
+        , expect = expectJson msgConstructor (Json.Decode.list Cv.Forerkort.decode)
+        , body = Forerkort.Skjema.encode skjema |> jsonBody
         }
 
 

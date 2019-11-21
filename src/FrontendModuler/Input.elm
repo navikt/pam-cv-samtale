@@ -12,6 +12,7 @@ module FrontendModuler.Input exposing
     , withMaybeFeilmelding
     , withOnBlur
     , withOnEnter
+    , withPlaceholder
     )
 
 import FrontendModuler.Feilmelding as Feilmelding
@@ -41,6 +42,7 @@ type alias Options msg =
     , onBlur : Maybe msg
     , id : Maybe String
     , enabled : Enabled
+    , placeholder : Maybe String
     , ariaLabelledby : Maybe msg
     }
 
@@ -63,6 +65,7 @@ input { msg, label } innhold =
         , onBlur = Nothing
         , id = Nothing
         , enabled = Enabled
+        , placeholder = Nothing
         , ariaLabelledby = Nothing
         }
 
@@ -110,6 +113,11 @@ withOnBlur msg (Input info) =
 withId : String -> Input msg -> Input msg
 withId id (Input info) =
     Input { info | id = Just id }
+
+
+withPlaceholder : String -> Input msg -> Input msg
+withPlaceholder placeholder (Input info) =
+    Input { info | placeholder = Just placeholder }
 
 
 
@@ -162,6 +170,9 @@ htmlInput (Input options) labelId =
             , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
             ]
         , optionClasses options.classes
+        , options.placeholder
+            |> Maybe.map placeholder
+            |> Maybe.withDefault noAttribute
         , onInput options.msg
         , options.id
             |> Maybe.map id

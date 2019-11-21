@@ -1,19 +1,30 @@
 module Dato exposing
-    ( DatoPeriode(..)
+    ( Dato
+    , DatoFeilmelding
+    , DatoPeriode(..)
+    , DatoValidering(..)
     , Måned(..)
     , TilDato(..)
     , År
     , datoTilString
     , decodeMonthYear
+    , encodeMaybeDato
     , encodeMonthYear
+    , feilmeldingForDato
     , feilmeldingValgfriMåned
     , feilmeldingÅr
+    , formaterDag
+    , getDatoDag
+    , getDatoMåned
+    , getDatoÅr
     , månedTilNummerMåned
     , månedTilString
     , periodeTilString
     , stringTilMaybeMåned
     , stringTilMåned
     , stringTilÅr
+    , toString
+    , validerDato
     , validerÅr
     , årTilString
     )
@@ -35,6 +46,152 @@ type Måned
     | Oktober
     | November
     | Desember
+
+
+type alias DatoInfo =
+    { dag : String
+    , måned : Måned
+    , år : String
+    }
+
+
+type Dato
+    = Dato DatoInfo
+
+
+toString : Dato -> String
+toString dato =
+    case dato of
+        Dato dato_ ->
+            dato_.dag ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ dato_.år
+
+
+maybeDatoToString : Maybe Dato -> Maybe String
+maybeDatoToString dato =
+    case dato of
+        Just (Dato info) ->
+            Just ("" ++ info.år)
+
+        Nothing ->
+            Nothing
+
+
+getDatoÅr : Dato -> String
+getDatoÅr (Dato datoInfo) =
+    datoInfo.år
+
+
+getDatoMåned : Dato -> Måned
+getDatoMåned (Dato info) =
+    info.måned
+
+
+getDatoDag : Dato -> String
+getDatoDag (Dato info) =
+    info.dag
+
+
+type DatoValidering
+    = DatoValiderer Dato
+    | DatoValideringsfeil
+    | DatoIkkeSkrevetInn
+
+
+validerDato : { dag : String, måned : Maybe Måned, år : String } -> DatoValidering
+validerDato { dag, måned, år } =
+    case måned of
+        Just måned_ ->
+            if validerÅr år && validerDag dag then
+                DatoValiderer
+                    (Dato
+                        { dag = formaterDag dag
+                        , måned = måned_
+                        , år = år
+                        }
+                    )
+
+            else
+                DatoValideringsfeil
+
+        Nothing ->
+            if String.isEmpty dag && String.isEmpty år then
+                DatoIkkeSkrevetInn
+
+            else
+                DatoValideringsfeil
+
+
+type alias DatoFeilmelding =
+    { feilmelding : String
+    , feilPåDag : Bool
+    , feilPåMåned : Bool
+    , feilPåÅr : Bool
+    }
+
+
+feilmeldingForDato : { dag : String, måned : Maybe Måned, år : String } -> Maybe DatoFeilmelding
+feilmeldingForDato { dag, måned, år } =
+    case måned of
+        Just måned_ ->
+            if not (validerÅr år) then
+                Just
+                    { feilmelding = "År kan kun ha fire siffer"
+                    , feilPåDag = False
+                    , feilPåMåned = False
+                    , feilPåÅr = True
+                    }
+
+            else if not (validerDag dag) then
+                Just
+                    { feilmelding = "Dag må være et tall mellom 1 og 31"
+                    , feilPåDag = True
+                    , feilPåMåned = False
+                    , feilPåÅr = False
+                    }
+
+            else
+                Nothing
+
+        Nothing ->
+            if String.isEmpty dag && String.isEmpty år then
+                Nothing
+
+            else
+                Just
+                    { feilmelding = "Du må velge måned"
+                    , feilPåDag = False
+                    , feilPåMåned = True
+                    , feilPåÅr = False
+                    }
+
+
+formaterDag : String -> String
+formaterDag dag =
+    if String.length dag == 1 then
+        "0" ++ dag
+
+    else
+        dag
+
+
+validerDag : String -> Bool
+validerDag dag =
+    case String.toInt dag of
+        Just dagSomInt ->
+            dagSomInt > 0 && dagSomInt <= 31
+
+        Nothing ->
+            False
+
+
+encodeMaybeDato : Maybe Dato -> Json.Encode.Value
+encodeMaybeDato dato =
+    case dato of
+        Just (Dato dato_) ->
+            Json.Encode.string (dato_.år ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ dato_.dag)
+
+        Nothing ->
+            Json.Encode.null
 
 
 månedTilString : Måned -> String
