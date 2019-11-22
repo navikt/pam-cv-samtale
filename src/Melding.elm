@@ -20,13 +20,14 @@ type Melding
 
 type MeldingsType
     = Spørsmål (List Tekstområde)
-    | SpørsmålMedEksempel String (List Tekstområde)
+    | SpørsmålMedEksempel (List Tekstområde)
     | Svar (List Tekstområde)
 
 
 type Tekstområde
     = Avsnitt String
     | Seksjon String (List String)
+    | Overskrift String
 
 
 type alias MeldingsOptions =
@@ -52,9 +53,9 @@ eksempelMedTittel : String -> List String -> Melding
 eksempelMedTittel tittel list =
     Melding
         { meldingsType =
-            list
-                |> List.map Avsnitt
-                |> SpørsmålMedEksempel tittel
+            [ Overskrift tittel ]
+                ++ List.map Avsnitt list
+                |> SpørsmålMedEksempel
         , withAriaLive = False
         }
 
@@ -63,9 +64,9 @@ eksempel : List String -> Melding
 eksempel list =
     Melding
         { meldingsType =
-            list
-                |> List.map Avsnitt
-                |> SpørsmålMedEksempel "Eksempel: "
+            [ Overskrift "Eksempel: " ]
+                ++ List.map Avsnitt list
+                |> SpørsmålMedEksempel
         , withAriaLive = False
         }
 
@@ -113,7 +114,7 @@ innhold (Melding options) =
                 |> List.map splitInnhold
                 |> List.concat
 
-        SpørsmålMedEksempel _ tekstområder ->
+        SpørsmålMedEksempel tekstområder ->
             tekstområder
                 |> List.map splitInnhold
                 |> List.concat
@@ -140,6 +141,9 @@ splitInnhold tekstområde =
                 |> Seksjon label
                 |> List.singleton
 
+        Overskrift string ->
+            [ Overskrift string ]
+
 
 erstattTommeLinjer : String -> String
 erstattTommeLinjer linje =
@@ -157,25 +161,21 @@ tomLinje =
 
 antallOrd : Melding -> Int
 antallOrd (Melding options) =
-    case options.meldingsType of
-        Spørsmål tekstområder ->
-            tekstområder
-                |> List.map antallOrdITekstområde
-                |> List.sum
+    let
+        tekstområder =
+            case options.meldingsType of
+                Spørsmål tekstområder_ ->
+                    tekstområder_
 
-        Svar tekstområder ->
-            tekstområder
-                |> List.map antallOrdITekstområde
-                |> List.sum
+                Svar tekstområder_ ->
+                    tekstområder_
 
-        SpørsmålMedEksempel tittel tekstområder ->
-            ([ tekstområder
-             , [ Avsnitt tittel ]
-             ]
-                |> List.concat
-            )
-                |> List.map antallOrdITekstområde
-                |> List.sum
+                SpørsmålMedEksempel tekstområder_ ->
+                    tekstområder_
+    in
+    tekstområder
+        |> List.map antallOrdITekstområde
+        |> List.sum
 
 
 antallOrdITekstområde : Tekstområde -> Int
@@ -190,3 +190,8 @@ antallOrdITekstområde tekstområde =
             list
                 |> List.map (String.split " " >> List.length)
                 |> List.sum
+
+        Overskrift string ->
+            string
+                |> String.split " "
+                |> List.length

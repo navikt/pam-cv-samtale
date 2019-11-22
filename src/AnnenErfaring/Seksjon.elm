@@ -798,8 +798,10 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
     case annenErfaringSeksjon of
         RegistrerRolle _ ->
             [ Melding.spørsmål [ "Så bra at du har mer erfaring. Hvilken rolle har du hatt?" ]
-            , Melding.spørsmål
-                [ "Har du jobbet som fotballtrener, besøksvenn, eller noe helt annet?" ]
+            , Melding.spørsmål [ "Har du jobbet som fotballtrener, besøksvenn, eller noe helt annet?" ]
+            , Melding.eksempelMedTittel "Eksempel 1:" [ "5 års erfaring som fotballtrener for jente- og guttelag i Moss FK." ]
+            , Melding.eksempelMedTittel "Eksempel 2:" [ "Vært besøksvenn i Røde Kors, 2 timer per uke. Har besøkt en eldre, enslig mann og bidratt til sosiale aktiviteter." ]
+            , Melding.eksempelMedTittel "Eksempel 3:" [ "2 års erfaring som kasserer i Elgveien borettslag." ]
             ]
 
         RegistrerBeskrivelse _ ->

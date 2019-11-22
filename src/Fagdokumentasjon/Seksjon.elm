@@ -668,13 +668,19 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
         RegistrerBeskrivelse fagdokumentasjonType _ ->
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
-                    [ Melding.spørsmål [ "Beskriv kort fagbrevet/svennebrevet ditt." ] ]
+                    [ Melding.spørsmål [ "Beskriv kort fagbrevet/svennebrevet ditt." ]
+                    , Melding.eksempel [ "Tok svennebrev som tømrer i 2017 etter lærlingtid hos Byggmester Hansen." ]
+                    ]
 
                 Mesterbrev ->
-                    [ Melding.spørsmål [ "Beskriv kort mesterbrevet ditt." ] ]
+                    [ Melding.spørsmål [ "Beskriv kort mesterbrevet ditt." ]
+                    , Melding.eksempel [ "Tok mesterbrev som herrefrisør i 1994." ]
+                    ]
 
                 Autorisasjon ->
-                    [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ] ]
+                    [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ]
+                    , Melding.eksempel [ "Har norsk autorisasjon som sykepleier fra 2012." ]
+                    ]
 
         Oppsummering skjema ->
             [ [ [ "Du har lagt inn dette:"

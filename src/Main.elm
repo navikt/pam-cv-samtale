@@ -1327,7 +1327,7 @@ samtaleTilMeldingsLogg samtale =
     case samtale of
         Introduksjon personalia ->
             [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ ", nå starter vi på CV-en din!" ]
-            , Melding.eksempel [ "Først legger du inn utdanning, arbeidserfaring, språk og førerkort. Etter det kan du legge inn fagbrev, kurs, sertifisering og sammendrag." ]
+            , Melding.spørsmål [ "Først legger du inn utdanning, arbeidserfaring, språk og førerkort. Etter det kan du legge inn fagbrev, kurs, sertifisering og sammendrag." ]
             , Melding.spørsmål [ "Du skal ikke skrive inn noe om helse, religion eller politiske oppfatning." ]
             , Melding.spørsmål [ "Er du klar til å begynne?" ]
             ]
@@ -1384,6 +1384,21 @@ samtaleTilMeldingsLogg samtale =
             [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
             , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
             , Melding.spørsmål [ "Skriv sammendraget ditt i boksen under." ]
+            , Melding.eksempelMedTittel "Eksempel 1:"
+                [ "Jeg er student, for tiden avslutter jeg mastergrad i økonomi og administrasjon ved Universitetet i Stavanger. Masteroppgaven min handler om endringsledelse i oljenæringen. Ved siden av studiene har jeg jobbet som guide på Norsk Oljemuseum."
+                , Melding.tomLinje
+                , "På fritiden spiller jeg fotball og sitter i styret til studentidrettslaget."
+                , Melding.tomLinje
+                , "Jeg er strukturert og løsningsorientert. Mine tidligere arbeidsgivere har beskrevet meg som effektiv, ansvarsbevisst og positiv."
+                ]
+            , Melding.eksempelMedTittel "Eksempel 2:"
+                [ "- Fagbrev i logistikk og transport"
+                , "- 16 års erfaring fra lager og logistikk"
+                , "- Har hatt hovedansvar for varemottak og forsendelser"
+                , "- Erfaring med flere logistikksystemer"
+                , "- God IT-kompetanse"
+                , "- Nøyaktig, fleksibel og har høy arbeidskapasitet"
+                ]
             ]
 
         LagrerSammendrag _ _ ->
@@ -1598,7 +1613,7 @@ viewSpørsmål spørsmål =
                 Spørsmål _ ->
                     "melding "
 
-                SpørsmålMedEksempel _ _ ->
+                SpørsmålMedEksempel _ ->
                     "eksempel "
 
                 Svar _ ->
@@ -1632,17 +1647,9 @@ viewSpørsmål spørsmål =
                     ]
                     [ div [ class "meldinginnhold-overflow-hidden" ]
                         [ div [ class "meldinginnhold-wrapper", id "test" ]
-                            ([ case SpørsmålViewState.meldingsType spørsmål of
-                                SpørsmålMedEksempel tittel _ ->
-                                    [ viewEksempelTittel tittel ]
-
-                                _ ->
-                                    []
-                             , spørsmål
+                            (spørsmål
                                 |> SpørsmålViewState.tekst
                                 |> List.map viewTekstområde
-                             ]
-                                |> List.concat
                             )
                         ]
                     ]
@@ -1667,17 +1674,9 @@ viewSpørsmål spørsmål =
                     ]
                     [ div [ class "meldinginnhold-overflow-hidden" ]
                         [ div [ class "meldinginnhold-wrapper" ]
-                            ([ case SpørsmålViewState.meldingsType spørsmål of
-                                SpørsmålMedEksempel tittel _ ->
-                                    [ viewEksempelTittel tittel ]
-
-                                _ ->
-                                    []
-                             , spørsmål
+                            (spørsmål
                                 |> SpørsmålViewState.tekst
                                 |> List.map viewTekstområde
-                             ]
-                                |> List.concat
                             )
                         ]
                     ]
@@ -1689,17 +1688,9 @@ viewSpørsmål spørsmål =
                     , ariaLive "polite"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
-                    ([ case SpørsmålViewState.meldingsType spørsmål of
-                        SpørsmålMedEksempel tittel _ ->
-                            [ viewEksempelTittel tittel ]
-
-                        _ ->
-                            []
-                     , spørsmål
+                    (spørsmål
                         |> SpørsmålViewState.tekst
                         |> List.map viewTekstområde
-                     ]
-                        |> List.concat
                     )
         ]
 
@@ -1769,6 +1760,9 @@ viewTekstområde tekstområde =
         Seksjon labelTekst tekster ->
             section [ ariaLabel labelTekst ]
                 (List.map viewAvsnitt tekster)
+
+        Overskrift tekst ->
+            span [ class "eksempel-tittel" ] [ text tekst ]
 
 
 viewEksempelTittel : String -> Html msg

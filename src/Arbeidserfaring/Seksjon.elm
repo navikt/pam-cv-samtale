@@ -1232,7 +1232,21 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             [ Melding.spørsmål [ "Hvor holder bedriften til?" ] ]
 
         RegistrereArbeidsoppgaver _ ->
-            [ Melding.spørsmål [ "Fortell hvilke arbeidsoppgaver du har hatt og hva som var rollen din." ] ]
+            [ Melding.spørsmål [ "Fortell hvilke arbeidsoppgaver du har hatt og hva som var rollen din." ]
+            , Melding.eksempelMedTittel "Eksempel 1:" [ "Lærling som elektriker hos Helgeland Elektro, som er spesialist på rehabilitering av elektriske anlegg. Vi er 5 ansatte og tar i hovedsak oppdrag for privatpersoner." ]
+            , Melding.eksempelMedTittel "Eksempel 2:" [ "Ekstrahjelp som butikkmedarbeider i sommer- og juleferien. Kassearbeid, påfylling av varer, salg og kundeservice." ]
+            , Melding.eksempelMedTittel "Eksempel 3:" [ "Jobbet 3 år som barnehageassistent i en barnehage med 24 barn. Hadde medansvar for pedagogisk arbeid på avdelingen. Bidro ved månedsplanlegging og foreldresamtaler." ]
+            , Melding.eksempelMedTittel "Eksempel 4:"
+                [ "Advokatsekretær med hovedansvar for resepsjonen i et advokatfirma med 45 ansatte."
+                , Melding.tomLinje
+                , "- Saksbehandling og kontoradministrative oppgaver"
+                , "- Betjening av sentralbord"
+                , "- Post- og dokumenthåndtering"
+                , "- Bilagsregistrering"
+                , "- Klientkontakt"
+                , "- Møte- og kursbooking"
+                ]
+            ]
 
         RegistrereFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du i jobben?" ] ]
