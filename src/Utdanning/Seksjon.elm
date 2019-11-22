@@ -1055,7 +1055,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                     ]
 
                 Fagskole ->
-                    [ Melding.eksempel [ "Maskinteknikk i mekanisk industri, prosjekt- og kvalitetsledelse og økonomistyring" ]
+                    [ Melding.eksempel [ "Maskinteknikk i mekanisk industri, prosjekt- og kvalitetsledelse og økonomistyring." ]
                     ]
 
                 Folkehøyskole ->

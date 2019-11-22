@@ -15,13 +15,13 @@ module Melding exposing
 
 
 type Melding
-    = Melding Options
+    = Melding MeldingsType (List Tekstområde)
 
 
 type MeldingsType
-    = Spørsmål (List Tekstområde)
-    | SpørsmålMedEksempel (List Tekstområde)
-    | Svar (List Tekstområde)
+    = Spørsmål
+    | SpørsmålMedEksempel
+    | Svar
 
 
 type Tekstområde
@@ -30,99 +30,49 @@ type Tekstområde
     | Overskrift String
 
 
-type alias MeldingsOptions =
-    { meldingsType : MeldingsType
-    }
-
-
-type alias Options =
-    { meldingsType : MeldingsType
-    , withAriaLive : Bool
-    }
-
-
-melding : MeldingsOptions -> Melding
-melding options =
-    Melding
-        { meldingsType = options.meldingsType
-        , withAriaLive = False
-        }
-
-
 eksempelMedTittel : String -> List String -> Melding
 eksempelMedTittel tittel list =
-    Melding
-        { meldingsType =
-            [ Overskrift tittel ]
-                ++ List.map Avsnitt list
-                |> SpørsmålMedEksempel
-        , withAriaLive = False
-        }
+    [ Overskrift tittel ]
+        ++ List.map Avsnitt list
+        |> Melding SpørsmålMedEksempel
 
 
 eksempel : List String -> Melding
 eksempel list =
-    Melding
-        { meldingsType =
-            [ Overskrift "Eksempel: " ]
-                ++ List.map Avsnitt list
-                |> SpørsmålMedEksempel
-        , withAriaLive = False
-        }
+    [ Overskrift "Eksempel: " ]
+        ++ List.map Avsnitt list
+        |> Melding SpørsmålMedEksempel
 
 
 spørsmål : List String -> Melding
 spørsmål list =
-    Melding
-        { meldingsType =
-            list
-                |> List.map Avsnitt
-                |> Spørsmål
-        , withAriaLive = False
-        }
+    list
+        |> List.map Avsnitt
+        |> Melding Spørsmål
 
 
 spørsmålMedTekstområder : List Tekstområde -> Melding
 spørsmålMedTekstområder tekstområder =
-    Melding
-        { meldingsType = Spørsmål tekstområder
-        , withAriaLive = False
-        }
+    Melding Spørsmål tekstområder
 
 
 svar : List String -> Melding
 svar list =
-    Melding
-        { meldingsType =
-            list
-                |> List.map Avsnitt
-                |> Svar
-        , withAriaLive = False
-        }
+    list
+        |> List.map Avsnitt
+        |> Melding Svar
 
 
 innhold : Melding -> List Tekstområde
-innhold (Melding options) =
-    case options.meldingsType of
-        Spørsmål tekstområder ->
-            tekstområder
-                |> List.map splitInnhold
-                |> List.concat
-
-        Svar tekstområder ->
-            tekstområder
-                |> List.map splitInnhold
-                |> List.concat
-
-        SpørsmålMedEksempel tekstområder ->
-            tekstområder
-                |> List.map splitInnhold
-                |> List.concat
+innhold (Melding _ tekstområder) =
+    tekstområder
+        |> List.map splitInnhold
+        |> List.concat
 
 
 meldingstype : Melding -> MeldingsType
-meldingstype (Melding options) =
-    options.meldingsType
+meldingstype (Melding meldingsType _) =
+    meldingsType
 
 
 splitInnhold : Tekstområde -> List Tekstområde
@@ -160,19 +110,7 @@ tomLinje =
 
 
 antallOrd : Melding -> Int
-antallOrd (Melding options) =
-    let
-        tekstområder =
-            case options.meldingsType of
-                Spørsmål tekstområder_ ->
-                    tekstområder_
-
-                Svar tekstområder_ ->
-                    tekstområder_
-
-                SpørsmålMedEksempel tekstområder_ ->
-                    tekstområder_
-    in
+antallOrd (Melding _ tekstområder) =
     tekstområder
         |> List.map antallOrdITekstområde
         |> List.sum

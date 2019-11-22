@@ -1610,13 +1610,13 @@ viewSpørsmål spørsmål =
     let
         spørsmålClass =
             case SpørsmålViewState.meldingsType spørsmål of
-                Spørsmål _ ->
+                Spørsmål ->
                     "melding "
 
-                SpørsmålMedEksempel _ ->
+                SpørsmålMedEksempel ->
                     "eksempel "
 
-                Svar _ ->
+                Svar ->
                     ""
     in
     div [ class "meldingsrad sporsmal" ]
@@ -1763,11 +1763,6 @@ viewTekstområde tekstområde =
 
         Overskrift tekst ->
             span [ class "eksempel-tittel" ] [ text tekst ]
-
-
-viewEksempelTittel : String -> Html msg
-viewEksempelTittel tittel =
-    span [ class "eksempel-tittel" ] [ text tittel ]
 
 
 viewAvsnitt : String -> Html msg

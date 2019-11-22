@@ -145,5 +145,3 @@ id (SpørsmålViewState info) =
 meldingsType : SpørsmålViewState -> MeldingsType
 meldingsType (SpørsmålViewState info) =
     Melding.meldingstype info.melding
-
-
