@@ -1598,13 +1598,13 @@ viewSpørsmål spørsmål =
                 Spørsmål _ ->
                     "melding "
 
-                Eksempel _ _ ->
+                SpørsmålMedEksempel _ _ ->
                     "eksempel "
 
                 Svar _ ->
                     ""
     in
-    div [ class "meldingsrad robot-snakker" ]
+    div [ class "meldingsrad sporsmal" ]
         [ div [ class "robot", robotAttribute spørsmål ]
             [ i [ class "Robotlogo" ] [] ]
         , case SpørsmålViewState.spørsmålStyle spørsmål of
@@ -1632,9 +1632,17 @@ viewSpørsmål spørsmål =
                     ]
                     [ div [ class "meldinginnhold-overflow-hidden" ]
                         [ div [ class "meldinginnhold-wrapper", id "test" ]
-                            (spørsmål
+                            ([ case SpørsmålViewState.meldingsType spørsmål of
+                                SpørsmålMedEksempel tittel _ ->
+                                    [ viewEksempelTittel tittel ]
+
+                                _ ->
+                                    []
+                             , spørsmål
                                 |> SpørsmålViewState.tekst
                                 |> List.map viewTekstområde
+                             ]
+                                |> List.concat
                             )
                         ]
                     ]
@@ -1659,9 +1667,17 @@ viewSpørsmål spørsmål =
                     ]
                     [ div [ class "meldinginnhold-overflow-hidden" ]
                         [ div [ class "meldinginnhold-wrapper" ]
-                            (spørsmål
+                            ([ case SpørsmålViewState.meldingsType spørsmål of
+                                SpørsmålMedEksempel tittel _ ->
+                                    [ viewEksempelTittel tittel ]
+
+                                _ ->
+                                    []
+                             , spørsmål
                                 |> SpørsmålViewState.tekst
                                 |> List.map viewTekstområde
+                             ]
+                                |> List.concat
                             )
                         ]
                     ]
@@ -1674,7 +1690,7 @@ viewSpørsmål spørsmål =
                     , id (SpørsmålViewState.id spørsmål)
                     ]
                     ([ case SpørsmålViewState.meldingsType spørsmål of
-                        Eksempel tittel _ ->
+                        SpørsmålMedEksempel tittel _ ->
                             [ viewEksempelTittel tittel ]
 
                         _ ->

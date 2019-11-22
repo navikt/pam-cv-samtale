@@ -1043,10 +1043,36 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             , Melding.spørsmål [ "Kanksje du har en bachelor i historie, eller elektrofag fra videregående?" ]
             ]
 
-        RegistrerBeskrivelse _ ->
-            [ Melding.spørsmål [ "Skriv noen ord om denne utdanningen. Har du fordypning i noen fag?" ]
-            , Melding.eksempel [ "Fordypning i offentlig politikk og administrasjon. Bacheloroppgave om ulik politisk utvikling i de skandinaviske landene etter 1970." ]
+        RegistrerBeskrivelse info ->
+            [ [ Melding.spørsmål [ "Skriv noen ord om denne utdanningen. Har du fordypning i noen fag?" ] ]
+            , case info.forrige.forrige.forrige of
+                Grunnskole ->
+                    []
+
+                VideregåendeYrkesskole ->
+                    [ Melding.eksempelMedTittel "Eksempel 1:" [ "Fordypning i matematikk og fysikk." ]
+                    , Melding.eksempelMedTittel "Eksempel 2:" [ "Elektrofag Vg1 og Vg2, spesialisering i datateknologi og elektronikk." ]
+                    ]
+
+                Fagskole ->
+                    [ Melding.eksempel [ "Maskinteknikk i mekanisk industri, prosjekt- og kvalitetsledelse og økonomistyring" ]
+                    ]
+
+                Folkehøyskole ->
+                    []
+
+                HøyereUtdanning1til4 ->
+                    [ Melding.eksempel [ "Fordypning i offentlig politikk og administrasjon. Bacheloroppgave om ulik politisk utvikling i de skandinaviske landene etter 1970." ]
+                    ]
+
+                HøyereUtdanning4pluss ->
+                    [ Melding.eksempel [ "Spesialisering i anvendt finans. Utvekslingsstudent på University of London (høstsemesteret 2017)." ]
+                    ]
+
+                Doktorgrad ->
+                    []
             ]
+                |> List.concat
 
         RegistrereFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du på utdanningen din?" ]

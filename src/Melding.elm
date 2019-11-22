@@ -4,6 +4,7 @@ module Melding exposing
     , Tekstområde(..)
     , antallOrd
     , eksempel
+    , eksempelMedTittel
     , innhold
     , meldingstype
     , spørsmål
@@ -19,7 +20,7 @@ type Melding
 
 type MeldingsType
     = Spørsmål (List Tekstområde)
-    | Eksempel String (List Tekstområde)
+    | SpørsmålMedEksempel String (List Tekstområde)
     | Svar (List Tekstområde)
 
 
@@ -47,13 +48,13 @@ melding options =
         }
 
 
-eksempelWithTittel : String -> List String -> Melding
-eksempelWithTittel tittel list =
+eksempelMedTittel : String -> List String -> Melding
+eksempelMedTittel tittel list =
     Melding
         { meldingsType =
             list
                 |> List.map Avsnitt
-                |> Eksempel tittel
+                |> SpørsmålMedEksempel tittel
         , withAriaLive = False
         }
 
@@ -64,7 +65,7 @@ eksempel list =
         { meldingsType =
             list
                 |> List.map Avsnitt
-                |> Eksempel "Eksempel: "
+                |> SpørsmålMedEksempel "Eksempel: "
         , withAriaLive = False
         }
 
@@ -112,7 +113,7 @@ innhold (Melding options) =
                 |> List.map splitInnhold
                 |> List.concat
 
-        Eksempel _ tekstområder ->
+        SpørsmålMedEksempel _ tekstområder ->
             tekstområder
                 |> List.map splitInnhold
                 |> List.concat
@@ -167,7 +168,7 @@ antallOrd (Melding options) =
                 |> List.map antallOrdITekstområde
                 |> List.sum
 
-        Eksempel tittel tekstområder ->
+        SpørsmålMedEksempel tittel tekstområder ->
             ([ tekstområder
              , [ Avsnitt tittel ]
              ]
