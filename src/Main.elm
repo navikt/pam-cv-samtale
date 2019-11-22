@@ -1765,11 +1765,6 @@ viewTekstområde tekstområde =
             span [ class "eksempel-tittel" ] [ text tekst ]
 
 
-viewEksempelTittel : String -> Html msg
-viewEksempelTittel tittel =
-    span [ class "eksempel-tittel" ] [ text tittel ]
-
-
 viewAvsnitt : String -> Html msg
 viewAvsnitt string =
     p [] [ text string ]

@@ -15,7 +15,7 @@ module Melding exposing
 
 
 type Melding
-    = Melding Options
+    = Melding MeldingsType
 
 
 type MeldingsType
@@ -30,80 +30,46 @@ type Tekstområde
     | Overskrift String
 
 
-type alias MeldingsOptions =
-    { meldingsType : MeldingsType
-    }
-
-
-type alias Options =
-    { meldingsType : MeldingsType
-    , withAriaLive : Bool
-    }
-
-
-melding : MeldingsOptions -> Melding
-melding options =
-    Melding
-        { meldingsType = options.meldingsType
-        , withAriaLive = False
-        }
-
-
 eksempelMedTittel : String -> List String -> Melding
 eksempelMedTittel tittel list =
-    Melding
-        { meldingsType =
-            [ Overskrift tittel ]
-                ++ List.map Avsnitt list
-                |> SpørsmålMedEksempel
-        , withAriaLive = False
-        }
+    [ Overskrift tittel ]
+        ++ List.map Avsnitt list
+        |> SpørsmålMedEksempel
+        |> Melding
 
 
 eksempel : List String -> Melding
 eksempel list =
-    Melding
-        { meldingsType =
-            [ Overskrift "Eksempel: " ]
-                ++ List.map Avsnitt list
-                |> SpørsmålMedEksempel
-        , withAriaLive = False
-        }
+    [ Overskrift "Eksempel: " ]
+        ++ List.map Avsnitt list
+        |> SpørsmålMedEksempel
+        |> Melding
 
 
 spørsmål : List String -> Melding
 spørsmål list =
-    Melding
-        { meldingsType =
-            list
-                |> List.map Avsnitt
-                |> Spørsmål
-        , withAriaLive = False
-        }
+    list
+        |> List.map Avsnitt
+        |> Spørsmål
+        |> Melding
 
 
 spørsmålMedTekstområder : List Tekstområde -> Melding
 spørsmålMedTekstområder tekstområder =
-    Melding
-        { meldingsType = Spørsmål tekstområder
-        , withAriaLive = False
-        }
+    Melding (Spørsmål tekstområder)
 
 
 svar : List String -> Melding
 svar list =
-    Melding
-        { meldingsType =
-            list
-                |> List.map Avsnitt
-                |> Svar
-        , withAriaLive = False
-        }
+    list
+        |> List.map Avsnitt
+        |> Svar
+        |> Melding
 
 
 innhold : Melding -> List Tekstområde
-innhold (Melding options) =
-    case options.meldingsType of
+innhold (Melding meldingsType) =
+    case meldingsType of
         Spørsmål tekstområder ->
             tekstområder
                 |> List.map splitInnhold
@@ -121,8 +87,8 @@ innhold (Melding options) =
 
 
 meldingstype : Melding -> MeldingsType
-meldingstype (Melding options) =
-    options.meldingsType
+meldingstype (Melding meldingsType) =
+    meldingsType
 
 
 splitInnhold : Tekstområde -> List Tekstområde
@@ -160,10 +126,10 @@ tomLinje =
 
 
 antallOrd : Melding -> Int
-antallOrd (Melding options) =
+antallOrd (Melding meldingsType) =
     let
         tekstområder =
-            case options.meldingsType of
+            case meldingsType of
                 Spørsmål tekstområder_ ->
                     tekstområder_
 
