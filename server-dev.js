@@ -37,7 +37,7 @@ server.use(
     })
 );
 
-const entryFile = path.join(__dirname, './src/index.html');
+const entryFile = path.join(__dirname, process.env.ENTRY_FILE || './src/index.html');
 const bundler = new Bundler(entryFile, {});
 server.use(bundler.middleware());
 

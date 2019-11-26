@@ -4,6 +4,7 @@ module Api exposing
     , getAutorisasjonTypeahead
     , getCv
     , getFagbrevTypeahead
+    , getHeaderInfo
     , getMesterbrevTypeahead
     , getPerson
     , getPersonalia
@@ -33,6 +34,7 @@ module Api exposing
     , putUtdanning
     )
 
+import AndreSider.HeaderInfo as HeaderInfo exposing (HeaderInfo)
 import AnnenErfaring.Skjema
 import Arbeidserfaring.Skjema
 import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
@@ -79,6 +81,14 @@ postPerson msgConstructor =
         { url = "/cv-samtale/api/rest/person"
         , expect = expectJson msgConstructor Person.decode
         , body = emptyBody
+        }
+
+
+getHeaderInfo : (Result Error HeaderInfo -> msg) -> Cmd msg
+getHeaderInfo msgConstructor =
+    Http.get
+        { url = "/cv-samtale/api/rest/person/headerinfo"
+        , expect = expectJson msgConstructor HeaderInfo.decode
         }
 
 
