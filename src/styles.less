@@ -51,6 +51,32 @@ html {
     padding-right: 1.25rem;
   }
 
+  .avslutt-knapp-med-ikon {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    .avslutt-ikon {
+      height: 25px;
+      width: 25px;
+      margin-bottom: 2px;
+      background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/Avslutt.svg');
+    }
+  }
+
+  .Knapp.Knapp--flat.avslutt-knapp-med-ikon:hover,
+  .Knapp.Knapp--flat.avslutt-knapp-med-ikon:active,
+  .Knapp.Knapp--flat.avslutt-knapp-med-ikon:focus {
+    border: 2px solid transparent;
+    background-color: transparent;
+    color: #8C368E;
+
+    .avslutt-ikon {
+      background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/Avslutt_hover.svg');
+    }
+  }
+
 }
 
 // SAMTALE
@@ -232,7 +258,6 @@ html {
         width: 36px;
         height: 36px;
       }
-
       display: inline-block;
       background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
     }

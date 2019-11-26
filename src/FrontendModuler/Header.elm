@@ -40,7 +40,11 @@ toHtml (Header options) =
                 [ text "Avslutt CV-registreringen" ]
 
           else
-            text ""
+            button
+                [ class "Knapp Knapp--flat avslutt-knapp-med-ikon"
+                , onClick options.onClickMsg
+                ]
+                [ i [ class "avslutt-ikon" ] [], text "Avslutt" ]
         ]
 
 
