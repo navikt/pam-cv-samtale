@@ -250,7 +250,7 @@ navnPåBruker options =
 loggUt : Html msg
 loggUt =
     div [ class "Header__logout-name" ]
-        [ button [ class "Header__Button Header__Button--mini" ]
+        [ a [ class "Header__Button Header__Button--mini", href "/cv-samtale/logout" ]
             [ text "Logg ut" ]
         ]
 

@@ -35,3 +35,5 @@ spec:
           value: {{{ apiGatewayHost }}}
         - name: LOGINSERVICE_URL
           value: {{{ loginservice }}}
+        - name: LOGOUTSERVICE_URL
+          value: {{{ logoutservice }}}

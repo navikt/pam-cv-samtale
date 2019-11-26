@@ -8,21 +8,18 @@ import { RequestOptions } from 'http';
 import { Response } from 'express';
 import { NextFunction } from 'express';
 
-if (!process.env.PAM_CV_API_PROXY_KEY) {
-    throw new Error("Miljøvariabel PAM_CV_API_PROXY_KEY er ikke satt");
-}
-if (!process.env.API_GATEWAY_HOST) {
-    throw new Error("Miljøvariabel API_GATEWAY_HOST er ikke satt");
-}
-if (!process.env.LOGINSERVICE_URL) {
-    throw new Error("Miljøvariabel LOGINSERVICE_URL er ikke satt");
-}
-
+const getMiljovariabel = (key) => {
+    if (!process.env[key]) {
+        throw new Error(`Miljøvariabel ${key} er ikke satt`);
+    }
+    return process.env[key];
+};
 
 const MILJOVARIABLER = {
-    API_GATEWAY_HOST: process.env.API_GATEWAY_HOST,
-    PROXY_API_KEY: process.env.PAM_CV_API_PROXY_KEY,
-    LOGINSERVICE_URL: process.env.LOGINSERVICE_URL
+    API_GATEWAY_HOST: getMiljovariabel('API_GATEWAY_HOST'),
+    PROXY_API_KEY: getMiljovariabel('PAM_CV_API_PROXY_KEY'),
+    LOGINSERVICE_URL: getMiljovariabel('LOGINSERVICE_URL'),
+    LOGOUTSERVICE_URL: getMiljovariabel('LOGOUTSERVICE_URL')
 };
 
 console.log(`API_GATEWAY_HOST: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
@@ -51,6 +48,10 @@ server.get('/cv-samtale/login', (req, res) => {
     } else {
         res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}/cv-samtale`);
     }
+});
+
+server.get('/cv-samtale/logout', (req, res) => {
+    res.redirect(MILJOVARIABLER.LOGOUTSERVICE_URL);
 });
 
 server.post('/cv-samtale/log', express.json(), (req, res) => {
