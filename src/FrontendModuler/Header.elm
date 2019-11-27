@@ -30,14 +30,14 @@ toHtml (Header options) =
             [ a [ href "/", ariaLabel "Logo Arbeidsplassen" ]
                 [ arbeidsplassenLogo ]
             ]
-
-        -- TODO: Endre til å vise burger-meny på mobil og evt. iPad
         , if options.windowWidth > 460 then
             button
-                [ class "Knapp Knapp--flat"
+                [ class "Knapp Knapp--flat avslutt-knapp-med-ikon"
                 , onClick options.onClickMsg
                 ]
-                [ text "Avslutt CV-registreringen" ]
+                [ text "Avslutt CV-registreringen"
+                , i [ class "avslutt-ikon" ] []
+                ]
 
           else
             button
