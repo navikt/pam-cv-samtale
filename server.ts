@@ -1,9 +1,10 @@
 import * as express from 'express';
-import { Request} from 'express';
+import { Request } from 'express';
 import * as proxy from 'express-http-proxy';
 import * as compression from 'compression';
 import * as helmet from 'helmet';
 import * as path from 'path';
+import * as request from 'request';
 import { RequestOptions } from 'http';
 import { Response } from 'express';
 import { NextFunction } from 'express';
@@ -57,7 +58,7 @@ server.get('/cv-samtale/logout', (req, res) => {
 server.post('/cv-samtale/log', express.json(), (req, res) => {
     console.log(JSON.stringify({
         ...req.body,
-        level: "Error"
+        level: 'Error'
     }));
     res.sendStatus(200);
 });
@@ -66,7 +67,7 @@ server.use(
     '/cv-samtale/api',
     proxy(MILJOVARIABLER.API_GATEWAY_HOST, {
         https: true,
-        proxyReqOptDecorator: (proxyReqOpts: RequestOptions, srcReq: Request)  => ({
+        proxyReqOptDecorator: (proxyReqOpts: RequestOptions, srcReq: Request) => ({
             ...proxyReqOpts,
             headers: {
                 ...proxyReqOpts.headers,
@@ -82,7 +83,7 @@ server.use(
         proxyErrorHandler: (err: any, res: Response, next: NextFunction) => {
             if (err && err.code) {
                 console.log(JSON.stringify({
-                    level: "Error",
+                    level: 'Error',
                     message: err.code
                 }));
             }
@@ -92,6 +93,51 @@ server.use(
 );
 
 server.use('/cv-samtale/static', express.static(path.resolve(__dirname, 'dist')));
+
+const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
+    request({
+        url: 'http://localhost:1337/pam-cv-api/rest/cv/registreringstype',
+        method: 'POST',
+        headers: {
+            'Cookie': req.header('Cookie') || '',
+            'kilde': kilde
+        }
+    }, (error, response) => {
+        if (error) {
+            console.log(JSON.stringify({ level: 'Error', message: 'Metrikk-logging feilet', error: error }));
+        } else if (response && response.statusCode > 201) {
+            console.log(JSON.stringify({
+                level: 'Error',
+                message: `Metrikk-logging resulterte i status code: ${response.statusCode}`,
+                body: response.body
+            }))
+        }
+    });
+};
+
+server.use(
+    '/cv-valg/samtale*',
+    (req: express.Request, res: express.Response) => {
+        loggMetrikkForCvValg('cv-samtale', req);
+        res.redirect(`https://${req.hostname}/cv-samtale`)
+    }
+);
+
+server.use(
+    '/cv-valg/skjema*',
+    (req: express.Request, res: express.Response) => {
+        loggMetrikkForCvValg('cv', req);
+        res.redirect(`https://${req.hostname}/cv/registrering`)
+    }
+);
+
+server.use(
+    '/cv-valg*',
+    (req: express.Request, res: express.Response) => {
+        res.sendFile(path.resolve(__dirname, 'dist', 'inngang.html'));
+    }
+);
+
 server.use(
     '/cv-samtale*',
     (req: express.Request, res: express.Response) => {
