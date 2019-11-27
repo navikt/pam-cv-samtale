@@ -52,7 +52,7 @@ type alias ModelInfo =
 
 type Samtale
     = RegistrerKonsept FagdokumentasjonType Bool (Typeahead.Model Konsept)
-    | RegistrerBeskrivelse FagdokumentasjonType BeskrivelseInfo
+    | RegistrerBeskrivelse FagdokumentasjonType Bool BeskrivelseInfo
     | Oppsummering ValidertFagdokumentasjonSkjema
     | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
     | OppsummeringEtterEndring ValidertFagdokumentasjonSkjema
@@ -100,7 +100,8 @@ type Msg
     = TypeaheadMsg (Typeahead.Msg Konsept)
     | HentetTypeahead (Result Http.Error (List Konsept))
     | BrukerVilRegistrereKonsept
-    | BrukerVilRegistrereFagbrevBeskrivelse
+    | VilSeEksempel
+    | BrukerVilRegistrereFagdokumentasjonBeskrivelse
     | OppdaterFagdokumentasjonBeskrivelse String
     | BrukerVilLagreIOppsummeringen
     | BrukerVilEndreOppsummeringen
@@ -196,9 +197,25 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        BrukerVilRegistrereFagbrevBeskrivelse ->
+        VilSeEksempel ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse fagdokumentasjonType info ->
+                RegistrerBeskrivelse fagdokumentasjonType _ beskrivelseinfo ->
+                    let
+                        oppdatertMeldingslogg =
+                            model.seksjonsMeldingsLogg
+                                |> MeldingsLogg.leggTilSpørsmål (eksemplerPåFagdokumentasjon fagdokumentasjonType)
+                    in
+                    IkkeFerdig
+                        ( oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } (RegistrerBeskrivelse fagdokumentasjonType False beskrivelseinfo)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilRegistrereFagdokumentasjonBeskrivelse ->
+            case model.aktivSamtale of
+                RegistrerBeskrivelse fagdokumentasjonType _ info ->
                     case feilmeldingBeskrivelsesfelt info.beskrivelse of
                         Nothing ->
                             ( Skjema.initValidertSkjema fagdokumentasjonType info.konsept info.beskrivelse
@@ -265,8 +282,8 @@ update msg (Model model) =
 
         OppdaterFagdokumentasjonBeskrivelse beskrivelse ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse fagdokumentasjonType info ->
-                    ( oppdaterSamtaleSteg model (RegistrerBeskrivelse fagdokumentasjonType { info | beskrivelse = beskrivelse })
+                RegistrerBeskrivelse fagdokumentasjonType medEksempelKnapp info ->
+                    ( oppdaterSamtaleSteg model (RegistrerBeskrivelse fagdokumentasjonType medEksempelKnapp { info | beskrivelse = beskrivelse })
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -491,7 +508,7 @@ brukerVilRegistrereKonsept : ModelInfo -> FagdokumentasjonType -> Konsept -> Sam
 brukerVilRegistrereKonsept model fagdokumentasjonType konsept =
     ( konsept
         |> forrigetilBeskrivelseInfo
-        |> RegistrerBeskrivelse fagdokumentasjonType
+        |> RegistrerBeskrivelse fagdokumentasjonType True
         |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
     , lagtTilSpørsmålCmd model.debugStatus
     )
@@ -665,21 +682,18 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                     , Melding.spørsmål [ "Begynn å skriv inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
                     ]
 
-        RegistrerBeskrivelse fagdokumentasjonType _ ->
+        RegistrerBeskrivelse fagdokumentasjonType _ _ ->
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
                     [ Melding.spørsmål [ "Beskriv kort fagbrevet/svennebrevet ditt." ]
-                    , Melding.eksempel [ "Tok svennebrev som tømrer i 2017 etter lærlingtid hos Byggmester Hansen." ]
                     ]
 
                 Mesterbrev ->
                     [ Melding.spørsmål [ "Beskriv kort mesterbrevet ditt." ]
-                    , Melding.eksempel [ "Tok mesterbrev som herrefrisør i 1994." ]
                     ]
 
                 Autorisasjon ->
                     [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ]
-                    , Melding.eksempel [ "Har norsk autorisasjon som sykepleier fra 2012." ]
                     ]
 
         Oppsummering skjema ->
@@ -746,7 +760,7 @@ settFokus samtale =
         RegistrerKonsept _ _ _ ->
             settFokusCmd RegistrerKonseptInput
 
-        RegistrerBeskrivelse _ _ ->
+        RegistrerBeskrivelse _ _ _ ->
             settFokusCmd RegistrerBeskrivelseInput
 
         _ ->
@@ -758,6 +772,22 @@ settFokusCmd inputId =
     Process.sleep 200
         |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
+
+
+eksemplerPåFagdokumentasjon : FagdokumentasjonType -> List Melding
+eksemplerPåFagdokumentasjon fagdokumentasjonType =
+    case fagdokumentasjonType of
+        SvennebrevFagbrev ->
+            [ Melding.eksempel [ "Tok svennebrev som tømrer i 2017 etter lærlingtid hos Byggmester Hansen." ]
+            ]
+
+        Mesterbrev ->
+            [ Melding.eksempel [ "Tok mesterbrev som herrefrisør i 1994." ]
+            ]
+
+        Autorisasjon ->
+            [ Melding.eksempel [ "Har norsk autorisasjon som sykepleier fra 2012." ]
+            ]
 
 
 
@@ -777,8 +807,13 @@ viewBrukerInput (Model model) =
                         |> Html.map TypeaheadMsg
                     ]
 
-            RegistrerBeskrivelse _ beskrivelseinfo ->
-                Containers.inputMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
+            RegistrerBeskrivelse _ medEksempelKnapp beskrivelseinfo ->
+                (if medEksempelKnapp then
+                    Containers.inputMedEksempelOgGåVidereKnapp VilSeEksempel BrukerVilRegistrereFagdokumentasjonBeskrivelse
+
+                 else
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereFagdokumentasjonBeskrivelse
+                )
                     [ beskrivelseinfo.beskrivelse
                         |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
                         |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)

@@ -1,5 +1,7 @@
 module FrontendModuler.Containers exposing
     ( KnapperLayout(..)
+    , inputMedEksempelOgGåVidereKnapp
+    , inputMedEksempelOgLagreKnapp
     , inputMedGåVidereKnapp
     , knapper
     , lenke
@@ -38,6 +40,51 @@ inputMedGåVidereKnapp gåVidereMsg inputelementer =
                         [ Knapp.knapp gåVidereMsg "Gå videre"
                             |> Knapp.toHtml
                         ]
+                  ]
+                ]
+            )
+        ]
+
+
+inputMedEksempelOgGåVidereKnapp : msg -> msg -> List (Html msg) -> Html msg
+inputMedEksempelOgGåVidereKnapp eksempelMsg gåVidereMsg inputelementer =
+    inputMedToKnapper
+        [ { action = eksempelMsg, tekst = "Jeg vil se eksempel" }
+        , { action = gåVidereMsg, tekst = "Gå videre" }
+        ]
+        inputelementer
+
+
+inputMedEksempelOgLagreKnapp : Maybe msg -> msg -> List (Html msg) -> Html msg
+inputMedEksempelOgLagreKnapp eksempelMsg lagreMsg inputelementer =
+    inputMedToKnapper
+        (case eksempelMsg of
+            Just eksempelMsg_ ->
+                [ { action = eksempelMsg_, tekst = "Jeg vil se eksempel" }
+                , { action = lagreMsg, tekst = "Lagre endringer" }
+                ]
+
+            Nothing ->
+                [ { action = lagreMsg, tekst = "Lagre endringer" }
+                ]
+        )
+        inputelementer
+
+
+inputMedToKnapper : List { action : msg, tekst : String } -> List (Html msg) -> Html msg
+inputMedToKnapper knappeListe inputelementer =
+    div [ class "skjema-wrapper" ]
+        [ div [ class "skjema" ]
+            (List.concat
+                [ inputelementer
+                , [ div [ class "knappekolonne" ]
+                        (List.map
+                            (\{ action, tekst } ->
+                                Knapp.knapp action tekst
+                                    |> Knapp.toHtml
+                            )
+                            knappeListe
+                        )
                   ]
                 ]
             )

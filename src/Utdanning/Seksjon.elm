@@ -60,7 +60,7 @@ type Samtale
     | RegistrerNivå
     | RegistrerSkole SkoleInfo
     | RegistrerRetning RetningInfo
-    | RegistrerBeskrivelse BeskrivelseInfo
+    | RegistrerBeskrivelse Bool BeskrivelseInfo
     | RegistrereFraMåned FraDatoInfo
     | RegistrereFraÅr FraDatoInfo
     | RegistrereNåværende NåværendeInfo
@@ -199,6 +199,7 @@ type Msg
     | OppdaterSkole String
     | BrukerVilRegistrereRetning
     | OppdaterRetning String
+    | VilSeEksempel
     | BrukerVilRegistrereBeskrivelse
     | OppdaterBeskrivelse String
     | BrukerTrykketFraMånedKnapp Måned
@@ -343,7 +344,23 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerRetning retninginfo ->
                     IkkeFerdig
-                        ( nesteSamtaleSteg model (Melding.svar [ retninginfo.retning ]) (RegistrerBeskrivelse (forrigeTilBeskrivelseInfo retninginfo))
+                        ( nesteSamtaleSteg model (Melding.svar [ retninginfo.retning ]) (RegistrerBeskrivelse True (forrigeTilBeskrivelseInfo retninginfo))
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilSeEksempel ->
+            case model.aktivSamtale of
+                RegistrerBeskrivelse _ beskrivelseinfo ->
+                    let
+                        oppdatertMeldingslogg =
+                            model.seksjonsMeldingsLogg
+                                |> MeldingsLogg.leggTilSpørsmål (eksemplerPåUtdanning beskrivelseinfo.forrige.forrige.forrige)
+                    in
+                    IkkeFerdig
+                        ( oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } (RegistrerBeskrivelse False beskrivelseinfo)
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
 
@@ -352,7 +369,7 @@ update msg (Model model) =
 
         BrukerVilRegistrereBeskrivelse ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse beskrivelseinfo ->
+                RegistrerBeskrivelse _ beskrivelseinfo ->
                     case Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse of
                         Nothing ->
                             let
@@ -560,8 +577,8 @@ update msg (Model model) =
 
         OppdaterBeskrivelse beskrivelse ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse beskrivelseinfo ->
-                    IkkeFerdig ( oppdaterSamtaleSteg model (RegistrerBeskrivelse { beskrivelseinfo | beskrivelse = beskrivelse }), Cmd.none )
+                RegistrerBeskrivelse medEksempelKnapp beskrivelseinfo ->
+                    IkkeFerdig ( oppdaterSamtaleSteg model (RegistrerBeskrivelse medEksempelKnapp { beskrivelseinfo | beskrivelse = beskrivelse }), Cmd.none )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -835,7 +852,7 @@ settFokus samtale =
         RegistrerRetning _ ->
             settFokusCmd RegistrerRetningInput
 
-        RegistrerBeskrivelse _ ->
+        RegistrerBeskrivelse _ _ ->
             settFokusCmd RegistrerBeskrivelseInput
 
         RegistrereFraÅr _ ->
@@ -1043,36 +1060,8 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             , Melding.spørsmål [ "Kanksje du har en bachelor i historie, eller elektrofag fra videregående?" ]
             ]
 
-        RegistrerBeskrivelse info ->
-            [ [ Melding.spørsmål [ "Skriv noen ord om denne utdanningen. Har du fordypning i noen fag?" ] ]
-            , case info.forrige.forrige.forrige of
-                Grunnskole ->
-                    []
-
-                VideregåendeYrkesskole ->
-                    [ Melding.eksempelMedTittel "Eksempel 1:" [ "Fordypning i matematikk og fysikk." ]
-                    , Melding.eksempelMedTittel "Eksempel 2:" [ "Elektrofag Vg1 og Vg2, spesialisering i datateknologi og elektronikk." ]
-                    ]
-
-                Fagskole ->
-                    [ Melding.eksempel [ "Maskinteknikk i mekanisk industri, prosjekt- og kvalitetsledelse og økonomistyring." ]
-                    ]
-
-                Folkehøyskole ->
-                    []
-
-                HøyereUtdanning1til4 ->
-                    [ Melding.eksempel [ "Fordypning i offentlig politikk og administrasjon. Bacheloroppgave om ulik politisk utvikling i de skandinaviske landene etter 1970." ]
-                    ]
-
-                HøyereUtdanning4pluss ->
-                    [ Melding.eksempel [ "Spesialisering i anvendt finans. Utvekslingsstudent på University of London (høstsemesteret 2017)." ]
-                    ]
-
-                Doktorgrad ->
-                    []
-            ]
-                |> List.concat
+        RegistrerBeskrivelse _ _ ->
+            [ Melding.spørsmål [ "Skriv noen ord om denne utdanningen. Har du fordypning i noen fag?" ] ]
 
         RegistrereFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du på utdanningen din?" ]
@@ -1148,6 +1137,36 @@ validertSkjemaTilSetninger validertSkjema =
     ]
 
 
+eksemplerPåUtdanning : Nivå -> List Melding
+eksemplerPåUtdanning nivå =
+    case nivå of
+        Grunnskole ->
+            []
+
+        VideregåendeYrkesskole ->
+            [ Melding.eksempelMedTittel "Eksempel 1:" [ "Fordypning i matematikk og fysikk." ]
+            , Melding.eksempelMedTittel "Eksempel 2:" [ "Elektrofag Vg1 og Vg2, spesialisering i datateknologi og elektronikk." ]
+            ]
+
+        Fagskole ->
+            [ Melding.eksempel [ "Maskinteknikk i mekanisk industri, prosjekt- og kvalitetsledelse og økonomistyring." ]
+            ]
+
+        Folkehøyskole ->
+            []
+
+        HøyereUtdanning1til4 ->
+            [ Melding.eksempel [ "Fordypning i offentlig politikk og administrasjon. Bacheloroppgave om ulik politisk utvikling i de skandinaviske landene etter 1970." ]
+            ]
+
+        HøyereUtdanning4pluss ->
+            [ Melding.eksempel [ "Spesialisering i anvendt finans. Utvekslingsstudent på University of London (høstsemesteret 2017)." ]
+            ]
+
+        Doktorgrad ->
+            []
+
+
 
 --- VIEW ---
 
@@ -1218,8 +1237,13 @@ viewBrukerInput (Model model) =
                         |> Input.toHtml
                     ]
 
-            RegistrerBeskrivelse beskrivelseinfo ->
-                Containers.inputMedGåVidereKnapp BrukerVilRegistrereBeskrivelse
+            RegistrerBeskrivelse medEksempelKnapp beskrivelseinfo ->
+                (if medEksempelKnapp then
+                    Containers.inputMedEksempelOgGåVidereKnapp VilSeEksempel BrukerVilRegistrereBeskrivelse
+
+                 else
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereBeskrivelse
+                )
                     [ beskrivelseinfo.beskrivelse
                         |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
                         |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)

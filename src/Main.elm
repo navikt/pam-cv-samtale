@@ -794,9 +794,9 @@ type Samtale
     | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
     | LeggTilFlereAnnet
-    | BekreftSammendrag BekreftSammendragState
-    | SkriverSammendrag String
-    | EndrerSammendrag String
+    | BekreftSammendrag Bool BekreftSammendragState
+    | SkriverSammendrag Bool String
+    | EndrerSammendrag Bool String
     | LagrerSammendrag String LagreStatus
     | LagringAvSammendragFeilet Http.Error String
     | DelMedArbeidsgiver Bool
@@ -814,6 +814,7 @@ type Samtale
 
 type AndreSamtaleStegMsg
     = BrukerSierHeiIIntroduksjonen
+    | VilSeEksempel
     | BrukerVilEndreSammendrag
     | SammendragEndret String
     | VilLagreSammendragSkjema
@@ -876,28 +877,54 @@ updateAndreSamtaleSteg model msg info =
         IngenAvDeAndreSeksjoneneValgt ->
             gåVidereFraSeksjonsvalg model info
 
+        VilSeEksempel ->
+            case info.aktivSamtale of
+                SkriverSammendrag _ tekst ->
+                    let
+                        oppdatertMeldingslogg =
+                            info.meldingsLogg
+                                |> MeldingsLogg.leggTilSpørsmål eksemplerPåSammendrag
+                    in
+                    ( oppdaterSamtaleSteg model { info | meldingsLogg = oppdatertMeldingslogg } (SkriverSammendrag False tekst)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+
+                EndrerSammendrag _ tekst ->
+                    --todo: funksjon
+                    let
+                        oppdatertMeldingslogg =
+                            info.meldingsLogg
+                                |> MeldingsLogg.leggTilSpørsmål eksemplerPåSammendrag
+                    in
+                    ( oppdaterSamtaleSteg model { info | meldingsLogg = oppdatertMeldingslogg } (EndrerSammendrag False tekst)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
         BrukerVilEndreSammendrag ->
             case info.aktivSamtale of
-                BekreftSammendrag bekreftSammendragState ->
+                BekreftSammendrag medEksempelKnapp bekreftSammendragState ->
                     case bekreftSammendragState of
                         OpprinneligSammendrag sammendrag ->
                             ( sammendrag
                                 |> Sammendrag.toString
-                                |> EndrerSammendrag
+                                |> EndrerSammendrag medEksempelKnapp
                                 |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                         NyttSammendrag sammendrag ->
                             ( sammendrag
-                                |> EndrerSammendrag
+                                |> EndrerSammendrag medEksempelKnapp
                                 |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                         EndretSammendrag sammendrag ->
                             ( sammendrag
-                                |> EndrerSammendrag
+                                |> EndrerSammendrag medEksempelKnapp
                                 |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -907,16 +934,16 @@ updateAndreSamtaleSteg model msg info =
 
         SammendragEndret tekst ->
             case info.aktivSamtale of
-                EndrerSammendrag _ ->
+                EndrerSammendrag medEksempelKnapp _ ->
                     ( tekst
-                        |> EndrerSammendrag
+                        |> EndrerSammendrag medEksempelKnapp
                         |> oppdaterSamtaleSteg model info
                     , Cmd.none
                     )
 
-                SkriverSammendrag _ ->
+                SkriverSammendrag medEksempelKnapp _ ->
                     ( tekst
-                        |> SkriverSammendrag
+                        |> SkriverSammendrag medEksempelKnapp
                         |> oppdaterSamtaleSteg model info
                     , Cmd.none
                     )
@@ -926,24 +953,24 @@ updateAndreSamtaleSteg model msg info =
 
         VilLagreSammendragSkjema ->
             case info.aktivSamtale of
-                EndrerSammendrag tekst ->
+                EndrerSammendrag medEksempelKnapp tekst ->
                     case Validering.feilmeldingMaxAntallTegn tekst 4000 of
                         Just _ ->
                             ( model, Cmd.none )
 
                         Nothing ->
-                            ( BekreftSammendrag (EndretSammendrag tekst)
+                            ( BekreftSammendrag medEksempelKnapp (EndretSammendrag tekst)
                                 |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
-                SkriverSammendrag tekst ->
+                SkriverSammendrag medEksempelKnapp tekst ->
                     case Validering.feilmeldingMaxAntallTegn tekst 4000 of
                         Just _ ->
                             ( model, Cmd.none )
 
                         Nothing ->
-                            ( BekreftSammendrag (NyttSammendrag tekst)
+                            ( BekreftSammendrag medEksempelKnapp (NyttSammendrag tekst)
                                 |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -961,7 +988,7 @@ updateAndreSamtaleSteg model msg info =
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
                     )
 
-                BekreftSammendrag bekreftSammendragState ->
+                BekreftSammendrag _ bekreftSammendragState ->
                     case bekreftSammendragState of
                         OpprinneligSammendrag _ ->
                             { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg er fornøyd" ]) }
@@ -1254,13 +1281,13 @@ gåVidereFraSeksjonsvalg model info =
             case Cv.sammendrag model.cv of
                 Just sammendrag ->
                     if String.isEmpty (String.trim (Sammendrag.toString sammendrag)) then
-                        SkriverSammendrag ""
+                        SkriverSammendrag True ""
 
                     else
-                        BekreftSammendrag (OpprinneligSammendrag sammendrag)
+                        BekreftSammendrag True (OpprinneligSammendrag sammendrag)
 
                 Nothing ->
-                    EndrerSammendrag ""
+                    EndrerSammendrag True ""
     in
     ( { meldingsLogg =
             info.meldingsLogg
@@ -1350,7 +1377,7 @@ samtaleTilMeldingsLogg samtale =
         LeggTilFlereAnnet ->
             [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
 
-        BekreftSammendrag bekreftState ->
+        BekreftSammendrag _ bekreftState ->
             case bekreftState of
                 OpprinneligSammendrag sammendrag ->
                     [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
@@ -1377,28 +1404,13 @@ samtaleTilMeldingsLogg samtale =
                 EndretSammendrag _ ->
                     [ Melding.spørsmål [ "Nå har du endret. Er du fornøyd?" ] ]
 
-        EndrerSammendrag _ ->
+        EndrerSammendrag _ _ ->
             [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
 
-        SkriverSammendrag _ ->
+        SkriverSammendrag _ _ ->
             [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
             , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
             , Melding.spørsmål [ "Skriv sammendraget ditt i boksen under." ]
-            , Melding.eksempelMedTittel "Eksempel 1:"
-                [ "Jeg er student, for tiden avslutter jeg mastergrad i økonomi og administrasjon ved Universitetet i Stavanger. Masteroppgaven min handler om endringsledelse i oljenæringen. Ved siden av studiene har jeg jobbet som guide på Norsk Oljemuseum."
-                , Melding.tomLinje
-                , "På fritiden spiller jeg fotball og sitter i styret til studentidrettslaget."
-                , Melding.tomLinje
-                , "Jeg er strukturert og løsningsorientert. Mine tidligere arbeidsgivere har beskrevet meg som effektiv, ansvarsbevisst og positiv."
-                ]
-            , Melding.eksempelMedTittel "Eksempel 2:"
-                [ "- Fagbrev i logistikk og transport"
-                , "- 16 års erfaring fra lager og logistikk"
-                , "- Har hatt hovedansvar for varemottak og forsendelser"
-                , "- Erfaring med flere logistikksystemer"
-                , "- God IT-kompetanse"
-                , "- Nøyaktig, fleksibel og har høy arbeidskapasitet"
-                ]
             ]
 
         LagrerSammendrag _ _ ->
@@ -1457,6 +1469,26 @@ lagtTilSpørsmålCmd : DebugStatus -> Cmd SuccessMsg
 lagtTilSpørsmålCmd debugStatus =
     SamtaleAnimasjon.startAnimasjon debugStatus
         |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
+
+
+eksemplerPåSammendrag : List Melding
+eksemplerPåSammendrag =
+    [ Melding.eksempelMedTittel "Eksempel 1:"
+        [ "Jeg er student, for tiden avslutter jeg mastergrad i økonomi og administrasjon ved Universitetet i Stavanger. Masteroppgaven min handler om endringsledelse i oljenæringen. Ved siden av studiene har jeg jobbet som guide på Norsk Oljemuseum."
+        , Melding.tomLinje
+        , "På fritiden spiller jeg fotball og sitter i styret til studentidrettslaget."
+        , Melding.tomLinje
+        , "Jeg er strukturert og løsningsorientert. Mine tidligere arbeidsgivere har beskrevet meg som effektiv, ansvarsbevisst og positiv."
+        ]
+    , Melding.eksempelMedTittel "Eksempel 2:"
+        [ "- Fagbrev i logistikk og transport"
+        , "- 16 års erfaring fra lager og logistikk"
+        , "- Har hatt hovedansvar for varemottak og forsendelser"
+        , "- Erfaring med flere logistikksystemer"
+        , "- God IT-kompetanse"
+        , "- Nøyaktig, fleksibel og har høy arbeidskapasitet"
+        ]
+    ]
 
 
 
@@ -1851,7 +1883,7 @@ viewBrukerInputForAndreSamtaleSteg info =
                         |> Knapp.toHtml
                     ]
 
-            BekreftSammendrag bekreftSammendragState ->
+            BekreftSammendrag _ bekreftSammendragState ->
                 case bekreftSammendragState of
                     OpprinneligSammendrag _ ->
                         viewBekreftSammendrag
@@ -1862,12 +1894,22 @@ viewBrukerInputForAndreSamtaleSteg info =
                     EndretSammendrag _ ->
                         viewBekreftSammendrag
 
-            EndrerSammendrag sammendrag ->
-                Containers.skjema { lagreMsg = VilLagreSammendragSkjema, lagreKnappTekst = "Lagre endringer" }
+            EndrerSammendrag medEksempelKnapp sammendrag ->
+                (if medEksempelKnapp then
+                    Containers.inputMedEksempelOgLagreKnapp (Just VilSeEksempel) VilLagreSammendragSkjema
+
+                 else
+                    Containers.inputMedEksempelOgLagreKnapp Nothing VilLagreSammendragSkjema
+                )
                     (viewSammendragInput sammendrag)
 
-            SkriverSammendrag sammendrag ->
-                Containers.inputMedGåVidereKnapp VilLagreSammendragSkjema
+            SkriverSammendrag medEksempelKnapp sammendrag ->
+                (if medEksempelKnapp then
+                    Containers.inputMedEksempelOgGåVidereKnapp VilSeEksempel VilLagreSammendragSkjema
+
+                 else
+                    Containers.inputMedGåVidereKnapp VilLagreSammendragSkjema
+                )
                     (viewSammendragInput sammendrag)
 
             LagrerSammendrag _ lagreStatus ->

@@ -75,7 +75,7 @@ type Samtale
     | EndreJobbtittel JobbtittelInfo
     | RegistrereBedriftsnavn BedriftnavnInfo
     | RegistrereSted StedInfo
-    | RegistrereArbeidsoppgaver ArbeidsoppgaverInfo
+    | RegistrereArbeidsoppgaver Bool ArbeidsoppgaverInfo
     | RegistrereFraMåned FraDatoInfo
     | RegistrereFraÅr FraDatoInfo
     | RegistrereNåværende NåværendeInfo
@@ -111,6 +111,7 @@ type Msg
     | BrukerVilRegistrereBedriftsnavn
     | BrukerOppdatererSted String
     | BrukerVilRegistrereSted
+    | VilSeEksempel
     | BrukerOppdatererArbeidsoppgaver String
     | BrukerVilRegistrereArbeidsoppgaver
     | BrukerTrykketFraMånedKnapp Dato.Måned
@@ -503,7 +504,7 @@ update msg (Model model) =
                 RegistrereSted stedInfo ->
                     ( stedInfo
                         |> stedInfoTilArbeidsoppgaverInfo
-                        |> RegistrereArbeidsoppgaver
+                        |> RegistrereArbeidsoppgaver True
                         |> nesteSamtaleSteg model (Melding.svar [ stedInfo.lokasjon ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -513,13 +514,29 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
+        VilSeEksempel ->
+            case model.aktivSamtale of
+                RegistrereArbeidsoppgaver _ info ->
+                    let
+                        oppdatertMeldingslogg =
+                            model.seksjonsMeldingsLogg
+                                |> MeldingsLogg.leggTilSpørsmål eksemplerPåArbeidserfaring
+                    in
+                    IkkeFerdig
+                        ( oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } (RegistrereArbeidsoppgaver False info)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         BrukerOppdatererArbeidsoppgaver string ->
             case model.aktivSamtale of
-                RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
+                RegistrereArbeidsoppgaver medEksempelKnapp arbeidsoppgaverInfo ->
                     ( Model
                         { model
                             | aktivSamtale =
-                                RegistrereArbeidsoppgaver { arbeidsoppgaverInfo | arbeidsoppgaver = string }
+                                RegistrereArbeidsoppgaver medEksempelKnapp { arbeidsoppgaverInfo | arbeidsoppgaver = string }
                         }
                     , Cmd.none
                     )
@@ -531,7 +548,7 @@ update msg (Model model) =
 
         BrukerVilRegistrereArbeidsoppgaver ->
             case model.aktivSamtale of
-                RegistrereArbeidsoppgaver arbeidsOppgaveInfo ->
+                RegistrereArbeidsoppgaver _ arbeidsOppgaveInfo ->
                     case Validering.feilmeldingMaxAntallTegn arbeidsOppgaveInfo.arbeidsoppgaver maxLengthArbeidsoppgaver of
                         Nothing ->
                             ( arbeidsOppgaveInfo
@@ -1095,7 +1112,7 @@ settFokus samtale =
         RegistrereSted _ ->
             settFokusCmd StedInput
 
-        RegistrereArbeidsoppgaver _ ->
+        RegistrereArbeidsoppgaver _ _ ->
             settFokusCmd ArbeidsoppgaverInput
 
         RegistrereFraÅr _ ->
@@ -1231,22 +1248,8 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         RegistrereSted _ ->
             [ Melding.spørsmål [ "Hvor holder bedriften til?" ] ]
 
-        RegistrereArbeidsoppgaver _ ->
-            [ Melding.spørsmål [ "Fortell hvilke arbeidsoppgaver du har hatt og hva som var rollen din." ]
-            , Melding.eksempelMedTittel "Eksempel 1:" [ "Lærling som elektriker hos Helgeland Elektro, som er spesialist på rehabilitering av elektriske anlegg. Vi er 5 ansatte og tar i hovedsak oppdrag for privatpersoner." ]
-            , Melding.eksempelMedTittel "Eksempel 2:" [ "Ekstrahjelp som butikkmedarbeider i sommer- og juleferien. Kassearbeid, påfylling av varer, salg og kundeservice." ]
-            , Melding.eksempelMedTittel "Eksempel 3:" [ "Jobbet 3 år som barnehageassistent i en barnehage med 24 barn. Hadde medansvar for pedagogisk arbeid på avdelingen. Bidro ved månedsplanlegging og foreldresamtaler." ]
-            , Melding.eksempelMedTittel "Eksempel 4:"
-                [ "Advokatsekretær med hovedansvar for resepsjonen i et advokatfirma med 45 ansatte."
-                , Melding.tomLinje
-                , "- Saksbehandling og kontoradministrative oppgaver"
-                , "- Betjening av sentralbord"
-                , "- Post- og dokumenthåndtering"
-                , "- Bilagsregistrering"
-                , "- Klientkontakt"
-                , "- Møte- og kursbooking"
-                ]
-            ]
+        RegistrereArbeidsoppgaver _ _ ->
+            [ Melding.spørsmål [ "Fortell hvilke arbeidsoppgaver du har hatt og hva som var rollen din." ] ]
 
         RegistrereFraMåned _ ->
             [ Melding.spørsmål [ "Hvilken måned begynte du i jobben?" ] ]
@@ -1351,6 +1354,24 @@ datoRad skjema =
         (Skjema.tilDatoValidert skjema)
 
 
+eksemplerPåArbeidserfaring : List Melding
+eksemplerPåArbeidserfaring =
+    [ Melding.eksempelMedTittel "Eksempel 1:" [ "Lærling som elektriker hos Helgeland Elektro, som er spesialist på rehabilitering av elektriske anlegg. Vi er 5 ansatte og tar i hovedsak oppdrag for privatpersoner." ]
+    , Melding.eksempelMedTittel "Eksempel 2:" [ "Ekstrahjelp som butikkmedarbeider i sommer- og juleferien. Kassearbeid, påfylling av varer, salg og kundeservice." ]
+    , Melding.eksempelMedTittel "Eksempel 3:" [ "Jobbet 3 år som barnehageassistent i en barnehage med 24 barn. Hadde medansvar for pedagogisk arbeid på avdelingen. Bidro ved månedsplanlegging og foreldresamtaler." ]
+    , Melding.eksempelMedTittel "Eksempel 4:"
+        [ "Advokatsekretær med hovedansvar for resepsjonen i et advokatfirma med 45 ansatte."
+        , Melding.tomLinje
+        , "- Saksbehandling og kontoradministrative oppgaver"
+        , "- Betjening av sentralbord"
+        , "- Post- og dokumenthåndtering"
+        , "- Bilagsregistrering"
+        , "- Klientkontakt"
+        , "- Møte- og kursbooking"
+        ]
+    ]
+
+
 
 --- VIEW ---
 
@@ -1430,8 +1451,13 @@ viewBrukerInput (Model model) =
                         |> Input.toHtml
                     ]
 
-            RegistrereArbeidsoppgaver arbeidsoppgaverInfo ->
-                Containers.inputMedGåVidereKnapp BrukerVilRegistrereArbeidsoppgaver
+            RegistrereArbeidsoppgaver medEksempelKnapp arbeidsoppgaverInfo ->
+                (if medEksempelKnapp then
+                    Containers.inputMedEksempelOgGåVidereKnapp VilSeEksempel BrukerVilRegistrereArbeidsoppgaver
+
+                 else
+                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereArbeidsoppgaver
+                )
                     [ arbeidsoppgaverInfo.arbeidsoppgaver
                         |> Textarea.textarea { label = "Arbeidsoppgaver", msg = BrukerOppdatererArbeidsoppgaver }
                         |> Textarea.withId (inputIdTilString ArbeidsoppgaverInput)

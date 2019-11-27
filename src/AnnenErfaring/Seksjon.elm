@@ -65,7 +65,7 @@ type SamtaleStatus
 
 type Samtale
     = RegistrerRolle RolleInfo
-    | RegistrerBeskrivelse BeskrivelseInfo
+    | RegistrerBeskrivelse Bool BeskrivelseInfo
     | SpørOmBrukerVilLeggeInnTidsperiode BeskrivelseInfo
     | RegistrerFraMåned FraDatoInfo
     | RegistrerFraÅr FraDatoInfo
@@ -193,6 +193,7 @@ tilDatoTilSkjema info tilÅr =
 type Msg
     = VilRegistrereRolle
     | OppdatererRolle String
+    | VilSeEksempel
     | VilRegistrereBeskrivelse
     | OppdatererBeskrivelse String
     | SvarerJaTilTidsperiode
@@ -247,7 +248,7 @@ update msg (Model model) =
                         Nothing ->
                             ( info.rolle
                                 |> rolleTilBeskrivelse
-                                |> RegistrerBeskrivelse
+                                |> RegistrerBeskrivelse True
                                 |> nesteSamtaleSteg model (Melding.svar [ info.rolle ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -269,9 +270,25 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilSeEksempel ->
+            case model.aktivSamtale of
+                RegistrerBeskrivelse _ info ->
+                    let
+                        oppdatertMeldingslogg =
+                            model.seksjonsMeldingsLogg
+                                |> MeldingsLogg.leggTilSpørsmål eksemplerPåAnnenErfaring
+                    in
+                    IkkeFerdig
+                        ( oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } (RegistrerBeskrivelse False info)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         VilRegistrereBeskrivelse ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse input ->
+                RegistrerBeskrivelse _ input ->
                     case Validering.feilmeldingMaxAntallTegn input.beskrivelse maxLengthBeskrivelse of
                         Nothing ->
                             ( input
@@ -289,9 +306,9 @@ update msg (Model model) =
 
         OppdatererBeskrivelse string ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse beskrivelse ->
+                RegistrerBeskrivelse medEksempelKnapp beskrivelse ->
                     ( { beskrivelse | beskrivelse = string }
-                        |> RegistrerBeskrivelse
+                        |> RegistrerBeskrivelse medEksempelKnapp
                         |> oppdaterSamtaleSteg model
                     , Cmd.none
                     )
@@ -799,12 +816,9 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         RegistrerRolle _ ->
             [ Melding.spørsmål [ "Så bra at du har mer erfaring. Hvilken rolle har du hatt?" ]
             , Melding.spørsmål [ "Har du jobbet som fotballtrener, besøksvenn, eller noe helt annet?" ]
-            , Melding.eksempelMedTittel "Eksempel 1:" [ "5 års erfaring som fotballtrener for jente- og guttelag i Moss FK." ]
-            , Melding.eksempelMedTittel "Eksempel 2:" [ "Vært besøksvenn i Røde Kors, 2 timer per uke. Har besøkt en eldre, enslig mann og bidratt til sosiale aktiviteter." ]
-            , Melding.eksempelMedTittel "Eksempel 3:" [ "2 års erfaring som kasserer i Elgveien borettslag." ]
             ]
 
-        RegistrerBeskrivelse _ ->
+        RegistrerBeskrivelse _ _ ->
             [ Melding.spørsmål [ "Hva var jobben din?" ]
             ]
 
@@ -886,7 +900,7 @@ settFokus samtale =
         RegistrerRolle _ ->
             settFokusCmd RolleId
 
-        RegistrerBeskrivelse _ ->
+        RegistrerBeskrivelse _ _ ->
             settFokusCmd BeskrivelseId
 
         RegistrerFraÅr _ ->
@@ -904,6 +918,14 @@ settFokusCmd inputId =
     Process.sleep 200
         |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
+
+
+eksemplerPåAnnenErfaring : List Melding
+eksemplerPåAnnenErfaring =
+    [ Melding.eksempelMedTittel "Eksempel 1:" [ "5 års erfaring som fotballtrener for jente- og guttelag i Moss FK." ]
+    , Melding.eksempelMedTittel "Eksempel 2:" [ "Vært besøksvenn i Røde Kors, 2 timer per uke. Har besøkt en eldre, enslig mann og bidratt til sosiale aktiviteter." ]
+    , Melding.eksempelMedTittel "Eksempel 3:" [ "2 års erfaring som kasserer i Elgveien borettslag." ]
+    ]
 
 
 
@@ -952,8 +974,13 @@ viewBrukerInput (Model model) =
                         |> Input.toHtml
                     ]
 
-            RegistrerBeskrivelse info ->
-                Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
+            RegistrerBeskrivelse medEksempelKnapp info ->
+                (if medEksempelKnapp then
+                    Containers.inputMedEksempelOgGåVidereKnapp VilSeEksempel VilRegistrereBeskrivelse
+
+                 else
+                    Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
+                )
                     [ info.beskrivelse
                         |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
                         |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
