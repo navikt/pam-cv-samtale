@@ -96,10 +96,12 @@ server.use('/cv-samtale/static', express.static(path.resolve(__dirname, 'dist'))
 
 const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
     request({
-        url: 'http://localhost:1337/pam-cv-api/rest/cv/registreringstype',
+        url: `${MILJOVARIABLER.API_GATEWAY_HOST}/pam-cv-api/pam-cv-api/rest/cv/registreringstype`,
         method: 'POST',
         headers: {
             'Cookie': req.header('Cookie') || '',
+            'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', req.header('Cookie')),
+            'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY,
             'kilde': kilde
         }
     }, (error, response) => {
