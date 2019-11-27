@@ -1,4 +1,4 @@
-module FrontendModuler.Header exposing (Header, header, toHtml)
+module FrontendModuler.Header exposing (Header, arbeidsplassenLogo, header, toHtml)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)

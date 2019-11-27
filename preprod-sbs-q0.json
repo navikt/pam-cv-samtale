@@ -3,6 +3,8 @@
   "namespace": "q0",
   "ingress-samtale": "https://arbeidsplassen-q.nav.no/cv-samtale",
   "ingress-logget-inn": "https://arbeidsplassen-q.nav.no/logget-inn",
+  "ingress-cv-valg": "https://arbeidsplassen-q.nav.no/cv-valg",
   "apiGatewayHost": "https://api-gw-q0.oera.no",
-  "loginservice": "https://loginservice-q.nav.no/login"
+  "loginservice": "https://loginservice-q.nav.no/login",
+  "logoutservice": "https://loginservice-q.nav.no/slo"
 }

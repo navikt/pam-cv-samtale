@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (main, viewMeldingsLogg)
 
 import AnnenErfaring.Seksjon
 import Api
@@ -350,7 +350,7 @@ personHentet model person =
         ( model, redirectTilGodkjenningAvSamtykke )
 
 
-redirectTilLogin : Cmd Msg
+redirectTilLogin : Cmd msg
 redirectTilLogin =
     Navigation.load "/cv-samtale/login"
 
@@ -1611,7 +1611,7 @@ viewSuccess successModel =
         ]
 
 
-viewMeldingsLogg : MeldingsLogg -> Html Msg
+viewMeldingsLogg : MeldingsLogg -> Html msg
 viewMeldingsLogg meldingsLogg =
     meldingsLogg
         |> MeldingsLogg.mapMeldingsGruppe viewMeldingsgruppe

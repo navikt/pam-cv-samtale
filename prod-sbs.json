@@ -3,6 +3,8 @@
   "namespace": "default",
   "ingress-samtale": "https://arbeidsplassen.nav.no/cv-samtale",
   "ingress-logget-inn": "https://arbeidsplassen.nav.no/logget-inn",
+  "ingress-cv-valg": "https://arbeidsplassen.nav.no/cv-valg",
   "apiGatewayHost": "https://api-gw.oera.no",
-  "loginservice": "https://loginservice.nav.no/login"
+  "loginservice": "https://loginservice.nav.no/login",
+  "logoutservice": "https://loginservice.nav.no/slo"
 }
