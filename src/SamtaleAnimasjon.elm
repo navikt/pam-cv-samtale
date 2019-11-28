@@ -86,7 +86,7 @@ update debugStatus msg meldingsLogg =
                             , posix = timestamp
                             , samtaleElement = samtaleElement
                             }
-                    , 400
+                    , 300
                         |> DebugStatus.meldingsTimeout debugStatus
                         |> Process.sleep
                         |> Task.perform (always FullførMeldingsanimasjon)
@@ -162,7 +162,7 @@ lengdePåSkriveindikatorIMillisekunder : MeldingsLogg -> Float
 lengdePåSkriveindikatorIMillisekunder meldingsLogg =
     case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
         AlleMeldingerAnimert ->
-            400
+            300
 
         FørsteMelding antallOrdNesteMelding ->
             1600
@@ -253,7 +253,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
 
     else
         ( meldingsLogg
-        , { animasjonstidMs = 400
+        , { animasjonstidMs = 300
           , opprinneligViewport = opprinneligViewport
           , sluttPosisjon = sluttPosisjon
           , tidNå = tidNå
@@ -279,7 +279,7 @@ scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewpor
 
     else
         ( meldingsLogg
-        , { animasjonstidMs = 400
+        , { animasjonstidMs = 300
           , opprinneligViewport = opprinneligViewport
           , sluttPosisjon = sluttPosisjon
           , tidNå = tidNå
