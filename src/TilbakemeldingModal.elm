@@ -9,6 +9,7 @@ import Html.Attributes.Aria exposing (..)
 import Html.Events exposing (onClick, onFocus, preventDefaultOn)
 import Json.Decode exposing (Decoder)
 import Json.Decode.Pipeline
+import Metrikker
 import Task
 
 
@@ -17,7 +18,10 @@ import Task
 
 
 type Model
-    = Model { sisteElementMedFokus : InputId }
+    = Model
+        { sisteElementMedFokus : InputId
+        , aktivSeksjon : Metrikker.Seksjon
+        }
 
 
 
@@ -39,7 +43,7 @@ type ModalStatus
 
 
 update : Msg -> Model -> ModalStatus
-update msg ((Model { sisteElementMedFokus }) as model) =
+update msg ((Model { sisteElementMedFokus, aktivSeksjon }) as model) =
     case msg of
         TrykketLukkeKnapp ->
             Closed
@@ -48,7 +52,13 @@ update msg ((Model { sisteElementMedFokus }) as model) =
             Closed
 
         ElementFikkFokus inputId ->
-            Open (Model { sisteElementMedFokus = inputId }) Cmd.none
+            Open
+                (Model
+                    { aktivSeksjon = aktivSeksjon
+                    , sisteElementMedFokus = inputId
+                    }
+                )
+                Cmd.none
 
         TabTrykket ->
             sisteElementMedFokus
@@ -75,7 +85,7 @@ update msg ((Model { sisteElementMedFokus }) as model) =
 
 
 view : Model -> Html Msg
-view _ =
+view (Model model) =
     div [ class "modal__overlay", Html.Attributes.attribute "aria-modal" "true" ]
         [ div [ class "modal__overlay gjennomsiktig", onClick TrykketLukkeKnapp ] []
         , div [ id (inputIdTilString SelveModalen), class "modal tilbakemelding-modal", tabindex -1, role "dialog", ariaLabel "Modal - Gi tilbakemelding", onTab ]
@@ -95,7 +105,7 @@ view _ =
                     |> Lenke.withClass "gi-tilbakemelding-lenke"
                     |> Lenke.withOnFocus (ElementFikkFokus GiTilbakemeldingLenke)
                     |> Lenke.toHtml
-                , Lenke.lenke { tekst = "Avslutt CV-registreringen", url = "/cv/forhandsvis" }
+                , Lenke.lenke { tekst = "Avslutt CV-registreringen", url = "/cv-samtale/goto/forhandsvis?utgang=avbryt&seksjon=" ++ Metrikker.seksjonTilString model.aktivSeksjon }
                     |> Lenke.withId (inputIdTilString AvsluttLenke)
                     |> Lenke.withOnFocus (ElementFikkFokus AvsluttLenke)
                     |> Lenke.toHtml
@@ -224,9 +234,12 @@ keyPressInfoTilEscapeMsg keyPressInfo =
 --- INIT ---
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( Model { sisteElementMedFokus = LukkeKnapp }
+init : Metrikker.Seksjon -> ( Model, Cmd Msg )
+init aktivSeksjon =
+    ( Model
+        { sisteElementMedFokus = LukkeKnapp
+        , aktivSeksjon = aktivSeksjon
+        }
     , SelveModalen
         |> inputIdTilString
         |> Browser.Dom.focus

@@ -106,15 +106,30 @@ const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
         }
     }, (error, response) => {
         if (error) {
-            console.log(JSON.stringify({ level: 'Error', message: 'Metrikk-logging feilet', error: error }));
+            console.log(JSON.stringify({ level: 'Error', message: 'server.ts: Metrikk-logging cv-valg feilet', error: error }));
         } else if (response && response.statusCode > 201) {
             console.log(JSON.stringify({
                 level: 'Error',
-                message: `Metrikk-logging resulterte i status code: ${response.statusCode}`,
+                message: `server.ts: Metrikk-logging cv-valg resulterte i status code: ${response.statusCode}`,
                 body: response.body
             }))
         }
     });
+};
+
+const loggMetrikkForCvAvslutning = (utgang : string | undefined, seksjon: string | undefined) => {
+    if (utgang && seksjon) {
+        console.log(JSON.stringify({
+            message: 'CV-samtale avsluttet',
+            utgang,
+            seksjon
+        }));
+    } else {
+        console.log(JSON.stringify({
+            level: 'Error',
+            message: `server.ts: Goto-lenke brukt uten fullstending metrikk info. utgang=${utgang}, seksjon=${seksjon}`
+        }));
+    }
 };
 
 server.use(
@@ -137,6 +152,22 @@ server.use(
     '/cv-valg*',
     (req: express.Request, res: express.Response) => {
         res.sendFile(path.resolve(__dirname, 'dist', 'inngang.html'));
+    }
+);
+
+server.use(
+    '/cv-samtale/goto/forsiden*',
+    (req: express.Request, res: express.Response) => {
+        loggMetrikkForCvAvslutning('arbeidsplassen-logo', req.query.seksjon);
+        res.redirect(`https://${req.hostname}/`);
+    }
+);
+
+server.use(
+    '/cv-samtale/goto/forhandsvis*',
+    (req: express.Request, res: express.Response) => {
+        loggMetrikkForCvAvslutning(req.query.utgang, req.query.seksjon);
+        res.redirect(`https://${req.hostname}/cv/forhandsvis`);
     }
 );
 
