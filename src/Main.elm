@@ -14,6 +14,7 @@ import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Seksjon
 import Feilmelding
 import Forerkort.Seksjon
+import FrontendModuler.Alertstripe as Alertstripe
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
@@ -1514,34 +1515,14 @@ view { model, windowWidth, modalStatus } =
                     viewSuccess successModel
 
                 Failure error ->
-                    case error of
-                        Http.BadUrl string ->
-                            div []
-                                [ text ("Fant ingenting her: " ++ string)
-                                , text "Er du sikker på at du leter på riktig sted?"
+                    div [ class "failure-wrapper" ]
+                        [ div [ class "failure" ]
+                            [ Alertstripe.alertstripe
+                                [ text (ErrorHåndtering.feilmeldingEtterErrorILoading error)
                                 ]
-
-                        Http.Timeout ->
-                            div []
-                                [ text "Forespørselen tok for lang tid. Det kan være noe feil hos oss."
-                                , text "Forsæk å laste inn siden på nytt eller prøv gjerne igen senere"
-                                ]
-
-                        Http.BadStatus int ->
-                            div []
-                                [ text ("Fikk en " ++ String.fromInt int ++ " feilmelding. Vennligst prøv igjen senere!")
-                                ]
-
-                        Http.BadBody _ ->
-                            div []
-                                [ text "Det set ut til at du ikke har godkjent vilkårene på arbeidsplassen.no/cv."
-                                , text "Vennligst gjøre dette før du benytter det av tjenesten."
-                                ]
-
-                        _ ->
-                            div []
-                                [ text "error"
-                                ]
+                                |> Alertstripe.toHtml
+                            ]
+                        ]
             ]
         ]
 
