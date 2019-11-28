@@ -991,7 +991,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         Intro utdanninger ->
             if List.isEmpty utdanninger then
                 [ Melding.spørsmål [ "Har du utdanning du vil legge inn i CV-en?" ]
-                , Melding.spørsmål [ "Hvis du ikke har tatt høyere utdanning, kan du legge inn videregående og grunnskole. " ]
+                , Melding.spørsmål [ "Legg inn videregående og høyere utdanning hvis du har det. Hvis du kun har grunnskole, legger du inn det." ]
                 ]
 
             else

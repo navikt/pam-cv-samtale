@@ -55,7 +55,7 @@ update msg model =
                         , meldingslogg =
                             MeldingsLogg.init
                                 |> MeldingsLogg.leggTilSpørsmål
-                                    [ Melding.spørsmål [ "Hei " ++ HeaderInfo.fornavn headerInfo ++ ". Jeg er en robot som gjerne vil hjelpe deg med CV-en. Du får tips og eksempler underveis." ]
+                                    [ Melding.spørsmål [ "Hei, " ++ HeaderInfo.fornavn headerInfo ++ ". Jeg er en robot som gjerne vil hjelpe deg med CV-en. Du får tips og eksempler underveis." ]
                                     , Melding.spørsmål [ "Vil du ha hjelp av meg, eller vil du fylle ut CV-en selv?" ]
                                     ]
                         }
