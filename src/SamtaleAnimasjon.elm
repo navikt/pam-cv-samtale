@@ -180,17 +180,17 @@ ventetidFørBrukerinputScrollesInn : MeldingsLogg -> Float
 ventetidFørBrukerinputScrollesInn meldingsLogg =
     case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
         AlleMeldingerAnimert ->
-            500
+            400
 
         FørsteMelding antallOrdNesteMelding ->
-            (antallOrdNesteMelding * 150)
+            (antallOrdNesteMelding * 75)
                 |> toFloat
-                |> clamp 500 3600
+                |> clamp 400 1000
 
         FinnesEnForrigeMelding { neste } ->
-            (neste * 150)
+            (neste * 75)
                 |> toFloat
-                |> clamp 500 3600
+                |> clamp 400 1000
 
 
 
