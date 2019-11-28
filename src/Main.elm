@@ -1444,9 +1444,8 @@ samtaleTilMeldingsLogg samtale =
             ]
 
         SpørOmTilbakemeldingUnderOppfølging ->
-            [ Melding.spørsmål [ "Arbeidsgivere og NAV-veiledere kan søke opp CV-en din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
-            , Melding.spørsmål [ "CV-en din er synlig for arbeidsgivere og NAV-veiledere fordi du får oppfølging fra NAV." ]
-            , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
+            [ Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
+            , Melding.spørsmål [ "For å bli synlig for arbeidsgivere må du også registrere en jobbprofil. Det kan du gjøre etter at vi er ferdig i denne samtalen." ]
             , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
             ]
 
