@@ -34,6 +34,19 @@ html {
   padding-top: 2rem;
 }
 
+.failure-wrapper {
+  display: flex;
+  justify-content: center;
+  padding-left: 1rem;
+  padding-right: 1rem;
+
+  .failure {
+    margin-top: 2.5rem;
+    width: 100%;
+    max-width: 40rem;
+  }
+}
+
 // HEADER
 
 .header {
@@ -64,8 +77,8 @@ html {
       margin-bottom: 2px;
       background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/Avslutt.svg');
 
-      @media(min-width: 461px) {
-          margin-left: 0.5rem;
+      @media (min-width: 461px) {
+        margin-left: 0.5rem;
       }
     }
   }
@@ -581,7 +594,7 @@ html {
 
   margin-bottom: 1rem;
 
-  .skjemaelement__feilmelding {
+  .skjemaelement__feilmelding  {
     margin-top: 0;
   }
 }
@@ -793,6 +806,18 @@ html {
   }
 }
 
+.alertstripe.arbeidsplassen-alertstripe {
+  display: flex;
+  align-items: center;
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-width: 0;
+  color: #062140;
+
+  &.alertstripe--feil {
+    background-color: #f7b4b4;
+  }
+}
 
 // Modal
 .modal__overlay.gjennomsiktig {
@@ -832,7 +857,7 @@ html {
     }
 
     section {
-      display:flex;
+      display: flex;
       flex-direction: column;
 
       a:first-child {
