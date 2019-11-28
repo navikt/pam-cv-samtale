@@ -253,7 +253,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
 
     else
         ( meldingsLogg
-        , { animasjonstidMs = 400
+        , { animasjonstidMs = 300
           , opprinneligViewport = opprinneligViewport
           , sluttPosisjon = sluttPosisjon
           , tidNå = tidNå
@@ -279,7 +279,7 @@ scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewpor
 
     else
         ( meldingsLogg
-        , { animasjonstidMs = 400
+        , { animasjonstidMs = 300
           , opprinneligViewport = opprinneligViewport
           , sluttPosisjon = sluttPosisjon
           , tidNå = tidNå
