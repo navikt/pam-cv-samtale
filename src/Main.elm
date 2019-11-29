@@ -257,13 +257,8 @@ updateLoading debugStatus msg model =
                         Http.BadStatus 404 ->
                             ( model, Api.postPerson (PersonOpprettet >> LoadingMsg) )
 
-                        Http.BadStatus 401 ->
-                            ( model, redirectTilLogin )
-
                         _ ->
-                            ( Failure error
-                            , logFeilmeldingUnderLoading error "Hent Person"
-                            )
+                            uhåndtertErrorUnderLoading model error "Hent Person"
 
         PersonOpprettet result ->
             case result of
@@ -271,9 +266,7 @@ updateLoading debugStatus msg model =
                     personHentet model person
 
                 Err error ->
-                    ( Failure error
-                    , logFeilmeldingUnderLoading error "Opprett Person"
-                    )
+                    uhåndtertErrorUnderLoading model error "Opprett Person"
 
         PersonaliaHentet result ->
             case model of
@@ -288,9 +281,7 @@ updateLoading debugStatus msg model =
                                     ( model, Api.postPersonalia (PersonaliaOpprettet >> LoadingMsg) )
 
                                 _ ->
-                                    ( Failure error
-                                    , logFeilmeldingUnderLoading error "Hent Personalia"
-                                    )
+                                    uhåndtertErrorUnderLoading model error "Hent Personalia"
 
                 _ ->
                     ( model, Cmd.none )
@@ -303,9 +294,7 @@ updateLoading debugStatus msg model =
                             initVenterPåResten person personalia
 
                         Err error ->
-                            ( Failure error
-                            , logFeilmeldingUnderLoading error "Opprett Personalia"
-                            )
+                            uhåndtertErrorUnderLoading model error "Opprett Personalia"
 
                 _ ->
                     ( model, Cmd.none )
@@ -323,9 +312,7 @@ updateLoading debugStatus msg model =
                                     ( model, Api.postCv (CvOpprettet >> LoadingMsg) )
 
                                 _ ->
-                                    ( Failure error
-                                    , logFeilmeldingUnderLoading error "Hent CV"
-                                    )
+                                    uhåndtertErrorUnderLoading model error "Hent CV"
 
                 _ ->
                     ( model, Cmd.none )
@@ -338,9 +325,7 @@ updateLoading debugStatus msg model =
                             modelFraLoadingState debugStatus { state | cv = Just cv }
 
                         Err error ->
-                            ( Failure error
-                            , logFeilmeldingUnderLoading error "Opprett CV"
-                            )
+                            uhåndtertErrorUnderLoading model error "Opprett CV"
 
                 _ ->
                     ( model, Cmd.none )
@@ -351,9 +336,7 @@ updateLoading debugStatus msg model =
                     ( model, Cmd.none )
 
                 Err error ->
-                    ( Failure error
-                    , logFeilmeldingUnderLoading error "Hent registreringsprogresjon"
-                    )
+                    uhåndtertErrorUnderLoading model error "Hent registreringsprogresjon"
 
 
 personHentet : Model -> Person -> ( Model, Cmd Msg )
@@ -370,6 +353,16 @@ personHentet model person =
 redirectTilLogin : Cmd msg
 redirectTilLogin =
     Navigation.load "/cv-samtale/login"
+
+
+uhåndtertErrorUnderLoading : Model -> Http.Error -> String -> ( Model, Cmd msg )
+uhåndtertErrorUnderLoading model error operasjon =
+    case error of
+        Http.BadStatus 401 ->
+            ( model, redirectTilLogin )
+
+        _ ->
+            ( Failure error, logFeilmeldingUnderLoading error operasjon )
 
 
 redirectTilGodkjenningAvSamtykke : Cmd Msg
