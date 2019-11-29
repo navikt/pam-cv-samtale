@@ -355,7 +355,7 @@ redirectTilLogin =
     Navigation.load "/cv-samtale/login"
 
 
-uhåndtertErrorUnderLoading : Model -> Http.Error -> String -> ( Model, Cmd msg )
+uhåndtertErrorUnderLoading : Model -> Http.Error -> String -> ( Model, Cmd Msg )
 uhåndtertErrorUnderLoading model error operasjon =
     case error of
         Http.BadStatus 401 ->
