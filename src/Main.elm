@@ -954,7 +954,7 @@ updateAndreSamtaleSteg model msg info =
             gåTilValgtSeksjon model info valgtSeksjon
 
         IngenAvAutorisasjonSeksjoneneValgt ->
-            ( nesteSamtaleSteg model info (Melding.svar [ "Gå videre" ]) LeggTilAnnet
+            ( nesteSamtaleSteg model info (Melding.svar [ "Nei, gå videre" ]) LeggTilAnnet
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1270,7 +1270,7 @@ updateAndreSamtaleSteg model msg info =
 
                         GiTilbakemelding ->
                             ( Avslutt True
-                                |> nesteSamtaleStegUtenSvar model info
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Gi tilbakemelding" ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
