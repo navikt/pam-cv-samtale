@@ -31,6 +31,7 @@ import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
 import Melding exposing (Melding, Tekstområde(..))
 import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
+import Metrikker
 import Person exposing (Person)
 import Personalia exposing (Personalia)
 import Personalia.Seksjon
@@ -158,7 +159,9 @@ update msg extendedModel =
         ÅpneTilbakemeldingModal ->
             let
                 ( modalModel, cmd ) =
-                    TilbakemeldingModal.init
+                    extendedModel.model
+                        |> modelTilMetrikkSeksjon
+                        |> TilbakemeldingModal.init
             in
             ( { extendedModel | modalStatus = TilbakemeldingModalÅpen modalModel }
             , Cmd.map ModalMsg cmd
@@ -193,6 +196,19 @@ mapTilExtendedModel extendedModel ( model, cmd ) =
       }
     , cmd
     )
+
+
+modelTilMetrikkSeksjon : Model -> Metrikker.Seksjon
+modelTilMetrikkSeksjon model =
+    case model of
+        Loading _ ->
+            Metrikker.Loading
+
+        Failure _ ->
+            Metrikker.Failure
+
+        Success successModel ->
+            successModelTilMetrikkSeksjon successModel
 
 
 
@@ -804,6 +820,40 @@ gåTilFlereAnnetValg model ferdigAnimertMeldingsLogg =
         |> oppdaterSamtaleSeksjon model
     , lagtTilSpørsmålCmd model.debugStatus
     )
+
+
+successModelTilMetrikkSeksjon : SuccessModel -> Metrikker.Seksjon
+successModelTilMetrikkSeksjon { aktivSeksjon } =
+    case aktivSeksjon of
+        PersonaliaSeksjon _ ->
+            Metrikker.Personalia
+
+        UtdanningSeksjon _ ->
+            Metrikker.Utdanning
+
+        ArbeidsErfaringSeksjon _ ->
+            Metrikker.Arbeidserfaring
+
+        SpråkSeksjon _ ->
+            Metrikker.Språk
+
+        FagdokumentasjonSeksjon _ ->
+            Metrikker.Fagdokumentasjon
+
+        SertifikatSeksjon _ ->
+            Metrikker.Sertifikat
+
+        AnnenErfaringSeksjon _ ->
+            Metrikker.AnnenErfaring
+
+        FørerkortSeksjon _ ->
+            Metrikker.Førerkort
+
+        KursSeksjon _ ->
+            Metrikker.Kurs
+
+        AndreSamtaleSteg andreSamtaleStegInfo ->
+            andreSamtaleStegTilMetrikkSeksjon andreSamtaleStegInfo
 
 
 
@@ -1481,6 +1531,61 @@ lagtTilSpørsmålCmd debugStatus =
         |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
 
 
+andreSamtaleStegTilMetrikkSeksjon : AndreSamtaleStegInfo -> Metrikker.Seksjon
+andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
+    case aktivSamtale of
+        Introduksjon _ ->
+            Metrikker.Intro
+
+        LeggTilAutorisasjoner ->
+            Metrikker.LeggTilFagdokumentasjoner
+
+        LeggTilFlereAutorisasjoner ->
+            Metrikker.LeggTilFagdokumentasjoner
+
+        LeggTilAnnet ->
+            Metrikker.LeggTilAnnet
+
+        LeggTilFlereAnnet ->
+            Metrikker.LeggTilAnnet
+
+        BekreftSammendrag _ ->
+            Metrikker.Sammendrag
+
+        SkriverSammendrag _ ->
+            Metrikker.Sammendrag
+
+        EndrerSammendrag _ ->
+            Metrikker.Sammendrag
+
+        LagrerSammendrag _ _ ->
+            Metrikker.Sammendrag
+
+        LagringAvSammendragFeilet _ _ ->
+            Metrikker.Sammendrag
+
+        DelMedArbeidsgiver _ ->
+            Metrikker.Synlighet
+
+        LagrerSynlighet _ _ ->
+            Metrikker.Synlighet
+
+        LagringSynlighetFeilet _ _ ->
+            Metrikker.Synlighet
+
+        SpørOmTilbakemeldingIkkeUnderOppfølging ->
+            Metrikker.Slutten
+
+        SpørOmTilbakemeldingUnderOppfølging ->
+            Metrikker.Slutten
+
+        GiTilbakemelding ->
+            Metrikker.Slutten
+
+        Avslutt _ ->
+            Metrikker.Slutten
+
+
 
 --- VIEW ---
 
@@ -1496,15 +1601,19 @@ view : ExtendedModel -> Html Msg
 view { model, windowWidth, modalStatus } =
     div [ class "app" ]
         [ case modalStatus of
-            TilbakemeldingModalÅpen typeaheadModel ->
-                typeaheadModel
+            TilbakemeldingModalÅpen modalModel ->
+                modalModel
                     |> TilbakemeldingModal.view
                     |> Html.map ModalMsg
 
             ModalLukket ->
                 text ""
         , div [ ariaHidden (modalStatus /= ModalLukket) ]
-            [ Header.header windowWidth ÅpneTilbakemeldingModal
+            [ { windowWidth = windowWidth
+              , onAvsluttClick = ÅpneTilbakemeldingModal
+              , aktivSeksjon = modelTilMetrikkSeksjon model
+              }
+                |> Header.header
                 |> Header.toHtml
             , case model of
                 Loading _ ->
@@ -1926,7 +2035,7 @@ viewBrukerInputForAndreSamtaleSteg info =
 
             Avslutt _ ->
                 Containers.knapper Flytende
-                    [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
+                    [ a [ class "avslutt-knapp", href ("/cv-samtale/goto/forhandsvis?utgang=ferdig&seksjon=" ++ Metrikker.seksjonTilString Metrikker.Slutten) ]
                         [ div [ class "Knapp" ]
                             [ text "Avslutt og vis CV-en min" ]
                         ]

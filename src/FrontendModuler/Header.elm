@@ -1,39 +1,41 @@
-module FrontendModuler.Header exposing (Header, arbeidsplassenLogo, header, toHtml)
+module FrontendModuler.Header exposing (Header, HeaderInput, arbeidsplassenLogo, header, toHtml)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabel)
 import Html.Events exposing (onClick)
+import Metrikker
 import Svg exposing (path, svg)
 import Svg.Attributes exposing (d, fill, viewBox)
 
 
 type Header msg
-    = Header
-        { windowWidth : Int
-        , onClickMsg : msg
-        }
+    = Header (HeaderInput msg)
 
 
-header : Int -> msg -> Header msg
-header width onClick =
-    Header
-        { windowWidth = width
-        , onClickMsg = onClick
-        }
+type alias HeaderInput msg =
+    { windowWidth : Int
+    , onAvsluttClick : msg
+    , aktivSeksjon : Metrikker.Seksjon
+    }
+
+
+header : HeaderInput msg -> Header msg
+header input =
+    Header input
 
 
 toHtml : Header msg -> Html msg
 toHtml (Header options) =
     div [ class "header" ]
         [ div [ class "Header__logo" ]
-            [ a [ href "/", ariaLabel "Logo Arbeidsplassen" ]
+            [ a [ ariaLabel "Logo Arbeidsplassen", href ("/cv-samtale/goto/forsiden?seksjon=" ++ Metrikker.seksjonTilString options.aktivSeksjon) ]
                 [ arbeidsplassenLogo ]
             ]
         , if options.windowWidth > 460 then
             button
                 [ class "Knapp Knapp--flat avslutt-knapp-med-ikon"
-                , onClick options.onClickMsg
+                , onClick options.onAvsluttClick
                 ]
                 [ text "Avslutt CV-registreringen"
                 , i [ class "avslutt-ikon" ] []
@@ -42,7 +44,7 @@ toHtml (Header options) =
           else
             button
                 [ class "Knapp Knapp--flat avslutt-knapp-med-ikon"
-                , onClick options.onClickMsg
+                , onClick options.onAvsluttClick
                 ]
                 [ i [ class "avslutt-ikon" ] [], text "Avslutt" ]
         ]
