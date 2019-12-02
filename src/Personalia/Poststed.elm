@@ -1,8 +1,8 @@
-module Poststed exposing (Poststed, decode, fraPersonalia, kode, sted)
+module Personalia.Poststed exposing (Poststed, decode, fraPersonalia, kode, sted)
 
 import Json.Decode exposing (Decoder, succeed)
 import Json.Decode.Pipeline exposing (required)
-import Personalia exposing (Personalia)
+import Personalia.Personalia as Personalia exposing (Personalia)
 
 
 type Poststed

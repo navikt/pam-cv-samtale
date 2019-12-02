@@ -9,7 +9,7 @@ module Sprak.Skjema exposing
     )
 
 import Json.Encode
-import SpråkKode exposing (SpråkKode)
+import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
 
 
 type SpråkSkjema

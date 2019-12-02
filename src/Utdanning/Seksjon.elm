@@ -29,10 +29,10 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding, Tekstområde(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.Melding as Melding exposing (Melding, Tekstområde(..))
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Process
-import SamtaleAnimasjon
 import Task
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
 import Validering

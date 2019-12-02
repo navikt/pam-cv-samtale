@@ -29,7 +29,7 @@ module Forerkort.Skjema exposing
     )
 
 import Dato exposing (Dato, Måned)
-import FørerkortKode exposing (FørerkortKode)
+import Forerkort.ForerkortKode as FørerkortKode exposing (FørerkortKode)
 import Json.Encode
 
 

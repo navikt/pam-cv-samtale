@@ -1,4 +1,4 @@
-module Melding exposing
+module Meldinger.Melding exposing
     ( Melding
     , Tekstområde(..)
     , antallOrd

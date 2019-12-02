@@ -1,11 +1,11 @@
-module SamtaleAnimasjon exposing (Msg, startAnimasjon, subscriptions, update)
+module Meldinger.SamtaleAnimasjon exposing (Msg, startAnimasjon, subscriptions, update)
 
 import Browser.Dom as Dom exposing (Element, Viewport)
 import Browser.Events
 import DebugStatus exposing (DebugStatus)
 import Ease
-import Konstanter
-import MeldingsLogg exposing (AntallOrdNesteOgForrigeMelding(..), FerdigAnimertStatus(..), MeldingsLogg, ScrollAnimasjonStatus(..))
+import Meldinger.Konstanter as Konstanter
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (AntallOrdNesteOgForrigeMelding(..), FerdigAnimertStatus(..), MeldingsLogg, ScrollAnimasjonStatus(..))
 import Process
 import Task exposing (Task)
 import Time

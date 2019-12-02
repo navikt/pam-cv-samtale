@@ -1,4 +1,4 @@
-module FørerkortKode exposing
+module Forerkort.ForerkortKode exposing
     ( FørerkortKode
     , encode
     , klasseB

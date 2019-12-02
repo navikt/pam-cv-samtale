@@ -1,4 +1,4 @@
-module SporsmalViewState exposing
+module Meldinger.SporsmalViewState exposing
     ( IkonStatus(..)
     , SpørsmålStyle(..)
     , SpørsmålViewState
@@ -16,7 +16,7 @@ module SporsmalViewState exposing
     , utenIkon
     )
 
-import Melding exposing (Melding, Tekstområde(..))
+import Meldinger.Melding as Melding exposing (Melding, Tekstområde(..))
 
 
 type SpørsmålViewState

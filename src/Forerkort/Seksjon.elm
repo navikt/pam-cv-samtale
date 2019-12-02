@@ -17,22 +17,22 @@ import Dato exposing (Dato, DatoValidering(..), Måned)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
+import Forerkort.ForerkortKode as FørerkortKode exposing (FørerkortKode)
 import Forerkort.Skjema as Skjema exposing (FørerkortSkjema, ValidertFørerkortSkjema)
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInputMedDag as DatoInputMedDag
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Select as Select
-import FørerkortKode exposing (FørerkortKode)
 import Html exposing (..)
 import Html.Attributes exposing (class)
 import Http
 import LagreStatus exposing (LagreStatus)
 import List.Extra as List
-import Melding exposing (Melding)
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.Melding as Melding exposing (Melding)
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Process
-import SamtaleAnimasjon
 import String.Extra as String
 import Task
 

@@ -25,11 +25,11 @@ import Http
 import Json.Encode
 import LagreStatus exposing (LagreStatus)
 import List.Extra as List
-import Melding exposing (Melding)
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
-import SamtaleAnimasjon
+import Meldinger.Melding as Melding exposing (Melding)
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Sprak.Skjema as Skjema exposing (Ferdighet(..), SpråkSkjema)
-import SpråkKode exposing (SpråkKode)
+import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
 import String.Extra as String
 
 

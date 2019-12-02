@@ -28,12 +28,12 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.Melding as Melding exposing (Melding(..))
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Process
-import SamtaleAnimasjon
+import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
-import SertifikatTypeahead exposing (SertifikatTypeahead)
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 

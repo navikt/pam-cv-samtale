@@ -6,7 +6,7 @@ module ErrorHandtering exposing
     )
 
 import Http
-import Melding exposing (Melding)
+import Meldinger.Melding as Melding exposing (Melding)
 
 
 errorMelding : { operasjon : String, error : Http.Error } -> Melding

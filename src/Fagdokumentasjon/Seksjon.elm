@@ -17,6 +17,7 @@ import Browser.Events exposing (Visibility(..))
 import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering exposing (OperasjonEtterError(..))
+import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
@@ -25,11 +26,10 @@ import FrontendModuler.LoggInnLenke as Common
 import FrontendModuler.Textarea as Textarea
 import Html exposing (Html, text)
 import Http exposing (Error(..))
-import Konsept exposing (Konsept)
-import Melding exposing (Melding)
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.Melding as Melding exposing (Melding)
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Process
-import SamtaleAnimasjon
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 

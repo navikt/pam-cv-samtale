@@ -29,10 +29,10 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.Melding as Melding exposing (Melding(..))
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Process
-import SamtaleAnimasjon
 import Task
 import Validering
 

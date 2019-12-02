@@ -26,18 +26,18 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
 import Http
-import Konstanter
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding, Tekstområde(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
+import Meldinger.Konstanter as Konstanter
+import Meldinger.Melding as Melding exposing (Melding, Tekstområde(..))
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Meldinger.SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
 import Metrikker
 import Person exposing (Person)
-import Personalia exposing (Personalia)
+import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Seksjon
-import SamtaleAnimasjon
 import Sertifikat.Seksjon
-import SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
 import Sprak.Seksjon
 import Task
 import TilbakemeldingModal

@@ -1,4 +1,4 @@
-module SpråkKode exposing
+module Sprak.SprakKode exposing
     ( SpråkKode
     , decode
     , encode

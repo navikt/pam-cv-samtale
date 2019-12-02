@@ -14,8 +14,8 @@ import Html.Attributes exposing (..)
 import Http exposing (Error(..))
 import Main
 import Melding
-import MeldingsLogg exposing (MeldingsLogg)
-import SamtaleAnimasjon
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (MeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 
 
 

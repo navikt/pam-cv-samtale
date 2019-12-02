@@ -1,4 +1,4 @@
-module Konsept exposing
+module Fagdokumentasjon.Konsept exposing
     ( Konsept
     , decode
     , konseptId
