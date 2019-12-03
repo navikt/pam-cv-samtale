@@ -13,7 +13,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error(..))
 import Main
-import Melding
+import Meldinger.Melding as Melding
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 
