@@ -1,4 +1,4 @@
-module Personalia exposing
+module Personalia.Personalia exposing
     ( Personalia
     , decode
     , epost

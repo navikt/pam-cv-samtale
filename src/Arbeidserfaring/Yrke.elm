@@ -1,4 +1,4 @@
-module Yrke exposing
+module Arbeidserfaring.Yrke exposing
     ( Yrke
     , decode
     , fraString

@@ -1,4 +1,4 @@
-module SertifikatTypeahead exposing
+module Sertifikat.SertifikatTypeahead exposing
     ( SertifikatTypeahead
     , decode
     , konseptId

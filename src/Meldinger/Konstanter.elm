@@ -1,4 +1,4 @@
-module Konstanter exposing (meldingHøyde, meldingMarginTop, skriveIndikatorHøyde)
+module Meldinger.Konstanter exposing (meldingHøyde, meldingMarginTop, skriveIndikatorHøyde)
 
 
 meldingMarginTop : Int

@@ -13,10 +13,10 @@ module Cv.Arbeidserfaring exposing
     , yrkeString
     )
 
+import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Dato exposing (Måned, TilDato(..), År)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
-import Yrke exposing (Yrke)
 
 
 type Arbeidserfaring

@@ -24,12 +24,12 @@ import Html.Events exposing (onBlur, onInput)
 import Http exposing (Error(..))
 import Json.Encode
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
-import Personalia exposing (Personalia)
+import Meldinger.Melding as Melding exposing (Melding(..))
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Personalia.Personalia as Personalia exposing (Personalia)
+import Personalia.Poststed as Poststed exposing (Poststed)
 import Personalia.Skjema as Skjema exposing (PersonaliaSkjema, ValidertPersonaliaSkjema)
-import Poststed exposing (Poststed)
-import SamtaleAnimasjon
 
 
 

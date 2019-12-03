@@ -4,7 +4,9 @@ module Cv.Cv exposing
     , arbeidserfaring
     , decode
     , fagdokumentasjoner
+    , førerkort
     , kurs
+    , oppdaterFørerkort
     , sammendrag
     , sertifikater
     , spraakferdighet
@@ -14,7 +16,7 @@ module Cv.Cv exposing
 import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
-import Cv.Forerkort as Forerkort exposing (Forerkort)
+import Cv.Forerkort as Forerkort exposing (Førerkort)
 import Cv.KompetanseKladd as KompetanseKladd exposing (KompetanseKladd)
 import Cv.Kurs as Kurs exposing (Kurs)
 import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
@@ -37,7 +39,7 @@ type alias CvInfo =
     , arbeidserfaring : List Arbeidserfaring
     , utdanningListe : List Utdanning
     , sertifikater : List Sertifikat
-    , forerkort : List Forerkort
+    , førerkort : List Førerkort
     , annenErfaring : List AnnenErfaring
     , kurs : List Kurs
     , spraakferdighet : List Spraakferdighet
@@ -81,9 +83,9 @@ sertifikater (Cv info) =
     info.sertifikater
 
 
-forerkort : Cv -> List Forerkort
-forerkort (Cv info) =
-    info.forerkort
+førerkort : Cv -> List Førerkort
+førerkort (Cv info) =
+    info.førerkort
 
 
 annenErfaring : Cv -> List AnnenErfaring
@@ -114,6 +116,15 @@ kompetanseKladdListe (Cv info) =
 sammendrag : Cv -> Maybe Sammendrag
 sammendrag (Cv info) =
     info.sammendrag
+
+
+
+---SETTERS---
+
+
+oppdaterFørerkort : List Førerkort -> Cv -> Cv
+oppdaterFørerkort førerkort_ (Cv cvInfo) =
+    Cv { cvInfo | førerkort = førerkort_ }
 
 
 

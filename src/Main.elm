@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (main, viewMeldingsLogg)
 
 import AnnenErfaring.Seksjon
 import Api
@@ -13,6 +13,8 @@ import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Seksjon
 import Feilmelding
+import Forerkort.Seksjon
+import FrontendModuler.Alertstripe as Alertstripe
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
@@ -24,17 +26,18 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
 import Http
-import Konstanter
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding, MeldingsType(..), Tekstområde(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
+import Meldinger.Konstanter as Konstanter
+import Meldinger.Melding as Melding exposing (Melding, MeldingsType(..), Tekstområde(..))
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Meldinger.SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
+import Metrikker
 import Person exposing (Person)
-import Personalia exposing (Personalia)
+import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Seksjon
-import SamtaleAnimasjon
 import Sertifikat.Seksjon
-import SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
 import Sprak.Seksjon
 import Task
 import TilbakemeldingModal
@@ -156,7 +159,9 @@ update msg extendedModel =
         ÅpneTilbakemeldingModal ->
             let
                 ( modalModel, cmd ) =
-                    TilbakemeldingModal.init
+                    extendedModel.model
+                        |> modelTilMetrikkSeksjon
+                        |> TilbakemeldingModal.init
             in
             ( { extendedModel | modalStatus = TilbakemeldingModalÅpen modalModel }
             , Cmd.map ModalMsg cmd
@@ -191,6 +196,19 @@ mapTilExtendedModel extendedModel ( model, cmd ) =
       }
     , cmd
     )
+
+
+modelTilMetrikkSeksjon : Model -> Metrikker.Seksjon
+modelTilMetrikkSeksjon model =
+    case model of
+        Loading _ ->
+            Metrikker.Loading
+
+        Failure _ ->
+            Metrikker.Failure
+
+        Success successModel ->
+            successModelTilMetrikkSeksjon successModel
 
 
 
@@ -239,13 +257,8 @@ updateLoading debugStatus msg model =
                         Http.BadStatus 404 ->
                             ( model, Api.postPerson (PersonOpprettet >> LoadingMsg) )
 
-                        Http.BadStatus 401 ->
-                            ( model, redirectTilLogin )
-
                         _ ->
-                            ( Failure error
-                            , logFeilmeldingUnderLoading error "Hent Person"
-                            )
+                            uhåndtertErrorUnderLoading model error "Hent Person"
 
         PersonOpprettet result ->
             case result of
@@ -253,9 +266,7 @@ updateLoading debugStatus msg model =
                     personHentet model person
 
                 Err error ->
-                    ( Failure error
-                    , logFeilmeldingUnderLoading error "Opprett Person"
-                    )
+                    uhåndtertErrorUnderLoading model error "Opprett Person"
 
         PersonaliaHentet result ->
             case model of
@@ -270,9 +281,7 @@ updateLoading debugStatus msg model =
                                     ( model, Api.postPersonalia (PersonaliaOpprettet >> LoadingMsg) )
 
                                 _ ->
-                                    ( Failure error
-                                    , logFeilmeldingUnderLoading error "Hent Personalia"
-                                    )
+                                    uhåndtertErrorUnderLoading model error "Hent Personalia"
 
                 _ ->
                     ( model, Cmd.none )
@@ -285,9 +294,7 @@ updateLoading debugStatus msg model =
                             initVenterPåResten person personalia
 
                         Err error ->
-                            ( Failure error
-                            , logFeilmeldingUnderLoading error "Opprett Personalia"
-                            )
+                            uhåndtertErrorUnderLoading model error "Opprett Personalia"
 
                 _ ->
                     ( model, Cmd.none )
@@ -305,9 +312,7 @@ updateLoading debugStatus msg model =
                                     ( model, Api.postCv (CvOpprettet >> LoadingMsg) )
 
                                 _ ->
-                                    ( Failure error
-                                    , logFeilmeldingUnderLoading error "Hent CV"
-                                    )
+                                    uhåndtertErrorUnderLoading model error "Hent CV"
 
                 _ ->
                     ( model, Cmd.none )
@@ -320,9 +325,7 @@ updateLoading debugStatus msg model =
                             modelFraLoadingState debugStatus { state | cv = Just cv }
 
                         Err error ->
-                            ( Failure error
-                            , logFeilmeldingUnderLoading error "Opprett CV"
-                            )
+                            uhåndtertErrorUnderLoading model error "Opprett CV"
 
                 _ ->
                     ( model, Cmd.none )
@@ -333,9 +336,7 @@ updateLoading debugStatus msg model =
                     ( model, Cmd.none )
 
                 Err error ->
-                    ( Failure error
-                    , logFeilmeldingUnderLoading error "Hent registreringsprogresjon"
-                    )
+                    uhåndtertErrorUnderLoading model error "Hent registreringsprogresjon"
 
 
 personHentet : Model -> Person -> ( Model, Cmd Msg )
@@ -349,9 +350,19 @@ personHentet model person =
         ( model, redirectTilGodkjenningAvSamtykke )
 
 
-redirectTilLogin : Cmd Msg
+redirectTilLogin : Cmd msg
 redirectTilLogin =
     Navigation.load "/cv-samtale/login"
+
+
+uhåndtertErrorUnderLoading : Model -> Http.Error -> String -> ( Model, Cmd Msg )
+uhåndtertErrorUnderLoading model error operasjon =
+    case error of
+        Http.BadStatus 401 ->
+            ( model, redirectTilLogin )
+
+        _ ->
+            ( Failure error, logFeilmeldingUnderLoading error operasjon )
 
 
 redirectTilGodkjenningAvSamtykke : Cmd Msg
@@ -442,6 +453,7 @@ type SamtaleSeksjon
     | FagdokumentasjonSeksjon Fagdokumentasjon.Seksjon.Model
     | SertifikatSeksjon Sertifikat.Seksjon.Model
     | AnnenErfaringSeksjon AnnenErfaring.Seksjon.Model
+    | FørerkortSeksjon Forerkort.Seksjon.Model
     | KursSeksjon Kurs.Seksjon.Model
     | AndreSamtaleSteg AndreSamtaleStegInfo
 
@@ -458,6 +470,7 @@ type SuccessMsg
     | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
     | SertifikatMsg Sertifikat.Seksjon.Msg
     | AnnenErfaringMsg AnnenErfaring.Seksjon.Msg
+    | FørerkortMsg Forerkort.Seksjon.Msg
     | KursMsg Kurs.Seksjon.Msg
     | AndreSamtaleStegMsg AndreSamtaleStegMsg
 
@@ -528,7 +541,7 @@ updateSuccess successMsg model =
                             )
 
                         Sprak.Seksjon.Ferdig meldingsLogg ->
-                            gåTilSeksjonsValg model meldingsLogg
+                            gåTilFørerkort model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -562,7 +575,7 @@ updateSuccess successMsg model =
                             )
 
                         Sertifikat.Seksjon.Ferdig sertifikatListe meldingsLogg ->
-                            gåTilFlereSeksjonsValg model meldingsLogg
+                            gåTilFlereAnnetValg model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -580,6 +593,23 @@ updateSuccess successMsg model =
 
                         AnnenErfaring.Seksjon.Ferdig _ meldingsLogg ->
                             gåTilFlereAnnetValg model meldingsLogg
+
+                _ ->
+                    ( model, Cmd.none )
+
+        FørerkortMsg msg ->
+            case model.aktivSeksjon of
+                FørerkortSeksjon førerkortModel ->
+                    case Forerkort.Seksjon.update msg førerkortModel of
+                        Forerkort.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> FørerkortSeksjon
+                                |> oppdaterSamtaleSeksjon model
+                            , Cmd.map FørerkortMsg cmd
+                            )
+
+                        Forerkort.Seksjon.Ferdig førerkort meldingsLogg ->
+                            gåTilSeksjonsValg { model | cv = Cv.oppdaterFørerkort førerkort model.cv } meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -730,6 +760,19 @@ gåTilKurs model ferdigAnimertMeldingsLogg =
     )
 
 
+gåTilFørerkort : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilFørerkort model ferdigAnimertMeldingsLogg =
+    let
+        ( førerkortModel, førerkortCmd ) =
+            Forerkort.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.førerkort model.cv)
+    in
+    ( { model
+        | aktivSeksjon = FørerkortSeksjon førerkortModel
+      }
+    , Cmd.map FørerkortMsg førerkortCmd
+    )
+
+
 gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
 gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilAutorisasjoner
@@ -770,6 +813,40 @@ gåTilFlereAnnetValg model ferdigAnimertMeldingsLogg =
         |> oppdaterSamtaleSeksjon model
     , lagtTilSpørsmålCmd model.debugStatus
     )
+
+
+successModelTilMetrikkSeksjon : SuccessModel -> Metrikker.Seksjon
+successModelTilMetrikkSeksjon { aktivSeksjon } =
+    case aktivSeksjon of
+        PersonaliaSeksjon _ ->
+            Metrikker.Personalia
+
+        UtdanningSeksjon _ ->
+            Metrikker.Utdanning
+
+        ArbeidsErfaringSeksjon _ ->
+            Metrikker.Arbeidserfaring
+
+        SpråkSeksjon _ ->
+            Metrikker.Språk
+
+        FagdokumentasjonSeksjon _ ->
+            Metrikker.Fagdokumentasjon
+
+        SertifikatSeksjon _ ->
+            Metrikker.Sertifikat
+
+        AnnenErfaringSeksjon _ ->
+            Metrikker.AnnenErfaring
+
+        FørerkortSeksjon _ ->
+            Metrikker.Førerkort
+
+        KursSeksjon _ ->
+            Metrikker.Kurs
+
+        AndreSamtaleSteg andreSamtaleStegInfo ->
+            andreSamtaleStegTilMetrikkSeksjon andreSamtaleStegInfo
 
 
 
@@ -843,6 +920,7 @@ type ValgtSeksjon
     | SertifiseringValgt
     | AnnenErfaringValgt
     | KursValgt
+    | FørerkortValgt
 
 
 updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
@@ -870,7 +948,7 @@ updateAndreSamtaleSteg model msg info =
             gåTilValgtSeksjon model info valgtSeksjon
 
         IngenAvAutorisasjonSeksjoneneValgt ->
-            ( nesteSamtaleSteg model info (Melding.svar [ "Gå videre" ]) LeggTilAnnet
+            ( nesteSamtaleSteg model info (Melding.svar [ "Nei, gå videre" ]) LeggTilAnnet
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1212,7 +1290,7 @@ updateAndreSamtaleSteg model msg info =
 
                         GiTilbakemelding ->
                             ( Avslutt True
-                                |> nesteSamtaleStegUtenSvar model info
+                                |> nesteSamtaleSteg model info (Melding.svar [ "Gi tilbakemelding" ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
@@ -1265,6 +1343,9 @@ gåTilValgtSeksjon model info valgtSeksjon =
 
                 KursValgt ->
                     gåTilKurs model ferdigAnimertMeldingsLogg
+
+                FørerkortValgt ->
+                    gåTilFørerkort model ferdigAnimertMeldingsLogg
 
         MeldingerGjenstår ->
             ( { info | meldingsLogg = meldingsLogg }
@@ -1433,9 +1514,8 @@ samtaleTilMeldingsLogg samtale =
             ]
 
         SpørOmTilbakemeldingUnderOppfølging ->
-            [ Melding.spørsmål [ "Arbeidsgivere og NAV-veiledere kan søke opp CV-en din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
-            , Melding.spørsmål [ "CV-en din er synlig for arbeidsgivere og NAV-veiledere fordi du får oppfølging fra NAV." ]
-            , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
+            [ Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
+            , Melding.spørsmål [ "For å bli synlig for arbeidsgivere må du også registrere en jobbprofil. Det kan du gjøre etter at vi er ferdig i denne samtalen." ]
             , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
             ]
 
@@ -1491,6 +1571,61 @@ eksemplerPåSammendrag =
     ]
 
 
+andreSamtaleStegTilMetrikkSeksjon : AndreSamtaleStegInfo -> Metrikker.Seksjon
+andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
+    case aktivSamtale of
+        Introduksjon _ ->
+            Metrikker.Intro
+
+        LeggTilAutorisasjoner ->
+            Metrikker.LeggTilFagdokumentasjoner
+
+        LeggTilFlereAutorisasjoner ->
+            Metrikker.LeggTilFagdokumentasjoner
+
+        LeggTilAnnet ->
+            Metrikker.LeggTilAnnet
+
+        LeggTilFlereAnnet ->
+            Metrikker.LeggTilAnnet
+
+        BekreftSammendrag _ _ ->
+            Metrikker.Sammendrag
+
+        SkriverSammendrag _ _ ->
+            Metrikker.Sammendrag
+
+        EndrerSammendrag _ _ ->
+            Metrikker.Sammendrag
+
+        LagrerSammendrag _ _ ->
+            Metrikker.Sammendrag
+
+        LagringAvSammendragFeilet _ _ ->
+            Metrikker.Sammendrag
+
+        DelMedArbeidsgiver _ ->
+            Metrikker.Synlighet
+
+        LagrerSynlighet _ _ ->
+            Metrikker.Synlighet
+
+        LagringSynlighetFeilet _ _ ->
+            Metrikker.Synlighet
+
+        SpørOmTilbakemeldingIkkeUnderOppfølging ->
+            Metrikker.Slutten
+
+        SpørOmTilbakemeldingUnderOppfølging ->
+            Metrikker.Slutten
+
+        GiTilbakemelding ->
+            Metrikker.Slutten
+
+        Avslutt _ ->
+            Metrikker.Slutten
+
+
 
 --- VIEW ---
 
@@ -1506,15 +1641,19 @@ view : ExtendedModel -> Html Msg
 view { model, windowWidth, modalStatus } =
     div [ class "app" ]
         [ case modalStatus of
-            TilbakemeldingModalÅpen typeaheadModel ->
-                typeaheadModel
+            TilbakemeldingModalÅpen modalModel ->
+                modalModel
                     |> TilbakemeldingModal.view
                     |> Html.map ModalMsg
 
             ModalLukket ->
                 text ""
         , div [ ariaHidden (modalStatus /= ModalLukket) ]
-            [ Header.header windowWidth ÅpneTilbakemeldingModal
+            [ { windowWidth = windowWidth
+              , onAvsluttClick = ÅpneTilbakemeldingModal
+              , aktivSeksjon = modelTilMetrikkSeksjon model
+              }
+                |> Header.header
                 |> Header.toHtml
             , case model of
                 Loading _ ->
@@ -1524,34 +1663,14 @@ view { model, windowWidth, modalStatus } =
                     viewSuccess successModel
 
                 Failure error ->
-                    case error of
-                        Http.BadUrl string ->
-                            div []
-                                [ text ("Fant ingenting her: " ++ string)
-                                , text "Er du sikker på at du leter på riktig sted?"
+                    div [ class "failure-wrapper" ]
+                        [ div [ class "failure" ]
+                            [ Alertstripe.alertstripe
+                                [ text (ErrorHåndtering.feilmeldingEtterErrorILoading error)
                                 ]
-
-                        Http.Timeout ->
-                            div []
-                                [ text "Forespørselen tok for lang tid. Det kan være noe feil hos oss."
-                                , text "Forsæk å laste inn siden på nytt eller prøv gjerne igen senere"
-                                ]
-
-                        Http.BadStatus int ->
-                            div []
-                                [ text ("Fikk en " ++ String.fromInt int ++ " feilmelding. Vennligst prøv igjen senere!")
-                                ]
-
-                        Http.BadBody _ ->
-                            div []
-                                [ text "Det set ut til at du ikke har godkjent vilkårene på arbeidsplassen.no/cv."
-                                , text "Vennligst gjøre dette før du benytter det av tjenesten."
-                                ]
-
-                        _ ->
-                            div []
-                                [ text "error"
-                                ]
+                                |> Alertstripe.toHtml
+                            ]
+                        ]
             ]
         ]
 
@@ -1589,6 +1708,9 @@ meldingsLoggFraSeksjon aktivSeksjon =
         AnnenErfaringSeksjon model ->
             AnnenErfaring.Seksjon.meldingsLogg model
 
+        FørerkortSeksjon model ->
+            Forerkort.Seksjon.meldingsLogg model
+
         KursSeksjon model ->
             Kurs.Seksjon.meldingsLogg model
 
@@ -1618,7 +1740,7 @@ viewSuccess successModel =
         ]
 
 
-viewMeldingsLogg : MeldingsLogg -> Html Msg
+viewMeldingsLogg : MeldingsLogg -> Html msg
 viewMeldingsLogg meldingsLogg =
     meldingsLogg
         |> MeldingsLogg.mapMeldingsGruppe viewMeldingsgruppe
@@ -1863,6 +1985,11 @@ viewBrukerInputForSeksjon aktivSeksjon =
                 |> AnnenErfaring.Seksjon.viewBrukerInput
                 |> Html.map (AnnenErfaringMsg >> SuccessMsg)
 
+        FørerkortSeksjon førerkortSeksjon ->
+            førerkortSeksjon
+                |> Forerkort.Seksjon.viewBrukerInput
+                |> Html.map (FørerkortMsg >> SuccessMsg)
+
         KursSeksjon kursSeksjon ->
             kursSeksjon
                 |> Kurs.Seksjon.viewBrukerInput
@@ -1973,7 +2100,7 @@ viewBrukerInputForAndreSamtaleSteg info =
 
             Avslutt _ ->
                 Containers.knapper Flytende
-                    [ a [ href "/cv/forhandsvis", class "avslutt-knapp" ]
+                    [ a [ class "avslutt-knapp", href ("/cv-samtale/goto/forhandsvis?utgang=ferdig&seksjon=" ++ Metrikker.seksjonTilString Metrikker.Slutten) ]
                         [ div [ class "Knapp" ]
                             [ text "Avslutt og vis CV-en min" ]
                         ]
@@ -2020,7 +2147,6 @@ viewLeggTilAutorisasjoner =
         [ seksjonsvalgKnapp FagbrevSvennebrevValgt
         , seksjonsvalgKnapp MesterbrevValgt
         , seksjonsvalgKnapp AutorisasjonValgt
-        , seksjonsvalgKnapp SertifiseringValgt
         , Knapp.knapp IngenAvAutorisasjonSeksjoneneValgt "Nei, gå videre"
             |> Knapp.toHtml
         ]
@@ -2031,6 +2157,7 @@ viewLeggTilAnnet =
     Containers.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
         , seksjonsvalgKnapp KursValgt
+        , seksjonsvalgKnapp SertifiseringValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
             |> Knapp.toHtml
         ]
@@ -2094,6 +2221,9 @@ seksjonsvalgTilString seksjonsvalg =
 
         KursValgt ->
             "Kurs"
+
+        FørerkortValgt ->
+            "Førerkort"
 
 
 
@@ -2187,6 +2317,11 @@ seksjonSubscriptions model =
                     annenErfaringModel
                         |> AnnenErfaring.Seksjon.subscriptions
                         |> Sub.map (AnnenErfaringMsg >> SuccessMsg)
+
+                FørerkortSeksjon førerkortModel ->
+                    førerkortModel
+                        |> Forerkort.Seksjon.subscriptions
+                        |> Sub.map (FørerkortMsg >> SuccessMsg)
 
                 KursSeksjon kursModel ->
                     kursModel

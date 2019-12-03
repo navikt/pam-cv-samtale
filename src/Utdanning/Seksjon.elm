@@ -29,10 +29,10 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
-import Melding exposing (Melding, Tekstområde(..))
-import MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.Melding as Melding exposing (Melding, Tekstområde(..))
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Process
-import SamtaleAnimasjon
 import Task
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
 import Validering
@@ -1008,7 +1008,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         Intro utdanninger ->
             if List.isEmpty utdanninger then
                 [ Melding.spørsmål [ "Har du utdanning du vil legge inn i CV-en?" ]
-                , Melding.spørsmål [ "Hvis du ikke har tatt høyere utdanning, kan du legge inn videregående og grunnskole. " ]
+                , Melding.spørsmål [ "Legg inn videregående og høyere utdanning hvis du har det. Hvis du kun har grunnskole, legger du inn det." ]
                 ]
 
             else
@@ -1057,7 +1057,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         RegistrerRetning _ ->
             [ Melding.spørsmål [ "Hvis du har fagbrev/svennebrev, mesterbrev eller autorisasjon, kan du legge inn dette senere." ]
             , Melding.spørsmål [ "Hva er navnet på graden din, og hvilken utdanningsretning gikk du?" ]
-            , Melding.spørsmål [ "Kanksje du har en bachelor i historie, eller elektrofag fra videregående?" ]
+            , Melding.spørsmål [ "Kanskje du har en bachelor i historie, eller elektrofag fra videregående?" ]
             ]
 
         RegistrerBeskrivelse _ _ ->

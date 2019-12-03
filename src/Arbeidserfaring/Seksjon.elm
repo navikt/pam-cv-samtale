@@ -11,6 +11,7 @@ module Arbeidserfaring.Seksjon exposing
 
 import Api
 import Arbeidserfaring.Skjema as Skjema exposing (ArbeidserfaringSkjema, Felt(..), ValidertArbeidserfaringSkjema)
+import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
@@ -31,14 +32,13 @@ import Html.Attributes exposing (class)
 import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
 import Maybe.Extra as Maybe
-import Melding exposing (Melding, Tekstområde(..))
-import MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.Melding as Melding exposing (Melding, Tekstområde(..))
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Process
-import SamtaleAnimasjon
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 import Validering
-import Yrke exposing (Yrke)
 
 
 

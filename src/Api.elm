@@ -4,6 +4,7 @@ module Api exposing
     , getAutorisasjonTypeahead
     , getCv
     , getFagbrevTypeahead
+    , getHeaderInfo
     , getMesterbrevTypeahead
     , getPerson
     , getPersonalia
@@ -17,6 +18,7 @@ module Api exposing
     , postArbeidserfaring
     , postCv
     , postFagdokumentasjon
+    , postFørerkort
     , postKurs
     , postPerson
     , postPersonalia
@@ -32,34 +34,37 @@ module Api exposing
     , putUtdanning
     )
 
+import AndreSider.HeaderInfo as HeaderInfo exposing (HeaderInfo)
 import AnnenErfaring.Skjema
 import Arbeidserfaring.Skjema
+import Arbeidserfaring.Yrke as YrkeTypeahead exposing (Yrke)
 import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Cv.Cv as Cv exposing (Cv)
 import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
+import Cv.Forerkort exposing (Førerkort)
 import Cv.Kurs exposing (Kurs)
 import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
 import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
 import Cv.Spraakferdighet exposing (Spraakferdighet)
 import Cv.Utdanning exposing (Utdanning)
+import Fagdokumentasjon.Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema
 import Feilmelding exposing (Feilmelding)
+import Forerkort.Skjema
 import Http exposing (..)
 import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
-import Konsept exposing (Konsept)
 import Kurs.Skjema
 import Person exposing (Person)
-import Personalia exposing (Personalia)
+import Personalia.Personalia as Personalia exposing (Personalia)
+import Personalia.Poststed exposing (Poststed)
 import Personalia.Skjema
-import Poststed exposing (Poststed)
+import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema
-import SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sprak.Skjema
-import SpråkKode exposing (SpråkKode)
+import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
 import Utdanning.Skjema
-import Yrke as YrkeTypahead exposing (Yrke)
 
 
 getPerson : (Result Error Person -> msg) -> Cmd msg
@@ -76,6 +81,14 @@ postPerson msgConstructor =
         { url = "/cv-samtale/api/rest/person"
         , expect = expectJson msgConstructor Person.decode
         , body = emptyBody
+        }
+
+
+getHeaderInfo : (Result Error HeaderInfo -> msg) -> Cmd msg
+getHeaderInfo msgConstructor =
+    Http.get
+        { url = "/cv-samtale/api/rest/person/headerinfo"
+        , expect = expectJson msgConstructor HeaderInfo.decode
         }
 
 
@@ -114,6 +127,15 @@ putPersonalia msgConstructor skjema id =
         }
 
 
+postFørerkort : (Result Error (List Førerkort) -> msg) -> Forerkort.Skjema.ValidertFørerkortSkjema -> Cmd msg
+postFørerkort msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/forerkort"
+        , expect = expectJson msgConstructor (Json.Decode.list Cv.Forerkort.decode)
+        , body = Forerkort.Skjema.encode skjema |> jsonBody
+        }
+
+
 postSpråk : (Result Error (List Spraakferdighet) -> msg) -> Sprak.Skjema.SpråkSkjema -> Cmd msg
 postSpråk msgConstructor skjema =
     Http.post
@@ -135,7 +157,7 @@ hentPoststed : (Result Error Poststed -> msg) -> String -> Cmd msg
 hentPoststed msgConstructor postnummer =
     Http.get
         { url = "/cv-samtale/api/rest/koder/poststed?postnummer=" ++ postnummer
-        , expect = expectJson msgConstructor Poststed.decode
+        , expect = expectJson msgConstructor Personalia.Poststed.decode
         }
 
 
@@ -260,7 +282,7 @@ getYrkeTypeahead : (Result Error (List Yrke) -> msg) -> String -> Cmd msg
 getYrkeTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/yrke?q=" ++ string
-        , expect = expectJson msgConstructor (Json.Decode.list YrkeTypahead.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list YrkeTypeahead.decode)
         }
 
 
@@ -305,7 +327,7 @@ getFagbrevTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd msg
 getFagbrevTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/fagbrev?q=" ++ string
-        , expect = expectJson msgConstructor (Json.Decode.list Konsept.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.Konsept.decode)
         }
 
 
@@ -313,7 +335,7 @@ getMesterbrevTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd m
 getMesterbrevTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/mesterbrev?q=" ++ string
-        , expect = expectJson msgConstructor (Json.Decode.list Konsept.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.Konsept.decode)
         }
 
 
@@ -321,7 +343,7 @@ getAutorisasjonTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd
 getAutorisasjonTypeahead msgConstructor string =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/autorisasjoner?q=" ++ string
-        , expect = expectJson msgConstructor (Json.Decode.list Konsept.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.Konsept.decode)
         }
 
 

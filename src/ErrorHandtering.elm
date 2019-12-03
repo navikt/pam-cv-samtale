@@ -1,11 +1,12 @@
 module ErrorHandtering exposing
     ( OperasjonEtterError(..)
     , errorMelding
+    , feilmeldingEtterErrorILoading
     , operasjonEtterError
     )
 
 import Http
-import Melding exposing (Melding)
+import Meldinger.Melding as Melding exposing (Melding)
 
 
 errorMelding : { operasjon : String, error : Http.Error } -> Melding
@@ -28,9 +29,6 @@ errorMelding { operasjon, error } =
             -- LoggInn
             Melding.spørsmål [ "Oi! Jeg klarte ikke å " ++ operasjon ++ ". Du har dessverre blitt logget ut. Jeg beklager 😔 Hvis du logger inn igjen, kan du fortsette der du slapp. Vil du logge inn?" ]
 
-        --        Http.BadStatus 406 ->
-        --            -- GodtaSamtykket
-        --            Melding.spørsmål [ "" ]
         Http.BadStatus other ->
             -- PrøvPåNytt
             Melding.spørsmål [ "Oi! Jeg klarte ikke å " ++ operasjon ++ "." ]
@@ -46,15 +44,11 @@ type OperasjonEtterError
     | LoggInn
 
 
-
---    | GodtaSamtykket
-
-
 operasjonEtterError : Http.Error -> OperasjonEtterError
 operasjonEtterError error =
     case error of
         -- Selve URLen ikke gyldig (inneholder linjeskift eller lignende)
-        Http.BadUrl string ->
+        Http.BadUrl _ ->
             GiOpp
 
         Http.Timeout ->
@@ -66,11 +60,27 @@ operasjonEtterError error =
         Http.BadStatus 401 ->
             LoggInn
 
-        --
-        --        Http.BadStatus 406 ->
-        --            GodtaSamtykket
-        Http.BadStatus other ->
+        Http.BadStatus _ ->
             PrøvPåNytt
 
-        Http.BadBody string ->
+        Http.BadBody _ ->
             PrøvPåNytt
+
+
+feilmeldingEtterErrorILoading : Http.Error -> String
+feilmeldingEtterErrorILoading error =
+    case error of
+        Http.BadUrl _ ->
+            "Det skjedde noe feil under lasting av siden."
+
+        Http.Timeout ->
+            "Det skjedde noe feil under lasting av siden. Kan det være at du ikke er koblet til internett?"
+
+        Http.NetworkError ->
+            "Det skjedde noe feil under lasting av siden. Kan det være at du ikke er koblet til internett?"
+
+        Http.BadStatus _ ->
+            "Det skjedde noe feil under lasting av siden."
+
+        Http.BadBody _ ->
+            "Det skjedde noe feil under lasting av siden."

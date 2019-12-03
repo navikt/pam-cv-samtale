@@ -1,4 +1,4 @@
-module MeldingsLogg exposing
+module Meldinger.MeldingsLogg exposing
     ( AntallOrdNesteOgForrigeMelding(..)
     , FerdigAnimertMeldingsLogg
     , FerdigAnimertStatus(..)
@@ -30,8 +30,8 @@ module MeldingsLogg exposing
 
 import Browser.Dom as Dom exposing (Viewport)
 import List.Extra as List
-import Melding exposing (Melding)
-import SporsmalViewState as SpørsmålViewState exposing (SpørsmålViewState)
+import Meldinger.Melding as Melding exposing (Melding)
+import Meldinger.SporsmalViewState as SpørsmålViewState exposing (SpørsmålViewState)
 import Time
 
 

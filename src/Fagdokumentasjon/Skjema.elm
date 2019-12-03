@@ -18,8 +18,8 @@ module Fagdokumentasjon.Skjema exposing
     )
 
 import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
+import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Json.Encode
-import Konsept exposing (Konsept)
 
 
 type FagdokumentasjonSkjema

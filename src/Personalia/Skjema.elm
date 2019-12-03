@@ -26,8 +26,8 @@ module Personalia.Skjema exposing
     )
 
 import Json.Encode
-import Personalia exposing (Personalia)
-import Poststed exposing (Poststed)
+import Personalia.Personalia as Personalia exposing (Personalia)
+import Personalia.Poststed as Poststed exposing (Poststed)
 
 
 type PersonaliaSkjema

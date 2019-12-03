@@ -30,8 +30,11 @@ spec:
     ingresses:
         - {{{ ingress-samtale }}}
         - {{{ ingress-logget-inn }}}
+        - {{{ ingress-cv-valg }}}
     env:
         - name: API_GATEWAY_HOST
           value: {{{ apiGatewayHost }}}
         - name: LOGINSERVICE_URL
           value: {{{ loginservice }}}
+        - name: LOGOUTSERVICE_URL
+          value: {{{ logoutservice }}}

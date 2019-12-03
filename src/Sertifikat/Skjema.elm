@@ -36,7 +36,7 @@ module Sertifikat.Skjema exposing
 
 import Dato exposing (Måned(..), År)
 import Json.Encode
-import SertifikatTypeahead exposing (SertifikatTypeahead)
+import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 
 
 type SertifikatSkjema

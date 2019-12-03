@@ -1,11 +1,11 @@
-module SamtaleAnimasjon exposing (Msg, startAnimasjon, subscriptions, update)
+module Meldinger.SamtaleAnimasjon exposing (Msg, startAnimasjon, subscriptions, update)
 
 import Browser.Dom as Dom exposing (Element, Viewport)
 import Browser.Events
 import DebugStatus exposing (DebugStatus)
 import Ease
-import Konstanter
-import MeldingsLogg exposing (AntallOrdNesteOgForrigeMelding(..), FerdigAnimertStatus(..), MeldingsLogg, ScrollAnimasjonStatus(..))
+import Meldinger.Konstanter as Konstanter
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (AntallOrdNesteOgForrigeMelding(..), FerdigAnimertStatus(..), MeldingsLogg, ScrollAnimasjonStatus(..))
 import Process
 import Task exposing (Task)
 import Time
@@ -86,7 +86,7 @@ update debugStatus msg meldingsLogg =
                             , posix = timestamp
                             , samtaleElement = samtaleElement
                             }
-                    , 400
+                    , 300
                         |> DebugStatus.meldingsTimeout debugStatus
                         |> Process.sleep
                         |> Task.perform (always FullførMeldingsanimasjon)
@@ -162,10 +162,10 @@ lengdePåSkriveindikatorIMillisekunder : MeldingsLogg -> Float
 lengdePåSkriveindikatorIMillisekunder meldingsLogg =
     case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
         AlleMeldingerAnimert ->
-            400
+            300
 
         FørsteMelding antallOrdNesteMelding ->
-            1600
+            1300
 
         FinnesEnForrigeMelding { forrige, neste } ->
             let
@@ -173,24 +173,24 @@ lengdePåSkriveindikatorIMillisekunder meldingsLogg =
                     (((forrige * 2) + neste) // 3)
                         |> toFloat
             in
-            gjennomsnitteligAntallOrd * 200
+            gjennomsnitteligAntallOrd * 160
 
 
 ventetidFørBrukerinputScrollesInn : MeldingsLogg -> Float
 ventetidFørBrukerinputScrollesInn meldingsLogg =
     case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
         AlleMeldingerAnimert ->
-            500
+            400
 
         FørsteMelding antallOrdNesteMelding ->
-            (antallOrdNesteMelding * 150)
+            (antallOrdNesteMelding * 75)
                 |> toFloat
-                |> clamp 500 3600
+                |> clamp 400 1000
 
         FinnesEnForrigeMelding { neste } ->
-            (neste * 150)
+            (neste * 75)
                 |> toFloat
-                |> clamp 500 3600
+                |> clamp 400 1000
 
 
 
@@ -253,7 +253,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
 
     else
         ( meldingsLogg
-        , { animasjonstidMs = 400
+        , { animasjonstidMs = 300
           , opprinneligViewport = opprinneligViewport
           , sluttPosisjon = sluttPosisjon
           , tidNå = tidNå
@@ -279,7 +279,7 @@ scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewpor
 
     else
         ( meldingsLogg
-        , { animasjonstidMs = 400
+        , { animasjonstidMs = 300
           , opprinneligViewport = opprinneligViewport
           , sluttPosisjon = sluttPosisjon
           , tidNå = tidNå
