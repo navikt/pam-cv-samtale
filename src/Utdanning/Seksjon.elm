@@ -1012,8 +1012,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         RegistrerSkole skoleinfo ->
             case skoleinfo.forrige of
                 Fagskole ->
-                    [ Melding.spørsmål [ "Merk at du kan legge til fagbrev/svennebrev eller mesterbrev mot slutten av samtalen, om du har det" ]
-                    , Melding.spørsmål [ "Hvilken skole gikk du på?" ]
+                    [ Melding.spørsmål [ "Hvilken skole gikk du på?" ]
                     , Melding.spørsmål [ "For eksempel Fagskolen i Østfold" ]
                     ]
 
