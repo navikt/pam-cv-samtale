@@ -1211,6 +1211,7 @@ viewBrukerInput (Model model) =
                             |> Input.withId (inputIdTilString RegistrereFraÅrInput)
                             |> Input.withOnEnter BrukerVilGåVidereMedFraÅr
                             |> Input.withOnBlur FraÅrMisterFokus
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1235,6 +1236,7 @@ viewBrukerInput (Model model) =
                             |> Input.withId (inputIdTilString RegistrereTilÅrInput)
                             |> Input.withOnEnter BrukerVilGåTilOppsummering
                             |> Input.withOnBlur TilÅrMisterFokus
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1337,6 +1339,7 @@ viewSkjema utdanningsskjema =
     Containers.skjema { lagreMsg = OppsummeringSkjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
         [ Select.select "Utdanningsnivå" (Nivå >> OppsummeringEndret) selectNivåListe
             |> Select.withSelected (utdanningsskjema |> Skjema.nivå |> tilNivåKey)
+            |> Select.withErObligatorisk
             |> Select.toHtml
         , utdanningsskjema
             |> Skjema.innholdTekstFelt Studiested
@@ -1353,7 +1356,7 @@ viewSkjema utdanningsskjema =
             |> Textarea.toHtml
         , div [ class "DatoInput-fra-til-rad" ]
             [ DatoInput.datoInput
-                { label = "Fra"
+                { label = "Når begynte du på utdanningen?"
                 , onMånedChange = FraMåned >> OppsummeringEndret
                 , måned = Skjema.fraMåned utdanningsskjema
                 , onÅrChange = Tekst FraÅr >> OppsummeringEndret
@@ -1364,7 +1367,7 @@ viewSkjema utdanningsskjema =
                 |> DatoInput.toHtml
             , if not (Skjema.nåværende utdanningsskjema) then
                 DatoInput.datoInput
-                    { label = "Til"
+                    { label = "Når var du ferdig med utdanningen?"
                     , onMånedChange = TilMåned >> OppsummeringEndret
                     , måned = Skjema.tilMåned utdanningsskjema
                     , onÅrChange = Tekst TilÅr >> OppsummeringEndret
@@ -1379,7 +1382,8 @@ viewSkjema utdanningsskjema =
             ]
         , utdanningsskjema
             |> Skjema.nåværende
-            |> Checkbox.checkbox "Nåværende" (OppsummeringEndret NåværendeToggled)
+            |> Checkbox.checkbox "Jeg holder fortsatt på med utdanningen" (OppsummeringEndret NåværendeToggled)
+            |> Checkbox.withClass "blokk-m"
             |> Checkbox.toHtml
         ]
 

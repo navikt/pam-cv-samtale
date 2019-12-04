@@ -552,21 +552,24 @@ viewBrukerInput (Model { aktivSamtale, seksjonsMeldingsLogg }) =
                 Containers.skjema { lagreMsg = PersonaliaskjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
                     [ personaliaSkjema
                         |> Skjema.fornavn
-                        |> Input.input { label = "Fornavn*", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
+                        |> Input.input { label = "Fornavn", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
                         |> Input.withMaybeFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
                         |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Fornavn)
+                        |> Input.withErObligatorisk
                         |> Input.toHtml
                     , personaliaSkjema
                         |> Skjema.etternavn
-                        |> Input.input { label = "Etternavn*", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
+                        |> Input.input { label = "Etternavn", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
                         |> Input.withMaybeFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
                         |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Etternavn)
+                        |> Input.withErObligatorisk
                         |> Input.toHtml
                     , personaliaSkjema
                         |> Skjema.epost
-                        |> Input.input { label = "E-post*", msg = PersonaliaSkjemaEndret Skjema.Epost }
+                        |> Input.input { label = "E-post", msg = PersonaliaSkjemaEndret Skjema.Epost }
                         |> Input.withMaybeFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
                         |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Epost)
+                        |> Input.withErObligatorisk
                         |> Input.toHtml
                     , viewTelefonISkjema personaliaSkjema
                     , personaliaSkjema
@@ -626,7 +629,10 @@ viewTelefonISkjema : PersonaliaSkjema -> Html Msg
 viewTelefonISkjema personaliaSkjema =
     div [ class "skjemaelement" ]
         [ label []
-            [ span [ class "skjemaelement__label" ] [ text "Telefon*" ]
+            [ span [ class "skjemaelement__label" ]
+                [ text "Telefon"
+                , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
+                ]
             , div [ class "PersonaliaSeksjon--telefonnummer" ]
                 [ p [ class "PersonaliaSeksjon--telefonnummer--country-code" ] [ text "+47" ]
                 , input
