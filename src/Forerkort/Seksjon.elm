@@ -1041,6 +1041,7 @@ viewBrukerInput (Model model) =
                             )
                             |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode velgNyttFørerkortInfo.valgtFørerkort)
                             |> Select.withMaybeFeilmelding velgNyttFørerkortInfo.feilmelding
+                            |> Select.withErObligatorisk
                             |> Select.toHtml
                         ]
                     ]
@@ -1116,6 +1117,7 @@ viewBrukerInput (Model model) =
                             model.førerkortKoder
                         )
                         |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema.skjema))
+                        |> Select.withErObligatorisk
                         |> Select.toHtml
                     , div [] [ text "Førerrett til" ]
                     , div [ class "ForerkortSeksjon-dato" ]

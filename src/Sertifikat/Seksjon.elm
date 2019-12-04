@@ -1118,6 +1118,7 @@ viewBrukerInput (Model model) =
                                     |> Dato.feilmeldingÅr
                                     |> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtÅr
                                 )
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1145,6 +1146,7 @@ viewBrukerInput (Model model) =
                             |> Input.withOnBlur ÅrMisterFokus
                             |> Input.withId (inputIdTilString UtløperÅrId)
                             |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1167,7 +1169,7 @@ viewBrukerInput (Model model) =
                         |> Input.toHtml
                     , div [ class "DatoInput-fra-til-rad" ]
                         [ DatoInput.datoInput
-                            { label = "Fullført"
+                            { label = "Når fullførte du sertifiseringen?"
                             , onMånedChange = FullførtMåned >> SkjemaEndret
                             , måned = Skjema.fullførtMåned skjema
                             , onÅrChange = FullførtÅr >> SkjemaEndret
@@ -1178,7 +1180,7 @@ viewBrukerInput (Model model) =
                             |> DatoInput.toHtml
                         , if not (Skjema.utløperIkke skjema) then
                             DatoInput.datoInput
-                                { label = "Utløper"
+                                { label = "Når utløper sertifiseringen?"
                                 , onMånedChange = UtløperMåned >> SkjemaEndret
                                 , måned = Skjema.utløperMåned skjema
                                 , onÅrChange = UtløperÅr >> SkjemaEndret
@@ -1194,6 +1196,7 @@ viewBrukerInput (Model model) =
                     , skjema
                         |> Skjema.utløperIkke
                         |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
+                        |> Checkbox.withClass "blokk-m"
                         |> Checkbox.toHtml
                     ]
 

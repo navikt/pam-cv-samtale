@@ -1438,6 +1438,7 @@ viewBrukerInput (Model model) =
                             |> Input.withOnBlur FraÅrMisterFokus
                             |> Input.withId (inputIdTilString FraÅrInput)
                             |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visFeilmeldingFraÅr) fraDatoInfo.fraÅr)
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1463,6 +1464,7 @@ viewBrukerInput (Model model) =
                             |> Input.withOnBlur TilÅrMisterFokus
                             |> Input.withId (inputIdTilString TilÅrInput)
                             |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visFeilmeldingTilÅr) tilDatoInfo.tilÅr)
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1507,7 +1509,7 @@ viewBrukerInput (Model model) =
                         |> Textarea.toHtml
                     , div [ class "DatoInput-fra-til-rad" ]
                         [ DatoInput.datoInput
-                            { label = "Fra"
+                            { label = "Når begynte du i jobbben?"
                             , onMånedChange = FraMåned >> SkjemaEndret
                             , måned = Skjema.fraMåned skjema
                             , onÅrChange = Tekst FraÅr >> SkjemaEndret
@@ -1518,7 +1520,7 @@ viewBrukerInput (Model model) =
                             |> DatoInput.toHtml
                         , if not (Skjema.nåværende skjema) then
                             DatoInput.datoInput
-                                { label = "Til"
+                                { label = "Når sluttet du i jobben?"
                                 , onMånedChange = TilMåned >> SkjemaEndret
                                 , måned = Skjema.tilMåned skjema
                                 , onÅrChange = Tekst TilÅr >> SkjemaEndret
@@ -1533,7 +1535,8 @@ viewBrukerInput (Model model) =
                         ]
                     , skjema
                         |> Skjema.nåværende
-                        |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
+                        |> Checkbox.checkbox "Jeg jobber fremdeles her" (SkjemaEndret NåværendeToggled)
+                        |> Checkbox.withClass "blokk-m"
                         |> Checkbox.toHtml
                     ]
 

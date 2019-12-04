@@ -612,6 +612,11 @@ html {
   overflow: auto;
 }
 
+.skjemaelement__måFyllesUt {
+  font-size: 14px;
+  color: #78706a;
+}
+
 .skjemaelement--checkbox-label {
   user-select: none;
 }
@@ -621,6 +626,21 @@ html {
   justify-content: space-between;
   flex-direction: column;
 }
+
+.DatoInput-fieldset {
+  border: none;
+  padding: 0;
+  margin: 1rem 0 0;
+
+  legend.skjemaelement__label {
+    font-weight: bold;
+  }
+
+  .skjemaelement__måFyllesUt {
+    font-weight: normal;
+  }
+}
+
 
 .DatoInput-wrapper {
   display: flex;
@@ -643,7 +663,6 @@ html {
   display: flex;
   flex-direction: column;
   margin-bottom: 1rem;
-
 
   .Dato-wrapper {
     display: flex;
@@ -689,7 +708,7 @@ html {
 
   .Varighet-antall {
     width: 5rem;
-    margin-left: 1rem;
+    margin-right: 1rem;
   }
 
 }
