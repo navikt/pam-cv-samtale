@@ -2,6 +2,7 @@ module FrontendModuler.Checkbox exposing
     ( Checkbox
     , checkbox
     , toHtml
+    , withClass
     )
 
 import Html exposing (..)
@@ -14,6 +15,7 @@ type Checkbox msg
         { label : String
         , msg : msg
         , checked : Bool
+        , class : Maybe String
         }
 
 
@@ -23,12 +25,23 @@ checkbox label msg checkboxChecked =
         { label = label
         , msg = msg
         , checked = checkboxChecked
+        , class = Nothing
         }
+
+
+withClass : String -> Checkbox msg -> Checkbox msg
+withClass class (Checkbox options) =
+    Checkbox { options | class = Just class }
 
 
 toHtml : Checkbox msg -> Html msg
 toHtml (Checkbox options) =
-    div [ class "skjemaelement skjemaelement--horisontal" ]
+    div
+        [ class "skjemaelement skjemaelement--horisontal"
+        , options.class
+            |> Maybe.map class
+            |> Maybe.withDefault noAttribute
+        ]
         [ input
             [ type_ "checkbox"
             , class "skjemaelement__input checkboks"
@@ -40,3 +53,8 @@ toHtml (Checkbox options) =
         --- TODO: htmlFor
         , label [ class "skjemaelement__label", class "skjemaelement--checkbox-label", onClick options.msg ] [ text options.label ]
         ]
+
+
+noAttribute : Html.Attribute msg
+noAttribute =
+    classList []

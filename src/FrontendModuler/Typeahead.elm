@@ -5,6 +5,7 @@ module FrontendModuler.Typeahead exposing
     , TypeaheadOptions
     , toHtml
     , typeahead
+    , withErObligatorisk
     , withFeilmelding
     , withOnBlur
     , withOnFocus
@@ -33,6 +34,7 @@ type alias TypeaheadInfo msg =
     , feilmelding : Maybe String
     , onFocus : Maybe msg
     , onBlur : Maybe msg
+    , obligatorisk : Bool
     }
 
 
@@ -63,6 +65,7 @@ typeahead options innhold =
         , feilmelding = Nothing
         , onFocus = Nothing
         , onBlur = Nothing
+        , obligatorisk = False
         }
 
 
@@ -94,6 +97,11 @@ withOnBlur onBlur (Typeahead options) =
     Typeahead { options | onBlur = Just onBlur }
 
 
+withErObligatorisk : Typeahead msg -> Typeahead msg
+withErObligatorisk (Typeahead options) =
+    Typeahead { options | obligatorisk = True }
+
+
 onKeyUp : (Operation -> msg) -> Html.Attribute msg
 onKeyUp onTypeaheadChange =
     Html.Events.preventDefaultOn
@@ -122,7 +130,14 @@ toHtml (Typeahead options) =
         [ div [ class "typeahead" ]
             [ label
                 [ class "skjemaelement__label", for options.inputId ]
-                [ text options.label ]
+                (if options.obligatorisk then
+                    [ text options.label
+                    , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
+                    ]
+
+                 else
+                    [ text options.label ]
+                )
             , input
                 [ onInput options.onInput
                 , value options.innhold

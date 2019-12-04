@@ -242,6 +242,8 @@ view toString (Model model) feilmelding =
         |> Typeahead.withFeilmelding feilmelding
         |> Typeahead.withOnFocus TypeaheadFikkFokus
         |> Typeahead.withOnBlur TypeaheadMistetFokus
+        -- Foreløpig er alle typeaheadfeltene våre obligatoriske, så sender med dette valget uansett
+        |> Typeahead.withErObligatorisk
         |> Typeahead.toHtml
 
 

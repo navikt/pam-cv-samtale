@@ -1012,8 +1012,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         RegistrerSkole skoleinfo ->
             case skoleinfo.forrige of
                 Fagskole ->
-                    [ Melding.spørsmål [ "Merk at du kan legge til fagbrev/svennebrev eller mesterbrev mot slutten av samtalen, om du har det" ]
-                    , Melding.spørsmål [ "Hvilken skole gikk du på?" ]
+                    [ Melding.spørsmål [ "Hvilken skole gikk du på?" ]
                     , Melding.spørsmål [ "For eksempel Fagskolen i Østfold" ]
                     ]
 
@@ -1211,6 +1210,7 @@ viewBrukerInput (Model model) =
                             |> Input.withId (inputIdTilString RegistrereFraÅrInput)
                             |> Input.withOnEnter BrukerVilGåVidereMedFraÅr
                             |> Input.withOnBlur FraÅrMisterFokus
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1235,6 +1235,7 @@ viewBrukerInput (Model model) =
                             |> Input.withId (inputIdTilString RegistrereTilÅrInput)
                             |> Input.withOnEnter BrukerVilGåTilOppsummering
                             |> Input.withOnBlur TilÅrMisterFokus
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1337,6 +1338,7 @@ viewSkjema utdanningsskjema =
     Containers.skjema { lagreMsg = OppsummeringSkjemaLagreknappTrykket, lagreKnappTekst = "Lagre endringer" }
         [ Select.select "Utdanningsnivå" (Nivå >> OppsummeringEndret) selectNivåListe
             |> Select.withSelected (utdanningsskjema |> Skjema.nivå |> tilNivåKey)
+            |> Select.withErObligatorisk
             |> Select.toHtml
         , utdanningsskjema
             |> Skjema.innholdTekstFelt Studiested
@@ -1353,7 +1355,7 @@ viewSkjema utdanningsskjema =
             |> Textarea.toHtml
         , div [ class "DatoInput-fra-til-rad" ]
             [ DatoInput.datoInput
-                { label = "Fra"
+                { label = "Når startet du på utdanningen?"
                 , onMånedChange = FraMåned >> OppsummeringEndret
                 , måned = Skjema.fraMåned utdanningsskjema
                 , onÅrChange = Tekst FraÅr >> OppsummeringEndret
@@ -1364,7 +1366,7 @@ viewSkjema utdanningsskjema =
                 |> DatoInput.toHtml
             , if not (Skjema.nåværende utdanningsskjema) then
                 DatoInput.datoInput
-                    { label = "Til"
+                    { label = "Når avsluttet du utdanningen?"
                     , onMånedChange = TilMåned >> OppsummeringEndret
                     , måned = Skjema.tilMåned utdanningsskjema
                     , onÅrChange = Tekst TilÅr >> OppsummeringEndret
@@ -1379,7 +1381,8 @@ viewSkjema utdanningsskjema =
             ]
         , utdanningsskjema
             |> Skjema.nåværende
-            |> Checkbox.checkbox "Nåværende" (OppsummeringEndret NåværendeToggled)
+            |> Checkbox.checkbox "Jeg holder fortsatt på med utdanningen" (OppsummeringEndret NåværendeToggled)
+            |> Checkbox.withClass "blokk-m"
             |> Checkbox.toHtml
         ]
 

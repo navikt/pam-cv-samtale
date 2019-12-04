@@ -789,6 +789,7 @@ viewBrukerInput (Model model) =
                                     )
                                     |> Select.withMaybeSelected (Maybe.map SpråkKode.kode velgNyttSpråkInfo.valgtSpråk)
                                     |> Select.withMaybeFeilmelding velgNyttSpråkInfo.feilmelding
+                                    |> Select.withErObligatorisk
                                     |> Select.toHtml
                                 ]
                             ]

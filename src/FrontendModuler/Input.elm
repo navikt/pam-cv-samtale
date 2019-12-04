@@ -6,9 +6,9 @@ module FrontendModuler.Input exposing
     , toHtml
     , withClass
     , withEnabled
+    , withErObligatorisk
     , withFeilmelding
     , withId
-    , withLabelId
     , withMaybeFeilmelding
     , withOnBlur
     , withOnEnter
@@ -44,6 +44,7 @@ type alias Options msg =
     , enabled : Enabled
     , placeholder : Maybe String
     , ariaLabelledby : Maybe msg
+    , obligatorisk : Bool
     }
 
 
@@ -67,6 +68,7 @@ input { msg, label } innhold =
         , enabled = Enabled
         , placeholder = Nothing
         , ariaLabelledby = Nothing
+        , obligatorisk = False
         }
 
 
@@ -75,14 +77,14 @@ type Enabled
     | Disabled
 
 
-withLabelId : String -> Input msg -> Input msg
-withLabelId id (Input options) =
-    Input { options | label = LabelId id }
-
-
 withFeilmelding : String -> Input msg -> Input msg
 withFeilmelding feilmelding (Input options) =
     Input { options | feilmelding = Just feilmelding }
+
+
+withErObligatorisk : Input msg -> Input msg
+withErObligatorisk (Input options) =
+    Input { options | obligatorisk = True }
 
 
 withMaybeFeilmelding : Maybe String -> Input msg -> Input msg
@@ -146,7 +148,15 @@ toHtml (Input options) =
         (case options.label of
             Label label_ ->
                 [ label []
-                    [ span [ class "skjemaelement__label" ] [ text label_ ]
+                    [ span [ class "skjemaelement__label" ]
+                        (if options.obligatorisk then
+                            [ text label_
+                            , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
+                            ]
+
+                         else
+                            [ text label_ ]
+                        )
                     , htmlInput (Input options) Nothing
                     ]
                 , Feilmelding.htmlFeilmelding options.feilmelding

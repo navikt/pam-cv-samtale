@@ -884,6 +884,7 @@ viewBrukerInput (Model model) =
                                 |> Skjema.feilmeldingKursnavn
                                 |> maybeHvisTrue info.tillatÅViseFeilmeldingKursnavn
                             )
+                        |> Input.withErObligatorisk
                         |> Input.toHtml
                     ]
 
@@ -924,6 +925,7 @@ viewBrukerInput (Model model) =
                                     |> Dato.feilmeldingÅr
                                     |> maybeHvisTrue fullførtDatoInfo.tillatÅViseFeilmeldingÅr
                                 )
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -961,6 +963,7 @@ viewBrukerInput (Model model) =
                         |> Input.input { label = "Kursnavn", msg = Tekst Kursnavn >> SkjemaEndret }
                         |> Input.withMaybeFeilmelding (Skjema.feilmeldingKursnavnHvisSynlig skjema)
                         |> Input.withOnBlur (SkjemaEndret KursnavnBlurred)
+                        |> Input.withErObligatorisk
                         |> Input.toHtml
                     , skjema
                         |> Skjema.innholdTekstFelt Kursholder
@@ -969,7 +972,7 @@ viewBrukerInput (Model model) =
                         |> Input.toHtml
                     , div [ class "DatoInput-fra-til-rad" ]
                         [ ValgfriDatoInput.datoInput
-                            { label = "Fullført"
+                            { label = "Når avsluttet du kurset?"
                             , onMånedChange = FullførtMåned >> SkjemaEndret
                             , måned = Skjema.fullførtMåned skjema
                             , onÅrChange = Tekst FullførtÅr >> SkjemaEndret
@@ -1050,31 +1053,32 @@ viewBekreftOppsummering =
 
 viewVarighet : KursSkjema -> Html Msg
 viewVarighet skjema =
-    div [ class "Varighet-kolonne skjemaelement" ]
-        [ label [ class "skjemaelement__label", id "varighet-label" ] [ text "Timer/dager/uker/måneder" ]
-        , div [ class "Inputs-wrapper" ]
-            [ div [ class "Select-wrapper" ]
-                [ Select.select
-                    ""
-                    (VarighetEnhet >> SkjemaEndret)
-                    [ ( "Timer", "Timer" )
-                    , ( "Dager", "Dager" )
-                    , ( "Uker", "Uker" )
-                    , ( "Måneder", "Måneder" )
+    fieldset [ class "DatoInput-fieldset" ]
+        [ legend [ class "skjemaelement__label" ]
+            [ text "Hvor lenge varte kurset?" ]
+        , div [ class "Varighet-kolonne skjemaelement" ]
+            [ div [ class "Inputs-wrapper" ]
+                [ Skjema.innholdTekstFelt Varighet skjema
+                    |> Input.input { label = "Antall", msg = Tekst Varighet >> SkjemaEndret }
+                    |> Input.withClass "Varighet-antall"
+                    |> Input.withOnBlur (SkjemaEndret VarighetBlurred)
+                    |> Input.withMaybeFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
+                    |> Input.toHtml
+                , div [ class "Select-wrapper" ]
+                    [ Select.select
+                        "Timer/dager/uker/måneder"
+                        (VarighetEnhet >> SkjemaEndret)
+                        [ ( "Timer", "Timer" )
+                        , ( "Dager", "Dager" )
+                        , ( "Uker", "Uker" )
+                        , ( "Måneder", "Måneder" )
+                        ]
+                        |> Select.withSelected
+                            (Skjema.varighetEnhetTilString (Skjema.varighetEnhet skjema))
+                        |> Select.withClass "Varighet-enhet"
+                        |> Select.toHtml
                     ]
-                    |> Select.withSelected
-                        (Skjema.varighetEnhetTilString (Skjema.varighetEnhet skjema))
-                    |> Select.withLabelId "varighet-label"
-                    |> Select.withClass "Varighet-enhet"
-                    |> Select.toHtml
                 ]
-            , Skjema.innholdTekstFelt Varighet skjema
-                |> Input.input { label = "", msg = Tekst Varighet >> SkjemaEndret }
-                |> Input.withLabelId "varighet-label"
-                |> Input.withClass "Varighet-antall"
-                |> Input.withOnBlur (SkjemaEndret VarighetBlurred)
-                |> Input.withMaybeFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
-                |> Input.toHtml
             ]
         ]
 

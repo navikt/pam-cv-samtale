@@ -947,6 +947,7 @@ viewBrukerInput (Model model) =
                                 |> Skjema.feilmeldingRolle
                                 |> maybeHvisTrue info.tillatÅViseFeilmeldingRolle
                             )
+                        |> Input.withErObligatorisk
                         |> Input.toHtml
                     ]
 
@@ -986,6 +987,7 @@ viewBrukerInput (Model model) =
                                     |> Dato.feilmeldingÅr
                                     |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
                                 )
+                            |> Input.withErObligatorisk
                             |> Input.toHtml
                         ]
                     ]
@@ -1028,6 +1030,7 @@ viewBrukerInput (Model model) =
                         |> Input.input { label = "Rolle", msg = Tekst Rolle >> SkjemaEndret }
                         |> Input.withMaybeFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
                         |> Input.withOnBlur (SkjemaEndret RolleBlurred)
+                        |> Input.withErObligatorisk
                         |> Input.toHtml
                     , skjema
                         |> Skjema.innholdTekstFelt Beskrivelse
@@ -1093,7 +1096,7 @@ viewDatoPeriode skjema =
     div []
         [ div [ class "DatoInput-fra-til-rad" ]
             [ ValgfriDatoInput.datoInput
-                { label = "Fra"
+                { label = "Når begynte du?"
                 , onMånedChange = FraMåned >> SkjemaEndret
                 , måned = Skjema.fraMåned skjema
                 , onÅrChange = Tekst FraÅr >> SkjemaEndret
@@ -1102,10 +1105,11 @@ viewDatoPeriode skjema =
                 |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
                 |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingFraMåned skjema)
                 |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
+                |> ValgfriDatoInput.withErObligatorisk
                 |> ValgfriDatoInput.toHtml
             , if not (Skjema.nåværende skjema) then
                 ValgfriDatoInput.datoInput
-                    { label = "Til"
+                    { label = "Når sluttet du?"
                     , onMånedChange = TilMåned >> SkjemaEndret
                     , måned = Skjema.tilMåned skjema
                     , onÅrChange = Tekst TilÅr >> SkjemaEndret
@@ -1114,6 +1118,7 @@ viewDatoPeriode skjema =
                     |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
                     |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingTilMåned skjema)
                     |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
+                    |> ValgfriDatoInput.withErObligatorisk
                     |> ValgfriDatoInput.toHtml
 
               else
@@ -1121,7 +1126,8 @@ viewDatoPeriode skjema =
             ]
         , skjema
             |> Skjema.nåværende
-            |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
+            |> Checkbox.checkbox "Jeg holder fortsatt på" (SkjemaEndret NåværendeToggled)
+            |> Checkbox.withClass "blokk-m"
             |> Checkbox.toHtml
         ]
 
