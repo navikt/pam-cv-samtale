@@ -1126,7 +1126,7 @@ viewDatoPeriode skjema =
             ]
         , skjema
             |> Skjema.nåværende
-            |> Checkbox.checkbox "Jeg jobber fremdeles her" (SkjemaEndret NåværendeToggled)
+            |> Checkbox.checkbox "Jeg holder fortsatt på" (SkjemaEndret NåværendeToggled)
             |> Checkbox.withClass "blokk-m"
             |> Checkbox.toHtml
         ]

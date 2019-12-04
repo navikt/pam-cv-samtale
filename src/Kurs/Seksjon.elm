@@ -972,7 +972,7 @@ viewBrukerInput (Model model) =
                         |> Input.toHtml
                     , div [ class "DatoInput-fra-til-rad" ]
                         [ ValgfriDatoInput.datoInput
-                            { label = "Når var du ferdig med kurset?"
+                            { label = "Når avsluttet du kurset?"
                             , onMånedChange = FullførtMåned >> SkjemaEndret
                             , måned = Skjema.fullførtMåned skjema
                             , onÅrChange = Tekst FullførtÅr >> SkjemaEndret

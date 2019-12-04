@@ -1356,7 +1356,7 @@ viewSkjema utdanningsskjema =
             |> Textarea.toHtml
         , div [ class "DatoInput-fra-til-rad" ]
             [ DatoInput.datoInput
-                { label = "Når begynte du på utdanningen?"
+                { label = "Når startet du på utdanningen?"
                 , onMånedChange = FraMåned >> OppsummeringEndret
                 , måned = Skjema.fraMåned utdanningsskjema
                 , onÅrChange = Tekst FraÅr >> OppsummeringEndret
@@ -1367,7 +1367,7 @@ viewSkjema utdanningsskjema =
                 |> DatoInput.toHtml
             , if not (Skjema.nåværende utdanningsskjema) then
                 DatoInput.datoInput
-                    { label = "Når var du ferdig med utdanningen?"
+                    { label = "Når avsluttet du utdanningen?"
                     , onMånedChange = TilMåned >> OppsummeringEndret
                     , måned = Skjema.tilMåned utdanningsskjema
                     , onÅrChange = Tekst TilÅr >> OppsummeringEndret
