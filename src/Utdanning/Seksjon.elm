@@ -720,7 +720,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema validertSkjema
                                         |> oppdaterSamtaleSteg model
-                                    , Api.postUtdanning UtdanningSendtTilApi validertSkjema
+                                    , postEllerPutUtdanning UtdanningSendtTilApi validertSkjema
                                     )
 
                             else
