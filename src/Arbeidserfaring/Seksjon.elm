@@ -71,6 +71,8 @@ type Samtale
     = Intro
     | VelgEnArbeidserfaringÅRedigere
     | RegistrerYrke Bool (Typeahead.Model Yrke)
+    | HentingFraTypeaheadFeilet (Typeahead.Model Yrke) Http.Error
+    | HenterFraTypeaheadPåNyttEtterFeiling (Typeahead.Model Yrke) Http.Error
     | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
     | EndreJobbtittel JobbtittelInfo
     | RegistrereBedriftsnavn BedriftnavnInfo
@@ -103,6 +105,8 @@ type Msg
     | TypeaheadMsg (Typeahead.Msg Yrke)
     | HentetYrkeTypeahead (Result Http.Error (List Yrke))
     | BrukerVilRegistrereYrke
+    | BrukerVilAvbryteHentingFraTypeahead
+    | BrukerVilPrøveÅHenteFraTypeaheadPåNytt
     | BrukerVilEndreJobbtittel JobbtittelInfo
     | BrukerVilIkkeEndreJobbtittel
     | BrukerOppdatererJobbtittelFelt String
@@ -356,11 +360,8 @@ update msg (Model model) =
                 RegistrerYrke visFeilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
-                            ( let
-                                nyTypeaheadModel =
-                                    Typeahead.updateSuggestions Yrke.label typeaheadModel suggestions
-                              in
-                              nyTypeaheadModel
+                            ( suggestions
+                                |> Typeahead.updateSuggestions Yrke.label typeaheadModel
                                 |> RegistrerYrke visFeilmelding
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
@@ -368,7 +369,42 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model model, logFeilmelding error "Hente Yrketypeahead" )
+                            ( error
+                                |> HentingFraTypeaheadFeilet typeaheadModel
+                                |> nesteSamtaleStegUtenSvar model
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                , logFeilmelding error "Hente Yrketypeahead"
+                                ]
+                            )
+                                |> IkkeFerdig
+
+                HenterFraTypeaheadPåNyttEtterFeiling typeaheadModel _ ->
+                    case result of
+                        Ok suggestions ->
+                            ( Model
+                                { model
+                                    | aktivSamtale =
+                                        suggestions
+                                            |> Typeahead.updateSuggestions Yrke.label typeaheadModel
+                                            |> RegistrerYrke False
+                                    , seksjonsMeldingsLogg =
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå gikk det!" ] ]
+                                }
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            ( error
+                                |> HentingFraTypeaheadFeilet typeaheadModel
+                                |> nesteSamtaleStegUtenSvar model
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                , logFeilmelding error "Hente Yrketypeahead"
+                                ]
+                            )
                                 |> IkkeFerdig
 
                 RedigerOppsummering typeaheadModel skjema ->
@@ -400,6 +436,29 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilPrøveÅHenteFraTypeaheadPåNytt ->
+            case model.aktivSamtale of
+                HentingFraTypeaheadFeilet typeaheadModel error ->
+                    ( error
+                        |> HenterFraTypeaheadPåNyttEtterFeiling typeaheadModel
+                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                    , typeaheadModel
+                        |> Typeahead.inputValue
+                        |> Api.getYrkeTypeahead HentetYrkeTypeahead
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerVilAvbryteHentingFraTypeahead ->
+            ( VenterPåAnimasjonFørFullføring "Ok, da går vi videre."
+                |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
 
         BrukerVilEndreJobbtittel jobbtittelInfo ->
             ( EndreJobbtittel jobbtittelInfo
@@ -1218,6 +1277,12 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
             ]
 
+        HentingFraTypeaheadFeilet _ error ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "hente forslag i søkefeltet" } ]
+
+        HenterFraTypeaheadPåNyttEtterFeiling _ _ ->
+            []
+
         SpørOmBrukerVilEndreJobbtittel info ->
             [ Melding.spørsmål [ "Du valgte «" ++ Yrke.label info.tidligereInfo ++ "» . Hvis dette ikke stemmer helt, kan du gi yrket et nytt navn. Det navnet vil vises på CV-en din. Ønsker du å kalle det noe annet? " ]
             ]
@@ -1378,6 +1443,33 @@ viewBrukerInput (Model model) =
                         |> Typeahead.view Yrke.label typeaheadModel
                         |> Html.map TypeaheadMsg
                     ]
+
+            HentingFraTypeaheadFeilet _ error ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilPrøveÅHenteFraTypeaheadPåNytt "Prøv igjen"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            HenterFraTypeaheadPåNyttEtterFeiling _ error ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+                    _ ->
+                        text ""
 
             SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
                 Containers.knapper Flytende
