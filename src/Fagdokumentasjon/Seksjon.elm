@@ -16,13 +16,13 @@ import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
-import ErrorHandtering exposing (OperasjonEtterError(..))
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
 import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
-import FrontendModuler.LoggInnLenke as Common
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Textarea as Textarea
 import Html exposing (Html, text)
 import Http exposing (Error(..))
@@ -52,6 +52,8 @@ type alias ModelInfo =
 
 type Samtale
     = RegistrerKonsept FagdokumentasjonType Bool (Typeahead.Model Konsept)
+    | HentingFraTypeaheadFeilet FagdokumentasjonType (Typeahead.Model Konsept) Http.Error
+    | HenterFraTypeaheadPåNyttEtterFeiling FagdokumentasjonType (Typeahead.Model Konsept) Http.Error
     | RegistrerBeskrivelse FagdokumentasjonType BeskrivelseInfo
     | Oppsummering ValidertFagdokumentasjonSkjema
     | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
@@ -100,6 +102,8 @@ type Msg
     = TypeaheadMsg (Typeahead.Msg Konsept)
     | HentetTypeahead (Result Http.Error (List Konsept))
     | BrukerVilRegistrereKonsept
+    | BrukerVilAvbryteHentingFraTypeahead
+    | BrukerVilPrøveÅHenteFraTypeaheadPåNytt
     | BrukerVilRegistrereFagbrevBeskrivelse
     | OppdaterFagdokumentasjonBeskrivelse String
     | BrukerVilLagreIOppsummeringen
@@ -152,11 +156,8 @@ update msg (Model model) =
                 RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
-                            ( let
-                                nyTypeaheadModel =
-                                    Typeahead.updateSuggestions Konsept.label typeaheadModel suggestions
-                              in
-                              nyTypeaheadModel
+                            ( suggestions
+                                |> Typeahead.updateSuggestions Konsept.label typeaheadModel
                                 |> RegistrerKonsept fagdokumentasjonType visFeilmelding
                                 |> oppdaterSamtaleSteg model
                             , Cmd.none
@@ -164,7 +165,42 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model model, logFeilmelding error "Hente FagbrevTypeahead" )
+                            ( error
+                                |> HentingFraTypeaheadFeilet fagdokumentasjonType typeaheadModel
+                                |> nesteSamtaleStegUtenSvar model
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                , logFeilmelding error "Hente FagbrevTypeahead"
+                                ]
+                            )
+                                |> IkkeFerdig
+
+                HenterFraTypeaheadPåNyttEtterFeiling fagdokumentasjonType typeaheadModel _ ->
+                    case result of
+                        Ok suggestions ->
+                            ( Model
+                                { model
+                                    | aktivSamtale =
+                                        suggestions
+                                            |> Typeahead.updateSuggestions Konsept.label typeaheadModel
+                                            |> RegistrerKonsept fagdokumentasjonType False
+                                    , seksjonsMeldingsLogg =
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå gikk det!" ] ]
+                                }
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            ( error
+                                |> HentingFraTypeaheadFeilet fagdokumentasjonType typeaheadModel
+                                |> nesteSamtaleStegUtenSvar model
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                , logFeilmelding error "Hente Yrketypeahead"
+                                ]
+                            )
                                 |> IkkeFerdig
 
                 EndrerOppsummering typeaheadModel skjema ->
@@ -195,6 +231,27 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilPrøveÅHenteFraTypeaheadPåNytt ->
+            case model.aktivSamtale of
+                HentingFraTypeaheadFeilet fagdokumentasjonsType typeaheadModel error ->
+                    ( error
+                        |> HenterFraTypeaheadPåNyttEtterFeiling fagdokumentasjonsType typeaheadModel
+                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                    , hentTypeaheadSuggestions (Typeahead.inputValue typeaheadModel) fagdokumentasjonsType
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerVilAvbryteHentingFraTypeahead ->
+            ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe
+                |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
 
         BrukerVilRegistrereFagbrevBeskrivelse ->
             case model.aktivSamtale of
@@ -563,7 +620,7 @@ lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus =
             False
 
         LagrerPåNyttEtterError error ->
-            ErrorHandtering.operasjonEtterError error == LoggInn
+            ErrorHåndtering.operasjonEtterError error == LoggInn
 
         ForsøkÅLagrePåNyttEtterDetteForsøket ->
             True
@@ -665,6 +722,12 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                     , Melding.spørsmål [ "Begynn å skriv inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
                     ]
 
+        HentingFraTypeaheadFeilet _ _ error ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "hente forslag i søkefeltet" } ]
+
+        HenterFraTypeaheadPåNyttEtterFeiling _ _ _ ->
+            []
+
         RegistrerBeskrivelse fagdokumentasjonType _ ->
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
@@ -704,7 +767,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
             [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         LagringFeilet validertSkjema error ->
-            [ ErrorHandtering.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
+            [ ErrorHåndtering.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
 
         VenterPåAnimasjonFørFullføring _ ->
             []
@@ -771,6 +834,33 @@ viewBrukerInput (Model model) =
                         |> Html.map TypeaheadMsg
                     ]
 
+            HentingFraTypeaheadFeilet _ _ error ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    PrøvPåNytt ->
+                        Containers.knapper Flytende
+                            [ Knapp.knapp BrukerVilPrøveÅHenteFraTypeaheadPåNytt "Prøv igjen"
+                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
+                                |> Knapp.toHtml
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            HenterFraTypeaheadPåNyttEtterFeiling _ _ error ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+                    _ ->
+                        text ""
+
             RegistrerBeskrivelse _ beskrivelseinfo ->
                 Containers.inputMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
                     [ beskrivelseinfo.beskrivelse
@@ -813,7 +903,7 @@ viewBrukerInput (Model model) =
                 text ""
 
             LagringFeilet _ error ->
-                case ErrorHandtering.operasjonEtterError error of
+                case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
                         Containers.knapper Flytende
                             [ Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
@@ -829,7 +919,7 @@ viewBrukerInput (Model model) =
                             ]
 
                     LoggInn ->
-                        Common.viewLoggInnLenke
+                        LoggInnLenke.viewLoggInnLenke
 
             VenterPåAnimasjonFørFullføring _ ->
                 text ""
