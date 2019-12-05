@@ -86,6 +86,9 @@ server.use(
                     level: 'Error',
                     message: err.code
                 }));
+                if (err.code === 'ECONNRESET') {
+                    return res.status(502).send('Fikk "ECONNRESET" på request til api-gateway');
+                }
             }
             next(err);
         }

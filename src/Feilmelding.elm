@@ -37,6 +37,9 @@ feilmelding operasjon error =
         Http.NetworkError ->
             Nothing
 
+        Http.BadStatus 401 ->
+            Nothing
+
         Http.BadStatus statusCode ->
             Feilmelding
                 { operasjon = operasjon
