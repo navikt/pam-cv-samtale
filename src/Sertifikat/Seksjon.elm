@@ -1180,7 +1180,7 @@ viewBrukerInput (Model model) =
                             |> DatoInput.toHtml
                         , if not (Skjema.utløperIkke skjema) then
                             DatoInput.datoInput
-                                { label = "Når går sertifiseringen din ut?"
+                                { label = "Når utløper sertifiseringen?"
                                 , onMånedChange = UtløperMåned >> SkjemaEndret
                                 , måned = Skjema.utløperMåned skjema
                                 , onÅrChange = UtløperÅr >> SkjemaEndret
@@ -1195,7 +1195,7 @@ viewBrukerInput (Model model) =
                         ]
                     , skjema
                         |> Skjema.utløperIkke
-                        |> Checkbox.checkbox "Sertifiseringen går ikke ut" (SkjemaEndret UtløperIkkeToggled)
+                        |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
                         |> Checkbox.withClass "blokk-m"
                         |> Checkbox.toHtml
                     ]
