@@ -71,7 +71,6 @@ server.use(
             ...proxyReqOpts,
             headers: {
                 ...proxyReqOpts.headers,
-                'Cookie': srcReq.header('Cookie'),
                 'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', srcReq.header('Cookie')),
                 'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY,
                 'kilde': 'cv-samtale'
