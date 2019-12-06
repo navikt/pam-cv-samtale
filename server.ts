@@ -81,12 +81,17 @@ server.use(
         ),
         proxyErrorHandler: (err: any, res: Response, next: NextFunction) => {
             if (err && err.code) {
-                console.log(JSON.stringify({
-                    level: 'Error',
-                    message: err.message ? `${err.code}: ${err.message}` : err.code
-                }));
                 if (err.code === 'ECONNRESET') {
+                    console.log(JSON.stringify({
+                        level: 'Info',
+                        message: err.message ? `${err.code}: ${err.message}` : err.code
+                    }));
                     return res.status(502).send('Fikk "ECONNRESET" på request til api-gateway');
+                } else {
+                    console.log(JSON.stringify({
+                        level: 'Error',
+                        message: err.message ? `${err.code}: ${err.message}` : err.code
+                    }));
                 }
             }
             next(err);
