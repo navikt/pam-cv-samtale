@@ -403,7 +403,7 @@ update msg (Model model) =
 
         BrukerVilEndreJobbtittel jobbtittelInfo ->
             ( EndreJobbtittel jobbtittelInfo
-                |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke kalle det noe annet" ])
+                |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil kalle det noe annet" ])
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -1223,7 +1223,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
             ]
 
         EndreJobbtittel _ ->
-            []
+            [ Melding.spørsmål [ "Ok, da kan du skrive inn et nytt navn." ] ]
 
         RegistrereBedriftsnavn _ ->
             [ Melding.spørsmål [ "Hvilken bedrift jobber eller jobbet du i?" ] ]
