@@ -1056,29 +1056,25 @@ viewVarighet skjema =
     fieldset [ class "DatoInput-fieldset" ]
         [ legend [ class "skjemaelement__label" ]
             [ text "Hvor lenge varte kurset?" ]
-        , div [ class "Varighet-kolonne skjemaelement" ]
-            [ div [ class "Inputs-wrapper" ]
-                [ Skjema.innholdTekstFelt Varighet skjema
-                    |> Input.input { label = "Antall", msg = Tekst Varighet >> SkjemaEndret }
-                    |> Input.withClass "Varighet-antall"
-                    |> Input.withOnBlur (SkjemaEndret VarighetBlurred)
-                    |> Input.withMaybeFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
-                    |> Input.toHtml
-                , div [ class "Select-wrapper" ]
-                    [ Select.select
-                        "Timer/dager/uker/måneder"
-                        (VarighetEnhet >> SkjemaEndret)
-                        [ ( "Timer", "Timer" )
-                        , ( "Dager", "Dager" )
-                        , ( "Uker", "Uker" )
-                        , ( "Måneder", "Måneder" )
-                        ]
-                        |> Select.withSelected
-                            (Skjema.varighetEnhetTilString (Skjema.varighetEnhet skjema))
-                        |> Select.withClass "Varighet-enhet"
-                        |> Select.toHtml
-                    ]
+        , div [ class "Varighet-wrapper skjemaelement" ]
+            [ Skjema.innholdTekstFelt Varighet skjema
+                |> Input.input { label = "Antall", msg = Tekst Varighet >> SkjemaEndret }
+                |> Input.withClass "Varighet-antall"
+                |> Input.withOnBlur (SkjemaEndret VarighetBlurred)
+                |> Input.withMaybeFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
+                |> Input.toHtml
+            , Select.select
+                "Timer/dager/uker/måneder"
+                (VarighetEnhet >> SkjemaEndret)
+                [ ( "Timer", "Timer" )
+                , ( "Dager", "Dager" )
+                , ( "Uker", "Uker" )
+                , ( "Måneder", "Måneder" )
                 ]
+                |> Select.withSelected
+                    (Skjema.varighetEnhetTilString (Skjema.varighetEnhet skjema))
+                |> Select.withClass "Varighet-enhet"
+                |> Select.toHtml
             ]
         ]
 
