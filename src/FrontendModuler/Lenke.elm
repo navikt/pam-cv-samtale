@@ -1,4 +1,4 @@
-module FrontendModuler.Lenke exposing (Lenke, lenke, toHtml, withClass, withId, withOnFocus, withTargetBlank)
+module FrontendModuler.Lenke exposing (Lenke, lenke, tekst_, toHtml, withClass, withId, withOnFocus, withTargetBlank)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -94,3 +94,8 @@ toHtml (Lenke options) =
 noAttribute : Html.Attribute msg
 noAttribute =
     classList []
+
+
+tekst_ : Lenke msg -> String
+tekst_ (Lenke options) =
+    options.tekst
