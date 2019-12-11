@@ -1743,7 +1743,7 @@ viewSpørsmål spørsmål =
                     , ariaLive "off"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
-                    [ viewSkriveStatus ]
+                    [ div [ class "skriver-melding" ] [] ]
 
             Skriveindikator ->
                 div
