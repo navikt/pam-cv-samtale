@@ -63,6 +63,7 @@ type Samtale
     | Oppsummering ValidertFørerkortSkjema
     | EndreSkjema { skjema : FørerkortSkjema, visFeilmelding : Bool }
     | OppsummeringEtterEndring ValidertFørerkortSkjema
+    | BekreftSlettingAvPåbegynt ValidertFørerkortSkjema
     | LagrerFørerkort ValidertFørerkortSkjema LagreStatus
     | LagrerFørerkortKlasseB ValidertFørerkortSkjema LagreStatus
     | LagringFeilet Http.Error ValidertFørerkortSkjema
@@ -110,6 +111,9 @@ type Msg
     | BrukerVilEndreOppsummeringen
     | FraDatoLagreknappTrykket
     | SkjemaEndret SkjemaEndring
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
     | FerdigMedFørerkort
     | SendSkjemaPåNytt
@@ -546,10 +550,10 @@ update msg (Model model) =
         BrukerVilLagreIOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
 
                 OppsummeringEtterEndring skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -568,6 +572,50 @@ update msg (Model model) =
                     ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema, visFeilmelding = False }
                         |> EndreSkjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                Oppsummering skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                OppsummeringEtterEndring skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( model.førerkort
+                        |> VenterPåAnimasjonFørFullføring
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( Oppsummering skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke slette." ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -884,10 +932,13 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
         EndreSkjema _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
-        OppsummeringEtterEndring validertFørerkortSkjema ->
+        OppsummeringEtterEndring _ ->
             [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
-        LagringFeilet error validertFørerkortSkjema ->
+        BekreftSlettingAvPåbegynt _ ->
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette dette førerkortet?" ] ]
+
+        LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre førerkort" } ]
 
         SvarteNeiPåKlasseB ->
@@ -984,15 +1035,6 @@ listeTilSetning list =
 
 
 --- VIEW ---
-
-
-maybeHvisTrue : Bool -> Maybe a -> Maybe a
-maybeHvisTrue bool maybe =
-    if bool then
-        maybe
-
-    else
-        Nothing
 
 
 viewBrukerInput : Model -> Html Msg
@@ -1099,12 +1141,7 @@ viewBrukerInput (Model model) =
                     ]
 
             Oppsummering _ ->
-                Containers.knapper Flytende
-                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                        |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-                        |> Knapp.toHtml
-                    ]
+                viewBekreftOppsummering
 
             EndreSkjema skjema ->
                 Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
@@ -1148,10 +1185,13 @@ viewBrukerInput (Model model) =
                     ]
 
             OppsummeringEtterEndring _ ->
+                viewBekreftOppsummering
+
+            BekreftSlettingAvPåbegynt _ ->
                 Containers.knapper Flytende
-                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
                         |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                         |> Knapp.toHtml
                     ]
 
@@ -1184,6 +1224,18 @@ viewBrukerInput (Model model) =
 
     else
         text ""
+
+
+viewBekreftOppsummering : Html Msg
+viewBekreftOppsummering =
+    Containers.knapper Kolonne
+        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, det er riktig"
+            |> Knapp.toHtml
+        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+            |> Knapp.toHtml
+        , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
+            |> Knapp.toHtml
+        ]
 
 
 

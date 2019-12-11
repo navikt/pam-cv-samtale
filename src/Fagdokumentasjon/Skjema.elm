@@ -13,7 +13,7 @@ module Fagdokumentasjon.Skjema exposing
     , konseptStringFraValidertSkjema
     , oppdaterBeskrivelse
     , oppdaterKonsept
-    , tilSkjema
+    , tilUvalidertSkjema
     , validertSkjema
     )
 
@@ -57,8 +57,8 @@ initValidertSkjema skjemaType konsept_ beskrivelse_ =
         }
 
 
-tilSkjema : ValidertFagdokumentasjonSkjema -> FagdokumentasjonSkjema
-tilSkjema (ValidertSkjema info) =
+tilUvalidertSkjema : ValidertFagdokumentasjonSkjema -> FagdokumentasjonSkjema
+tilUvalidertSkjema (ValidertSkjema info) =
     UvalidertSkjema
         { konsept = Just info.konsept
         , visFeilmeldingTypeahead = False

@@ -54,6 +54,12 @@ type alias ModelInfo =
     }
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | LaTilNy
+    | EndretEksisterende
+
+
 type Samtale
     = Intro (List Utdanning)
     | VelgEnUtdanningÅRedigere
@@ -69,9 +75,10 @@ type Samtale
     | Oppsummering ValidertUtdanningSkjema
     | EndrerOppsummering UtdanningSkjema
     | OppsummeringEtterEndring ValidertUtdanningSkjema
+    | BekreftSlettingAvPåbegynt ValidertUtdanningSkjema
     | LagrerSkjema ValidertUtdanningSkjema LagreStatus
     | LagringFeilet Http.Error ValidertUtdanningSkjema
-    | LeggTilFlereUtdanninger
+    | LeggTilFlereUtdanninger AvsluttetGrunn
     | VenterPåAnimasjonFørFullføring (List Utdanning)
 
 
@@ -212,6 +219,9 @@ type Msg
     | TilÅrMisterFokus
     | BrukerVilGåTilOppsummering
     | BrukerVilEndreOppsummering
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | OppsummeringBekreftet
     | OppsummeringEndret SkjemaEndring
     | OppsummeringSkjemaLagreknappTrykket
@@ -252,7 +262,7 @@ update msg (Model model) =
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
-                LeggTilFlereUtdanninger ->
+                LeggTilFlereUtdanninger _ ->
                     IkkeFerdig
                         ( nesteSamtaleSteg model (Melding.svar [ "Ja, legg til en utdanning" ]) RegistrerNivå
                         , lagtTilSpørsmålCmd model.debugStatus
@@ -292,30 +302,12 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         GåTilArbeidserfaring knappeTekst ->
-            case model.aktivSamtale of
-                Intro _ ->
-                    ( model.utdanningListe
-                        |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                LeggTilFlereUtdanninger ->
-                    ( model.utdanningListe
-                        |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( model.utdanningListe
-                        |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+            ( model.utdanningListe
+                |> VenterPåAnimasjonFørFullføring
+                |> nesteSamtaleSteg model (Melding.svar [ knappeTekst ])
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
 
         BrukerVilRegistrereNivå nivå ->
             case model.aktivSamtale of
@@ -566,6 +558,46 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                Oppsummering skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                OppsummeringEtterEndring skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil slette" ]) (LeggTilFlereUtdanninger SlettetPåbegynt), lagtTilSpørsmålCmd model.debugStatus )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( Oppsummering skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke slette." ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         OppsummeringBekreftet ->
             case model.aktivSamtale of
                 Oppsummering ferdigskjema ->
@@ -574,7 +606,7 @@ update msg (Model model) =
                 OppsummeringEtterEndring ferdigskjema ->
                     updateEtterLagreKnappTrykket model ferdigskjema
 
-                LeggTilFlereUtdanninger ->
+                LeggTilFlereUtdanninger _ ->
                     ( VenterPåAnimasjonFørFullføring model.utdanningListe
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg er ferdig." ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -625,12 +657,20 @@ update msg (Model model) =
                 LagrerSkjema skjema lagreStatus ->
                     case result of
                         Ok value ->
+                            let
+                                avsluttetGrunn =
+                                    if List.length model.utdanningListe == List.length value then
+                                        EndretEksisterende
+
+                                    else
+                                        LaTilNy
+                            in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                LeggTilFlereUtdanninger
+                                LeggTilFlereUtdanninger avsluttetGrunn
                                     |> nesteSamtaleSteg { model | utdanningListe = value } (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
 
                               else
-                                LeggTilFlereUtdanninger
+                                LeggTilFlereUtdanninger avsluttetGrunn
                                     |> nesteSamtaleStegUtenMelding { model | utdanningListe = value }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -672,7 +712,15 @@ update msg (Model model) =
                 Oppsummering skjema ->
                     case result of
                         Ok value ->
-                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } LeggTilFlereUtdanninger, lagtTilSpørsmålCmd model.debugStatus )
+                            let
+                                avsluttetGrunn =
+                                    if List.length model.utdanningListe == List.length value then
+                                        EndretEksisterende
+
+                                    else
+                                        LaTilNy
+                            in
+                            ( nesteSamtaleStegUtenMelding { model | utdanningListe = value } (LeggTilFlereUtdanninger avsluttetGrunn), lagtTilSpørsmålCmd model.debugStatus )
                                 |> IkkeFerdig
 
                         Err error ->
@@ -890,7 +938,7 @@ updateEtterLagreKnappTrykket : ModelInfo -> ValidertUtdanningSkjema -> SamtaleSt
 updateEtterLagreKnappTrykket model skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
-        |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
+        |> nesteSamtaleSteg model (Melding.svar [ "Ja, det er riktig" ])
     , postEllerPutUtdanning UtdanningSendtTilApi skjema
     )
         |> IkkeFerdig
@@ -1083,10 +1131,25 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         OppsummeringEtterEndring _ ->
             [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
-        LeggTilFlereUtdanninger ->
-            [ Melding.spørsmål [ "Så bra! Nå er utdanningen lagret👍" ]
-            , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
-            ]
+        BekreftSlettingAvPåbegynt _ ->
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne utdanningen?" ] ]
+
+        LeggTilFlereUtdanninger avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Utdanningen ble ikke lagret." ]
+                    , Melding.spørsmål [ "Vil du legge inn andre utdanninger? " ]
+                    ]
+
+                EndretEksisterende ->
+                    [ Melding.spørsmål [ "Så bra! Nå er utdanningen endret👍" ]
+                    , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
+                    ]
+
+                LaTilNy ->
+                    [ Melding.spørsmål [ "Så bra! Nå er utdanningen lagret👍" ]
+                    , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
+                    ]
 
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre utdanning" } ]
@@ -1240,24 +1303,46 @@ viewBrukerInput (Model model) =
                         ]
                     ]
 
-            Oppsummering _ ->
-                viewBekreftOppsummering
+            Oppsummering skjema ->
+                case Skjema.id (Skjema.tilUvalidertSkjema skjema) of
+                    Just _ ->
+                        viewBekreftOppsummering False
 
-            OppsummeringEtterEndring _ ->
-                viewBekreftOppsummering
+                    Nothing ->
+                        viewBekreftOppsummering True
+
+            OppsummeringEtterEndring skjema ->
+                case Skjema.id (Skjema.tilUvalidertSkjema skjema) of
+                    Just _ ->
+                        viewBekreftOppsummering False
+
+                    Nothing ->
+                        viewBekreftOppsummering True
 
             EndrerOppsummering utdanningsskjema ->
                 viewSkjema utdanningsskjema
 
-            LeggTilFlereUtdanninger ->
+            BekreftSlettingAvPåbegynt _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.toHtml
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
+                        |> Knapp.toHtml
+                    ]
+
+            LeggTilFlereUtdanninger _ ->
                 Containers.knapper Flytende
                     [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                         |> Knapp.toHtml
                     , Knapp.knapp OppsummeringBekreftet "Nei, jeg er ferdig"
                         |> Knapp.toHtml
-                    , "Nei, jeg vil endre det jeg har lagt inn"
-                        |> Knapp.knapp (BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn")
-                        |> Knapp.toHtml
+                    , if List.length model.utdanningListe > 0 then
+                        "Nei, jeg vil endre det jeg har lagt inn"
+                            |> Knapp.knapp (BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn")
+                            |> Knapp.toHtml
+
+                      else
+                        text ""
                     ]
 
             LagrerSkjema _ lagreStatus ->
@@ -1387,13 +1472,19 @@ viewSkjema utdanningsskjema =
         ]
 
 
-viewBekreftOppsummering : Html Msg
-viewBekreftOppsummering =
-    Containers.knapper Flytende
-        [ Knapp.knapp OppsummeringBekreftet "Ja, informasjonen er riktig"
+viewBekreftOppsummering : Bool -> Html Msg
+viewBekreftOppsummering skalViseSlett =
+    Containers.knapper Kolonne
+        [ Knapp.knapp OppsummeringBekreftet "Ja, det er riktig"
             |> Knapp.toHtml
         , Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
             |> Knapp.toHtml
+        , if skalViseSlett then
+            Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
+                |> Knapp.toHtml
+
+          else
+            text ""
         ]
 
 

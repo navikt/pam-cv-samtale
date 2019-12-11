@@ -72,6 +72,7 @@ type Samtale
     | VisOppsummering ValidertKursSkjema
     | EndreOpplysninger KursSkjema
     | VisOppsummeringEtterEndring ValidertKursSkjema
+    | BekreftSlettingAvPåbegynt ValidertKursSkjema
     | LagrerSkjema ValidertKursSkjema LagreStatus
     | LagringFeilet Http.Error ValidertKursSkjema
     | VenterPåAnimasjonFørFullføring (List Kurs)
@@ -186,6 +187,9 @@ type Msg
     | VilLagreKurs
     | VilEndreOpplysninger
     | SkjemaEndret SkjemaEndring
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
     | KursLagret (Result Http.Error (List Kurs))
     | FerdigMedKurs
@@ -463,6 +467,50 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                VisOppsummering skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                VisOppsummeringEtterEndring skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( model.kursListe
+                        |> VenterPåAnimasjonFørFullføring
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( VisOppsummering skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke slette." ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
                 EndreOpplysninger skjema ->
@@ -490,10 +538,10 @@ update msg (Model model) =
         VilLagreKurs ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
 
                 VisOppsummeringEtterEndring skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
 
                 LagringFeilet error skjema ->
                     ( error
@@ -785,6 +833,9 @@ samtaleTilMeldingsLogg kursSeksjon =
         VisOppsummeringEtterEndring _ ->
             [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
+        BekreftSlettingAvPåbegynt _ ->
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette dette kurset?" ] ]
+
         LagrerSkjema _ _ ->
             []
 
@@ -986,6 +1037,14 @@ viewBrukerInput (Model model) =
                         ]
                     ]
 
+            BekreftSlettingAvPåbegynt _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.toHtml
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
+                        |> Knapp.toHtml
+                    ]
+
             LagrerSkjema _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then
                     LoggInnLenke.viewLoggInnLenke
@@ -1043,10 +1102,12 @@ varighetEnhetKnapp enhet =
 
 viewBekreftOppsummering : Html Msg
 viewBekreftOppsummering =
-    Containers.knapper Flytende
-        [ Knapp.knapp VilLagreKurs "Ja, informasjonen er riktig"
+    Containers.knapper Kolonne
+        [ Knapp.knapp VilLagreKurs "Ja, det er riktig"
             |> Knapp.toHtml
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
+            |> Knapp.toHtml
+        , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
             |> Knapp.toHtml
         ]
 

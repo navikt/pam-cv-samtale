@@ -301,14 +301,14 @@ update msg (Model model) =
                         OpprinneligPersonalia _ ->
                             LagringLyktesFørsteGang
                                 |> VenterPåAnimasjonFørFullføring model.personalia
-                                |> nesteSamtaleSteg model (Melding.svar [ "Ja, informasjonen er riktig" ])
+                                |> nesteSamtaleSteg model (Melding.svar [ "Ja, det er riktig" ])
                                 |> fullførSeksjonHvisMeldingsloggErFerdig model.personalia
 
                         EndretPersonalia personalia ->
                             ( LagreStatus.init
                                 |> LagrerPersonalia personalia
                                 |> nesteSamtaleSteg model
-                                    (Melding.svar [ "Ja, informasjonen er riktig" ])
+                                    (Melding.svar [ "Ja, det er riktig" ])
                             , Cmd.batch
                                 [ model.personalia
                                     |> Personalia.id
@@ -660,7 +660,7 @@ viewTelefonISkjema personaliaSkjema =
 viewBekreftPersonalia : Html Msg
 viewBekreftPersonalia =
     Containers.knapper Flytende
-        [ Knapp.knapp VilLagreBekreftetPersonalia "Ja, informasjonen er riktig"
+        [ Knapp.knapp VilLagreBekreftetPersonalia "Ja, det er riktig"
             |> Knapp.toHtml
         , Knapp.knapp BrukerVilEndrePersonalia "Nei, jeg vil endre"
             |> Knapp.toHtml

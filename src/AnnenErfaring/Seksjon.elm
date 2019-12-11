@@ -63,6 +63,11 @@ type SamtaleStatus
     | Ferdig (List AnnenErfaring) FerdigAnimertMeldingsLogg
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | LaTilNy
+
+
 type Samtale
     = RegistrerRolle RolleInfo
     | RegistrerBeskrivelse BeskrivelseInfo
@@ -75,9 +80,10 @@ type Samtale
     | VisOppsummering ValidertAnnenErfaringSkjema
     | EndreOpplysninger AnnenErfaringSkjema
     | VisOppsummeringEtterEndring ValidertAnnenErfaringSkjema
+    | BekreftSlettingAvPåbegynt ValidertAnnenErfaringSkjema
     | LagrerSkjema ValidertAnnenErfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertAnnenErfaringSkjema
-    | VenterPåAnimasjonFørFullføring (List AnnenErfaring)
+    | VenterPåAnimasjonFørFullføring (List AnnenErfaring) AvsluttetGrunn
 
 
 type alias RolleInfo =
@@ -208,6 +214,9 @@ type Msg
     | VilLagreAnnenErfaring
     | VilEndreOpplysninger
     | SkjemaEndret SkjemaEndring
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
     | AnnenErfaringLagret (Result Http.Error (List AnnenErfaring))
     | FerdigMedAnnenErfaring
@@ -515,6 +524,49 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                VisOppsummering skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                VisOppsummeringEtterEndring skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( VenterPåAnimasjonFørFullføring model.annenErfaringListe SlettetPåbegynt
+                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil slette" ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( VisOppsummering skjema
+                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke slette." ])
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
                 EndreOpplysninger skjema ->
@@ -542,10 +594,10 @@ update msg (Model model) =
         VilLagreAnnenErfaring ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
 
                 VisOppsummeringEtterEndring skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
 
                 LagringFeilet error skjema ->
                     ( error
@@ -575,8 +627,7 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til denne erfaringen." ] ]
                             in
-                            ( annenErfaringer
-                                |> VenterPåAnimasjonFørFullføring
+                            ( VenterPåAnimasjonFørFullføring annenErfaringer LaTilNy
                                 |> oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg }
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -621,8 +672,7 @@ update msg (Model model) =
         FerdigMedAnnenErfaring ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( model.annenErfaringListe
-                        |> VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring model.annenErfaringListe LaTilNy
                         |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -716,7 +766,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring annenErfaringListe ->
+                VenterPåAnimasjonFørFullføring annenErfaringListe _ ->
                     Ferdig annenErfaringListe ferdigAnimertSamtale
 
                 _ ->
@@ -848,14 +898,22 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         VisOppsummeringEtterEndring _ ->
             [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
+        BekreftSlettingAvPåbegynt _ ->
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne erfaringen?" ] ]
+
         LagrerSkjema _ _ ->
             []
 
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre annen erfaring" } ]
 
-        VenterPåAnimasjonFørFullføring _ ->
-            []
+        VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Ok, erfaringen er ikke lagret." ] ]
+
+                LaTilNy ->
+                    []
 
 
 validertSkjemaTilSetninger : ValidertAnnenErfaringSkjema -> List String
@@ -1048,6 +1106,14 @@ viewBrukerInput (Model model) =
                         text ""
                     ]
 
+            BekreftSlettingAvPåbegynt _ ->
+                Containers.knapper Flytende
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.toHtml
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
+                        |> Knapp.toHtml
+                    ]
+
             LagrerSkjema _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then
                     LoggInnLenke.viewLoggInnLenke
@@ -1074,7 +1140,7 @@ viewBrukerInput (Model model) =
                     ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring _ ->
+            VenterPåAnimasjonFørFullføring _ _ ->
                 text ""
 
     else
@@ -1083,10 +1149,12 @@ viewBrukerInput (Model model) =
 
 viewBekreftOppsummering : Html Msg
 viewBekreftOppsummering =
-    Containers.knapper Flytende
-        [ Knapp.knapp VilLagreAnnenErfaring "Ja, informasjonen er riktig"
+    Containers.knapper Kolonne
+        [ Knapp.knapp VilLagreAnnenErfaring "Ja, det er riktig"
             |> Knapp.toHtml
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
+            |> Knapp.toHtml
+        , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
             |> Knapp.toHtml
         ]
 
