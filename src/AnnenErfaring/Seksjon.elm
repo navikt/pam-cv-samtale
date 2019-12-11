@@ -17,12 +17,11 @@ import Cv.AnnenErfaring exposing (AnnenErfaring)
 import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
+import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Checkbox as Checkbox
-import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
-import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Textarea as Textarea
 import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
@@ -991,11 +990,18 @@ inputIdTilString inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
+    model
+        |> modelTilBrukerInput
+        |> BrukerInput.toHtml
+
+
+modelTilBrukerInput : ModelInfo -> BrukerInput Msg
+modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
             RegistrerRolle info ->
-                Containers.inputMedGåVidereKnapp VilRegistrereRolle
-                    [ info.rolle
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereRolle
+                    (info.rolle
                         |> Input.input { label = "Rolle", msg = OppdatererRolle }
                         |> Input.withOnEnter VilRegistrereRolle
                         |> Input.withId (inputIdTilString RolleId)
@@ -1006,74 +1012,64 @@ viewBrukerInput (Model model) =
                                 |> maybeHvisTrue info.tillatÅViseFeilmeldingRolle
                             )
                         |> Input.withErObligatorisk
-                        |> Input.toHtml
-                    ]
+                    )
 
             RegistrerBeskrivelse info ->
-                Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
-                    [ info.beskrivelse
+                BrukerInput.textareaMedGåVidereKnapp VilRegistrereBeskrivelse
+                    (info.beskrivelse
                         |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
                         |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
                         |> Textarea.withId (inputIdTilString BeskrivelseId)
-                        |> Textarea.toHtml
-                    ]
+                    )
 
             SpørOmBrukerVilLeggeInnTidsperiode _ ->
-                Containers.knapper Flytende
+                BrukerInput.knapper Flytende
                     [ "Ja, det vil jeg"
                         |> Knapp.knapp SvarerJaTilTidsperiode
-                        |> Knapp.toHtml
                     , "Nei, det vil jeg ikke"
                         |> Knapp.knapp SvarerNeiTilTidsperiode
-                        |> Knapp.toHtml
                     ]
 
             RegistrerFraMåned _ ->
-                MånedKnapper.månedKnapper FraMånedValgt
+                BrukerInput.månedKnapper FraMånedValgt
 
             RegistrerFraÅr fraDatoInfo ->
-                Containers.inputMedGåVidereKnapp VilRegistrereFraÅr
-                    [ div [ class "år-wrapper" ]
-                        [ fraDatoInfo.fraÅr
-                            |> Input.input { label = "År", msg = OppdatererFraÅr }
-                            |> Input.withClass "aar"
-                            |> Input.withOnEnter VilRegistrereFraÅr
-                            |> Input.withOnBlur FeltMisterFokus
-                            |> Input.withId (inputIdTilString FraÅrId)
-                            |> Input.withMaybeFeilmelding
-                                (fraDatoInfo.fraÅr
-                                    |> Dato.feilmeldingÅr
-                                    |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
-                                )
-                            |> Input.withErObligatorisk
-                            |> Input.toHtml
-                        ]
-                    ]
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereFraÅr
+                    (fraDatoInfo.fraÅr
+                        |> Input.input { label = "År", msg = OppdatererFraÅr }
+                        |> Input.withClass "aar"
+                        |> Input.withWrapperClass "år-wrapper"
+                        |> Input.withOnEnter VilRegistrereFraÅr
+                        |> Input.withOnBlur FeltMisterFokus
+                        |> Input.withId (inputIdTilString FraÅrId)
+                        |> Input.withMaybeFeilmelding
+                            (fraDatoInfo.fraÅr
+                                |> Dato.feilmeldingÅr
+                                |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
+                            )
+                        |> Input.withErObligatorisk
+                    )
 
             RegistrerNåværende _ ->
-                Containers.knapper Flytende
+                BrukerInput.knapper Flytende
                     [ Knapp.knapp SvarerJaTilNåværende "Ja"
-                        |> Knapp.toHtml
                     , Knapp.knapp SvarerNeiTilNåværende "Nei"
-                        |> Knapp.toHtml
                     ]
 
             RegistrerTilMåned _ ->
-                MånedKnapper.månedKnapper TilMånedValgt
+                BrukerInput.månedKnapper TilMånedValgt
 
             RegistrerTilÅr tilDatoInfo ->
-                Containers.inputMedGåVidereKnapp VilRegistrereTilÅr
-                    [ div [ class "år-wrapper" ]
-                        [ tilDatoInfo.tilÅr
-                            |> Input.input { label = "År", msg = OppdatererTilÅr }
-                            |> Input.withClass "aar"
-                            |> Input.withOnEnter VilRegistrereTilÅr
-                            |> Input.withOnBlur FeltMisterFokus
-                            |> Input.withId (inputIdTilString TilÅrId)
-                            |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
-                            |> Input.toHtml
-                        ]
-                    ]
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereTilÅr
+                    (tilDatoInfo.tilÅr
+                        |> Input.input { label = "År", msg = OppdatererTilÅr }
+                        |> Input.withClass "aar"
+                        |> Input.withWrapperClass "år-wrapper"
+                        |> Input.withOnEnter VilRegistrereTilÅr
+                        |> Input.withOnBlur FeltMisterFokus
+                        |> Input.withId (inputIdTilString TilÅrId)
+                        |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
+                    )
 
             VisOppsummering _ ->
                 viewBekreftOppsummering
@@ -1082,7 +1078,7 @@ viewBrukerInput (Model model) =
                 viewBekreftOppsummering
 
             EndreOpplysninger skjema ->
-                Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                BrukerInput.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
                     [ skjema
                         |> Skjema.innholdTekstFelt Rolle
                         |> Input.input { label = "Rolle", msg = Tekst Rolle >> SkjemaEndret }
@@ -1107,11 +1103,9 @@ viewBrukerInput (Model model) =
                     ]
 
             BekreftSlettingAvPåbegynt _ ->
-                Containers.knapper Flytende
+                BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
-                        |> Knapp.toHtml
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
-                        |> Knapp.toHtml
                     ]
 
             LagrerSkjema _ lagreStatus ->
@@ -1119,43 +1113,37 @@ viewBrukerInput (Model model) =
                     LoggInnLenke.viewLoggInnLenke
 
                 else
-                    text ""
+                    BrukerInput.utenInnhold
 
             LagringFeilet error _ ->
                 case ErrorHåndtering.operasjonEtterError error of
                     ErrorHåndtering.GiOpp ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     ErrorHåndtering.PrøvPåNytt ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreAnnenErfaring "Prøv igjen"
-                                |> Knapp.toHtml
                             , Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
             VenterPåAnimasjonFørFullføring _ _ ->
-                text ""
+                BrukerInput.utenInnhold
 
     else
-        text ""
+        BrukerInput.utenInnhold
 
 
-viewBekreftOppsummering : Html Msg
+viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
-    Containers.knapper Kolonne
+    BrukerInput.knapper Kolonne
         [ Knapp.knapp VilLagreAnnenErfaring "Ja, det er riktig"
-            |> Knapp.toHtml
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
-            |> Knapp.toHtml
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
-            |> Knapp.toHtml
         ]
 
 

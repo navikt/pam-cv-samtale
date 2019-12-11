@@ -71,94 +71,97 @@ withId id (DatoInputMedDag info) =
 toHtml : DatoInputMedDag msg -> Html msg
 toHtml (DatoInputMedDag options) =
     div []
-        [ div [ class "ForerkortSeksjon-datolinje" ]
-            [ div [ class "DatoInputMedDag-dag-wrapper" ]
-                [ div [ class "skjemaelement" ]
-                    [ Html.input
-                        [ type_ "text"
-                        , value options.dag
-                        , options.id
-                            |> Maybe.map id
-                            |> Maybe.withDefault noAttribute
-                        , classList
-                            [ ( "skjemaelement__input", True )
-                            , ( "input--fullbredde", True )
-                            , ( "skjemaelement__input--harFeil"
-                              , options.feilmelding
-                                    |> Maybe.map .feilPåDag
-                                    |> Maybe.withDefault False
-                              )
+        [ label [] [ text options.label ]
+        , div []
+            [ div [ class "ForerkortSeksjon-datolinje" ]
+                [ div [ class "DatoInputMedDag-dag-wrapper" ]
+                    [ div [ class "skjemaelement" ]
+                        [ Html.input
+                            [ type_ "text"
+                            , value options.dag
+                            , options.id
+                                |> Maybe.map id
+                                |> Maybe.withDefault noAttribute
+                            , classList
+                                [ ( "skjemaelement__input", True )
+                                , ( "input--fullbredde", True )
+                                , ( "skjemaelement__input--harFeil"
+                                  , options.feilmelding
+                                        |> Maybe.map .feilPåDag
+                                        |> Maybe.withDefault False
+                                  )
+                                ]
+                            , placeholder "Dag"
+                            , onInput options.onDagChange
                             ]
-                        , placeholder "Dag"
-                        , onInput options.onDagChange
+                            []
                         ]
-                        []
                     ]
-                ]
-            , div [ class "DatoInputMedDag-mnd-wrapper" ]
-                [ Select.select
-                    ""
-                    options.onMånedChange
-                    [ ( "", "Velg måned" )
-                    , ( "Januar", "Januar" )
-                    , ( "Februar", "Februar" )
-                    , ( "Mars", "Mars" )
-                    , ( "April", "April" )
-                    , ( "Mai", "Mai" )
-                    , ( "Juni", "Juni" )
-                    , ( "Juli", "Juli" )
-                    , ( "August", "August" )
-                    , ( "September", "September" )
-                    , ( "Oktober", "Oktober" )
-                    , ( "November", "November" )
-                    , ( "Desember", "Desember" )
-                    ]
-                    |> Select.withMaybeSelected (Maybe.map Dato.månedTilString options.måned)
-                    |> Select.withClass "DatoInput-måned"
-                    |> Select.withMaybeFeilmelding
-                        (case options.feilmelding of
-                            Just { feilmelding, feilPåDag, feilPåMåned, feilPåÅr } ->
-                                if feilPåMåned then
-                                    Just ""
+                , div [ class "DatoInputMedDag-mnd-wrapper" ]
+                    [ Select.select
+                        ""
+                        options.onMånedChange
+                        [ ( "", "Velg måned" )
+                        , ( "Januar", "Januar" )
+                        , ( "Februar", "Februar" )
+                        , ( "Mars", "Mars" )
+                        , ( "April", "April" )
+                        , ( "Mai", "Mai" )
+                        , ( "Juni", "Juni" )
+                        , ( "Juli", "Juli" )
+                        , ( "August", "August" )
+                        , ( "September", "September" )
+                        , ( "Oktober", "Oktober" )
+                        , ( "November", "November" )
+                        , ( "Desember", "Desember" )
+                        ]
+                        |> Select.withMaybeSelected (Maybe.map Dato.månedTilString options.måned)
+                        |> Select.withClass "DatoInput-måned"
+                        |> Select.withMaybeFeilmelding
+                            (case options.feilmelding of
+                                Just { feilmelding, feilPåDag, feilPåMåned, feilPåÅr } ->
+                                    if feilPåMåned then
+                                        Just ""
 
-                                else
+                                    else
+                                        Nothing
+
+                                Nothing ->
                                     Nothing
-
-                            Nothing ->
-                                Nothing
-                        )
-                    |> Select.toHtml
-                ]
-            , div [ class "skjemaelement" ]
-                [ div [ class "DatoInput-år-wrapper" ]
-                    [ Html.input
-                        [ type_ "text"
-                        , value options.år
-                        , classList
-                            [ ( "skjemaelement__input", True )
-                            , ( "input--fullbredde", True )
-                            , ( "skjemaelement__input--harFeil"
-                              , options.feilmelding
-                                    |> Maybe.map .feilPåÅr
-                                    |> Maybe.withDefault False
-                              )
+                            )
+                        |> Select.toHtml
+                    ]
+                , div [ class "skjemaelement" ]
+                    [ div [ class "DatoInput-år-wrapper" ]
+                        [ Html.input
+                            [ type_ "text"
+                            , value options.år
+                            , classList
+                                [ ( "skjemaelement__input", True )
+                                , ( "input--fullbredde", True )
+                                , ( "skjemaelement__input--harFeil"
+                                  , options.feilmelding
+                                        |> Maybe.map .feilPåÅr
+                                        |> Maybe.withDefault False
+                                  )
+                                ]
+                            , placeholder "År"
+                            , onInput options.onÅrChange
                             ]
-                        , placeholder "År"
-                        , onInput options.onÅrChange
+                            []
                         ]
-                        []
                     ]
                 ]
-            ]
-        , case options.feilmelding of
-            Just feilmelding ->
-                div [ role "alert", ariaLive "assertive" ]
-                    [ div [ class "skjemaelement__feilmelding" ]
-                        [ text feilmelding.feilmelding ]
-                    ]
+            , case options.feilmelding of
+                Just feilmelding ->
+                    div [ role "alert", ariaLive "assertive" ]
+                        [ div [ class "skjemaelement__feilmelding" ]
+                            [ text feilmelding.feilmelding ]
+                        ]
 
-            Nothing ->
-                text ""
+                Nothing ->
+                    text ""
+            ]
         ]
 
 

@@ -2,7 +2,9 @@ module FrontendModuler.Knapp exposing
     ( Enabled(..)
     , Knapp
     , Type(..)
+    , innhold
     , knapp
+    , msg
     , toHtml
     , withEnabled
     , withType
@@ -36,10 +38,10 @@ type Type
 
 
 knapp : msg -> String -> Knapp msg
-knapp msg innhold =
+knapp msg_ innhold_ =
     Knapp
-        { msg = msg
-        , innhold = innhold
+        { msg = msg_
+        , innhold = innhold_
         , enabled = Enabled
         , knappeType = Normal
         }
@@ -71,3 +73,13 @@ toHtml (Knapp options) =
                 , disabled True
                 ]
                 [ text options.innhold ]
+
+
+msg : Knapp msg -> msg
+msg (Knapp options) =
+    options.msg
+
+
+innhold : Knapp msg -> String
+innhold (Knapp options) =
+    options.innhold

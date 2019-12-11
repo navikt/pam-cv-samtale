@@ -20,15 +20,17 @@ import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
-import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
+import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Textarea as Textarea
-import Html exposing (Html, text)
+import FrontendModuler.Typeahead
+import Html exposing (Html)
 import Http exposing (Error(..))
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
@@ -141,7 +143,7 @@ update msg (Model model) =
                             |> Skjema.oppdaterKonsept skjema
                             |> Skjema.gjørFeilmeldingKonseptSynlig (Typeahead.inputStatus status == InputBlurred)
                             |> EndrerOppsummering nyTypeaheadModel
-                            |> oppdaterSamtaleSteg model
+                            |> oppdaterSamtale model IngenNyeMeldinger
                         , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput string ->
                                 skjema
@@ -163,7 +165,7 @@ update msg (Model model) =
                             ( suggestions
                                 |> Typeahead.updateSuggestions Konsept.label typeaheadModel
                                 |> RegistrerKonsept fagdokumentasjonType visFeilmelding
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -171,7 +173,7 @@ update msg (Model model) =
                         Err error ->
                             ( error
                                 |> HentingFraTypeaheadFeilet fagdokumentasjonType typeaheadModel
-                                |> nesteSamtaleStegUtenSvar model
+                                |> oppdaterSamtale model UtenSvar
                             , Cmd.batch
                                 [ lagtTilSpørsmålCmd model.debugStatus
                                 , logFeilmelding error "Hente FagbrevTypeahead"
@@ -199,7 +201,7 @@ update msg (Model model) =
                         Err error ->
                             ( error
                                 |> HentingFraTypeaheadFeilet fagdokumentasjonType typeaheadModel
-                                |> nesteSamtaleStegUtenSvar model
+                                |> oppdaterSamtale model UtenSvar
                             , Cmd.batch
                                 [ lagtTilSpørsmålCmd model.debugStatus
                                 , logFeilmelding error "Hente Yrketypeahead"
@@ -211,7 +213,7 @@ update msg (Model model) =
                     case result of
                         Ok suggestions ->
                             ( EndrerOppsummering (Typeahead.updateSuggestions Konsept.label typeaheadModel suggestions) skjema
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -228,7 +230,7 @@ update msg (Model model) =
                 RegistrerKonsept fagdokumentasjonType _ typeaheadModel ->
                     case Typeahead.selected typeaheadModel of
                         Just konsept ->
-                            brukerVilRegistrereKonsept model fagdokumentasjonType konsept
+                            brukerVilRegistrereKonsept model msg fagdokumentasjonType konsept
 
                         Nothing ->
                             visFeilmeldingRegistrerKonsept model fagdokumentasjonType typeaheadModel
@@ -241,7 +243,7 @@ update msg (Model model) =
                 HentingFraTypeaheadFeilet fagdokumentasjonsType typeaheadModel error ->
                     ( error
                         |> HenterFraTypeaheadPåNyttEtterFeiling fagdokumentasjonsType typeaheadModel
-                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , hentTypeaheadSuggestions (Typeahead.inputValue typeaheadModel) fagdokumentasjonsType
                     )
                         |> IkkeFerdig
@@ -252,7 +254,7 @@ update msg (Model model) =
 
         BrukerVilAvbryteHentingFraTypeahead ->
             ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe
-                |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
+                |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -264,7 +266,7 @@ update msg (Model model) =
                         Nothing ->
                             ( Skjema.initValidertSkjema fagdokumentasjonType info.konsept info.beskrivelse
                                 |> Oppsummering
-                                |> nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -279,11 +281,11 @@ update msg (Model model) =
             case model.aktivSamtale of
                 Oppsummering skjema ->
                     LagrerFørsteGang
-                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
+                        |> updateEtterLagreKnappTrykket model msg skjema
 
                 OppsummeringEtterEndring skjema ->
                     LagrerFørsteGang
-                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
+                        |> updateEtterLagreKnappTrykket model msg skjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -291,10 +293,10 @@ update msg (Model model) =
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering validertSkjema ->
-                    initRedigeringAvValidertSkjema model validertSkjema
+                    initRedigeringAvValidertSkjema model msg validertSkjema
 
                 OppsummeringEtterEndring validertSkjema ->
-                    initRedigeringAvValidertSkjema model validertSkjema
+                    initRedigeringAvValidertSkjema model msg validertSkjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -303,14 +305,14 @@ update msg (Model model) =
             case model.aktivSamtale of
                 Oppsummering skjema ->
                     ( BekreftSlettingAvPåbegynt skjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 OppsummeringEtterEndring skjema ->
                     ( BekreftSlettingAvPåbegynt skjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -323,7 +325,7 @@ update msg (Model model) =
                 BekreftSlettingAvPåbegynt _ ->
                     ( model.fagdokumentasjonListe
                         |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg vil slette" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -335,7 +337,7 @@ update msg (Model model) =
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt skjema ->
                     ( Oppsummering skjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke slette." ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -351,8 +353,7 @@ update msg (Model model) =
                             IkkeFerdig
                                 ( validertSkjema
                                     |> OppsummeringEtterEndring
-                                    |> nesteSamtaleSteg model
-                                        (Melding.svar (validertSkjemaTilSetninger validertSkjema))
+                                    |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
 
@@ -361,7 +362,7 @@ update msg (Model model) =
                                 ( skjema
                                     |> Skjema.gjørFeilmeldingKonseptSynlig True
                                     |> EndrerOppsummering typeaheadModel
-                                    |> oppdaterSamtaleSteg model
+                                    |> oppdaterSamtale model IngenNyeMeldinger
                                 , Cmd.none
                                 )
 
@@ -371,19 +372,18 @@ update msg (Model model) =
         OppdaterFagdokumentasjonBeskrivelse beskrivelse ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse fagdokumentasjonType info ->
-                    ( oppdaterSamtaleSteg model (RegistrerBeskrivelse fagdokumentasjonType { info | beskrivelse = beskrivelse })
+                    ( { info | beskrivelse = beskrivelse }
+                        |> RegistrerBeskrivelse fagdokumentasjonType
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
 
                 EndrerOppsummering typeaheadModel skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                skjema
-                                    |> Skjema.oppdaterBeskrivelse beskrivelse
-                                    |> EndrerOppsummering typeaheadModel
-                        }
+                    ( skjema
+                        |> Skjema.oppdaterBeskrivelse beskrivelse
+                        |> EndrerOppsummering typeaheadModel
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -426,7 +426,7 @@ update msg (Model model) =
                         Err error ->
                             ( error
                                 |> LagringFeilet skjema
-                                |> nesteSamtaleStegUtenSvar model
+                                |> oppdaterSamtale model UtenSvar
                             , Cmd.batch
                                 [ lagtTilSpørsmålCmd model.debugStatus
                                 , logFeilmelding error "Lagre fagbrev"
@@ -444,7 +444,7 @@ update msg (Model model) =
                         LagringFeilet skjema ((BadStatus 401) as error) ->
                             ( skjema
                                 |> Lagrer (LagrerPåNyttEtterError error)
-                                |> nesteSamtaleStegUtenSvar model
+                                |> oppdaterSamtale model UtenSvar
                             , Api.postFagdokumentasjon FagbrevSendtTilApi skjema
                             )
                                 |> IkkeFerdig
@@ -452,7 +452,7 @@ update msg (Model model) =
                         Lagrer (LagrerPåNyttEtterError (BadStatus 401)) skjema ->
                             ( skjema
                                 |> Lagrer ForsøkÅLagrePåNyttEtterDetteForsøket
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -468,7 +468,7 @@ update msg (Model model) =
                 LagringFeilet skjema error ->
                     error
                         |> LagrerPåNyttEtterError
-                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, prøv på nytt" ])
+                        |> updateEtterLagreKnappTrykket model msg skjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -477,7 +477,7 @@ update msg (Model model) =
             IkkeFerdig
                 ( model.fagdokumentasjonListe
                     |> VenterPåAnimasjonFørFullføring
-                    |> nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre uten å lagre" ])
+                    |> oppdaterSamtale model (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
 
@@ -503,12 +503,12 @@ validertSkjemaTilSetninger validertSkjema =
     ]
 
 
-initRedigeringAvValidertSkjema : ModelInfo -> ValidertFagdokumentasjonSkjema -> SamtaleStatus
-initRedigeringAvValidertSkjema model validertSkjema =
+initRedigeringAvValidertSkjema : ModelInfo -> Msg -> ValidertFagdokumentasjonSkjema -> SamtaleStatus
+initRedigeringAvValidertSkjema model msg validertSkjema =
     ( validertSkjema
         |> Skjema.tilUvalidertSkjema
         |> EndrerOppsummering (initSkjemaTypeaheadFraValidertSkjema validertSkjema)
-        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
         , validertSkjema
@@ -561,7 +561,7 @@ updateSamtaleTypeahead model fagdokumentasjonType visFeilmelding msg typeaheadMo
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just konsept ->
-                    brukerVilRegistrereKonsept model fagdokumentasjonType konsept
+                    brukerVilRegistrereKonsept model (TypeaheadMsg msg) fagdokumentasjonType konsept
 
                 Nothing ->
                     visFeilmeldingRegistrerKonsept model fagdokumentasjonType nyTypeaheadModel
@@ -573,7 +573,7 @@ updateSamtaleTypeahead model fagdokumentasjonType visFeilmelding msg typeaheadMo
             IkkeFerdig
                 ( nyTypeaheadModel
                     |> RegistrerKonsept fagdokumentasjonType visFeilmelding
-                    |> oppdaterSamtaleSteg model
+                    |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         hentTypeaheadSuggestions string fagdokumentasjonType
@@ -585,19 +585,20 @@ updateSamtaleTypeahead model fagdokumentasjonType visFeilmelding msg typeaheadMo
 
 visFeilmeldingRegistrerKonsept : ModelInfo -> FagdokumentasjonType -> Typeahead.Model Konsept -> SamtaleStatus
 visFeilmeldingRegistrerKonsept model fagdokumentasjonType typeaheadModel =
-    ( RegistrerKonsept fagdokumentasjonType True typeaheadModel
-        |> oppdaterSamtaleSteg model
+    ( typeaheadModel
+        |> RegistrerKonsept fagdokumentasjonType True
+        |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )
         |> IkkeFerdig
 
 
-brukerVilRegistrereKonsept : ModelInfo -> FagdokumentasjonType -> Konsept -> SamtaleStatus
-brukerVilRegistrereKonsept model fagdokumentasjonType konsept =
+brukerVilRegistrereKonsept : ModelInfo -> Msg -> FagdokumentasjonType -> Konsept -> SamtaleStatus
+brukerVilRegistrereKonsept model msg fagdokumentasjonType konsept =
     ( konsept
         |> forrigetilBeskrivelseInfo
         |> RegistrerBeskrivelse fagdokumentasjonType
-        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , lagtTilSpørsmålCmd model.debugStatus
     )
         |> IkkeFerdig
@@ -629,12 +630,12 @@ hentTypeaheadSuggestions query fagdokumentasjonType =
             Api.getAutorisasjonTypeahead HentetTypeahead query
 
 
-updateEtterLagreKnappTrykket : ModelInfo -> ValidertFagdokumentasjonSkjema -> Melding -> LagreStatus -> SamtaleStatus
-updateEtterLagreKnappTrykket model skjema svar lagreStatus =
+updateEtterLagreKnappTrykket : ModelInfo -> Msg -> ValidertFagdokumentasjonSkjema -> LagreStatus -> SamtaleStatus
+updateEtterLagreKnappTrykket model msg skjema lagreStatus =
     IkkeFerdig
         ( skjema
             |> Lagrer lagreStatus
-            |> nesteSamtaleSteg model svar
+            |> oppdaterSamtale model (SvarFraMsg msg)
         , Cmd.batch
             [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
             , lagtTilSpørsmålCmd model.debugStatus
@@ -683,11 +684,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
                     Ferdig fagdokumentasjonListe ferdigAnimertSamtale
 
                 _ ->
-                    ( Model
-                        { model
-                            | seksjonsMeldingsLogg =
-                                nyMeldingsLogg
-                        }
+                    ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
                     , Cmd.batch
                         [ Cmd.map SamtaleAnimasjonMsg cmd
                         , settFokus model.aktivSamtale
@@ -719,34 +716,36 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
-nesteSamtaleSteg model melding samtaleSeksjon =
+svarFraBrukerInput : ModelInfo -> Msg -> Melding
+svarFraBrukerInput modelInfo msg =
+    modelInfo
+        |> modelTilBrukerInput
+        |> BrukerInput.tilSvarMelding msg
+
+
+oppdaterSamtale : ModelInfo -> SamtaleOppdatering Msg -> Samtale -> Model
+oppdaterSamtale model meldingsoppdatering samtale =
     Model
         { model
-            | aktivSamtale = samtaleSeksjon
+            | aktivSamtale = samtale
             , seksjonsMeldingsLogg =
-                model.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSvar melding
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-        }
+                case meldingsoppdatering of
+                    IngenNyeMeldinger ->
+                        model.seksjonsMeldingsLogg
 
+                    SvarFraMsg msg ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-nesteSamtaleStegUtenSvar : ModelInfo -> Samtale -> Model
-nesteSamtaleStegUtenSvar model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-            , seksjonsMeldingsLogg =
-                model.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-        }
+                    ManueltSvar melding ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar melding
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-
-oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
-oppdaterSamtaleSteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
+                    UtenSvar ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
         }
 
 
@@ -883,31 +882,35 @@ settFokusCmd inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
+    model
+        |> modelTilBrukerInput
+        |> BrukerInput.toHtml
+
+
+modelTilBrukerInput : ModelInfo -> BrukerInput Msg
+modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
             RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
-                Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereKonsept
-                    [ typeaheadModel
+                BrukerInput.typeaheadMedGåVidereKnapp BrukerVilRegistrereKonsept
+                    (typeaheadModel
                         |> feilmeldingTypeahead fagdokumentasjonType
                         |> maybeHvisTrue visFeilmelding
-                        |> Typeahead.view Konsept.label typeaheadModel
-                        |> Html.map TypeaheadMsg
-                    ]
+                        |> Typeahead.toViewElement Konsept.label typeaheadModel
+                        |> FrontendModuler.Typeahead.map TypeaheadMsg
+                    )
 
             HentingFraTypeaheadFeilet _ _ error ->
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     PrøvPåNytt ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅHenteFraTypeaheadPåNytt "Prøv igjen"
-                                |> Knapp.toHtml
                             , Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     LoggInn ->
@@ -919,22 +922,21 @@ viewBrukerInput (Model model) =
                         LoggInnLenke.viewLoggInnLenke
 
                     _ ->
-                        text ""
+                        BrukerInput.utenInnhold
 
             RegistrerBeskrivelse _ beskrivelseinfo ->
-                Containers.inputMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
-                    [ beskrivelseinfo.beskrivelse
+                BrukerInput.textareaMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
+                    (beskrivelseinfo.beskrivelse
                         |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
                         |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
                         |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                        |> Textarea.toHtml
-                    ]
+                    )
 
             Oppsummering _ ->
                 viewBekreftOppsummering
 
             EndrerOppsummering typeaheadModel skjema ->
-                Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre endringer" }
+                BrukerInput.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre endringer" }
                     [ skjema
                         |> Skjema.feilmeldingTypeahead
                         |> Typeahead.view Konsept.label typeaheadModel
@@ -958,37 +960,39 @@ viewBrukerInput (Model model) =
                     ]
 
             Lagrer _ _ ->
-                text ""
+                BrukerInput.utenInnhold
 
             LagringFeilet _ error ->
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     PrøvPåNytt ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
-                                |> Knapp.toHtml
                             , Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
             VenterPåAnimasjonFørFullføring _ ->
-                text ""
+                BrukerInput.utenInnhold
 
     else
-        text ""
+        BrukerInput.utenInnhold
 
 
 viewBekreftOppsummering : Html Msg
 viewBekreftOppsummering =
-    Containers.knapper Kolonne
+    BrukerInput.knapper Kolonne
+        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
+        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+        ]
+        Containers.knapper
+        Kolonne
         [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, det er riktig"
             |> Knapp.toHtml
         , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"

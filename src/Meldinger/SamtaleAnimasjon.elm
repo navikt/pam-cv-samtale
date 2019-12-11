@@ -165,7 +165,7 @@ lengdePåSkriveindikatorIMillisekunder meldingsLogg =
             300
 
         FørsteMelding antallOrdNesteMelding ->
-            1300
+            1000
 
         FinnesEnForrigeMelding { forrige, neste } ->
             let
@@ -173,7 +173,7 @@ lengdePåSkriveindikatorIMillisekunder meldingsLogg =
                     (((forrige * 2) + neste) // 3)
                         |> toFloat
             in
-            gjennomsnitteligAntallOrd * 160
+            gjennomsnitteligAntallOrd * 100
 
 
 ventetidFørBrukerinputScrollesInn : MeldingsLogg -> Float
