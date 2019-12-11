@@ -1403,7 +1403,7 @@ modelTilBrukerInput model =
                     (typeaheadModel
                         |> feilmeldingTypeahead
                         |> maybeHvisTrue visFeilmelding
-                        |> Typeahead.view2 Yrke.label typeaheadModel
+                        |> Typeahead.toViewElement Yrke.label typeaheadModel
                         |> FrontendModuler.Typeahead.map TypeaheadMsg
                     )
 
@@ -1608,7 +1608,7 @@ modelTilBrukerInput model =
 
             StartNyArbeidserfaring typeaheadModel ->
                 BrukerInput.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
-                    (Typeahead.view2 Yrke.label typeaheadModel Nothing
+                    (Typeahead.toViewElement Yrke.label typeaheadModel Nothing
                         |> FrontendModuler.Typeahead.map TypeaheadMsg
                     )
 

@@ -836,7 +836,7 @@ modelTilBrukerInput model =
                     (typeaheadModel
                         |> feilmeldingTypeahead fagdokumentasjonType
                         |> maybeHvisTrue visFeilmelding
-                        |> Typeahead.view2 Konsept.label typeaheadModel
+                        |> Typeahead.toViewElement Konsept.label typeaheadModel
                         |> FrontendModuler.Typeahead.map TypeaheadMsg
                     )
 

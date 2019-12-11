@@ -11,10 +11,10 @@ module Typeahead.Typeahead exposing
     , inputStatus
     , inputValue
     , selected
+    , toViewElement
     , update
     , updateSuggestions
     , view
-    , view2
     )
 
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
@@ -235,7 +235,13 @@ updateSuggestions toString (Model model) suggestions =
 
 
 view : (a -> String) -> Model a -> Maybe String -> Html (Msg a)
-view toString (Model model) feilmelding =
+view toString model feilmelding =
+    toViewElement toString model feilmelding
+        |> Typeahead.toHtml
+
+
+toViewElement : (a -> String) -> Model a -> Maybe String -> Typeahead (Msg a)
+toViewElement toString (Model model) feilmelding =
     model.typeaheadState
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererInput, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
@@ -245,18 +251,6 @@ view toString (Model model) feilmelding =
         |> Typeahead.withOnBlur TypeaheadMistetFokus
         -- Foreløpig er alle typeaheadfeltene våre obligatoriske, så sender med dette valget uansett
         |> Typeahead.withErObligatorisk
-        |> Typeahead.toHtml
-
-
-view2 : (a -> String) -> Model a -> Maybe String -> Typeahead (Msg a)
-view2 toString (Model model) feilmelding =
-    model.typeaheadState
-        |> TypeaheadState.value
-        |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererInput, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
-        |> Typeahead.withSuggestions (viewSuggestion toString model.typeaheadState)
-        |> Typeahead.withFeilmelding feilmelding
-        |> Typeahead.withOnFocus TypeaheadFikkFokus
-        |> Typeahead.withOnBlur TypeaheadMistetFokus
 
 
 viewSuggestion : (a -> String) -> TypeaheadState a -> List (Typeahead.Suggestion (Msg a))

@@ -1094,7 +1094,7 @@ modelTilBrukerInput model =
                     (typeaheadModel
                         |> feilmeldingTypeahead
                         |> maybeHvisTrue visFeilmelding
-                        |> Typeahead.view2 SertifikatTypeahead.label typeaheadModel
+                        |> Typeahead.toViewElement SertifikatTypeahead.label typeaheadModel
                         |> FrontendModuler.Typeahead.map TypeaheadMsg
                     )
 
