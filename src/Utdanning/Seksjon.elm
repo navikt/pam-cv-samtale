@@ -60,6 +60,12 @@ type AvsluttetGrunn
     | EndretEksisterende
 
 
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = Intro (List Utdanning)
     | VelgEnUtdanningÅRedigere
@@ -72,9 +78,8 @@ type Samtale
     | RegistrereNåværende NåværendeInfo
     | RegistrereTilMåned TilDatoInfo
     | RegistrereTilÅr TilDatoInfo
-    | Oppsummering ValidertUtdanningSkjema
+    | Oppsummering OppsummeringsType ValidertUtdanningSkjema
     | EndrerOppsummering UtdanningSkjema
-    | OppsummeringEtterEndring ValidertUtdanningSkjema
     | BekreftSlettingAvPåbegynt ValidertUtdanningSkjema
     | LagrerSkjema ValidertUtdanningSkjema LagreStatus
     | LagringFeilet Http.Error ValidertUtdanningSkjema
@@ -436,7 +441,7 @@ update msg (Model model) =
                 RegistrereNåværende nåværendeInfo ->
                     ( nåværendeInfo
                         |> nåværendeInfoTilUtdanningsSkjema
-                        |> Oppsummering
+                        |> Oppsummering FørsteGang
                         |> nesteSamtaleSteg model (Melding.svar [ "Ja, jeg holder fortsatt på" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -506,7 +511,7 @@ update msg (Model model) =
                     case Dato.stringTilÅr tilDatoInfo.tilÅr of
                         Just år ->
                             ( forrigeTilOppsummeringInfo tilDatoInfo år
-                                |> Oppsummering
+                                |> Oppsummering FørsteGang
                                 |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -525,10 +530,7 @@ update msg (Model model) =
 
         BrukerVilEndreOppsummering ->
             case model.aktivSamtale of
-                Oppsummering utdanningskjema ->
-                    updateEtterVilEndreSkjema model utdanningskjema
-
-                OppsummeringEtterEndring utdanningskjema ->
+                Oppsummering _ utdanningskjema ->
                     updateEtterVilEndreSkjema model utdanningskjema
 
                 _ ->
@@ -560,14 +562,7 @@ update msg (Model model) =
 
         VilSlettePåbegynt ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
-                    ( BekreftSlettingAvPåbegynt skjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                OppsummeringEtterEndring skjema ->
+                Oppsummering _ skjema ->
                     ( BekreftSlettingAvPåbegynt skjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -589,7 +584,7 @@ update msg (Model model) =
         AngrerSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt skjema ->
-                    ( Oppsummering skjema
+                    ( Oppsummering AvbrøtSletting skjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke slette." ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -600,10 +595,7 @@ update msg (Model model) =
 
         OppsummeringBekreftet ->
             case model.aktivSamtale of
-                Oppsummering ferdigskjema ->
-                    updateEtterLagreKnappTrykket model ferdigskjema
-
-                OppsummeringEtterEndring ferdigskjema ->
+                Oppsummering _ ferdigskjema ->
                     updateEtterLagreKnappTrykket model ferdigskjema
 
                 LeggTilFlereUtdanninger _ ->
@@ -622,7 +614,7 @@ update msg (Model model) =
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> OppsummeringEtterEndring
+                                |> Oppsummering EtterEndring
                                 |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -709,7 +701,7 @@ update msg (Model model) =
                                 )
                                     |> IkkeFerdig
 
-                Oppsummering skjema ->
+                Oppsummering _ skjema ->
                     case result of
                         Ok value ->
                             let
@@ -1112,24 +1104,40 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         RegistrereTilÅr _ ->
             [ Melding.spørsmål [ "Hvilket år fullførte du utdanningen din?" ] ]
 
-        Oppsummering validertSkjema ->
-            [ [ [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                ]
-              , validertSkjemaTilSetninger validertSkjema
-              , [ Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-              ]
-                |> List.concat
-                |> Melding.spørsmål
-            ]
+        Oppsummering oppsummeringsType validertSkjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Da sletter jeg ikke utdanningen" ]
+                    , [ [ "Du har lagt inn dette:"
+                        , Melding.tomLinje
+                        ]
+                      , validertSkjemaTilSetninger validertSkjema
+                      , [ Melding.tomLinje
+                        , "Er informasjonen riktig?"
+                        ]
+                      ]
+                        |> List.concat
+                        |> Melding.spørsmål
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ [ [ "Du har lagt inn dette:"
+                        , Melding.tomLinje
+                        ]
+                      , validertSkjemaTilSetninger validertSkjema
+                      , [ Melding.tomLinje
+                        , "Er informasjonen riktig?"
+                        ]
+                      ]
+                        |> List.concat
+                        |> Melding.spørsmål
+                    ]
 
         EndrerOppsummering _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
-
-        OppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         BekreftSlettingAvPåbegynt _ ->
             [ Melding.spørsmål [ "Er du sikker på at du vil slette denne utdanningen?" ] ]
@@ -1137,9 +1145,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         LeggTilFlereUtdanninger avsluttetGrunn ->
             case avsluttetGrunn of
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Utdanningen ble ikke lagret." ]
-                    , Melding.spørsmål [ "Vil du legge inn andre utdanninger? " ]
-                    ]
+                    [ Melding.spørsmål [ "Nå er utdanningen slettet. Vil du legge inn flere utdanninger?" ] ]
 
                 EndretEksisterende ->
                     [ Melding.spørsmål [ "Så bra! Nå er utdanningen endret👍" ]
@@ -1303,15 +1309,7 @@ viewBrukerInput (Model model) =
                         ]
                     ]
 
-            Oppsummering skjema ->
-                case Skjema.id (Skjema.tilUvalidertSkjema skjema) of
-                    Just _ ->
-                        viewBekreftOppsummering False
-
-                    Nothing ->
-                        viewBekreftOppsummering True
-
-            OppsummeringEtterEndring skjema ->
+            Oppsummering _ skjema ->
                 case Skjema.id (Skjema.tilUvalidertSkjema skjema) of
                     Just _ ->
                         viewBekreftOppsummering False
