@@ -2,6 +2,7 @@ module FrontendModuler.Input exposing
     ( Enabled(..)
     , Input
     , InputOptions
+    , innhold
     , input
     , toHtml
     , withClass
@@ -13,6 +14,7 @@ module FrontendModuler.Input exposing
     , withOnBlur
     , withOnEnter
     , withPlaceholder
+    , withWrapperClass
     )
 
 import FrontendModuler.Feilmelding as Feilmelding
@@ -38,6 +40,7 @@ type alias Options msg =
     , innhold : String
     , feilmelding : Maybe String
     , classes : List String
+    , wrapperClasses : List String
     , onEnter : Maybe msg
     , onBlur : Maybe msg
     , id : Maybe String
@@ -55,13 +58,14 @@ type alias InputOptions msg =
 
 
 input : InputOptions msg -> String -> Input msg
-input { msg, label } innhold =
+input { msg, label } innhold_ =
     Input
         { msg = msg
         , label = Label label
-        , innhold = innhold
+        , innhold = innhold_
         , feilmelding = Nothing
         , classes = []
+        , wrapperClasses = []
         , onEnter = Nothing
         , onBlur = Nothing
         , id = Nothing
@@ -100,6 +104,11 @@ withEnabled enabled (Input options) =
 withClass : String -> Input msg -> Input msg
 withClass class (Input options) =
     Input { options | classes = class :: options.classes }
+
+
+withWrapperClass : String -> Input msg -> Input msg
+withWrapperClass class (Input options) =
+    Input { options | wrapperClasses = class :: options.wrapperClasses }
 
 
 withOnEnter : msg -> Input msg -> Input msg
@@ -144,7 +153,7 @@ decodeEnter msg i =
 
 toHtml : Input msg -> Html msg
 toHtml (Input options) =
-    div [ class "skjemaelement" ]
+    div [ class "skjemaelement", optionClasses options.wrapperClasses ]
         (case options.label of
             Label label_ ->
                 [ label []
@@ -211,3 +220,8 @@ optionClasses classes =
 noAttribute : Html.Attribute msg
 noAttribute =
     classList []
+
+
+innhold : Input msg -> String
+innhold (Input options) =
+    options.innhold

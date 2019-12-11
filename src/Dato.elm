@@ -19,6 +19,7 @@ module Dato exposing
     , getDatoÅr
     , månedTilNummerMåned
     , månedTilString
+    , måneder
     , periodeTilString
     , stringTilMaybeMåned
     , stringTilMåned
@@ -46,6 +47,23 @@ type Måned
     | Oktober
     | November
     | Desember
+
+
+måneder : List Måned
+måneder =
+    [ Januar
+    , Februar
+    , Mars
+    , April
+    , Mai
+    , Juni
+    , Juli
+    , August
+    , September
+    , Oktober
+    , November
+    , Desember
+    ]
 
 
 type alias DatoInfo =

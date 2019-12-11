@@ -16,11 +16,10 @@ import Cv.Kurs exposing (Kurs)
 import Dato exposing (Måned(..), År)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
-import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
+import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Input as Input
-import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Knapp as Knapp exposing (Knapp)
 import FrontendModuler.LoggInnLenke as LoggInnLenke
-import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Select as Select
 import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
@@ -31,6 +30,7 @@ import LagreStatus exposing (LagreStatus)
 import Meldinger.Melding as Melding exposing (Melding(..))
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
 
@@ -215,7 +215,7 @@ update msg (Model model) =
                         Just _ ->
                             ( { info | tillatÅViseFeilmeldingKursnavn = True }
                                 |> RegistrerKursnavn
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -224,7 +224,7 @@ update msg (Model model) =
                             ( info.kursnavn
                                 |> kursnavnTilKursholder
                                 |> RegistrerKursholder
-                                |> nesteSamtaleSteg model (Melding.svar [ info.kursnavn ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -237,7 +237,7 @@ update msg (Model model) =
                 RegistrerKursnavn info ->
                     ( { info | kursnavn = string }
                         |> RegistrerKursnavn
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -252,7 +252,7 @@ update msg (Model model) =
                         Nothing ->
                             ( input
                                 |> SpørOmBrukerVilLeggeInnFullførtDato
-                                |> nesteSamtaleSteg model (Melding.svar [ input.kursholder ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -268,7 +268,7 @@ update msg (Model model) =
                 RegistrerKursholder kursholder ->
                     ( { kursholder | kursholder = string }
                         |> RegistrerKursholder
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -282,7 +282,7 @@ update msg (Model model) =
                     ( info
                         |> kursholderTilFullførtDato
                         |> RegistrerFullførtMåned
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, det vil jeg" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -296,7 +296,7 @@ update msg (Model model) =
                     ( info
                         |> kursholderTilVarighet
                         |> RegistrerVarighetEnhet
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, det vil jeg ikke" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -310,8 +310,7 @@ update msg (Model model) =
                     ( måned
                         |> setFullførtMåned fullførtDatoInfo
                         |> RegistrerFullførtÅr
-                        |> nesteSamtaleSteg model
-                            (Melding.svar [ måned |> Dato.månedTilString ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -330,7 +329,7 @@ update msg (Model model) =
                               }
                                 |> fullførtDatoTilVarighet
                                 |> RegistrerVarighetEnhet
-                                |> nesteSamtaleSteg model (Melding.svar [ fullførtDatoInfo.fullførtÅr ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -338,7 +337,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { fullførtDatoInfo | tillatÅViseFeilmeldingÅr = True }
                                 |> RegistrerFullførtÅr
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -351,7 +350,7 @@ update msg (Model model) =
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | fullførtÅr = string }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -364,7 +363,7 @@ update msg (Model model) =
                 RegistrerVarighetEnhet varighetInfo ->
                     ( { varighetInfo | varighetEnhet = enhet }
                         |> RegistrerVarighet
-                        |> nesteSamtaleSteg model (Melding.svar [ Skjema.varighetEnhetTilString enhet ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -379,7 +378,7 @@ update msg (Model model) =
                         Just _ ->
                             ( { info | tillatÅViseFeilmeldingVarighet = True }
                                 |> RegistrerVarighet
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -388,7 +387,7 @@ update msg (Model model) =
                             ( info
                                 |> varighetTilSkjema
                                 |> VisOppsummering
-                                |> nesteSamtaleSteg model (Melding.svar [ info.varighet ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -401,7 +400,7 @@ update msg (Model model) =
                 RegistrerVarighet varighetInfo ->
                     ( { varighetInfo | varighet = varighet_ }
                         |> RegistrerVarighet
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -414,7 +413,7 @@ update msg (Model model) =
                 RegistrerKursnavn kursnavnInfo ->
                     ( { kursnavnInfo | tillatÅViseFeilmeldingKursnavn = True }
                         |> RegistrerKursnavn
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -422,7 +421,7 @@ update msg (Model model) =
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | tillatÅViseFeilmeldingÅr = True }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -430,7 +429,7 @@ update msg (Model model) =
                 RegistrerVarighet varighetInfo ->
                     ( { varighetInfo | tillatÅViseFeilmeldingVarighet = True }
                         |> RegistrerVarighet
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -441,10 +440,10 @@ update msg (Model model) =
         VilEndreOpplysninger ->
             case model.aktivSamtale of
                 VisOppsummering validertKursSkjema ->
-                    updateEtterVilEndreSkjema model validertKursSkjema
+                    updateEtterVilEndreSkjema model msg validertKursSkjema
 
                 VisOppsummeringEtterEndring validertKursSkjema ->
-                    updateEtterVilEndreSkjema model validertKursSkjema
+                    updateEtterVilEndreSkjema model msg validertKursSkjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -455,7 +454,7 @@ update msg (Model model) =
                     ( kursSkjema
                         |> oppdaterSkjema skjemaEndring
                         |> EndreOpplysninger
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -470,7 +469,7 @@ update msg (Model model) =
                         Just validertSkjema ->
                             ( validertSkjema
                                 |> VisOppsummeringEtterEndring
-                                |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
+                                |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -479,7 +478,7 @@ update msg (Model model) =
                             ( skjema
                                 |> Skjema.tillatÅViseAlleFeilmeldinger
                                 |> EndreOpplysninger
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -490,16 +489,16 @@ update msg (Model model) =
         VilLagreKurs ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model msg skjema
 
                 VisOppsummeringEtterEndring skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                    updateEtterLagreKnappTrykket model msg skjema
 
                 LagringFeilet error skjema ->
                     ( error
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , Api.postKurs KursLagret skjema
                     )
                         |> IkkeFerdig
@@ -525,7 +524,7 @@ update msg (Model model) =
                             in
                             ( kurs
                                 |> VenterPåAnimasjonFørFullføring
-                                |> oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg }
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -535,7 +534,7 @@ update msg (Model model) =
                                 if LagreStatus.forsøkPåNytt lagreStatus then
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , Api.postKurs KursLagret skjema
                                     )
                                         |> IkkeFerdig
@@ -543,7 +542,7 @@ update msg (Model model) =
                                 else
                                     ( skjema
                                         |> LagringFeilet error
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , skjema
                                         |> Skjema.encode
                                         |> Api.logErrorWithRequestBody ErrorLogget "Lagre kurs" error
@@ -553,7 +552,7 @@ update msg (Model model) =
                             else
                                 ( skjema
                                     |> LagringFeilet error
-                                    |> nesteSamtaleStegUtenMelding model
+                                    |> oppdaterSamtale model UtenSvar
                                 , Cmd.batch
                                     [ lagtTilSpørsmålCmd model.debugStatus
                                     , skjema
@@ -571,7 +570,7 @@ update msg (Model model) =
                 LagringFeilet _ _ ->
                     ( model.kursListe
                         |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -587,7 +586,7 @@ update msg (Model model) =
                             ( lagreStatus
                                 |> LagreStatus.setForsøkPåNytt
                                 |> LagrerSkjema skjema
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -598,7 +597,7 @@ update msg (Model model) =
                                     ( error
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , Api.postKurs KursLagret skjema
                                     )
 
@@ -677,22 +676,22 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
                 |> IkkeFerdig
 
 
-updateEtterVilEndreSkjema : ModelInfo -> ValidertKursSkjema -> SamtaleStatus
-updateEtterVilEndreSkjema model skjema =
+updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertKursSkjema -> SamtaleStatus
+updateEtterVilEndreSkjema model msg skjema =
     ( skjema
         |> Skjema.tilUvalidertSkjema
         |> EndreOpplysninger
-        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , lagtTilSpørsmålCmd model.debugStatus
     )
         |> IkkeFerdig
 
 
-updateEtterLagreKnappTrykket : ModelInfo -> ValidertKursSkjema -> Melding -> SamtaleStatus
-updateEtterLagreKnappTrykket model skjema melding =
+updateEtterLagreKnappTrykket : ModelInfo -> Msg -> ValidertKursSkjema -> SamtaleStatus
+updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
-        |> nesteSamtaleSteg model melding
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , Api.postKurs KursLagret skjema
     )
         |> IkkeFerdig
@@ -704,34 +703,36 @@ lagtTilSpørsmålCmd debugStatus =
         |> Cmd.map SamtaleAnimasjonMsg
 
 
-nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
-nesteSamtaleSteg modelInfo melding samtale =
+svarFraBrukerInput : ModelInfo -> Msg -> Melding
+svarFraBrukerInput modelInfo msg =
+    modelInfo
+        |> modelTilBrukerInput
+        |> BrukerInput.tilSvarMelding msg
+
+
+oppdaterSamtale : ModelInfo -> SamtaleOppdatering Msg -> Samtale -> Model
+oppdaterSamtale model meldingsoppdatering samtale =
     Model
-        { modelInfo
+        { model
             | aktivSamtale = samtale
             , seksjonsMeldingsLogg =
-                modelInfo.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSvar melding
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
-        }
+                case meldingsoppdatering of
+                    IngenNyeMeldinger ->
+                        model.seksjonsMeldingsLogg
 
+                    SvarFraMsg msg ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-nesteSamtaleStegUtenMelding : ModelInfo -> Samtale -> Model
-nesteSamtaleStegUtenMelding model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-            , seksjonsMeldingsLogg =
-                model.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-        }
+                    ManueltSvar melding ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar melding
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-
-oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
-oppdaterSamtaleSteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
+                    UtenSvar ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
         }
 
 
@@ -870,11 +871,18 @@ inputIdTilString inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
+    model
+        |> modelTilBrukerInput
+        |> BrukerInput.toHtml
+
+
+modelTilBrukerInput : ModelInfo -> BrukerInput Msg
+modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
             RegistrerKursnavn info ->
-                Containers.inputMedGåVidereKnapp VilRegistrereKursnavn
-                    [ info.kursnavn
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereKursnavn
+                    (info.kursnavn
                         |> Input.input { label = "Kursets navn", msg = OppdatererKursnavn }
                         |> Input.withOnEnter VilRegistrereKursnavn
                         |> Input.withId (inputIdTilString KursnavnId)
@@ -885,70 +893,60 @@ viewBrukerInput (Model model) =
                                 |> maybeHvisTrue info.tillatÅViseFeilmeldingKursnavn
                             )
                         |> Input.withErObligatorisk
-                        |> Input.toHtml
-                    ]
+                    )
 
             RegistrerKursholder info ->
-                Containers.inputMedGåVidereKnapp VilRegistrereKursholder
-                    [ info.kursholder
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereKursholder
+                    (info.kursholder
                         |> Input.input { label = "Kursets arrangør", msg = OppdatererKursholder }
                         |> Input.withOnEnter VilRegistrereKursholder
                         |> Input.withMaybeFeilmelding (Skjema.feilmeldingKursholder info.kursholder)
                         |> Input.withId (inputIdTilString KursholderId)
-                        |> Input.toHtml
-                    ]
+                    )
 
             SpørOmBrukerVilLeggeInnFullførtDato _ ->
-                Containers.knapper Flytende
-                    [ "Ja, det vil jeg"
-                        |> Knapp.knapp SvarerJaTilFullførtDato
-                        |> Knapp.toHtml
-                    , "Nei, det vil jeg ikke"
-                        |> Knapp.knapp SvarerNeiTilFullførtDato
-                        |> Knapp.toHtml
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp SvarerJaTilFullførtDato "Ja, det vil jeg"
+                    , Knapp.knapp SvarerNeiTilFullførtDato "Nei, det vil jeg ikke"
                     ]
 
             RegistrerFullførtMåned _ ->
-                MånedKnapper.månedKnapper FullførtMånedValgt
+                BrukerInput.månedKnapper FullførtMånedValgt
 
             RegistrerFullførtÅr fullførtDatoInfo ->
-                Containers.inputMedGåVidereKnapp VilRegistrereFullførtÅr
-                    [ div [ class "år-wrapper" ]
-                        [ fullførtDatoInfo.fullførtÅr
-                            |> Input.input { label = "År", msg = OppdatererFullførtÅr }
-                            |> Input.withClass "aar"
-                            |> Input.withOnEnter VilRegistrereFullførtÅr
-                            |> Input.withOnBlur FeltMisterFokus
-                            |> Input.withId (inputIdTilString FullførtÅrId)
-                            |> Input.withMaybeFeilmelding
-                                (fullførtDatoInfo.fullførtÅr
-                                    |> Dato.feilmeldingÅr
-                                    |> maybeHvisTrue fullførtDatoInfo.tillatÅViseFeilmeldingÅr
-                                )
-                            |> Input.withErObligatorisk
-                            |> Input.toHtml
-                        ]
-                    ]
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereFullførtÅr
+                    (fullførtDatoInfo.fullførtÅr
+                        |> Input.input { label = "År", msg = OppdatererFullførtÅr }
+                        |> Input.withClass "aar"
+                        |> Input.withWrapperClass "år-wrapper"
+                        |> Input.withOnEnter VilRegistrereFullførtÅr
+                        |> Input.withOnBlur FeltMisterFokus
+                        |> Input.withId (inputIdTilString FullførtÅrId)
+                        |> Input.withMaybeFeilmelding
+                            (fullførtDatoInfo.fullførtÅr
+                                |> Dato.feilmeldingÅr
+                                |> maybeHvisTrue fullførtDatoInfo.tillatÅViseFeilmeldingÅr
+                            )
+                        |> Input.withErObligatorisk
+                    )
 
             RegistrerVarighetEnhet _ ->
                 varighetEnhetKnapper
 
             RegistrerVarighet info ->
-                Containers.inputMedGåVidereKnapp VilRegistrereVarighet
-                    [ div [ class "år-wrapper" ]
-                        [ info.varighet
-                            |> Input.input { label = "Antall", msg = OppdatererVarighet }
-                            |> Input.withOnEnter VilRegistrereVarighet
-                            |> Input.withOnBlur FeltMisterFokus
-                            |> Input.withId (inputIdTilString VarighetId)
-                            |> Input.withMaybeFeilmelding
-                                (info.varighet
-                                    |> Skjema.feilmeldingVarighet
-                                    |> maybeHvisTrue info.tillatÅViseFeilmeldingVarighet
-                                )
-                            |> Input.toHtml
-                        ]
-                    ]
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereVarighet
+                    (info.varighet
+                        |> Input.input { label = "Antall", msg = OppdatererVarighet }
+                        |> Input.withWrapperClass "år-wrapper"
+                        |> Input.withOnEnter VilRegistrereVarighet
+                        |> Input.withOnBlur FeltMisterFokus
+                        |> Input.withId (inputIdTilString VarighetId)
+                        |> Input.withMaybeFeilmelding
+                            (info.varighet
+                                |> Skjema.feilmeldingVarighet
+                                |> maybeHvisTrue info.tillatÅViseFeilmeldingVarighet
+                            )
+                    )
 
             VisOppsummering _ ->
                 viewBekreftOppsummering
@@ -957,7 +955,7 @@ viewBrukerInput (Model model) =
                 viewBekreftOppsummering
 
             EndreOpplysninger skjema ->
-                Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                BrukerInput.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
                     [ skjema
                         |> Skjema.innholdTekstFelt Kursnavn
                         |> Input.input { label = "Kursnavn", msg = Tekst Kursnavn >> SkjemaEndret }
@@ -991,63 +989,54 @@ viewBrukerInput (Model model) =
                     LoggInnLenke.viewLoggInnLenke
 
                 else
-                    text ""
+                    BrukerInput.utenInnhold
 
             LagringFeilet error _ ->
                 case ErrorHåndtering.operasjonEtterError error of
                     ErrorHåndtering.GiOpp ->
-                        Containers.knapper Flytende
-                            [ Knapp.knapp FerdigMedKurs "Gå videre"
-                                |> Knapp.toHtml
-                            ]
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp FerdigMedKurs "Gå videre" ]
 
                     ErrorHåndtering.PrøvPåNytt ->
-                        Containers.knapper Flytende
-                            [ Knapp.knapp FerdigMedKurs "Prøv igjen"
-                                |> Knapp.toHtml
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp VilLagreKurs "Prøv igjen"
                             , Knapp.knapp FerdigMedKurs "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
             VenterPåAnimasjonFørFullføring _ ->
-                div [] []
+                BrukerInput.utenInnhold
 
     else
-        text ""
+        BrukerInput.utenInnhold
 
 
-varighetEnhetKnapper : Html Msg
+varighetEnhetKnapper : BrukerInput Msg
 varighetEnhetKnapper =
-    div [ class "knapperad" ]
-        [ div [ class "knapper--varighet" ]
-            (List.map varighetEnhetKnapp
-                [ Time
-                , Dag
-                , Uke
-                , Måned
-                ]
-            )
-        ]
+    BrukerInput.knapper VarighetGrid
+        (List.map varighetEnhetKnapp
+            [ Time
+            , Dag
+            , Uke
+            , Måned
+            ]
+        )
 
 
-varighetEnhetKnapp : VarighetEnhet -> Html Msg
+varighetEnhetKnapp : VarighetEnhet -> Knapp Msg
 varighetEnhetKnapp enhet =
     enhet
         |> Skjema.varighetEnhetTilString
         |> Knapp.knapp (VarighetEnhetValgt enhet)
-        |> Knapp.toHtml
 
 
-viewBekreftOppsummering : Html Msg
+viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
-    Containers.knapper Flytende
+    BrukerInput.knapper Flytende
         [ Knapp.knapp VilLagreKurs "Ja, informasjonen er riktig"
-            |> Knapp.toHtml
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
-            |> Knapp.toHtml
         ]
 
 

@@ -1,16 +1,14 @@
 module FrontendModuler.LoggInnLenke exposing (loggInnLenkeTekst, viewLoggInnLenke)
 
-import FrontendModuler.Containers as Containers
+import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput)
 import FrontendModuler.Lenke as Lenke
-import Html exposing (Html)
 
 
-viewLoggInnLenke : Html msg
+viewLoggInnLenke : BrukerInput msg
 viewLoggInnLenke =
-    Containers.lenke
+    BrukerInput.lenke
         (Lenke.lenke { tekst = loggInnLenkeTekst, url = "/cv-samtale/login?redirect=/logget-inn" }
             |> Lenke.withTargetBlank
-            |> Lenke.toHtml
         )
 
 

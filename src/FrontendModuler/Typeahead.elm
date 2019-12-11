@@ -3,6 +3,8 @@ module FrontendModuler.Typeahead exposing
     , Suggestion
     , Typeahead
     , TypeaheadOptions
+    , innhold
+    , map
     , toHtml
     , typeahead
     , withErObligatorisk
@@ -54,12 +56,12 @@ type alias TypeaheadOptions msg =
 
 
 typeahead : TypeaheadOptions msg -> String -> Typeahead msg
-typeahead options innhold =
+typeahead options innhold_ =
     Typeahead
         { label = options.label
         , onInput = options.onInput
         , onTypeaheadChange = options.onTypeaheadChange
-        , innhold = innhold
+        , innhold = innhold_
         , suggestions = []
         , inputId = options.inputId
         , feilmelding = Nothing
@@ -217,8 +219,8 @@ viewSuggestion inputFeltId suggestion =
 
 
 suggestionId : String -> Suggestion msg -> String
-suggestionId inputId { innhold } =
-    inputId ++ "-suggestion-" ++ String.replace " " "-" innhold
+suggestionId inputId options =
+    inputId ++ "-suggestion-" ++ String.replace " " "-" options.innhold
 
 
 suggestionsId : String -> String
@@ -239,3 +241,33 @@ ariaAutocompleteList =
 noAttribute : Html.Attribute msg
 noAttribute =
     classList []
+
+
+map : (a -> msg) -> Typeahead a -> Typeahead msg
+map msgConstructor (Typeahead options) =
+    Typeahead
+        { label = options.label
+        , innhold = options.innhold
+        , inputId = options.inputId
+        , feilmelding = options.feilmelding
+        , obligatorisk = options.obligatorisk
+        , onInput = options.onInput >> msgConstructor
+        , onTypeaheadChange = options.onTypeaheadChange >> msgConstructor
+        , onFocus = Maybe.map msgConstructor options.onFocus
+        , onBlur = Maybe.map msgConstructor options.onBlur
+        , suggestions =
+            options.suggestions
+                |> List.map
+                    (\suggestion ->
+                        { innhold = suggestion.innhold
+                        , onActive = msgConstructor suggestion.onActive
+                        , onClick = msgConstructor suggestion.onClick
+                        , active = suggestion.active
+                        }
+                    )
+        }
+
+
+innhold : Typeahead msg -> String
+innhold (Typeahead options) =
+    options.innhold
