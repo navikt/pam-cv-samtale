@@ -61,6 +61,12 @@ type SamtaleStatus
     | Ferdig (List Kurs) FerdigAnimertMeldingsLogg
 
 
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = RegistrerKursnavn KursnavnInfo
     | RegistrerKursholder KursholderInfo
@@ -69,9 +75,8 @@ type Samtale
     | RegistrerFullførtÅr FullførtDatoInfo
     | RegistrerVarighetEnhet VarighetInfo
     | RegistrerVarighet VarighetInfo
-    | VisOppsummering ValidertKursSkjema
+    | VisOppsummering OppsummeringsType ValidertKursSkjema
     | EndreOpplysninger KursSkjema
-    | VisOppsummeringEtterEndring ValidertKursSkjema
     | BekreftSlettingAvPåbegynt ValidertKursSkjema
     | LagrerSkjema ValidertKursSkjema LagreStatus
     | LagringFeilet Http.Error ValidertKursSkjema
@@ -390,7 +395,7 @@ update msg (Model model) =
                         Nothing ->
                             ( info
                                 |> varighetTilSkjema
-                                |> VisOppsummering
+                                |> VisOppsummering FørsteGang
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -443,10 +448,7 @@ update msg (Model model) =
 
         VilEndreOpplysninger ->
             case model.aktivSamtale of
-                VisOppsummering validertKursSkjema ->
-                    updateEtterVilEndreSkjema model msg validertKursSkjema
-
-                VisOppsummeringEtterEndring validertKursSkjema ->
+                VisOppsummering _ validertKursSkjema ->
                     updateEtterVilEndreSkjema model msg validertKursSkjema
 
                 _ ->
@@ -468,14 +470,7 @@ update msg (Model model) =
 
         VilSlettePåbegynt ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    ( BekreftSlettingAvPåbegynt skjema
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                VisOppsummeringEtterEndring skjema ->
+                VisOppsummering _ skjema ->
                     ( BekreftSlettingAvPåbegynt skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -501,7 +496,7 @@ update msg (Model model) =
         AngrerSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt skjema ->
-                    ( VisOppsummering skjema
+                    ( VisOppsummering AvbrøtSletting skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -516,7 +511,7 @@ update msg (Model model) =
                     case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> VisOppsummeringEtterEndring
+                                |> VisOppsummering EtterEndring
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -536,10 +531,7 @@ update msg (Model model) =
 
         VilLagreKurs ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model msg skjema
-
-                VisOppsummeringEtterEndring skjema ->
+                VisOppsummering _ skjema ->
                     updateEtterLagreKnappTrykket model msg skjema
 
                 LagringFeilet error skjema ->
@@ -815,24 +807,22 @@ samtaleTilMeldingsLogg kursSeksjon =
         RegistrerVarighet info ->
             [ Melding.spørsmål [ "Hvor mange " ++ (Skjema.varighetEnhetTilString >> String.toLower) info.varighetEnhet ++ " varte kurset?" ] ]
 
-        VisOppsummering skjema ->
-            [ [ [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                ]
-              , validertSkjemaTilSetninger skjema
-              , [ Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-              ]
-                |> List.concat
-                |> Melding.spørsmål
-            ]
+        VisOppsummering oppsummeringsType validertSkjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Da sletter jeg ikke kurset." ]
+                    , oppsummeringsSpørsmål validertSkjema
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål validertSkjema
+                    ]
 
         EndreOpplysninger _ ->
             [ Melding.spørsmål [ "Gjør endringene du ønsker i feltene under." ] ]
-
-        VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         BekreftSlettingAvPåbegynt _ ->
             [ Melding.spørsmål [ "Er du sikker på at du vil slette dette kurset?" ] ]
@@ -865,6 +855,20 @@ validertSkjemaTilSetninger validertSkjema =
       ]
     ]
         |> List.concat
+
+
+oppsummeringsSpørsmål : ValidertKursSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    [ [ "Du har lagt inn dette:"
+      , Melding.tomLinje
+      ]
+    , validertSkjemaTilSetninger skjema
+    , [ Melding.tomLinje
+      , "Er informasjonen riktig?"
+      ]
+    ]
+        |> List.concat
+        |> Melding.spørsmål
 
 
 settFokus : Samtale -> Cmd Msg
@@ -999,10 +1003,7 @@ modelTilBrukerInput model =
                             )
                     )
 
-            VisOppsummering _ ->
-                viewBekreftOppsummering
-
-            VisOppsummeringEtterEndring _ ->
+            VisOppsummering _ _ ->
                 viewBekreftOppsummering
 
             EndreOpplysninger skjema ->

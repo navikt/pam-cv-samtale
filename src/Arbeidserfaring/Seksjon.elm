@@ -1335,7 +1335,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         VisOppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Da sletter jeg ikke arbeidserfaringen" ]
+                    [ Melding.spørsmål [ "Da sletter jeg ikke arbeidserfaringen." ]
                     , Melding.spørsmål
                         (validertSkjemaTilSetninger validertSkjema
                             ++ [ Melding.tomLinje
@@ -1742,7 +1742,7 @@ inputIdTilString inputId =
             "arbeidserfaring-registrer-til-år"
 
 
-viewBekreftOppsummering : Bool -> Html Msg
+viewBekreftOppsummering : Bool -> BrukerInput Msg
 viewBekreftOppsummering skalViseSlett =
     BrukerInput.knapper Kolonne
         ([ [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, det er riktig"

@@ -54,15 +54,20 @@ type alias ModelInfo =
     }
 
 
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = IntroLeggTilKlasseB (List Førerkort)
     | SvarteNeiPåKlasseB
     | VelgNyttFørerkort { valgtFørerkort : Maybe FørerkortKode, feilmelding : Maybe String }
     | RegistrereFraDato { valgtFørerkort : FørerkortKode, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
     | RegistrereTilDato { valgtFørerkort : FørerkortKode, fraDato : Maybe Dato, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
-    | Oppsummering ValidertFørerkortSkjema
+    | Oppsummering OppsummeringsType ValidertFørerkortSkjema
     | EndreSkjema { skjema : FørerkortSkjema, visFeilmelding : Bool }
-    | OppsummeringEtterEndring ValidertFørerkortSkjema
     | BekreftSlettingAvPåbegynt ValidertFørerkortSkjema
     | LagrerFørerkort ValidertFørerkortSkjema LagreStatus
     | LagrerFørerkortKlasseB ValidertFørerkortSkjema LagreStatus
@@ -516,7 +521,7 @@ update msg (Model model) =
                               , tilDato = Just tilDato
                               }
                                 |> Skjema.initValidert
-                                |> Oppsummering
+                                |> Oppsummering FørsteGang
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar [ Dato.toString tilDato ]))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -542,7 +547,7 @@ update msg (Model model) =
                               , tilDato = Nothing
                               }
                                 |> Skjema.initValidert
-                                |> Oppsummering
+                                |> Oppsummering FørsteGang
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar [ "Gå videre" ]))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -553,10 +558,7 @@ update msg (Model model) =
 
         BrukerVilLagreIOppsummeringen ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
-                    updateEtterLagreKnappTrykket model msg skjema
-
-                OppsummeringEtterEndring skjema ->
+                Oppsummering _ skjema ->
                     updateEtterLagreKnappTrykket model msg skjema
 
                 _ ->
@@ -564,17 +566,7 @@ update msg (Model model) =
 
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
-                    ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema
-                      , visFeilmelding = False
-                      }
-                        |> EndreSkjema
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                OppsummeringEtterEndring skjema ->
+                Oppsummering _ skjema ->
                     ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema
                       , visFeilmelding = False
                       }
@@ -589,14 +581,7 @@ update msg (Model model) =
 
         VilSlettePåbegynt ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
-                    ( BekreftSlettingAvPåbegynt skjema
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                OppsummeringEtterEndring skjema ->
+                Oppsummering _ skjema ->
                     ( BekreftSlettingAvPåbegynt skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -622,7 +607,7 @@ update msg (Model model) =
         AngrerSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt skjema ->
-                    ( Oppsummering skjema
+                    ( Oppsummering AvbrøtSletting skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -637,7 +622,7 @@ update msg (Model model) =
                     case Skjema.valider skjema.skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> OppsummeringEtterEndring
+                                |> Oppsummering EtterEndring
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -913,23 +898,22 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
         RegistrereTilDato _ ->
             [ Melding.spørsmål [ "Har førerkortet en utløpsdato?" ] ]
 
-        Oppsummering validertFørerkortSkjema ->
-            [ Melding.spørsmål
-                [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                , "Førerkort: " ++ Skjema.førerkortFraValidertSkjema validertFørerkortSkjema
-                , "Førerrett til: " ++ Skjema.tilDatoFraValidertSkjema validertFørerkortSkjema
-                , "Førerrett fra " ++ Skjema.fraDatoFraValidertSkjema validertFørerkortSkjema
-                , Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-            ]
+        Oppsummering oppsummeringsType validertSkjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Da sletter jeg ikke førerkortet." ]
+                    , oppsummeringsSpørsmål validertSkjema
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål validertSkjema
+                    ]
 
         EndreSkjema _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
-
-        OppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         BekreftSlettingAvPåbegynt _ ->
             [ Melding.spørsmål [ "Er du sikker på at du vil slette dette førerkortet?" ] ]
@@ -939,6 +923,19 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
 
         SvarteNeiPåKlasseB ->
             [ Melding.spørsmål [ "Ok. Har du andre førerkort?" ] ]
+
+
+oppsummeringsSpørsmål : ValidertFørerkortSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    Melding.spørsmål
+        [ "Du har lagt inn dette:"
+        , Melding.tomLinje
+        , "Førerkort: " ++ Skjema.førerkortFraValidertSkjema skjema
+        , "Førerrett til: " ++ Skjema.tilDatoFraValidertSkjema skjema
+        , "Førerrett fra " ++ Skjema.fraDatoFraValidertSkjema skjema
+        , Melding.tomLinje
+        , "Er informasjonen riktig?"
+        ]
 
 
 klasseToString : Klasse -> String
@@ -1140,7 +1137,7 @@ modelTilBrukerInput model =
                             )
                     )
 
-            Oppsummering _ ->
+            Oppsummering _ _ ->
                 viewBekreftOppsummering
 
             EndreSkjema skjema ->
@@ -1184,9 +1181,6 @@ modelTilBrukerInput model =
                         ]
                     ]
 
-            OppsummeringEtterEndring _ ->
-                viewBekreftOppsummering
-
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
@@ -1222,7 +1216,7 @@ modelTilBrukerInput model =
 viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
     BrukerInput.knapper Kolonne
-        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
+        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, det er riktig"
         , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]

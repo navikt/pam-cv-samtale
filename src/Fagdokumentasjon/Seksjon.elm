@@ -52,14 +52,19 @@ type alias ModelInfo =
     }
 
 
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = RegistrerKonsept FagdokumentasjonType Bool (Typeahead.Model Konsept)
     | HentingFraTypeaheadFeilet FagdokumentasjonType (Typeahead.Model Konsept) Http.Error
     | HenterFraTypeaheadPåNyttEtterFeiling FagdokumentasjonType (Typeahead.Model Konsept) Http.Error
     | RegistrerBeskrivelse FagdokumentasjonType BeskrivelseInfo
-    | Oppsummering ValidertFagdokumentasjonSkjema
+    | Oppsummering OppsummeringsType ValidertFagdokumentasjonSkjema
     | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
-    | OppsummeringEtterEndring ValidertFagdokumentasjonSkjema
     | BekreftSlettingAvPåbegynt ValidertFagdokumentasjonSkjema
     | Lagrer LagreStatus ValidertFagdokumentasjonSkjema
     | LagringFeilet ValidertFagdokumentasjonSkjema Http.Error
@@ -265,7 +270,7 @@ update msg (Model model) =
                     case feilmeldingBeskrivelsesfelt info.beskrivelse of
                         Nothing ->
                             ( Skjema.initValidertSkjema fagdokumentasjonType info.konsept info.beskrivelse
-                                |> Oppsummering
+                                |> Oppsummering FørsteGang
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -279,11 +284,7 @@ update msg (Model model) =
 
         BrukerVilLagreIOppsummeringen ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
-                    LagrerFørsteGang
-                        |> updateEtterLagreKnappTrykket model msg skjema
-
-                OppsummeringEtterEndring skjema ->
+                Oppsummering _ skjema ->
                     LagrerFørsteGang
                         |> updateEtterLagreKnappTrykket model msg skjema
 
@@ -292,10 +293,7 @@ update msg (Model model) =
 
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
-                Oppsummering validertSkjema ->
-                    initRedigeringAvValidertSkjema model msg validertSkjema
-
-                OppsummeringEtterEndring validertSkjema ->
+                Oppsummering _ validertSkjema ->
                     initRedigeringAvValidertSkjema model msg validertSkjema
 
                 _ ->
@@ -303,14 +301,7 @@ update msg (Model model) =
 
         VilSlettePåbegynt ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
-                    ( BekreftSlettingAvPåbegynt skjema
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                OppsummeringEtterEndring skjema ->
+                Oppsummering _ skjema ->
                     ( BekreftSlettingAvPåbegynt skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -336,7 +327,7 @@ update msg (Model model) =
         AngrerSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt skjema ->
-                    ( Oppsummering skjema
+                    ( Oppsummering AvbrøtSletting skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -352,7 +343,7 @@ update msg (Model model) =
                         Just validertSkjema ->
                             IkkeFerdig
                                 ( validertSkjema
-                                    |> OppsummeringEtterEndring
+                                    |> Oppsummering EtterEndring
                                     |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -786,18 +777,31 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                 Autorisasjon ->
                     [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ] ]
 
-        Oppsummering skjema ->
-            [ [ [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                ]
-              , validertSkjemaTilSetninger skjema
-              , [ Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-              ]
-                |> List.concat
-                |> Melding.spørsmål
-            ]
+        Oppsummering oppsummeringsType validertSkjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    case Skjema.fagdokumentasjonType (Skjema.tilUvalidertSkjema validertSkjema) of
+                        SvennebrevFagbrev ->
+                            [ Melding.spørsmål [ "Da sletter jeg ikke fagbrevet/svennebrevet." ]
+                            , oppsummeringsSpørsmål validertSkjema
+                            ]
+
+                        Mesterbrev ->
+                            [ Melding.spørsmål [ "Da sletter jeg ikke mesterbrevet." ]
+                            , oppsummeringsSpørsmål validertSkjema
+                            ]
+
+                        Autorisasjon ->
+                            [ Melding.spørsmål [ "Da sletter jeg ikke autorisasjonen." ]
+                            , oppsummeringsSpørsmål validertSkjema
+                            ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål validertSkjema
+                    ]
 
         EndrerOppsummering _ skjema ->
             case Skjema.fagdokumentasjonType skjema of
@@ -809,9 +813,6 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
 
                 Autorisasjon ->
                     [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
-
-        OppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         BekreftSlettingAvPåbegynt skjema ->
             case Skjema.fagdokumentasjonType (Skjema.tilUvalidertSkjema skjema) of
@@ -876,6 +877,20 @@ settFokusCmd inputId =
         |> Task.attempt FokusSatt
 
 
+oppsummeringsSpørsmål : ValidertFagdokumentasjonSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    [ [ "Du har lagt inn dette:"
+      , Melding.tomLinje
+      ]
+    , validertSkjemaTilSetninger skjema
+    , [ Melding.tomLinje
+      , "Er informasjonen riktig?"
+      ]
+    ]
+        |> List.concat
+        |> Melding.spørsmål
+
+
 
 --- VIEW ---
 
@@ -932,7 +947,7 @@ modelTilBrukerInput model =
                         |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
                     )
 
-            Oppsummering _ ->
+            Oppsummering _ _ ->
                 viewBekreftOppsummering
 
             EndrerOppsummering typeaheadModel skjema ->
@@ -948,15 +963,10 @@ modelTilBrukerInput model =
                         |> Textarea.toHtml
                     ]
 
-            OppsummeringEtterEndring _ ->
-                viewBekreftOppsummering
-
             BekreftSlettingAvPåbegynt _ ->
-                Containers.knapper Flytende
+                BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
-                        |> Knapp.toHtml
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
-                        |> Knapp.toHtml
                     ]
 
             Lagrer _ _ ->
@@ -985,20 +995,12 @@ modelTilBrukerInput model =
         BrukerInput.utenInnhold
 
 
-viewBekreftOppsummering : Html Msg
+viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
     BrukerInput.knapper Kolonne
-        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-        ]
-        Containers.knapper
-        Kolonne
         [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, det er riktig"
-            |> Knapp.toHtml
         , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-            |> Knapp.toHtml
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
-            |> Knapp.toHtml
         ]
 
 

@@ -67,6 +67,12 @@ type AvsluttetGrunn
     | LaTilNy
 
 
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = RegistrerRolle RolleInfo
     | RegistrerBeskrivelse BeskrivelseInfo
@@ -76,9 +82,8 @@ type Samtale
     | RegistrerNåværende ValidertFraDatoInfo
     | RegistrerTilMåned TilDatoInfo
     | RegistrerTilÅr TilDatoInfo
-    | VisOppsummering ValidertAnnenErfaringSkjema
+    | VisOppsummering OppsummeringsType ValidertAnnenErfaringSkjema
     | EndreOpplysninger AnnenErfaringSkjema
-    | VisOppsummeringEtterEndring ValidertAnnenErfaringSkjema
     | BekreftSlettingAvPåbegynt ValidertAnnenErfaringSkjema
     | LagrerSkjema ValidertAnnenErfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertAnnenErfaringSkjema
@@ -327,7 +332,7 @@ update msg (Model model) =
                 SpørOmBrukerVilLeggeInnTidsperiode info ->
                     ( info
                         |> beskrivelseTilSkjema
-                        |> VisOppsummering
+                        |> VisOppsummering FørsteGang
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, det vil jeg ikke" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -396,7 +401,7 @@ update msg (Model model) =
                 RegistrerNåværende nåværendeInfo ->
                     ( nåværendeInfo
                         |> fraDatoTilSkjema
-                        |> VisOppsummering
+                        |> VisOppsummering FørsteGang
                         |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -439,7 +444,7 @@ update msg (Model model) =
                     case Dato.stringTilÅr tilDatoInfo.tilÅr of
                         Just tilÅr ->
                             ( tilDatoTilSkjema tilDatoInfo tilÅr
-                                |> VisOppsummering
+                                |> VisOppsummering FørsteGang
                                 |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -500,10 +505,7 @@ update msg (Model model) =
 
         VilEndreOpplysninger ->
             case model.aktivSamtale of
-                VisOppsummering validertAnnenErfaringSkjema ->
-                    updateEtterVilEndreSkjema model validertAnnenErfaringSkjema
-
-                VisOppsummeringEtterEndring validertAnnenErfaringSkjema ->
+                VisOppsummering _ validertAnnenErfaringSkjema ->
                     updateEtterVilEndreSkjema model validertAnnenErfaringSkjema
 
                 _ ->
@@ -525,14 +527,7 @@ update msg (Model model) =
 
         VilSlettePåbegynt ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    ( BekreftSlettingAvPåbegynt skjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                VisOppsummeringEtterEndring skjema ->
+                VisOppsummering _ skjema ->
                     ( BekreftSlettingAvPåbegynt skjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil slette" ])
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -557,7 +552,7 @@ update msg (Model model) =
         AngrerSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt skjema ->
-                    ( VisOppsummering skjema
+                    ( VisOppsummering AvbrøtSletting skjema
                         |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil ikke slette." ])
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -572,7 +567,7 @@ update msg (Model model) =
                     case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> VisOppsummeringEtterEndring
+                                |> VisOppsummering EtterEndring
                                 |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -592,10 +587,7 @@ update msg (Model model) =
 
         VilLagreAnnenErfaring ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
-
-                VisOppsummeringEtterEndring skjema ->
+                VisOppsummering _ skjema ->
                     updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, det er riktig" ])
 
                 LagringFeilet error skjema ->
@@ -878,24 +870,21 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             [ Melding.spørsmål [ "Hvilket år sluttet du?" ]
             ]
 
-        VisOppsummering skjema ->
-            [ [ [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                ]
-              , validertSkjemaTilSetninger skjema
-              , [ Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-              ]
-                |> List.concat
-                |> Melding.spørsmål
-            ]
+        VisOppsummering oppsummeringsType skjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Da sletter jeg ikke erfaringen." ]
+                    , oppsummeringsSpørsmål skjema
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål skjema ]
 
         EndreOpplysninger _ ->
             [ Melding.spørsmål [ "Nå kan du endre informasjonen." ] ]
-
-        VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
         BekreftSlettingAvPåbegynt _ ->
             [ Melding.spørsmål [ "Er du sikker på at du vil slette denne erfaringen?" ] ]
@@ -933,6 +922,20 @@ validertSkjemaTilSetninger validertSkjema =
             [ "Rolle: " ++ Skjema.innholdTekstFelt Rolle skjema
             , "Beskrivelse: " ++ Skjema.innholdTekstFelt Beskrivelse skjema
             ]
+
+
+oppsummeringsSpørsmål : ValidertAnnenErfaringSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    [ [ "Du har lagt inn dette:"
+      , Melding.tomLinje
+      ]
+    , validertSkjemaTilSetninger skjema
+    , [ Melding.tomLinje
+      , "Er informasjonen riktig?"
+      ]
+    ]
+        |> List.concat
+        |> Melding.spørsmål
 
 
 settFokus : Samtale -> Cmd Msg
@@ -1071,10 +1074,7 @@ modelTilBrukerInput model =
                         |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
                     )
 
-            VisOppsummering _ ->
-                viewBekreftOppsummering
-
-            VisOppsummeringEtterEndring _ ->
+            VisOppsummering _ _ ->
                 viewBekreftOppsummering
 
             EndreOpplysninger skjema ->

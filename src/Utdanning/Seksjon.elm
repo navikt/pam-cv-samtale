@@ -596,14 +596,6 @@ update msg (Model model) =
                 Oppsummering _ ferdigskjema ->
                     updateEtterLagreKnappTrykket model msg ferdigskjema
 
-                -- todo: trenger jeg denne?
-                LeggTilFlereUtdanninger _ ->
-                    ( VenterPåAnimasjonFørFullføring model.utdanningListe
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -1115,33 +1107,15 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         Oppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Da sletter jeg ikke utdanningen" ]
-                    , [ [ "Du har lagt inn dette:"
-                        , Melding.tomLinje
-                        ]
-                      , validertSkjemaTilSetninger validertSkjema
-                      , [ Melding.tomLinje
-                        , "Er informasjonen riktig?"
-                        ]
-                      ]
-                        |> List.concat
-                        |> Melding.spørsmål
+                    [ Melding.spørsmål [ "Da sletter jeg ikke utdanningen." ]
+                    , oppsummeringsSpørsmål validertSkjema
                     ]
 
                 EtterEndring ->
                     [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
 
                 FørsteGang ->
-                    [ [ [ "Du har lagt inn dette:"
-                        , Melding.tomLinje
-                        ]
-                      , validertSkjemaTilSetninger validertSkjema
-                      , [ Melding.tomLinje
-                        , "Er informasjonen riktig?"
-                        ]
-                      ]
-                        |> List.concat
-                        |> Melding.spørsmål
+                    [ oppsummeringsSpørsmål validertSkjema
                     ]
 
         EndrerOppsummering _ ->
@@ -1194,6 +1168,20 @@ validertSkjemaTilSetninger validertSkjema =
     , "Beskrivelse:"
     , Skjema.innholdTekstFelt Beskrivelse utdanningsskjema
     ]
+
+
+oppsummeringsSpørsmål : ValidertUtdanningSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    [ [ "Du har lagt inn dette:"
+      , Melding.tomLinje
+      ]
+    , validertSkjemaTilSetninger skjema
+    , [ Melding.tomLinje
+      , "Er informasjonen riktig?"
+      ]
+    ]
+        |> List.concat
+        |> Melding.spørsmål
 
 
 
@@ -1459,7 +1447,7 @@ viewSkjema utdanningsskjema =
 viewBekreftOppsummering : Bool -> BrukerInput Msg
 viewBekreftOppsummering skalViseSlett =
     BrukerInput.knapper Flytende
-        ([ [ Knapp.knapp OppsummeringBekreftet "Ja, informasjonen er riktig"
+        ([ [ Knapp.knapp OppsummeringBekreftet "Ja, det er riktig"
            , Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
            ]
          , if skalViseSlett then
