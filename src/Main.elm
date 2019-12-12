@@ -1438,7 +1438,7 @@ samtaleTilMeldingsLogg samtale =
             ]
 
         LeggTilFlereAutorisasjoner ->
-            [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
+            []
 
         LeggTilAnnet ->
             [ Melding.spørsmål [ "Det er viktig å få med alt du kan på CV-en." ]
@@ -1448,7 +1448,7 @@ samtaleTilMeldingsLogg samtale =
             ]
 
         LeggTilFlereAnnet ->
-            [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
+            []
 
         BekreftSammendrag bekreftState ->
             case bekreftState of

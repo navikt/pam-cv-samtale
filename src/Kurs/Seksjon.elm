@@ -61,6 +61,17 @@ type SamtaleStatus
     | Ferdig (List Kurs) FerdigAnimertMeldingsLogg
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | AnnenAvslutning
+
+
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = RegistrerKursnavn KursnavnInfo
     | RegistrerKursholder KursholderInfo
@@ -69,12 +80,12 @@ type Samtale
     | RegistrerFullførtÅr FullførtDatoInfo
     | RegistrerVarighetEnhet VarighetInfo
     | RegistrerVarighet VarighetInfo
-    | VisOppsummering ValidertKursSkjema
+    | VisOppsummering OppsummeringsType ValidertKursSkjema
     | EndreOpplysninger KursSkjema
-    | VisOppsummeringEtterEndring ValidertKursSkjema
+    | BekreftSlettingAvPåbegynt ValidertKursSkjema
     | LagrerSkjema ValidertKursSkjema LagreStatus
     | LagringFeilet Http.Error ValidertKursSkjema
-    | VenterPåAnimasjonFørFullføring (List Kurs)
+    | VenterPåAnimasjonFørFullføring (List Kurs) AvsluttetGrunn
 
 
 type alias KursnavnInfo =
@@ -186,6 +197,9 @@ type Msg
     | VilLagreKurs
     | VilEndreOpplysninger
     | SkjemaEndret SkjemaEndring
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
     | KursLagret (Result Http.Error (List Kurs))
     | FerdigMedKurs
@@ -386,7 +400,7 @@ update msg (Model model) =
                         Nothing ->
                             ( info
                                 |> varighetTilSkjema
-                                |> VisOppsummering
+                                |> VisOppsummering FørsteGang
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -439,10 +453,7 @@ update msg (Model model) =
 
         VilEndreOpplysninger ->
             case model.aktivSamtale of
-                VisOppsummering validertKursSkjema ->
-                    updateEtterVilEndreSkjema model msg validertKursSkjema
-
-                VisOppsummeringEtterEndring validertKursSkjema ->
+                VisOppsummering _ validertKursSkjema ->
                     updateEtterVilEndreSkjema model msg validertKursSkjema
 
                 _ ->
@@ -462,13 +473,49 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                VisOppsummering _ skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( VenterPåAnimasjonFørFullføring model.kursListe SlettetPåbegynt
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( VisOppsummering AvbrøtSletting skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
                 EndreOpplysninger skjema ->
                     case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> VisOppsummeringEtterEndring
+                                |> VisOppsummering EtterEndring
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -488,10 +535,7 @@ update msg (Model model) =
 
         VilLagreKurs ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model msg skjema
-
-                VisOppsummeringEtterEndring skjema ->
+                VisOppsummering _ skjema ->
                     updateEtterLagreKnappTrykket model msg skjema
 
                 LagringFeilet error skjema ->
@@ -522,9 +566,8 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et kurs 👍" ] ]
                             in
-                            ( kurs
-                                |> VenterPåAnimasjonFørFullføring
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
+                            ( VenterPåAnimasjonFørFullføring kurs AnnenAvslutning
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -568,8 +611,7 @@ update msg (Model model) =
         FerdigMedKurs ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( model.kursListe
-                        |> VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring model.kursListe AnnenAvslutning
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -657,7 +699,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring kursListe ->
+                VenterPåAnimasjonFørFullføring kursListe _ ->
                     Ferdig kursListe ferdigAnimertSamtale
 
                 _ ->
@@ -767,24 +809,25 @@ samtaleTilMeldingsLogg kursSeksjon =
         RegistrerVarighet info ->
             [ Melding.spørsmål [ "Hvor mange " ++ (Skjema.varighetEnhetTilString >> String.toLower) info.varighetEnhet ++ " varte kurset?" ] ]
 
-        VisOppsummering skjema ->
-            [ [ [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                ]
-              , validertSkjemaTilSetninger skjema
-              , [ Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-              ]
-                |> List.concat
-                |> Melding.spørsmål
-            ]
+        VisOppsummering oppsummeringsType validertSkjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Ok, da lar jeg kurset stå." ]
+                    , oppsummeringsSpørsmål validertSkjema
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål validertSkjema
+                    ]
 
         EndreOpplysninger _ ->
             [ Melding.spørsmål [ "Gjør endringene du ønsker i feltene under." ] ]
 
-        VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+        BekreftSlettingAvPåbegynt _ ->
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette dette kurset?" ] ]
 
         LagrerSkjema _ _ ->
             []
@@ -792,8 +835,13 @@ samtaleTilMeldingsLogg kursSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre kurs" } ]
 
-        VenterPåAnimasjonFørFullføring _ ->
-            []
+        VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg slettet kurset. Vil du legge inn flere kategorier?" ] ]
+
+                _ ->
+                    [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
 
 validertSkjemaTilSetninger : ValidertKursSkjema -> List String
@@ -814,6 +862,20 @@ validertSkjemaTilSetninger validertSkjema =
       ]
     ]
         |> List.concat
+
+
+oppsummeringsSpørsmål : ValidertKursSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    [ [ "Du har lagt inn dette:"
+      , Melding.tomLinje
+      ]
+    , validertSkjemaTilSetninger skjema
+    , [ Melding.tomLinje
+      , "Er informasjonen riktig?"
+      ]
+    ]
+        |> List.concat
+        |> Melding.spørsmål
 
 
 settFokus : Samtale -> Cmd Msg
@@ -948,10 +1010,7 @@ modelTilBrukerInput model =
                             )
                     )
 
-            VisOppsummering _ ->
-                viewBekreftOppsummering
-
-            VisOppsummeringEtterEndring _ ->
+            VisOppsummering _ _ ->
                 viewBekreftOppsummering
 
             EndreOpplysninger skjema ->
@@ -984,6 +1043,12 @@ modelTilBrukerInput model =
                         ]
                     ]
 
+            BekreftSlettingAvPåbegynt _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
+                    ]
+
             LagrerSkjema _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then
                     LoggInnLenke.viewLoggInnLenke
@@ -1006,7 +1071,7 @@ modelTilBrukerInput model =
                     ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring _ ->
+            VenterPåAnimasjonFørFullføring _ _ ->
                 BrukerInput.utenInnhold
 
     else
@@ -1034,9 +1099,10 @@ varighetEnhetKnapp enhet =
 
 viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
-    BrukerInput.knapper Flytende
-        [ Knapp.knapp VilLagreKurs "Ja, informasjonen er riktig"
+    BrukerInput.knapper Kolonne
+        [ Knapp.knapp VilLagreKurs "Ja, det er riktig"
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
+        , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]
 
 

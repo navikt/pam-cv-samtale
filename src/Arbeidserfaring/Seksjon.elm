@@ -68,6 +68,18 @@ type SamtaleStatus
     | Ferdig FerdigAnimertMeldingsLogg
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | AnnenAvslutning
+    | EndretEksisterende
+
+
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = Intro
     | VelgEnArbeidserfaringÅRedigere
@@ -84,12 +96,12 @@ type Samtale
     | RegistrereNåværende NåværendeInfo
     | RegistrereTilMåned TilDatoInfo
     | RegistrereTilÅr TilDatoInfo
-    | VisOppsummering ValidertArbeidserfaringSkjema
+    | VisOppsummering OppsummeringsType ValidertArbeidserfaringSkjema
     | RedigerOppsummering (Typeahead.Model Yrke) ArbeidserfaringSkjema
-    | VisOppsummeringEtterEndring ValidertArbeidserfaringSkjema
+    | BekreftSlettingAvPåbegynt ValidertArbeidserfaringSkjema
     | LagrerArbeidserfaring ValidertArbeidserfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
-    | SpørOmBrukerVilLeggeInnMer Bool
+    | SpørOmBrukerVilLeggeInnMer AvsluttetGrunn
     | StartNyArbeidserfaring (Typeahead.Model Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
     | VenterPåAnimasjonFørFullføring String
 
@@ -130,6 +142,9 @@ type Msg
     | BrukerVilRegistrereTilÅr
     | BrukerVilRedigereOppsummering
     | SkjemaEndret SkjemaEndring
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | BrukerVilLagreArbeidserfaringIOppsummering
     | BrukerVilLagreArbeidserfaringSkjema
     | ArbeidserfaringLagret (Result Http.Error (List Arbeidserfaring))
@@ -678,7 +693,7 @@ update msg (Model model) =
                 RegistrereNåværende nåværendeInfo ->
                     ( nåværendeInfo
                         |> nåværendeInfoTilSkjema
-                        |> VisOppsummering
+                        |> VisOppsummering FørsteGang
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -751,7 +766,7 @@ update msg (Model model) =
                     case Dato.stringTilÅr tilDatoInfo.tilÅr of
                         Just år ->
                             ( tilDatoTilSkjema tilDatoInfo år
-                                |> VisOppsummering
+                                |> VisOppsummering FørsteGang
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -770,10 +785,7 @@ update msg (Model model) =
 
         BrukerVilRedigereOppsummering ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    updateEtterVilEndreSkjema model msg skjema
-
-                VisOppsummeringEtterEndring skjema ->
+                VisOppsummering _ skjema ->
                     updateEtterVilEndreSkjema model msg skjema
 
                 _ ->
@@ -793,12 +805,45 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                VisOppsummering _ skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( SpørOmBrukerVilLeggeInnMer SlettetPåbegynt
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( VisOppsummering AvbrøtSletting skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         BrukerVilLagreArbeidserfaringIOppsummering ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model msg skjema
-
-                VisOppsummeringEtterEndring skjema ->
+                VisOppsummering _ skjema ->
                     updateEtterLagreKnappTrykket model msg skjema
 
                 _ ->
@@ -810,7 +855,7 @@ update msg (Model model) =
                     case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> VisOppsummeringEtterEndring
+                                |> VisOppsummering EtterEndring
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -834,15 +879,19 @@ update msg (Model model) =
                     case result of
                         Ok arbeidserfaringer ->
                             let
-                                harEndretEksisterende =
-                                    List.length model.arbeidserfaringListe == List.length arbeidserfaringer
+                                avsluttetGrunn =
+                                    if List.length model.arbeidserfaringListe == List.length arbeidserfaringer then
+                                        EndretEksisterende
+
+                                    else
+                                        AnnenAvslutning
                             in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                SpørOmBrukerVilLeggeInnMer harEndretEksisterende
+                                SpørOmBrukerVilLeggeInnMer avsluttetGrunn
                                     |> oppdaterSamtale { model | arbeidserfaringListe = arbeidserfaringer } (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                               else
-                                SpørOmBrukerVilLeggeInnMer harEndretEksisterende
+                                SpørOmBrukerVilLeggeInnMer avsluttetGrunn
                                     |> oppdaterSamtale { model | arbeidserfaringListe = arbeidserfaringer } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -1286,20 +1335,35 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         RegistrereTilÅr _ ->
             [ Melding.spørsmål [ "Hvilket år sluttet du i jobben?" ] ]
 
-        VisOppsummering validertSkjema ->
-            [ Melding.spørsmål
-                (validertSkjemaTilSetninger validertSkjema
-                    ++ [ Melding.tomLinje
-                       , "Er informasjonen riktig?"
-                       ]
-                )
-            ]
+        VisOppsummering oppsummeringsType validertSkjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Ok, da lar jeg arbeidserfaringen stå." ]
+                    , Melding.spørsmål
+                        (validertSkjemaTilSetninger validertSkjema
+                            ++ [ Melding.tomLinje
+                               , "Er informasjonen riktig?"
+                               ]
+                        )
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ Melding.spørsmål
+                        (validertSkjemaTilSetninger validertSkjema
+                            ++ [ Melding.tomLinje
+                               , "Er informasjonen riktig?"
+                               ]
+                        )
+                    ]
 
         RedigerOppsummering _ _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
-        VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+        BekreftSlettingAvPåbegynt _ ->
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne arbeidserfaringen?" ] ]
 
         LagrerArbeidserfaring _ _ ->
             []
@@ -1307,14 +1371,20 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre arbeidserfaringen" } ]
 
-        SpørOmBrukerVilLeggeInnMer harEndretEksisterende ->
-            [ if harEndretEksisterende then
-                Melding.spørsmål [ "Flott! Nå er arbeidserfaringen endret." ]
+        SpørOmBrukerVilLeggeInnMer avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg slettet arbeidserfaringen. Vil du legge inn flere arbeidserfaringer?" ] ]
 
-              else
-                Melding.spørsmål [ "Flott! Nå er arbeidserfaringen lagret." ]
-            , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
-            ]
+                EndretEksisterende ->
+                    [ Melding.spørsmål [ "Flott! Nå er arbeidserfaringen endret." ]
+                    , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
+                    ]
+
+                AnnenAvslutning ->
+                    [ Melding.spørsmål [ "Flott! Nå er arbeidserfaringen lagret." ]
+                    , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
+                    ]
 
         StartNyArbeidserfaring _ ->
             [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
@@ -1507,14 +1577,13 @@ modelTilBrukerInput model =
                         |> Input.withErObligatorisk
                     )
 
-            VisOppsummering _ ->
-                BrukerInput.knapper Flytende
-                    [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, informasjonen er riktig"
-                    , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
-                    ]
+            VisOppsummering _ skjema ->
+                case Skjema.id skjema of
+                    Just _ ->
+                        viewBekreftOppsummering False
 
-            VisOppsummeringEtterEndring _ ->
-                viewBekreftOppsummering
+                    Nothing ->
+                        viewBekreftOppsummering True
 
             RedigerOppsummering typeaheadModel skjema ->
                 BrukerInput.skjema { lagreMsg = BrukerVilLagreArbeidserfaringSkjema, lagreKnappTekst = "Lagre endringer" }
@@ -1576,6 +1645,12 @@ modelTilBrukerInput model =
                         |> Checkbox.toHtml
                     ]
 
+            BekreftSlettingAvPåbegynt _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
+                    ]
+
             LagrerArbeidserfaring _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then
                     LoggInnLenke.viewLoggInnLenke
@@ -1601,10 +1676,17 @@ modelTilBrukerInput model =
 
             SpørOmBrukerVilLeggeInnMer _ ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp NyArbeidserfaring "Ja, legg til en arbeidserfaring"
-                    , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle"
-                    , Knapp.knapp BrukerVilRedigereArbeidserfaring "Nei, jeg vil endre det jeg har lagt inn"
-                    ]
+                    ([ [ Knapp.knapp NyArbeidserfaring "Ja, legg til en arbeidserfaring"
+                       , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle"
+                       ]
+                     , if List.length model.arbeidserfaringListe > 0 then
+                        [ Knapp.knapp BrukerVilRedigereArbeidserfaring "Nei, jeg vil endre det jeg har lagt inn" ]
+
+                       else
+                        []
+                     ]
+                        |> List.concat
+                    )
 
             StartNyArbeidserfaring typeaheadModel ->
                 BrukerInput.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
@@ -1663,12 +1745,20 @@ inputIdTilString inputId =
             "arbeidserfaring-registrer-til-år"
 
 
-viewBekreftOppsummering : BrukerInput Msg
-viewBekreftOppsummering =
-    BrukerInput.knapper Flytende
-        [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, informasjonen er riktig"
-        , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
-        ]
+viewBekreftOppsummering : Bool -> BrukerInput Msg
+viewBekreftOppsummering skalViseSlett =
+    if skalViseSlett then
+        BrukerInput.knapper Kolonne
+            [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, det er riktig"
+            , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
+            , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
+            ]
+
+    else
+        BrukerInput.knapper Flytende
+            [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, det er riktig"
+            , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
+            ]
 
 
 lagArbeidserfaringKnapp : Arbeidserfaring -> Knapp Msg

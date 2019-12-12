@@ -669,7 +669,7 @@ viewTelefonISkjema personaliaSkjema =
 viewBekreftPersonalia : BrukerInput Msg
 viewBekreftPersonalia =
     BrukerInput.knapper Flytende
-        [ Knapp.knapp VilLagreBekreftetPersonalia "Ja, informasjonen er riktig"
+        [ Knapp.knapp VilLagreBekreftetPersonalia "Ja, det er riktig"
         , Knapp.knapp BrukerVilEndrePersonalia "Nei, jeg vil endre"
         ]
 

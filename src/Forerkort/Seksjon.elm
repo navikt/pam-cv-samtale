@@ -54,19 +54,30 @@ type alias ModelInfo =
     }
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | AnnenAvslutning
+
+
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = IntroLeggTilKlasseB (List Førerkort)
     | SvarteNeiPåKlasseB
     | VelgNyttFørerkort { valgtFørerkort : Maybe FørerkortKode, feilmelding : Maybe String }
     | RegistrereFraDato { valgtFørerkort : FørerkortKode, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
     | RegistrereTilDato { valgtFørerkort : FørerkortKode, fraDato : Maybe Dato, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
-    | Oppsummering ValidertFørerkortSkjema
+    | Oppsummering OppsummeringsType ValidertFørerkortSkjema
     | EndreSkjema { skjema : FørerkortSkjema, visFeilmelding : Bool }
-    | OppsummeringEtterEndring ValidertFørerkortSkjema
+    | BekreftSlettingAvPåbegynt ValidertFørerkortSkjema
     | LagrerFørerkort ValidertFørerkortSkjema LagreStatus
     | LagrerFørerkortKlasseB ValidertFørerkortSkjema LagreStatus
     | LagringFeilet Http.Error ValidertFørerkortSkjema
-    | LeggTilFlereFørerkort
+    | LeggTilFlereFørerkort AvsluttetGrunn
     | VenterPåAnimasjonFørFullføring (List Førerkort)
 
 
@@ -110,6 +121,9 @@ type Msg
     | BrukerVilEndreOppsummeringen
     | FraDatoLagreknappTrykket
     | SkjemaEndret SkjemaEndring
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
     | FerdigMedFørerkort
     | SendSkjemaPåNytt
@@ -220,7 +234,7 @@ update msg (Model model) =
                                                 , Melding.spørsmål [ "Har du andre førerkort? " ]
                                                 ]
                             in
-                            ( LeggTilFlereFørerkort
+                            ( LeggTilFlereFørerkort AnnenAvslutning
                                 |> oppdaterSamtale { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -279,7 +293,7 @@ update msg (Model model) =
                                                 , Melding.spørsmål [ "Har du andre førerkort? " ]
                                                 ]
                             in
-                            ( LeggTilFlereFørerkort
+                            ( LeggTilFlereFørerkort AnnenAvslutning
                                 |> oppdaterSamtale { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -512,7 +526,7 @@ update msg (Model model) =
                               , tilDato = Just tilDato
                               }
                                 |> Skjema.initValidert
-                                |> Oppsummering
+                                |> Oppsummering FørsteGang
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar [ Dato.toString tilDato ]))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -538,7 +552,7 @@ update msg (Model model) =
                               , tilDato = Nothing
                               }
                                 |> Skjema.initValidert
-                                |> Oppsummering
+                                |> Oppsummering FørsteGang
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar [ "Gå videre" ]))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -549,10 +563,7 @@ update msg (Model model) =
 
         BrukerVilLagreIOppsummeringen ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
-                    updateEtterLagreKnappTrykket model msg skjema
-
-                OppsummeringEtterEndring skjema ->
+                Oppsummering _ skjema ->
                     updateEtterLagreKnappTrykket model msg skjema
 
                 _ ->
@@ -560,7 +571,7 @@ update msg (Model model) =
 
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
+                Oppsummering _ skjema ->
                     ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema
                       , visFeilmelding = False
                       }
@@ -570,11 +581,37 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                OppsummeringEtterEndring skjema ->
-                    ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema
-                      , visFeilmelding = False
-                      }
-                        |> EndreSkjema
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                Oppsummering _ skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( LeggTilFlereFørerkort SlettetPåbegynt
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( Oppsummering AvbrøtSletting skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -589,7 +626,7 @@ update msg (Model model) =
                     case Skjema.valider skjema.skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> OppsummeringEtterEndring
+                                |> Oppsummering EtterEndring
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -627,8 +664,7 @@ update msg (Model model) =
         FerdigMedFørerkort ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( model.førerkort
-                        |> VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring model.førerkort
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -834,21 +870,26 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
         VenterPåAnimasjonFørFullføring _ ->
             []
 
-        LeggTilFlereFørerkort ->
-            [ Melding.spørsmål
-                [ "Supert! Da har du lagt inn "
-                    ++ (model.førerkort
-                            |> List.map Forerkort.klasse
-                            |> List.map klasseToString
-                            |> List.map String.toLower
-                            |> listeTilSetning
-                       )
-                    ++ "."
-                ]
-            , Melding.spørsmål
-                [ "Har du andre førerkort?"
-                ]
-            ]
+        LeggTilFlereFørerkort avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg slettet førerkortet. Har du andre førerkort?" ] ]
+
+                AnnenAvslutning ->
+                    [ Melding.spørsmål
+                        [ "Supert! Da har du lagt inn "
+                            ++ (model.førerkort
+                                    |> List.map Forerkort.klasse
+                                    |> List.map klasseToString
+                                    |> List.map String.toLower
+                                    |> listeTilSetning
+                               )
+                            ++ "."
+                        ]
+                    , Melding.spørsmål
+                        [ "Har du andre førerkort?"
+                        ]
+                    ]
 
         VelgNyttFørerkort _ ->
             [ Melding.spørsmål [ "Hvilket førerkort har du?" ] ]
@@ -865,29 +906,48 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
         RegistrereTilDato _ ->
             [ Melding.spørsmål [ "Har førerkortet en utløpsdato?" ] ]
 
-        Oppsummering validertFørerkortSkjema ->
-            [ Melding.spørsmål
-                [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                , "Førerkort: " ++ Skjema.førerkortFraValidertSkjema validertFørerkortSkjema
-                , "Førerrett til: " ++ Skjema.tilDatoFraValidertSkjema validertFørerkortSkjema
-                , "Førerrett fra " ++ Skjema.fraDatoFraValidertSkjema validertFørerkortSkjema
-                , Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-            ]
+        Oppsummering oppsummeringsType validertSkjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Ok, da lar jeg førerkortet stå." ]
+                    , oppsummeringsSpørsmål validertSkjema
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål validertSkjema
+                    ]
 
         EndreSkjema _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
-        OppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+        BekreftSlettingAvPåbegynt skjema ->
+            let
+                førerkort =
+                    String.toLower (Skjema.førerkortFraValidertSkjema skjema)
+            in
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette førerkortet for " ++ førerkort ++ "?" ] ]
 
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre førerkort" } ]
 
         SvarteNeiPåKlasseB ->
             [ Melding.spørsmål [ "Ok. Har du andre førerkort?" ] ]
+
+
+oppsummeringsSpørsmål : ValidertFørerkortSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    Melding.spørsmål
+        [ "Du har lagt inn dette:"
+        , Melding.tomLinje
+        , "Førerkort: " ++ Skjema.førerkortFraValidertSkjema skjema
+        , "Førerrett til: " ++ Skjema.tilDatoFraValidertSkjema skjema
+        , "Førerrett fra " ++ Skjema.fraDatoFraValidertSkjema skjema
+        , Melding.tomLinje
+        , "Er informasjonen riktig?"
+        ]
 
 
 klasseToString : Klasse -> String
@@ -1019,7 +1079,7 @@ modelTilBrukerInput model =
             VenterPåAnimasjonFørFullføring _ ->
                 BrukerInput.utenInnhold
 
-            LeggTilFlereFørerkort ->
+            LeggTilFlereFørerkort _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
                     , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
@@ -1089,11 +1149,8 @@ modelTilBrukerInput model =
                             )
                     )
 
-            Oppsummering _ ->
-                BrukerInput.knapper Flytende
-                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-                    ]
+            Oppsummering _ _ ->
+                viewBekreftOppsummering
 
             EndreSkjema skjema ->
                 BrukerInput.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
@@ -1136,10 +1193,10 @@ modelTilBrukerInput model =
                         ]
                     ]
 
-            OppsummeringEtterEndring _ ->
+            BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
             LagringFeilet error _ ->
@@ -1166,6 +1223,15 @@ modelTilBrukerInput model =
 
     else
         BrukerInput.utenInnhold
+
+
+viewBekreftOppsummering : BrukerInput Msg
+viewBekreftOppsummering =
+    BrukerInput.knapper Kolonne
+        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, det er riktig"
+        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+        , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
+        ]
 
 
 
