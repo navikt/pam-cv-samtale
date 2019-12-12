@@ -54,8 +54,7 @@ type alias ModelInfo =
 
 type AvsluttetGrunn
     = SlettetPåbegynt FagdokumentasjonType
-    | AvbrøtPåbegynt
-    | LaTilNy
+    | AnnenAvslutning
 
 
 type OppsummeringsType
@@ -264,7 +263,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         BrukerVilAvbryteHentingFraTypeahead ->
-            ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AvbrøtPåbegynt
+            ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AnnenAvslutning
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -399,7 +398,7 @@ update msg (Model model) =
                             if lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus then
                                 ( Model
                                     { model
-                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner LaTilNy
+                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner AnnenAvslutning
                                         , seksjonsMeldingsLogg =
                                             model.seksjonsMeldingsLogg
                                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg vil logge inn" ])
@@ -413,7 +412,7 @@ update msg (Model model) =
                             else
                                 ( Model
                                     { model
-                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner LaTilNy
+                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner AnnenAvslutning
                                         , seksjonsMeldingsLogg =
                                             model.seksjonsMeldingsLogg
                                                 |> MeldingsLogg.leggTilSpørsmål
@@ -475,7 +474,7 @@ update msg (Model model) =
 
         BrukerVilIkkePrøveÅLagrePåNytt ->
             IkkeFerdig
-                ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AvbrøtPåbegynt
+                ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AnnenAvslutning
                     |> oppdaterSamtale model (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )

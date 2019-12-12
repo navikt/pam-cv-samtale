@@ -70,7 +70,7 @@ type SamtaleStatus
 
 type AvsluttetGrunn
     = SlettetPåbegynt
-    | LaTilNy
+    | AnnenAvslutning
     | EndretEksisterende
 
 
@@ -881,7 +881,7 @@ update msg (Model model) =
                                         EndretEksisterende
 
                                     else
-                                        LaTilNy
+                                        AnnenAvslutning
                             in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                 SpørOmBrukerVilLeggeInnMer avsluttetGrunn
@@ -1378,7 +1378,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                     , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
                     ]
 
-                LaTilNy ->
+                AnnenAvslutning ->
                     [ Melding.spørsmål [ "Flott! Nå er arbeidserfaringen lagret." ]
                     , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
                     ]

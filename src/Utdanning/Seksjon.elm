@@ -56,8 +56,8 @@ type alias ModelInfo =
 
 type AvsluttetGrunn
     = SlettetPåbegynt
-    | LaTilNy
     | EndretEksisterende
+    | AnnenAvslutning
 
 
 type OppsummeringsType
@@ -646,7 +646,7 @@ update msg (Model model) =
                                         EndretEksisterende
 
                                     else
-                                        LaTilNy
+                                        AnnenAvslutning
                             in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                 oppdaterSamtale
@@ -704,7 +704,7 @@ update msg (Model model) =
                                         EndretEksisterende
 
                                     else
-                                        LaTilNy
+                                        AnnenAvslutning
                             in
                             ( LeggTilFlereUtdanninger avsluttetGrunn
                                 |> oppdaterSamtale { model | utdanningListe = value } UtenSvar
@@ -1134,7 +1134,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                     , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
                     ]
 
-                LaTilNy ->
+                AnnenAvslutning ->
                     [ Melding.spørsmål [ "Så bra! Nå er utdanningen lagret👍" ]
                     , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
                     ]

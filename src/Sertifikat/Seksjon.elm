@@ -67,7 +67,7 @@ type SamtaleStatus
 
 type AvsluttetGrunn
     = SlettetPåbegynt
-    | LaTilNy
+    | AnnenAvslutning
 
 
 type OppsummeringsType
@@ -604,7 +604,7 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen lagret 👍" ] ]
                             in
-                            ( VenterPåAnimasjonFørFullføring sertifikater LaTilNy
+                            ( VenterPåAnimasjonFørFullføring sertifikater AnnenAvslutning
                                 |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -650,7 +650,7 @@ update msg (Model model) =
         FerdigMedSertifikat ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( VenterPåAnimasjonFørFullføring model.sertifikatListe LaTilNy
+                    ( VenterPåAnimasjonFørFullføring model.sertifikatListe AnnenAvslutning
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )

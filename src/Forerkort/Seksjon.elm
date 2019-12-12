@@ -56,7 +56,7 @@ type alias ModelInfo =
 
 type AvsluttetGrunn
     = SlettetPåbegynt
-    | LaTilNy
+    | AnnenAvslutning
 
 
 type OppsummeringsType
@@ -234,7 +234,7 @@ update msg (Model model) =
                                                 , Melding.spørsmål [ "Har du andre førerkort? " ]
                                                 ]
                             in
-                            ( LeggTilFlereFørerkort LaTilNy
+                            ( LeggTilFlereFørerkort AnnenAvslutning
                                 |> oppdaterSamtale { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -293,7 +293,7 @@ update msg (Model model) =
                                                 , Melding.spørsmål [ "Har du andre førerkort? " ]
                                                 ]
                             in
-                            ( LeggTilFlereFørerkort LaTilNy
+                            ( LeggTilFlereFørerkort AnnenAvslutning
                                 |> oppdaterSamtale { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -875,7 +875,7 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
                 SlettetPåbegynt ->
                     [ Melding.spørsmål [ "Nå har jeg slettet førerkortet. Har du andre førerkort?" ] ]
 
-                LaTilNy ->
+                AnnenAvslutning ->
                     [ Melding.spørsmål
                         [ "Supert! Da har du lagt inn "
                             ++ (model.førerkort

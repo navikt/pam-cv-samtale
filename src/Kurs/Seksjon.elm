@@ -63,7 +63,7 @@ type SamtaleStatus
 
 type AvsluttetGrunn
     = SlettetPåbegynt
-    | LaTilNy
+    | AnnenAvslutning
 
 
 type OppsummeringsType
@@ -566,7 +566,7 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et kurs 👍" ] ]
                             in
-                            ( VenterPåAnimasjonFørFullføring kurs LaTilNy
+                            ( VenterPåAnimasjonFørFullføring kurs AnnenAvslutning
                                 |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -611,7 +611,7 @@ update msg (Model model) =
         FerdigMedKurs ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( VenterPåAnimasjonFørFullføring model.kursListe LaTilNy
+                    ( VenterPåAnimasjonFørFullføring model.kursListe AnnenAvslutning
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )

@@ -65,7 +65,7 @@ type SamtaleStatus
 
 type AvsluttetGrunn
     = SlettetPåbegynt
-    | LaTilNy
+    | AnnenAvslutning
 
 
 type OppsummeringsType
@@ -617,7 +617,7 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til denne erfaringen." ] ]
                             in
-                            ( VenterPåAnimasjonFørFullføring annenErfaringer LaTilNy
+                            ( VenterPåAnimasjonFørFullføring annenErfaringer AnnenAvslutning
                                 |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -662,7 +662,7 @@ update msg (Model model) =
         FerdigMedAnnenErfaring ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( VenterPåAnimasjonFørFullføring model.annenErfaringListe LaTilNy
+                    ( VenterPåAnimasjonFørFullføring model.annenErfaringListe AnnenAvslutning
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -901,7 +901,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
                 SlettetPåbegynt ->
                     [ Melding.spørsmål [ "Nå har jeg slettet erfaringen." ] ]
 
-                LaTilNy ->
+                AnnenAvslutning ->
                     []
 
 
