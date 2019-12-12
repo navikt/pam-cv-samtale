@@ -898,7 +898,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Ok, erfaringen er ikke lagret." ] ]
+                    [ Melding.spørsmål [ "Nå har jeg slettet erfaringen. Vil du legge til flere kategorier" ] ]
 
                 LaTilNy ->
                     []

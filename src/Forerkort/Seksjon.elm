@@ -54,6 +54,11 @@ type alias ModelInfo =
     }
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | LaTilNy
+
+
 type OppsummeringsType
     = FørsteGang
     | EtterEndring
@@ -72,7 +77,7 @@ type Samtale
     | LagrerFørerkort ValidertFørerkortSkjema LagreStatus
     | LagrerFørerkortKlasseB ValidertFørerkortSkjema LagreStatus
     | LagringFeilet Http.Error ValidertFørerkortSkjema
-    | LeggTilFlereFørerkort
+    | LeggTilFlereFørerkort AvsluttetGrunn
     | VenterPåAnimasjonFørFullføring (List Førerkort)
 
 
@@ -229,7 +234,7 @@ update msg (Model model) =
                                                 , Melding.spørsmål [ "Har du andre førerkort? " ]
                                                 ]
                             in
-                            ( LeggTilFlereFørerkort
+                            ( LeggTilFlereFørerkort LaTilNy
                                 |> oppdaterSamtale { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -288,7 +293,7 @@ update msg (Model model) =
                                                 , Melding.spørsmål [ "Har du andre førerkort? " ]
                                                 ]
                             in
-                            ( LeggTilFlereFørerkort
+                            ( LeggTilFlereFørerkort LaTilNy
                                 |> oppdaterSamtale { model | førerkort = førerkort, seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -594,8 +599,7 @@ update msg (Model model) =
         BekrefterSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt _ ->
-                    ( model.førerkort
-                        |> VenterPåAnimasjonFørFullføring
+                    ( LeggTilFlereFørerkort SlettetPåbegynt
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -660,8 +664,7 @@ update msg (Model model) =
         FerdigMedFørerkort ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( model.førerkort
-                        |> VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring model.førerkort
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -867,21 +870,26 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
         VenterPåAnimasjonFørFullføring _ ->
             []
 
-        LeggTilFlereFørerkort ->
-            [ Melding.spørsmål
-                [ "Supert! Da har du lagt inn "
-                    ++ (model.førerkort
-                            |> List.map Forerkort.klasse
-                            |> List.map klasseToString
-                            |> List.map String.toLower
-                            |> listeTilSetning
-                       )
-                    ++ "."
-                ]
-            , Melding.spørsmål
-                [ "Har du andre førerkort?"
-                ]
-            ]
+        LeggTilFlereFørerkort avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg slettet førerkortet. Har du andre førerkort?" ] ]
+
+                LaTilNy ->
+                    [ Melding.spørsmål
+                        [ "Supert! Da har du lagt inn "
+                            ++ (model.førerkort
+                                    |> List.map Forerkort.klasse
+                                    |> List.map klasseToString
+                                    |> List.map String.toLower
+                                    |> listeTilSetning
+                               )
+                            ++ "."
+                        ]
+                    , Melding.spørsmål
+                        [ "Har du andre førerkort?"
+                        ]
+                    ]
 
         VelgNyttFørerkort _ ->
             [ Melding.spørsmål [ "Hvilket førerkort har du?" ] ]
@@ -915,8 +923,12 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
         EndreSkjema _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
-        BekreftSlettingAvPåbegynt _ ->
-            [ Melding.spørsmål [ "Er du sikker på at du vil slette dette førerkortet?" ] ]
+        BekreftSlettingAvPåbegynt skjema ->
+            let
+                førerkort =
+                    String.toLower (Skjema.førerkortFraValidertSkjema skjema)
+            in
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette førerkortet for " ++ førerkort ++ "?" ] ]
 
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre førerkort" } ]
@@ -1067,7 +1079,7 @@ modelTilBrukerInput model =
             VenterPåAnimasjonFørFullføring _ ->
                 BrukerInput.utenInnhold
 
-            LeggTilFlereFørerkort ->
+            LeggTilFlereFørerkort _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
                     , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"

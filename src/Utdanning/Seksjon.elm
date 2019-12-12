@@ -1127,7 +1127,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         LeggTilFlereUtdanninger avsluttetGrunn ->
             case avsluttetGrunn of
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå er utdanningen slettet. Vil du legge inn flere utdanninger?" ] ]
+                    [ Melding.spørsmål [ "Nå har jeg slettet utdanningen. Vil du legge inn flere utdanninger?" ] ]
 
                 EndretEksisterende ->
                     [ Melding.spørsmål [ "Så bra! Nå er utdanningen endret👍" ]
@@ -1309,7 +1309,6 @@ modelTilBrukerInput model =
                 BrukerInput.knapper Flytende
                     ([ [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                        , Knapp.knapp GåTilArbeidserfaring "Nei, jeg er ferdig"
-                       , Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn"
                        ]
                      , if List.length model.utdanningListe > 0 then
                         [ Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn" ]
@@ -1446,18 +1445,18 @@ viewSkjema utdanningsskjema =
 
 viewBekreftOppsummering : Bool -> BrukerInput Msg
 viewBekreftOppsummering skalViseSlett =
-    BrukerInput.knapper Flytende
-        ([ [ Knapp.knapp OppsummeringBekreftet "Ja, det er riktig"
-           , Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
-           ]
-         , if skalViseSlett then
-            [ Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette" ]
+    if skalViseSlett then
+        BrukerInput.knapper Kolonne
+            [ Knapp.knapp OppsummeringBekreftet "Ja, det er riktig"
+            , Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
+            , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
+            ]
 
-           else
-            []
-         ]
-            |> List.concat
-        )
+    else
+        BrukerInput.knapper Flytende
+            [ Knapp.knapp OppsummeringBekreftet "Ja, det er riktig"
+            , Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
+            ]
 
 
 lagUtdanningKnapper : List Utdanning -> List (Knapp Msg)

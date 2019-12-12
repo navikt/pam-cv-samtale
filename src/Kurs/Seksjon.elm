@@ -61,6 +61,11 @@ type SamtaleStatus
     | Ferdig (List Kurs) FerdigAnimertMeldingsLogg
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | LaTilNy
+
+
 type OppsummeringsType
     = FørsteGang
     | EtterEndring
@@ -80,7 +85,7 @@ type Samtale
     | BekreftSlettingAvPåbegynt ValidertKursSkjema
     | LagrerSkjema ValidertKursSkjema LagreStatus
     | LagringFeilet Http.Error ValidertKursSkjema
-    | VenterPåAnimasjonFørFullføring (List Kurs)
+    | VenterPåAnimasjonFørFullføring (List Kurs) AvsluttetGrunn
 
 
 type alias KursnavnInfo =
@@ -483,8 +488,7 @@ update msg (Model model) =
         BekrefterSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt _ ->
-                    ( model.kursListe
-                        |> VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring model.kursListe SlettetPåbegynt
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -562,8 +566,7 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et kurs 👍" ] ]
                             in
-                            ( kurs
-                                |> VenterPåAnimasjonFørFullføring
+                            ( VenterPåAnimasjonFørFullføring kurs LaTilNy
                                 |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -608,8 +611,7 @@ update msg (Model model) =
         FerdigMedKurs ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( model.kursListe
-                        |> VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring model.kursListe LaTilNy
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -697,7 +699,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring kursListe ->
+                VenterPåAnimasjonFørFullføring kursListe _ ->
                     Ferdig kursListe ferdigAnimertSamtale
 
                 _ ->
@@ -833,8 +835,13 @@ samtaleTilMeldingsLogg kursSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre kurs" } ]
 
-        VenterPåAnimasjonFørFullføring _ ->
-            []
+        VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg slettet kurset. Vil du legge til flere kategorier?" ] ]
+
+                _ ->
+                    []
 
 
 validertSkjemaTilSetninger : ValidertKursSkjema -> List String
@@ -1064,7 +1071,7 @@ modelTilBrukerInput model =
                     ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring _ ->
+            VenterPåAnimasjonFørFullføring _ _ ->
                 BrukerInput.utenInnhold
 
     else

@@ -52,6 +52,12 @@ type alias ModelInfo =
     }
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt FagdokumentasjonType
+    | AvbrøtPåbegynt
+    | LaTilNy
+
+
 type OppsummeringsType
     = FørsteGang
     | EtterEndring
@@ -68,7 +74,7 @@ type Samtale
     | BekreftSlettingAvPåbegynt ValidertFagdokumentasjonSkjema
     | Lagrer LagreStatus ValidertFagdokumentasjonSkjema
     | LagringFeilet ValidertFagdokumentasjonSkjema Http.Error
-    | VenterPåAnimasjonFørFullføring (List Fagdokumentasjon)
+    | VenterPåAnimasjonFørFullføring (List Fagdokumentasjon) AvsluttetGrunn
 
 
 type LagreStatus
@@ -258,7 +264,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         BrukerVilAvbryteHentingFraTypeahead ->
-            ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe
+            ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AvbrøtPåbegynt
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -313,9 +319,12 @@ update msg (Model model) =
 
         BekrefterSlettPåbegynt ->
             case model.aktivSamtale of
-                BekreftSlettingAvPåbegynt _ ->
-                    ( model.fagdokumentasjonListe
-                        |> VenterPåAnimasjonFørFullføring
+                BekreftSlettingAvPåbegynt skjema ->
+                    let
+                        fagdokumentasjonsType =
+                            Skjema.fagdokumentasjonType (Skjema.tilUvalidertSkjema skjema)
+                    in
+                    ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe (SlettetPåbegynt fagdokumentasjonsType)
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -390,7 +399,7 @@ update msg (Model model) =
                             if lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus then
                                 ( Model
                                     { model
-                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
+                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner LaTilNy
                                         , seksjonsMeldingsLogg =
                                             model.seksjonsMeldingsLogg
                                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg vil logge inn" ])
@@ -404,7 +413,7 @@ update msg (Model model) =
                             else
                                 ( Model
                                     { model
-                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
+                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner LaTilNy
                                         , seksjonsMeldingsLogg =
                                             model.seksjonsMeldingsLogg
                                                 |> MeldingsLogg.leggTilSpørsmål
@@ -466,8 +475,7 @@ update msg (Model model) =
 
         BrukerVilIkkePrøveÅLagrePåNytt ->
             IkkeFerdig
-                ( model.fagdokumentasjonListe
-                    |> VenterPåAnimasjonFørFullføring
+                ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AvbrøtPåbegynt
                     |> oppdaterSamtale model (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
@@ -671,7 +679,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring fagdokumentasjonListe ->
+                VenterPåAnimasjonFørFullføring fagdokumentasjonListe _ ->
                     Ferdig fagdokumentasjonListe ferdigAnimertSamtale
 
                 _ ->
@@ -829,8 +837,21 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
         LagringFeilet validertSkjema error ->
             [ ErrorHåndtering.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
 
-        VenterPåAnimasjonFørFullføring _ ->
-            []
+        VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt fagdokumentasjonsType ->
+                    case fagdokumentasjonsType of
+                        SvennebrevFagbrev ->
+                            [ Melding.spørsmål [ "Nå har jeg slettet fagbrevet/svennebrevet. Vil du legge til flere kategorier?" ] ]
+
+                        Mesterbrev ->
+                            [ Melding.spørsmål [ "Nå har jeg slettet mesterbrevet. Vil du legge til flere kategorier?" ] ]
+
+                        Autorisasjon ->
+                            [ Melding.spørsmål [ "Nå har jeg slettet autorisasjonen. Vil du legge til flere kategorier?" ] ]
+
+                _ ->
+                    []
 
         Lagrer _ _ ->
             []
@@ -988,7 +1009,7 @@ modelTilBrukerInput model =
                     LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring _ ->
+            VenterPåAnimasjonFørFullføring _ _ ->
                 BrukerInput.utenInnhold
 
     else

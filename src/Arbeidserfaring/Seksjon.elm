@@ -1371,7 +1371,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         SpørOmBrukerVilLeggeInnMer avsluttetGrunn ->
             case avsluttetGrunn of
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå er arbeidserfaringen slettet. Vil du legge inn flere arbeidserfaringer?" ] ]
+                    [ Melding.spørsmål [ "Nå har jeg slettet arbeidserfaringen. Vil du legge inn flere arbeidserfaringer?" ] ]
 
                 EndretEksisterende ->
                     [ Melding.spørsmål [ "Flott! Nå er arbeidserfaringen endret." ]
@@ -1744,18 +1744,18 @@ inputIdTilString inputId =
 
 viewBekreftOppsummering : Bool -> BrukerInput Msg
 viewBekreftOppsummering skalViseSlett =
-    BrukerInput.knapper Kolonne
-        ([ [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, det er riktig"
-           , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
-           ]
-         , if skalViseSlett then
-            [ Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette" ]
+    if skalViseSlett then
+        BrukerInput.knapper Kolonne
+            [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, det er riktig"
+            , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
+            , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
+            ]
 
-           else
-            []
-         ]
-            |> List.concat
-        )
+    else
+        BrukerInput.knapper Flytende
+            [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, det er riktig"
+            , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
+            ]
 
 
 lagArbeidserfaringKnapp : Arbeidserfaring -> Knapp Msg
