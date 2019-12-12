@@ -2,8 +2,8 @@ module FrontendModuler.DatoInputMedDag exposing
     ( DatoInputMedDag
     , datoInputMedDag
     , toHtml
+    , withFeilmelding
     , withId
-    , withMaybeFeilmelding
     )
 
 import Dato exposing (DatoFeilmelding, Måned)
@@ -58,8 +58,8 @@ datoInputMedDag { label, år, onÅrChange, måned, onMånedChange, dag, onDagCha
         }
 
 
-withMaybeFeilmelding : Maybe DatoFeilmelding -> DatoInputMedDag msg -> DatoInputMedDag msg
-withMaybeFeilmelding feilmelding (DatoInputMedDag info) =
+withFeilmelding : Maybe DatoFeilmelding -> DatoInputMedDag msg -> DatoInputMedDag msg
+withFeilmelding feilmelding (DatoInputMedDag info) =
     DatoInputMedDag { info | feilmelding = feilmelding }
 
 
@@ -117,7 +117,7 @@ toHtml (DatoInputMedDag options) =
                         ]
                         |> Select.withMaybeSelected (Maybe.map Dato.månedTilString options.måned)
                         |> Select.withClass "DatoInput-måned"
-                        |> Select.withMaybeFeilmelding
+                        |> Select.withFeilmelding
                             (case options.feilmelding of
                                 Just { feilmelding, feilPåDag, feilPåMåned, feilPåÅr } ->
                                     if feilPåMåned then

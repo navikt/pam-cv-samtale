@@ -565,21 +565,21 @@ modelTilBrukerInput { aktivSamtale, seksjonsMeldingsLogg } =
                     [ personaliaSkjema
                         |> Skjema.fornavn
                         |> Input.input { label = "Fornavn", msg = PersonaliaSkjemaEndret Skjema.Fornavn }
-                        |> Input.withMaybeFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
+                        |> Input.withFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
                         |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Fornavn)
                         |> Input.withErObligatorisk
                         |> Input.toHtml
                     , personaliaSkjema
                         |> Skjema.etternavn
                         |> Input.input { label = "Etternavn", msg = PersonaliaSkjemaEndret Skjema.Etternavn }
-                        |> Input.withMaybeFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
+                        |> Input.withFeilmelding (Skjema.etternavnFeilmelding personaliaSkjema)
                         |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Etternavn)
                         |> Input.withErObligatorisk
                         |> Input.toHtml
                     , personaliaSkjema
                         |> Skjema.epost
                         |> Input.input { label = "E-post", msg = PersonaliaSkjemaEndret Skjema.Epost }
-                        |> Input.withMaybeFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
+                        |> Input.withFeilmelding (Skjema.epostFeilmelding personaliaSkjema)
                         |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Epost)
                         |> Input.withErObligatorisk
                         |> Input.toHtml
@@ -592,7 +592,7 @@ modelTilBrukerInput { aktivSamtale, seksjonsMeldingsLogg } =
                         [ personaliaSkjema
                             |> Skjema.postnummer
                             |> Input.input { label = "Postnummer", msg = PersonaliaSkjemaEndret Skjema.Postnummer }
-                            |> Input.withMaybeFeilmelding (Skjema.postnummerFeilmelding personaliaSkjema)
+                            |> Input.withFeilmelding (Skjema.postnummerFeilmelding personaliaSkjema)
                             |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Postnummer)
                             |> Input.toHtml
                         , personaliaSkjema

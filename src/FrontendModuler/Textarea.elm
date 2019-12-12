@@ -3,12 +3,11 @@ module FrontendModuler.Textarea exposing
     , TextareaOptions
     , innhold
     , textarea
-    , toHtml
-    ,  withFeilmelding
+    ,  toHtml
        --    , withMaxLength
 
+    , withFeilmelding
     , withId
-    , withMaybeFeilmelding
     , withTextAreaClass
     )
 
@@ -57,13 +56,8 @@ withTextAreaClass textAreaClass (Textarea options) =
     Textarea { options | textAreaClass = textAreaClass }
 
 
-withFeilmelding : String -> Textarea msg -> Textarea msg
-withFeilmelding feilmelding (Textarea options) =
-    Textarea { options | feilmelding = Just feilmelding }
-
-
-withMaybeFeilmelding : Maybe String -> Textarea msg -> Textarea msg
-withMaybeFeilmelding maybeFeilmelding (Textarea options) =
+withFeilmelding : Maybe String -> Textarea msg -> Textarea msg
+withFeilmelding maybeFeilmelding (Textarea options) =
     Textarea { options | feilmelding = maybeFeilmelding }
 
 

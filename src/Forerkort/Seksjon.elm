@@ -1037,7 +1037,7 @@ modelTilBrukerInput model =
                                 model.førerkortKoder
                         )
                         |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode velgNyttFørerkortInfo.valgtFørerkort)
-                        |> Select.withMaybeFeilmelding velgNyttFørerkortInfo.feilmelding
+                        |> Select.withFeilmelding velgNyttFørerkortInfo.feilmelding
                         |> Select.withErObligatorisk
                     )
 
@@ -1059,7 +1059,7 @@ modelTilBrukerInput model =
                      }
                         |> DatoInputMedDag.datoInputMedDag
                         |> DatoInputMedDag.withId (inputIdTilString FraDatoId)
-                        |> DatoInputMedDag.withMaybeFeilmelding
+                        |> DatoInputMedDag.withFeilmelding
                             (if info.visFeilmelding then
                                 Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år }
 
@@ -1080,7 +1080,7 @@ modelTilBrukerInput model =
                      }
                         |> DatoInputMedDag.datoInputMedDag
                         |> DatoInputMedDag.withId (inputIdTilString TilDatoId)
-                        |> DatoInputMedDag.withMaybeFeilmelding
+                        |> DatoInputMedDag.withFeilmelding
                             (if info.visFeilmelding then
                                 Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år }
 
@@ -1119,7 +1119,7 @@ modelTilBrukerInput model =
                           , onMånedChange = TilMåned >> SkjemaEndret
                           }
                             |> DatoInputMedDag.datoInputMedDag
-                            |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema })
+                            |> DatoInputMedDag.withFeilmelding (Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema })
                             |> DatoInputMedDag.toHtml
                         , div [] [ text "Førerrett fra" ]
                         , { label = "Gyldig fra dato"
@@ -1131,7 +1131,7 @@ modelTilBrukerInput model =
                           , onMånedChange = FraMåned >> SkjemaEndret
                           }
                             |> DatoInputMedDag.datoInputMedDag
-                            |> DatoInputMedDag.withMaybeFeilmelding (Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema })
+                            |> DatoInputMedDag.withFeilmelding (Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema })
                             |> DatoInputMedDag.toHtml
                         ]
                     ]

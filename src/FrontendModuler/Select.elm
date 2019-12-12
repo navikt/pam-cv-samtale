@@ -4,7 +4,7 @@ module FrontendModuler.Select exposing
     , toHtml
     , withClass
     , withErObligatorisk
-    , withMaybeFeilmelding
+    , withFeilmelding
     , withMaybeSelected
     , withSelected
     )
@@ -56,8 +56,8 @@ withMaybeSelected selectedValue (Select options) =
     Select { options | selectedValue = selectedValue }
 
 
-withMaybeFeilmelding : Maybe String -> Select msg -> Select msg
-withMaybeFeilmelding feilmelding (Select options) =
+withFeilmelding : Maybe String -> Select msg -> Select msg
+withFeilmelding feilmelding (Select options) =
     Select { options | feilmelding = feilmelding }
 
 

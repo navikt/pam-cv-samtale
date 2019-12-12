@@ -1166,7 +1166,7 @@ modelTilBrukerInput model =
                     (beskrivelseinfo.beskrivelse
                         |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
                         |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse)
+                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse)
                     )
 
             RegistrereFraMåned _ ->
@@ -1177,7 +1177,7 @@ modelTilBrukerInput model =
                     (fraDatoInfo.fraÅr
                         |> Input.input { label = "År", msg = OppdaterFraÅr }
                         |> Input.withWrapperClass "år-wrapper"
-                        |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visÅrFeilmelding) fraDatoInfo.fraÅr)
+                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visÅrFeilmelding) fraDatoInfo.fraÅr)
                         |> Input.withId (inputIdTilString RegistrereFraÅrInput)
                         |> Input.withOnEnter BrukerVilGåVidereMedFraÅr
                         |> Input.withOnBlur FraÅrMisterFokus
@@ -1198,7 +1198,7 @@ modelTilBrukerInput model =
                     (tilDatoInfo.tilÅr
                         |> Input.input { label = "År", msg = OppdaterTilÅr }
                         |> Input.withWrapperClass "år-wrapper"
-                        |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visÅrFeilmelding) tilDatoInfo.tilÅr)
+                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visÅrFeilmelding) tilDatoInfo.tilÅr)
                         |> Input.withId (inputIdTilString RegistrereTilÅrInput)
                         |> Input.withOnEnter BrukerVilGåTilOppsummering
                         |> Input.withOnBlur TilÅrMisterFokus
@@ -1309,7 +1309,7 @@ viewSkjema utdanningsskjema =
         , utdanningsskjema
             |> Skjema.innholdTekstFelt Beskrivelse
             |> Textarea.textarea { label = "Beskriv utdanningen", msg = Tekst Beskrivelse >> OppsummeringEndret }
-            |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse utdanningsskjema) maxLengthBeskrivelse)
+            |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse utdanningsskjema) maxLengthBeskrivelse)
             |> Textarea.toHtml
         , div [ class "DatoInput-fra-til-rad" ]
             [ DatoInput.datoInput
@@ -1319,7 +1319,7 @@ viewSkjema utdanningsskjema =
                 , onÅrChange = Tekst FraÅr >> OppsummeringEndret
                 , år = Skjema.innholdTekstFelt FraÅr utdanningsskjema
                 }
-                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFraÅr utdanningsskjema)
+                |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFraÅr utdanningsskjema)
                 |> DatoInput.withOnBlurÅr (OppsummeringEndret FraÅrBlurred)
                 |> DatoInput.toHtml
             , if not (Skjema.nåværende utdanningsskjema) then
@@ -1330,7 +1330,7 @@ viewSkjema utdanningsskjema =
                     , onÅrChange = Tekst TilÅr >> OppsummeringEndret
                     , år = Skjema.innholdTekstFelt TilÅr utdanningsskjema
                     }
-                    |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingTilÅr utdanningsskjema)
+                    |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingTilÅr utdanningsskjema)
                     |> DatoInput.withOnBlurÅr (OppsummeringEndret TilÅrBlurred)
                     |> DatoInput.toHtml
 
