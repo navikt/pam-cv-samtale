@@ -10,7 +10,6 @@ module FrontendModuler.Input exposing
     , withErObligatorisk
     , withFeilmelding
     , withId
-    , withMaybeFeilmelding
     , withOnBlur
     , withOnEnter
     , withPlaceholder
@@ -81,18 +80,13 @@ type Enabled
     | Disabled
 
 
-withFeilmelding : String -> Input msg -> Input msg
-withFeilmelding feilmelding (Input options) =
-    Input { options | feilmelding = Just feilmelding }
-
-
 withErObligatorisk : Input msg -> Input msg
 withErObligatorisk (Input options) =
     Input { options | obligatorisk = True }
 
 
-withMaybeFeilmelding : Maybe String -> Input msg -> Input msg
-withMaybeFeilmelding feilmelding (Input options) =
+withFeilmelding : Maybe String -> Input msg -> Input msg
+withFeilmelding feilmelding (Input options) =
     Input { options | feilmelding = feilmelding }
 
 

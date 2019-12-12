@@ -949,7 +949,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter VilRegistrereRolle
                         |> Input.withId (inputIdTilString RolleId)
                         |> Input.withOnBlur FeltMisterFokus
-                        |> Input.withMaybeFeilmelding
+                        |> Input.withFeilmelding
                             (info.rolle
                                 |> Skjema.feilmeldingRolle
                                 |> maybeHvisTrue info.tillatÅViseFeilmeldingRolle
@@ -961,7 +961,7 @@ modelTilBrukerInput model =
                 BrukerInput.textareaMedGåVidereKnapp VilRegistrereBeskrivelse
                     (info.beskrivelse
                         |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
-                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
+                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
                         |> Textarea.withId (inputIdTilString BeskrivelseId)
                     )
 
@@ -985,7 +985,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter VilRegistrereFraÅr
                         |> Input.withOnBlur FeltMisterFokus
                         |> Input.withId (inputIdTilString FraÅrId)
-                        |> Input.withMaybeFeilmelding
+                        |> Input.withFeilmelding
                             (fraDatoInfo.fraÅr
                                 |> Dato.feilmeldingÅr
                                 |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
@@ -1011,7 +1011,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter VilRegistrereTilÅr
                         |> Input.withOnBlur FeltMisterFokus
                         |> Input.withId (inputIdTilString TilÅrId)
-                        |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
+                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
                     )
 
             VisOppsummering _ ->
@@ -1025,14 +1025,14 @@ modelTilBrukerInput model =
                     [ skjema
                         |> Skjema.innholdTekstFelt Rolle
                         |> Input.input { label = "Rolle", msg = Tekst Rolle >> SkjemaEndret }
-                        |> Input.withMaybeFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
+                        |> Input.withFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
                         |> Input.withOnBlur (SkjemaEndret RolleBlurred)
                         |> Input.withErObligatorisk
                         |> Input.toHtml
                     , skjema
                         |> Skjema.innholdTekstFelt Beskrivelse
                         |> Textarea.textarea { label = "Beskrivelse", msg = Tekst Beskrivelse >> SkjemaEndret }
-                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse skjema) maxLengthBeskrivelse)
+                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse skjema) maxLengthBeskrivelse)
                         |> Textarea.toHtml
                     , skjema
                         |> Skjema.harDatoer
@@ -1094,8 +1094,8 @@ viewDatoPeriode skjema =
                 , onÅrChange = Tekst FraÅr >> SkjemaEndret
                 , år = Skjema.innholdTekstFelt FraÅr skjema
                 }
-                |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
-                |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingFraMåned skjema)
+                |> ValgfriDatoInput.withFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
+                |> ValgfriDatoInput.withFeilmeldingMåned (Skjema.feilmeldingFraMåned skjema)
                 |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
                 |> ValgfriDatoInput.withErObligatorisk
                 |> ValgfriDatoInput.toHtml
@@ -1107,8 +1107,8 @@ viewDatoPeriode skjema =
                     , onÅrChange = Tekst TilÅr >> SkjemaEndret
                     , år = Skjema.innholdTekstFelt TilÅr skjema
                     }
-                    |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
-                    |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingTilMåned skjema)
+                    |> ValgfriDatoInput.withFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
+                    |> ValgfriDatoInput.withFeilmeldingMåned (Skjema.feilmeldingTilMåned skjema)
                     |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
                     |> ValgfriDatoInput.withErObligatorisk
                     |> ValgfriDatoInput.toHtml

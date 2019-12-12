@@ -1118,7 +1118,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter VilRegistrereFullførtÅr
                         |> Input.withOnBlur ÅrMisterFokus
                         |> Input.withId (inputIdTilString FullførtÅrId)
-                        |> Input.withMaybeFeilmelding
+                        |> Input.withFeilmelding
                             (fullførtDatoInfo.fullførtÅr
                                 |> Dato.feilmeldingÅr
                                 |> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtÅr
@@ -1144,7 +1144,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter VilRegistrereUtløperÅr
                         |> Input.withOnBlur ÅrMisterFokus
                         |> Input.withId (inputIdTilString UtløperÅrId)
-                        |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
+                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
                         |> Input.withErObligatorisk
                     )
 
@@ -1172,7 +1172,7 @@ modelTilBrukerInput model =
                             , onÅrChange = FullførtÅr >> SkjemaEndret
                             , år = Skjema.fullførtÅr skjema
                             }
-                            |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
+                            |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
                             |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
                             |> DatoInput.toHtml
                         , if not (Skjema.utløperIkke skjema) then
@@ -1183,7 +1183,7 @@ modelTilBrukerInput model =
                                 , onÅrChange = UtløperÅr >> SkjemaEndret
                                 , år = Skjema.utløperÅr skjema
                                 }
-                                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
+                                |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
                                 |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
                                 |> DatoInput.toHtml
 

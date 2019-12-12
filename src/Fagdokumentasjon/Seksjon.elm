@@ -868,7 +868,7 @@ modelTilBrukerInput model =
                 BrukerInput.textareaMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
                     (beskrivelseinfo.beskrivelse
                         |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
-                        |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
+                        |> Textarea.withFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
                         |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
                     )
 
@@ -887,7 +887,7 @@ modelTilBrukerInput model =
                     , skjema
                         |> Skjema.beskrivelse
                         |> Textarea.textarea { label = "Beskrivelse", msg = OppdaterFagdokumentasjonBeskrivelse }
-                        |> Textarea.withMaybeFeilmelding (Skjema.beskrivelse skjema |> feilmeldingBeskrivelsesfelt)
+                        |> Textarea.withFeilmelding (Skjema.beskrivelse skjema |> feilmeldingBeskrivelsesfelt)
                         |> Textarea.toHtml
                     ]
 

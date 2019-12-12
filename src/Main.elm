@@ -2117,7 +2117,7 @@ viewSammendragInput : String -> Textarea AndreSamtaleStegMsg
 viewSammendragInput sammendrag =
     Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
         |> Textarea.withTextAreaClass "textarea_stor"
-        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
+        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
         |> Textarea.withId sammendragId
 
 

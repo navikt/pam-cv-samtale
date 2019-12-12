@@ -1466,7 +1466,7 @@ modelTilBrukerInput model =
                     (arbeidsoppgaverInfo.arbeidsoppgaver
                         |> Textarea.textarea { label = "Arbeidsoppgaver", msg = BrukerOppdatererArbeidsoppgaver }
                         |> Textarea.withId (inputIdTilString ArbeidsoppgaverInput)
-                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn arbeidsoppgaverInfo.arbeidsoppgaver maxLengthArbeidsoppgaver)
+                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn arbeidsoppgaverInfo.arbeidsoppgaver maxLengthArbeidsoppgaver)
                     )
 
             RegistrereFraMåned _ ->
@@ -1481,7 +1481,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter BrukerVilRegistrereFraÅr
                         |> Input.withOnBlur FraÅrMisterFokus
                         |> Input.withId (inputIdTilString FraÅrInput)
-                        |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visFeilmeldingFraÅr) fraDatoInfo.fraÅr)
+                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visFeilmeldingFraÅr) fraDatoInfo.fraÅr)
                         |> Input.withErObligatorisk
                     )
 
@@ -1503,7 +1503,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter BrukerVilRegistrereTilÅr
                         |> Input.withOnBlur TilÅrMisterFokus
                         |> Input.withId (inputIdTilString TilÅrInput)
-                        |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visFeilmeldingTilÅr) tilDatoInfo.tilÅr)
+                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visFeilmeldingTilÅr) tilDatoInfo.tilÅr)
                         |> Input.withErObligatorisk
                     )
 
@@ -1541,7 +1541,7 @@ modelTilBrukerInput model =
                     , skjema
                         |> Skjema.innholdTekstFelt Arbeidsoppgaver
                         |> Textarea.textarea { label = "Arbeidsoppgaver", msg = Tekst Arbeidsoppgaver >> SkjemaEndret }
-                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Arbeidsoppgaver skjema) maxLengthArbeidsoppgaver)
+                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Arbeidsoppgaver skjema) maxLengthArbeidsoppgaver)
                         |> Textarea.toHtml
                     , div [ class "DatoInput-fra-til-rad" ]
                         [ DatoInput.datoInput
@@ -1551,7 +1551,7 @@ modelTilBrukerInput model =
                             , onÅrChange = Tekst FraÅr >> SkjemaEndret
                             , år = Skjema.innholdTekstFelt FraÅr skjema
                             }
-                            |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
+                            |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
                             |> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
                             |> DatoInput.toHtml
                         , if not (Skjema.nåværende skjema) then
@@ -1562,7 +1562,7 @@ modelTilBrukerInput model =
                                 , onÅrChange = Tekst TilÅr >> SkjemaEndret
                                 , år = Skjema.innholdTekstFelt TilÅr skjema
                                 }
-                                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
+                                |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
                                 |> DatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
                                 |> DatoInput.toHtml
 

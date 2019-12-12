@@ -3,9 +3,9 @@ module FrontendModuler.ValgfriDatoInput exposing
     , datoInput
     , toHtml
     , withErObligatorisk
-    , withMaybeFeilmeldingMåned
-    , withMaybeFeilmeldingPeriode
-    , withMaybeFeilmeldingÅr
+    , withFeilmeldingMåned
+    , withFeilmeldingPeriode
+    , withFeilmeldingÅr
     , withOnBlurÅr
     )
 
@@ -99,18 +99,18 @@ feilMånedIPeriode (DatoInput info) =
             False
 
 
-withMaybeFeilmeldingÅr : Maybe String -> DatoInput msg -> DatoInput msg
-withMaybeFeilmeldingÅr feilmelding (DatoInput info) =
+withFeilmeldingÅr : Maybe String -> DatoInput msg -> DatoInput msg
+withFeilmeldingÅr feilmelding (DatoInput info) =
     DatoInput { info | feilmeldingÅr = feilmelding }
 
 
-withMaybeFeilmeldingMåned : Maybe String -> DatoInput msg -> DatoInput msg
-withMaybeFeilmeldingMåned feilmelding (DatoInput info) =
+withFeilmeldingMåned : Maybe String -> DatoInput msg -> DatoInput msg
+withFeilmeldingMåned feilmelding (DatoInput info) =
     DatoInput { info | feilmeldingMåned = feilmelding }
 
 
-withMaybeFeilmeldingPeriode : Maybe String -> DatoInput msg -> DatoInput msg
-withMaybeFeilmeldingPeriode feilmelding (DatoInput info) =
+withFeilmeldingPeriode : Maybe String -> DatoInput msg -> DatoInput msg
+withFeilmeldingPeriode feilmelding (DatoInput info) =
     DatoInput { info | feilmeldingPeriode = feilmelding }
 
 
@@ -173,7 +173,7 @@ toHtml (DatoInput options) =
                                     ""
                                )
                         )
-                    |> Select.withMaybeFeilmelding options.feilmeldingMåned
+                    |> Select.withFeilmelding options.feilmeldingMåned
                     |> Select.toHtml
                 , div [ class "DatoInput-år-wrapper" ]
                     [ Input.input { label = "År", msg = options.onÅrChange } options.år
@@ -186,7 +186,7 @@ toHtml (DatoInput options) =
                                         ""
                                    )
                             )
-                        |> Input.withMaybeFeilmelding options.feilmeldingÅr
+                        |> Input.withFeilmelding options.feilmeldingÅr
                         |> withMaybeOnBlur options.onBlurÅr
                         |> Input.toHtml
                     ]

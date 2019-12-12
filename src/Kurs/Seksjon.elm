@@ -887,7 +887,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter VilRegistrereKursnavn
                         |> Input.withId (inputIdTilString KursnavnId)
                         |> Input.withOnBlur FeltMisterFokus
-                        |> Input.withMaybeFeilmelding
+                        |> Input.withFeilmelding
                             (info.kursnavn
                                 |> Skjema.feilmeldingKursnavn
                                 |> maybeHvisTrue info.tillatÅViseFeilmeldingKursnavn
@@ -900,7 +900,7 @@ modelTilBrukerInput model =
                     (info.kursholder
                         |> Input.input { label = "Kursets arrangør", msg = OppdatererKursholder }
                         |> Input.withOnEnter VilRegistrereKursholder
-                        |> Input.withMaybeFeilmelding (Skjema.feilmeldingKursholder info.kursholder)
+                        |> Input.withFeilmelding (Skjema.feilmeldingKursholder info.kursholder)
                         |> Input.withId (inputIdTilString KursholderId)
                     )
 
@@ -922,7 +922,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter VilRegistrereFullførtÅr
                         |> Input.withOnBlur FeltMisterFokus
                         |> Input.withId (inputIdTilString FullførtÅrId)
-                        |> Input.withMaybeFeilmelding
+                        |> Input.withFeilmelding
                             (fullførtDatoInfo.fullførtÅr
                                 |> Dato.feilmeldingÅr
                                 |> maybeHvisTrue fullførtDatoInfo.tillatÅViseFeilmeldingÅr
@@ -941,7 +941,7 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter VilRegistrereVarighet
                         |> Input.withOnBlur FeltMisterFokus
                         |> Input.withId (inputIdTilString VarighetId)
-                        |> Input.withMaybeFeilmelding
+                        |> Input.withFeilmelding
                             (info.varighet
                                 |> Skjema.feilmeldingVarighet
                                 |> maybeHvisTrue info.tillatÅViseFeilmeldingVarighet
@@ -959,14 +959,14 @@ modelTilBrukerInput model =
                     [ skjema
                         |> Skjema.innholdTekstFelt Kursnavn
                         |> Input.input { label = "Kursnavn", msg = Tekst Kursnavn >> SkjemaEndret }
-                        |> Input.withMaybeFeilmelding (Skjema.feilmeldingKursnavnHvisSynlig skjema)
+                        |> Input.withFeilmelding (Skjema.feilmeldingKursnavnHvisSynlig skjema)
                         |> Input.withOnBlur (SkjemaEndret KursnavnBlurred)
                         |> Input.withErObligatorisk
                         |> Input.toHtml
                     , skjema
                         |> Skjema.innholdTekstFelt Kursholder
                         |> Input.input { label = "Kursholder", msg = Tekst Kursholder >> SkjemaEndret }
-                        |> Input.withMaybeFeilmelding (Skjema.innholdTekstFelt Kursholder skjema |> Skjema.feilmeldingKursholder)
+                        |> Input.withFeilmelding (Skjema.innholdTekstFelt Kursholder skjema |> Skjema.feilmeldingKursholder)
                         |> Input.toHtml
                     , div [ class "DatoInput-fra-til-rad" ]
                         [ ValgfriDatoInput.datoInput
@@ -976,8 +976,8 @@ modelTilBrukerInput model =
                             , onÅrChange = Tekst FullførtÅr >> SkjemaEndret
                             , år = Skjema.innholdTekstFelt FullførtÅr skjema
                             }
-                            |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingValgfrittFullførtÅr skjema)
-                            |> ValgfriDatoInput.withMaybeFeilmeldingPeriode (Skjema.feilmeldingPeriode skjema)
+                            |> ValgfriDatoInput.withFeilmeldingÅr (Skjema.feilmeldingValgfrittFullførtÅr skjema)
+                            |> ValgfriDatoInput.withFeilmeldingPeriode (Skjema.feilmeldingPeriode skjema)
                             |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrBlurred)
                             |> ValgfriDatoInput.toHtml
                         , viewVarighet skjema
@@ -1050,7 +1050,7 @@ viewVarighet skjema =
                 |> Input.input { label = "Antall", msg = Tekst Varighet >> SkjemaEndret }
                 |> Input.withClass "Varighet-antall"
                 |> Input.withOnBlur (SkjemaEndret VarighetBlurred)
-                |> Input.withMaybeFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
+                |> Input.withFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
                 |> Input.toHtml
             , Select.select
                 "Timer/dager/uker/måneder"

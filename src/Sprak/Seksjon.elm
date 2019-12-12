@@ -778,7 +778,7 @@ modelTilBrukerInput model =
                                         list
                                 )
                                 |> Select.withMaybeSelected (Maybe.map SpråkKode.kode velgNyttSpråkInfo.valgtSpråk)
-                                |> Select.withMaybeFeilmelding velgNyttSpråkInfo.feilmelding
+                                |> Select.withFeilmelding velgNyttSpråkInfo.feilmelding
                                 |> Select.withErObligatorisk
                             )
 

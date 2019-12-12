@@ -2,7 +2,7 @@ module FrontendModuler.DatoInput exposing
     ( DatoInput
     , datoInput
     , toHtml
-    , withMaybeFeilmeldingÅr
+    , withFeilmeldingÅr
     , withOnBlurÅr
     )
 
@@ -50,8 +50,8 @@ datoInput { label, år, onÅrChange, måned, onMånedChange } =
         }
 
 
-withMaybeFeilmeldingÅr : Maybe String -> DatoInput msg -> DatoInput msg
-withMaybeFeilmeldingÅr feilmelding (DatoInput info) =
+withFeilmeldingÅr : Maybe String -> DatoInput msg -> DatoInput msg
+withFeilmeldingÅr feilmelding (DatoInput info) =
     DatoInput { info | feilmeldingÅr = feilmelding }
 
 
@@ -90,7 +90,7 @@ toHtml (DatoInput options) =
             , div [ class "DatoInput-år-wrapper" ]
                 [ Input.input { label = "År", msg = options.onÅrChange } options.år
                     |> Input.withClass "aar"
-                    |> Input.withMaybeFeilmelding options.feilmeldingÅr
+                    |> Input.withFeilmelding options.feilmeldingÅr
                     |> withMaybeOnBlur options.onBlurÅr
                     |> Input.toHtml
                 ]
