@@ -1018,7 +1018,7 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
         VisOppsummering oppsummeringsType skjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Da sletter jeg ikke sertifiseringen/sertifikatet." ]
+                    [ Melding.spørsmål [ "Ok, da lar vi sertifiseringen/sertifikatet stå." ]
                     , oppsummeringsSpørsmål skjema
                     ]
 

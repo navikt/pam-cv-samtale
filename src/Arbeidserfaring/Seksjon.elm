@@ -1335,7 +1335,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         VisOppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Da sletter jeg ikke arbeidserfaringen." ]
+                    [ Melding.spørsmål [ "Ok, da lar vi arbeidserfaringen stå." ]
                     , Melding.spørsmål
                         (validertSkjemaTilSetninger validertSkjema
                             ++ [ Melding.tomLinje

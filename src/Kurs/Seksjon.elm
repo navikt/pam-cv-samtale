@@ -812,7 +812,7 @@ samtaleTilMeldingsLogg kursSeksjon =
         VisOppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Da sletter jeg ikke kurset." ]
+                    [ Melding.spørsmål [ "Ok, da lar vi kurset stå." ]
                     , oppsummeringsSpørsmål validertSkjema
                     ]
 

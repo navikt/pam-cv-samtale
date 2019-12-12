@@ -874,7 +874,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         VisOppsummering oppsummeringsType skjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Da sletter jeg ikke erfaringen." ]
+                    [ Melding.spørsmål [ "Ok, da lar vi erfaringen stå." ]
                     , oppsummeringsSpørsmål skjema
                     ]
 

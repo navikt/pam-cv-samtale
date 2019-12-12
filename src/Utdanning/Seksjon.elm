@@ -1107,7 +1107,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         Oppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Da sletter jeg ikke utdanningen." ]
+                    [ Melding.spørsmål [ "Ok, da lar vi utdanningen stå." ]
                     , oppsummeringsSpørsmål validertSkjema
                     ]
 
