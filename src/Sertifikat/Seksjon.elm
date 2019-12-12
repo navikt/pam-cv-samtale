@@ -605,7 +605,7 @@ update msg (Model model) =
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen lagret 👍" ] ]
                             in
                             ( VenterPåAnimasjonFørFullføring sertifikater AnnenAvslutning
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -1043,10 +1043,10 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå har jeg slettet sertifiseringen/sertifikatet." ] ]
+                    [ Melding.spørsmål [ "Nå har jeg slettet sertifiseringen/sertifikatet. Vil du legge inn flere kategorier?" ] ]
 
                 _ ->
-                    []
+                    [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
 
 validertSkjemaTilSetninger : ValidertSertifikatSkjema -> List String

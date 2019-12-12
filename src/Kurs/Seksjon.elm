@@ -567,7 +567,7 @@ update msg (Model model) =
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et kurs 👍" ] ]
                             in
                             ( VenterPåAnimasjonFørFullføring kurs AnnenAvslutning
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -838,10 +838,10 @@ samtaleTilMeldingsLogg kursSeksjon =
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå har jeg slettet kurset." ] ]
+                    [ Melding.spørsmål [ "Nå har jeg slettet kurset. Vil du legge inn flere kategorier?" ] ]
 
                 _ ->
-                    []
+                    [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
 
 validertSkjemaTilSetninger : ValidertKursSkjema -> List String

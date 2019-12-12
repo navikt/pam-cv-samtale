@@ -395,32 +395,24 @@ update msg (Model model) =
                 Lagrer lagreStatus skjema ->
                     case result of
                         Ok fagdokumentasjoner ->
-                            if lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus then
-                                ( Model
-                                    { model
-                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner AnnenAvslutning
-                                        , seksjonsMeldingsLogg =
-                                            model.seksjonsMeldingsLogg
-                                                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg vil logge inn" ])
-                                                |> MeldingsLogg.leggTilSpørsmål
-                                                    [ meldingForLagringSuccess skjema ]
-                                    }
-                                , lagtTilSpørsmålCmd model.debugStatus
-                                )
-                                    |> IkkeFerdig
+                            let
+                                oppdatertMeldingslogg =
+                                    if lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus then
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                            |> MeldingsLogg.leggTilSpørsmål
+                                                [ meldingForLagringSuccess skjema ]
 
-                            else
-                                ( Model
-                                    { model
-                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner AnnenAvslutning
-                                        , seksjonsMeldingsLogg =
-                                            model.seksjonsMeldingsLogg
-                                                |> MeldingsLogg.leggTilSpørsmål
-                                                    [ meldingForLagringSuccess skjema ]
-                                    }
-                                , lagtTilSpørsmålCmd model.debugStatus
-                                )
-                                    |> IkkeFerdig
+                                    else
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSpørsmål
+                                                [ meldingForLagringSuccess skjema ]
+                            in
+                            ( VenterPåAnimasjonFørFullføring fagdokumentasjoner AnnenAvslutning
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
                         Err error ->
                             ( error
@@ -841,16 +833,16 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                 SlettetPåbegynt fagdokumentasjonsType ->
                     case fagdokumentasjonsType of
                         SvennebrevFagbrev ->
-                            [ Melding.spørsmål [ "Nå har jeg slettet fagbrevet/svennebrevet." ] ]
+                            [ Melding.spørsmål [ "Nå har jeg slettet fagbrevet/svennebrevet. Vil du legge inn flere kategorier?" ] ]
 
                         Mesterbrev ->
-                            [ Melding.spørsmål [ "Nå har jeg slettet mesterbrevet." ] ]
+                            [ Melding.spørsmål [ "Nå har jeg slettet mesterbrevet. Vil du legge inn flere kategorier?" ] ]
 
                         Autorisasjon ->
-                            [ Melding.spørsmål [ "Nå har jeg slettet autorisasjonen." ] ]
+                            [ Melding.spørsmål [ "Nå har jeg slettet autorisasjonen. Vil du legge inn flere kategorier?" ] ]
 
-                _ ->
-                    []
+                AnnenAvslutning ->
+                    [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
         Lagrer _ _ ->
             []
