@@ -84,7 +84,7 @@ type Samtale
     | LagrerSkjema ValidertUtdanningSkjema LagreStatus
     | LagringFeilet Http.Error ValidertUtdanningSkjema
     | LeggTilFlereUtdanninger AvsluttetGrunn
-    | VenterPåAnimasjonFørFullføring (List Utdanning)
+    | VenterPåAnimasjonFørFullføring (List Utdanning) AvsluttetGrunn
 
 
 type SamtaleStatus
@@ -205,7 +205,7 @@ type Msg
     = BrukerVilRegistrereUtdanning
     | BrukerVilRedigereUtdanning
     | BrukerHarValgtUtdanningÅRedigere Utdanning
-    | GåTilArbeidserfaring
+    | GåTilArbeidserfaring AvsluttetGrunn
     | BrukerVilRegistrereNivå Nivå
     | OppdaterSkole String
     | BrukerVilRegistrereSkole
@@ -289,9 +289,8 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        GåTilArbeidserfaring ->
-            ( model.utdanningListe
-                |> VenterPåAnimasjonFørFullføring
+        GåTilArbeidserfaring avsluttetGrunn ->
+            ( VenterPåAnimasjonFørFullføring model.utdanningListe avsluttetGrunn
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -897,7 +896,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring utdanningsListe ->
+                VenterPåAnimasjonFørFullføring utdanningsListe _ ->
                     Ferdig utdanningsListe ferdigAnimertSamtale
 
                 _ ->
@@ -1145,8 +1144,8 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre utdanning" } ]
 
-        VenterPåAnimasjonFørFullføring liste ->
-            if List.isEmpty liste then
+        VenterPåAnimasjonFørFullføring liste avsluttetGrunn ->
+            if List.isEmpty liste && avsluttetGrunn /= SlettetPåbegynt then
                 [ Melding.spørsmål [ "Siden du ikke har utdanning, går vi videre til arbeidserfaring." ] ]
 
             else
@@ -1206,13 +1205,13 @@ modelTilBrukerInput model =
                 if List.isEmpty model.utdanningListe then
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
-                        , Knapp.knapp GåTilArbeidserfaring "Nei, jeg har ikke utdanning"
+                        , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg har ikke utdanning"
                         ]
 
                 else
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
-                        , Knapp.knapp GåTilArbeidserfaring "Nei, jeg er ferdig"
+                        , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg er ferdig"
                         , Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn"
                         ]
 
@@ -1308,10 +1307,10 @@ modelTilBrukerInput model =
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
-            LeggTilFlereUtdanninger _ ->
+            LeggTilFlereUtdanninger avsluttetGrunn ->
                 BrukerInput.knapper Flytende
                     ([ [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
-                       , Knapp.knapp GåTilArbeidserfaring "Nei, jeg er ferdig"
+                       , Knapp.knapp (GåTilArbeidserfaring avsluttetGrunn) "Nei, jeg er ferdig"
                        ]
                      , if List.length model.utdanningListe > 0 then
                         [ Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn" ]
@@ -1345,7 +1344,7 @@ modelTilBrukerInput model =
                     LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring _ ->
+            VenterPåAnimasjonFørFullføring _ _ ->
                 BrukerInput.utenInnhold
 
     else
