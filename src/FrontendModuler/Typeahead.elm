@@ -3,8 +3,11 @@ module FrontendModuler.Typeahead exposing
     , Suggestion
     , Typeahead
     , TypeaheadOptions
+    , innhold
+    , map
     , toHtml
     , typeahead
+    , withErObligatorisk
     , withFeilmelding
     , withOnBlur
     , withOnFocus
@@ -33,6 +36,7 @@ type alias TypeaheadInfo msg =
     , feilmelding : Maybe String
     , onFocus : Maybe msg
     , onBlur : Maybe msg
+    , obligatorisk : Bool
     }
 
 
@@ -52,17 +56,18 @@ type alias TypeaheadOptions msg =
 
 
 typeahead : TypeaheadOptions msg -> String -> Typeahead msg
-typeahead options innhold =
+typeahead options innhold_ =
     Typeahead
         { label = options.label
         , onInput = options.onInput
         , onTypeaheadChange = options.onTypeaheadChange
-        , innhold = innhold
+        , innhold = innhold_
         , suggestions = []
         , inputId = options.inputId
         , feilmelding = Nothing
         , onFocus = Nothing
         , onBlur = Nothing
+        , obligatorisk = False
         }
 
 
@@ -94,6 +99,11 @@ withOnBlur onBlur (Typeahead options) =
     Typeahead { options | onBlur = Just onBlur }
 
 
+withErObligatorisk : Typeahead msg -> Typeahead msg
+withErObligatorisk (Typeahead options) =
+    Typeahead { options | obligatorisk = True }
+
+
 onKeyUp : (Operation -> msg) -> Html.Attribute msg
 onKeyUp onTypeaheadChange =
     Html.Events.preventDefaultOn
@@ -122,7 +132,14 @@ toHtml (Typeahead options) =
         [ div [ class "typeahead" ]
             [ label
                 [ class "skjemaelement__label", for options.inputId ]
-                [ text options.label ]
+                (if options.obligatorisk then
+                    [ text options.label
+                    , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
+                    ]
+
+                 else
+                    [ text options.label ]
+                )
             , input
                 [ onInput options.onInput
                 , value options.innhold
@@ -202,8 +219,8 @@ viewSuggestion inputFeltId suggestion =
 
 
 suggestionId : String -> Suggestion msg -> String
-suggestionId inputId { innhold } =
-    inputId ++ "-suggestion-" ++ String.replace " " "-" innhold
+suggestionId inputId options =
+    inputId ++ "-suggestion-" ++ String.replace " " "-" options.innhold
 
 
 suggestionsId : String -> String
@@ -224,3 +241,33 @@ ariaAutocompleteList =
 noAttribute : Html.Attribute msg
 noAttribute =
     classList []
+
+
+map : (a -> msg) -> Typeahead a -> Typeahead msg
+map msgConstructor (Typeahead options) =
+    Typeahead
+        { label = options.label
+        , innhold = options.innhold
+        , inputId = options.inputId
+        , feilmelding = options.feilmelding
+        , obligatorisk = options.obligatorisk
+        , onInput = options.onInput >> msgConstructor
+        , onTypeaheadChange = options.onTypeaheadChange >> msgConstructor
+        , onFocus = Maybe.map msgConstructor options.onFocus
+        , onBlur = Maybe.map msgConstructor options.onBlur
+        , suggestions =
+            options.suggestions
+                |> List.map
+                    (\suggestion ->
+                        { innhold = suggestion.innhold
+                        , onActive = msgConstructor suggestion.onActive
+                        , onClick = msgConstructor suggestion.onClick
+                        , active = suggestion.active
+                        }
+                    )
+        }
+
+
+innhold : Typeahead msg -> String
+innhold (Typeahead options) =
+    options.innhold

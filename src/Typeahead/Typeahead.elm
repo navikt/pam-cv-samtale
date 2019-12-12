@@ -11,12 +11,13 @@ module Typeahead.Typeahead exposing
     , inputStatus
     , inputValue
     , selected
+    , toViewElement
     , update
     , updateSuggestions
     , view
     )
 
-import FrontendModuler.Typeahead as Typeahead
+import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
 import Html exposing (..)
 import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
@@ -234,7 +235,13 @@ updateSuggestions toString (Model model) suggestions =
 
 
 view : (a -> String) -> Model a -> Maybe String -> Html (Msg a)
-view toString (Model model) feilmelding =
+view toString model feilmelding =
+    toViewElement toString model feilmelding
+        |> Typeahead.toHtml
+
+
+toViewElement : (a -> String) -> Model a -> Maybe String -> Typeahead (Msg a)
+toViewElement toString (Model model) feilmelding =
     model.typeaheadState
         |> TypeaheadState.value
         |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererInput, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
@@ -242,7 +249,8 @@ view toString (Model model) feilmelding =
         |> Typeahead.withFeilmelding feilmelding
         |> Typeahead.withOnFocus TypeaheadFikkFokus
         |> Typeahead.withOnBlur TypeaheadMistetFokus
-        |> Typeahead.toHtml
+        -- Foreløpig er alle typeaheadfeltene våre obligatoriske, så sender med dette valget uansett
+        |> Typeahead.withErObligatorisk
 
 
 viewSuggestion : (a -> String) -> TypeaheadState a -> List (Typeahead.Suggestion (Msg a))

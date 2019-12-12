@@ -2,7 +2,7 @@ module FrontendModuler.DatoInput exposing
     ( DatoInput
     , datoInput
     , toHtml
-    , withMaybeFeilmeldingÅr
+    , withFeilmeldingÅr
     , withOnBlurÅr
     )
 
@@ -50,8 +50,8 @@ datoInput { label, år, onÅrChange, måned, onMånedChange } =
         }
 
 
-withMaybeFeilmeldingÅr : Maybe String -> DatoInput msg -> DatoInput msg
-withMaybeFeilmeldingÅr feilmelding (DatoInput info) =
+withFeilmeldingÅr : Maybe String -> DatoInput msg -> DatoInput msg
+withFeilmeldingÅr feilmelding (DatoInput info) =
     DatoInput { info | feilmeldingÅr = feilmelding }
 
 
@@ -62,32 +62,38 @@ withOnBlurÅr onBlur (DatoInput info) =
 
 toHtml : DatoInput msg -> Html msg
 toHtml (DatoInput options) =
-    div [ class "DatoInput-wrapper" ]
-        [ Select.select
-            options.label
-            options.onMånedChange
-            [ ( "Januar", "Januar" )
-            , ( "Februar", "Februar" )
-            , ( "Mars", "Mars" )
-            , ( "April", "April" )
-            , ( "Mai", "Mai" )
-            , ( "Juni", "Juni" )
-            , ( "Juli", "Juli" )
-            , ( "August", "August" )
-            , ( "September", "September" )
-            , ( "Oktober", "Oktober" )
-            , ( "November", "November" )
-            , ( "Desember", "Desember" )
+    fieldset [ class "DatoInput-fieldset" ]
+        [ legend [ class "skjemaelement__label" ]
+            [ text options.label
+            , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
             ]
-            |> Select.withSelected (Dato.månedTilString options.måned)
-            |> Select.withClass "DatoInput-måned"
-            |> Select.toHtml
-        , div [ class "DatoInput-år-wrapper" ]
-            [ Input.input { label = "År", msg = options.onÅrChange } options.år
-                |> Input.withClass "aar"
-                |> Input.withMaybeFeilmelding options.feilmeldingÅr
-                |> withMaybeOnBlur options.onBlurÅr
-                |> Input.toHtml
+        , div [ class "DatoInput-wrapper" ]
+            [ Select.select
+                "Måned"
+                options.onMånedChange
+                [ ( "Januar", "Januar" )
+                , ( "Februar", "Februar" )
+                , ( "Mars", "Mars" )
+                , ( "April", "April" )
+                , ( "Mai", "Mai" )
+                , ( "Juni", "Juni" )
+                , ( "Juli", "Juli" )
+                , ( "August", "August" )
+                , ( "September", "September" )
+                , ( "Oktober", "Oktober" )
+                , ( "November", "November" )
+                , ( "Desember", "Desember" )
+                ]
+                |> Select.withSelected (Dato.månedTilString options.måned)
+                |> Select.withClass "DatoInput-måned"
+                |> Select.toHtml
+            , div [ class "DatoInput-år-wrapper" ]
+                [ Input.input { label = "År", msg = options.onÅrChange } options.år
+                    |> Input.withClass "aar"
+                    |> Input.withFeilmelding options.feilmeldingÅr
+                    |> withMaybeOnBlur options.onBlurÅr
+                    |> Input.toHtml
+                ]
             ]
         ]
 

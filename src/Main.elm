@@ -15,13 +15,13 @@ import Fagdokumentasjon.Seksjon
 import Feilmelding
 import Forerkort.Seksjon
 import FrontendModuler.Alertstripe as Alertstripe
-import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
+import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Header as Header
-import FrontendModuler.Knapp as Knapp exposing (Enabled(..))
+import FrontendModuler.Knapp as Knapp exposing (Enabled(..), Knapp)
 import FrontendModuler.Lenke as Lenke
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Spinner as Spinner
-import FrontendModuler.Textarea as Textarea
+import FrontendModuler.Textarea as Textarea exposing (Textarea)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
@@ -32,6 +32,7 @@ import Meldinger.Konstanter as Konstanter
 import Meldinger.Melding as Melding exposing (Melding, MeldingsType(..), Tekstområde(..))
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Meldinger.SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
 import Metrikker
 import Person exposing (Person)
@@ -904,7 +905,7 @@ type AndreSamtaleStegMsg
     | BrukerGodkjennerSynligCV
     | BrukerGodkjennerIkkeSynligCV
     | BrukerVilPrøveÅLagreSynlighetPåNytt
-    | BrukerGirOppÅLagre String
+    | BrukerGirOppÅLagre
     | VilGiTilbakemelding
     | VilIkkeGiTilbakemelding
     | SynlighetPostet (Result Http.Error Bool)
@@ -945,10 +946,11 @@ updateAndreSamtaleSteg model msg info =
                     ( model, Cmd.none )
 
         SeksjonValgt valgtSeksjon ->
-            gåTilValgtSeksjon model info valgtSeksjon
+            gåTilValgtSeksjon model info msg valgtSeksjon
 
         IngenAvAutorisasjonSeksjoneneValgt ->
-            ( nesteSamtaleSteg model info (Melding.svar [ "Nei, gå videre" ]) LeggTilAnnet
+            ( LeggTilAnnet
+                |> oppdaterSamtale model info (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -963,7 +965,9 @@ updateAndreSamtaleSteg model msg info =
                             info.meldingsLogg
                                 |> MeldingsLogg.leggTilSpørsmål eksemplerPåSammendrag
                     in
-                    ( oppdaterSamtaleSteg model { info | meldingsLogg = oppdatertMeldingslogg } (SkriverSammendrag False tekst)
+                    ( tekst
+                        |> SkriverSammendrag False
+                        |> oppdaterSamtale model { info | meldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
 
@@ -974,7 +978,9 @@ updateAndreSamtaleSteg model msg info =
                             info.meldingsLogg
                                 |> MeldingsLogg.leggTilSpørsmål eksemplerPåSammendrag
                     in
-                    ( oppdaterSamtaleSteg model { info | meldingsLogg = oppdatertMeldingslogg } (EndrerSammendrag False tekst)
+                    ( tekst
+                        |> EndrerSammendrag False
+                        |> oppdaterSamtale model { info | meldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
 
@@ -986,26 +992,15 @@ updateAndreSamtaleSteg model msg info =
                 BekreftSammendrag medEksempelKnapp bekreftSammendragState ->
                     case bekreftSammendragState of
                         OpprinneligSammendrag sammendrag ->
-                            ( sammendrag
+                            sammendrag
                                 |> Sammendrag.toString
-                                |> EndrerSammendrag medEksempelKnapp
-                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
+                                |> gåTilEndreSammendrag model info msg medEksempelKnapp
 
                         NyttSammendrag sammendrag ->
-                            ( sammendrag
-                                |> EndrerSammendrag medEksempelKnapp
-                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
+                            gåTilEndreSammendrag model info msg medEksempelKnapp sammendrag
 
                         EndretSammendrag sammendrag ->
-                            ( sammendrag
-                                |> EndrerSammendrag medEksempelKnapp
-                                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil endre" ])
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
+                            gåTilEndreSammendrag model info msg medEksempelKnapp sammendrag
 
                 _ ->
                     ( model, Cmd.none )
@@ -1015,14 +1010,14 @@ updateAndreSamtaleSteg model msg info =
                 EndrerSammendrag medEksempelKnapp _ ->
                     ( tekst
                         |> EndrerSammendrag medEksempelKnapp
-                        |> oppdaterSamtaleSteg model info
+                        |> oppdaterSamtale model info IngenNyeMeldinger
                     , Cmd.none
                     )
 
                 SkriverSammendrag medEksempelKnapp _ ->
                     ( tekst
                         |> SkriverSammendrag medEksempelKnapp
-                        |> oppdaterSamtaleSteg model info
+                        |> oppdaterSamtale model info IngenNyeMeldinger
                     , Cmd.none
                     )
 
@@ -1037,8 +1032,10 @@ updateAndreSamtaleSteg model msg info =
                             ( model, Cmd.none )
 
                         Nothing ->
-                            ( BekreftSammendrag medEksempelKnapp (EndretSammendrag tekst)
-                                |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
+                            ( tekst
+                                |> EndretSammendrag
+                                |> BekreftSammendrag medEksempelKnapp
+                                |> oppdaterSamtale model info (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
@@ -1048,8 +1045,10 @@ updateAndreSamtaleSteg model msg info =
                             ( model, Cmd.none )
 
                         Nothing ->
-                            ( BekreftSammendrag medEksempelKnapp (NyttSammendrag tekst)
-                                |> nesteSamtaleSteg model info (Melding.svar [ tekst ])
+                            ( tekst
+                                |> NyttSammendrag
+                                |> BekreftSammendrag medEksempelKnapp
+                                |> oppdaterSamtale model info (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
@@ -1062,27 +1061,31 @@ updateAndreSamtaleSteg model msg info =
                     ( error
                         |> LagreStatus.fraError
                         |> LagrerSammendrag feiletSammendrag
-                        |> nesteSamtaleSteg model info (Melding.svar [ "Prøv på nytt" ])
+                        |> oppdaterSamtale model info (SvarFraMsg msg)
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
                     )
 
                 BekreftSammendrag _ bekreftSammendragState ->
                     case bekreftSammendragState of
                         OpprinneligSammendrag _ ->
-                            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg er fornøyd" ]) }
+                            { info
+                                | meldingsLogg =
+                                    info.meldingsLogg
+                                        |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
+                            }
                                 |> gåTilAvslutning model
 
                         NyttSammendrag sammendrag ->
                             ( LagreStatus.init
                                 |> LagrerSammendrag sammendrag
-                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
+                                |> oppdaterSamtale model info (SvarFraMsg msg)
                             , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                             )
 
                         EndretSammendrag sammendrag ->
                             ( LagreStatus.init
                                 |> LagrerSammendrag sammendrag
-                                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg er fornøyd" ])
+                                |> oppdaterSamtale model info (SvarFraMsg msg)
                             , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                             )
 
@@ -1090,7 +1093,11 @@ updateAndreSamtaleSteg model msg info =
                     ( model, Cmd.none )
 
         VilIkkeLagreSammendrag ->
-            { info | meldingsLogg = info.meldingsLogg |> MeldingsLogg.leggTilSvar (Melding.svar [ "Gå videre uten å lagre" ]) }
+            { info
+                | meldingsLogg =
+                    info.meldingsLogg
+                        |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
+            }
                 |> gåTilAvslutning model
 
         SammendragOppdatert result ->
@@ -1116,21 +1123,23 @@ updateAndreSamtaleSteg model msg info =
                                 if LagreStatus.forsøkPåNytt lagreStatus then
                                     ( LagreStatus.fraError error
                                         |> LagrerSammendrag sammendrag
-                                        |> oppdaterSamtaleSteg model info
+                                        |> oppdaterSamtale model info IngenNyeMeldinger
                                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                                     )
 
                                 else
-                                    ( LagringAvSammendragFeilet error sammendrag
-                                        |> oppdaterSamtaleSteg model info
+                                    ( sammendrag
+                                        |> LagringAvSammendragFeilet error
+                                        |> oppdaterSamtale model info IngenNyeMeldinger
                                     , sammendrag
                                         |> Api.encodeSammendrag
                                         |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget) "Lagre sammendrag" error
                                     )
 
                             else
-                                ( LagringAvSammendragFeilet error sammendrag
-                                    |> nesteSamtaleStegUtenSvar model info
+                                ( sammendrag
+                                    |> LagringAvSammendragFeilet error
+                                    |> oppdaterSamtale model info UtenSvar
                                 , Cmd.batch
                                     [ lagtTilSpørsmålCmd model.debugStatus
                                     , sammendrag
@@ -1145,7 +1154,7 @@ updateAndreSamtaleSteg model msg info =
         BrukerGodkjennerSynligCV ->
             ( LagreStatus.init
                 |> LagrerSynlighet True
-                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, CV-en skal være synlig for arbeidsgivere" ])
+                |> oppdaterSamtale model info (SvarFraMsg msg)
             , Cmd.batch
                 [ lagtTilSpørsmålCmd model.debugStatus
                 , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) True
@@ -1155,7 +1164,7 @@ updateAndreSamtaleSteg model msg info =
         BrukerGodkjennerIkkeSynligCV ->
             ( LagreStatus.init
                 |> LagrerSynlighet False
-                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, CV-en skal bare være synlig for meg" ])
+                |> oppdaterSamtale model info (SvarFraMsg msg)
             , Cmd.batch
                 [ lagtTilSpørsmålCmd model.debugStatus
                 , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) False
@@ -1164,13 +1173,13 @@ updateAndreSamtaleSteg model msg info =
 
         VilGiTilbakemelding ->
             ( GiTilbakemelding
-                |> nesteSamtaleSteg model info (Melding.svar [ "Ja, jeg vil svare" ])
+                |> oppdaterSamtale model info (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
         VilIkkeGiTilbakemelding ->
             ( Avslutt False
-                |> nesteSamtaleSteg model info (Melding.svar [ "Nei, jeg vil ikke svare" ])
+                |> oppdaterSamtale model info (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1181,10 +1190,11 @@ updateAndreSamtaleSteg model msg info =
                         Ok _ ->
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                 SpørOmTilbakemeldingIkkeUnderOppfølging
-                                    |> nesteSamtaleSteg model info (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                    |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                               else
-                                nesteSamtaleStegUtenSvar model info SpørOmTilbakemeldingIkkeUnderOppfølging
+                                SpørOmTilbakemeldingIkkeUnderOppfølging
+                                    |> oppdaterSamtale model info UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
@@ -1194,14 +1204,14 @@ updateAndreSamtaleSteg model msg info =
                                     ( error
                                         |> LagreStatus.fraError
                                         |> LagrerSynlighet skalVæreSynlig
-                                        |> oppdaterSamtaleSteg model info
+                                        |> oppdaterSamtale model info IngenNyeMeldinger
                                     , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
                                     )
 
                                 else
                                     ( skalVæreSynlig
                                         |> LagringSynlighetFeilet error
-                                        |> oppdaterSamtaleSteg model info
+                                        |> oppdaterSamtale model info IngenNyeMeldinger
                                     , error
                                         |> Feilmelding.feilmelding "Lagre synlighet"
                                         |> Maybe.map (Api.logError (always ErrorLogget >> AndreSamtaleStegMsg))
@@ -1211,7 +1221,7 @@ updateAndreSamtaleSteg model msg info =
                             else
                                 ( skalVæreSynlig
                                     |> LagringSynlighetFeilet error
-                                    |> nesteSamtaleStegUtenSvar model info
+                                    |> oppdaterSamtale model info UtenSvar
                                 , Cmd.batch
                                     [ lagtTilSpørsmålCmd model.debugStatus
                                     , error
@@ -1230,15 +1240,16 @@ updateAndreSamtaleSteg model msg info =
                     ( error
                         |> LagreStatus.fraError
                         |> LagrerSynlighet skalVæreSynlig
-                        |> oppdaterSamtaleSteg model info
+                        |> oppdaterSamtale model info IngenNyeMeldinger
                     , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
                     )
 
                 _ ->
                     ( model, Cmd.none )
 
-        BrukerGirOppÅLagre knappeTekst ->
-            ( nesteSamtaleSteg model info (Melding.svar [ knappeTekst ]) SpørOmTilbakemeldingIkkeUnderOppfølging
+        BrukerGirOppÅLagre ->
+            ( SpørOmTilbakemeldingIkkeUnderOppfølging
+                |> oppdaterSamtale model info (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1252,7 +1263,7 @@ updateAndreSamtaleSteg model msg info =
                                     ( error
                                         |> LagreStatus.fraError
                                         |> LagrerSammendrag feiletSammendrag
-                                        |> oppdaterSamtaleSteg model info
+                                        |> oppdaterSamtale model info IngenNyeMeldinger
                                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
                                     )
 
@@ -1263,7 +1274,7 @@ updateAndreSamtaleSteg model msg info =
                             ( lagreStatus
                                 |> LagreStatus.setForsøkPåNytt
                                 |> LagrerSammendrag sammendrag
-                                |> oppdaterSamtaleSteg model info
+                                |> oppdaterSamtale model info IngenNyeMeldinger
                             , Cmd.none
                             )
 
@@ -1273,7 +1284,7 @@ updateAndreSamtaleSteg model msg info =
                                     ( error
                                         |> LagreStatus.fraError
                                         |> LagrerSynlighet skalVæreSynlig
-                                        |> oppdaterSamtaleSteg model info
+                                        |> oppdaterSamtale model info IngenNyeMeldinger
                                     , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
                                     )
 
@@ -1284,13 +1295,13 @@ updateAndreSamtaleSteg model msg info =
                             ( lagreStatus
                                 |> LagreStatus.setForsøkPåNytt
                                 |> LagrerSynlighet skalVæreSynlig
-                                |> oppdaterSamtaleSteg model info
+                                |> oppdaterSamtale model info IngenNyeMeldinger
                             , Cmd.none
                             )
 
                         GiTilbakemelding ->
                             ( Avslutt True
-                                |> nesteSamtaleSteg model info (Melding.svar [ "Gi tilbakemelding" ])
+                                |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ "Gi tilbakemelding" ]))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
@@ -1316,12 +1327,12 @@ updateAndreSamtaleSteg model msg info =
             ( model, Cmd.none )
 
 
-gåTilValgtSeksjon : SuccessModel -> AndreSamtaleStegInfo -> ValgtSeksjon -> ( SuccessModel, Cmd SuccessMsg )
-gåTilValgtSeksjon model info valgtSeksjon =
+gåTilValgtSeksjon : SuccessModel -> AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> ValgtSeksjon -> ( SuccessModel, Cmd SuccessMsg )
+gåTilValgtSeksjon model info msg valgtSeksjon =
     let
         meldingsLogg =
             info.meldingsLogg
-                |> MeldingsLogg.leggTilSvar (Melding.svar [ seksjonsvalgTilString valgtSeksjon ])
+                |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
     in
     case MeldingsLogg.ferdigAnimert meldingsLogg of
         FerdigAnimert ferdigAnimertMeldingsLogg ->
@@ -1382,10 +1393,20 @@ gåVidereFraSeksjonsvalg model info =
     )
 
 
+gåTilEndreSammendrag : SuccessModel -> AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> Bool -> String -> ( SuccessModel, Cmd SuccessMsg )
+gåTilEndreSammendrag model info msg medEksempelKnapp sammendragTekst =
+    ( sammendragTekst
+        |> EndrerSammendrag medEksempelKnapp
+        |> oppdaterSamtale model info (SvarFraMsg msg)
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+
+
 gåTilAvslutning : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
 gåTilAvslutning model info =
     if Person.underOppfolging model.person then
-        ( nesteSamtaleStegUtenSvar model info SpørOmTilbakemeldingUnderOppfølging
+        ( SpørOmTilbakemeldingUnderOppfølging
+            |> oppdaterSamtale model info UtenSvar
         , lagtTilSpørsmålCmd model.debugStatus
         )
 
@@ -1393,39 +1414,41 @@ gåTilAvslutning model info =
         ( model.person
             |> Person.cvSynligForArbeidsgiver
             |> DelMedArbeidsgiver
-            |> nesteSamtaleStegUtenSvar model info
+            |> oppdaterSamtale model info UtenSvar
         , lagtTilSpørsmålCmd model.debugStatus
         )
 
 
-nesteSamtaleSteg : SuccessModel -> AndreSamtaleStegInfo -> Melding -> Samtale -> SuccessModel
-nesteSamtaleSteg model info melding aktivSamtale =
+svarFraBrukerInput : AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> Melding
+svarFraBrukerInput modelInfo msg =
+    modelInfo
+        |> andreSamtaleStegTilBrukerInput
+        |> BrukerInput.tilSvarMelding msg
+
+
+oppdaterSamtale : SuccessModel -> AndreSamtaleStegInfo -> SamtaleOppdatering AndreSamtaleStegMsg -> Samtale -> SuccessModel
+oppdaterSamtale model info meldingsoppdatering samtale =
     { info
-        | aktivSamtale = aktivSamtale
+        | aktivSamtale = samtale
         , meldingsLogg =
-            info.meldingsLogg
-                |> MeldingsLogg.leggTilSvar melding
-                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
+            case meldingsoppdatering of
+                IngenNyeMeldinger ->
+                    info.meldingsLogg
+
+                SvarFraMsg msg ->
+                    info.meldingsLogg
+                        |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
+                        |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
+
+                ManueltSvar melding ->
+                    info.meldingsLogg
+                        |> MeldingsLogg.leggTilSvar melding
+                        |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
+
+                UtenSvar ->
+                    info.meldingsLogg
+                        |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
     }
-        |> AndreSamtaleSteg
-        |> oppdaterSamtaleSeksjon model
-
-
-nesteSamtaleStegUtenSvar : SuccessModel -> AndreSamtaleStegInfo -> Samtale -> SuccessModel
-nesteSamtaleStegUtenSvar model info aktivSamtale =
-    { info
-        | aktivSamtale = aktivSamtale
-        , meldingsLogg =
-            info.meldingsLogg
-                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
-    }
-        |> AndreSamtaleSteg
-        |> oppdaterSamtaleSeksjon model
-
-
-oppdaterSamtaleSteg : SuccessModel -> AndreSamtaleStegInfo -> Samtale -> SuccessModel
-oppdaterSamtaleSteg model info aktivSamtale =
-    { info | aktivSamtale = aktivSamtale }
         |> AndreSamtaleSteg
         |> oppdaterSamtaleSeksjon model
 
@@ -1446,7 +1469,7 @@ samtaleTilMeldingsLogg samtale =
             ]
 
         LeggTilFlereAutorisasjoner ->
-            [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
+            []
 
         LeggTilAnnet ->
             [ Melding.spørsmål [ "Det er viktig å få med alt du kan på CV-en." ]
@@ -1456,7 +1479,7 @@ samtaleTilMeldingsLogg samtale =
             ]
 
         LeggTilFlereAnnet ->
-            [ Melding.spørsmål [ "Vil du legge til flere kategorier?" ] ]
+            []
 
         BekreftSammendrag _ bekreftState ->
             case bekreftState of
@@ -1783,7 +1806,7 @@ viewSpørsmål spørsmål =
                     , ariaLive "off"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
-                    [ viewSkriveStatus ]
+                    [ div [ class "skriver-melding" ] [] ]
 
             Skriveindikator ->
                 div
@@ -2002,12 +2025,18 @@ viewBrukerInputForSeksjon aktivSeksjon =
 
 viewBrukerInputForAndreSamtaleSteg : AndreSamtaleStegInfo -> Html AndreSamtaleStegMsg
 viewBrukerInputForAndreSamtaleSteg info =
+    info
+        |> andreSamtaleStegTilBrukerInput
+        |> BrukerInput.toHtml
+
+
+andreSamtaleStegTilBrukerInput : AndreSamtaleStegInfo -> BrukerInput AndreSamtaleStegMsg
+andreSamtaleStegTilBrukerInput info =
     if MeldingsLogg.visBrukerInput info.meldingsLogg then
         case info.aktivSamtale of
             Introduksjon _ ->
-                Containers.knapper Flytende
+                BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerSierHeiIIntroduksjonen "Ja!"
-                        |> Knapp.toHtml
                     ]
 
             BekreftSammendrag _ bekreftSammendragState ->
@@ -2023,19 +2052,19 @@ viewBrukerInputForAndreSamtaleSteg info =
 
             EndrerSammendrag medEksempelKnapp sammendrag ->
                 (if medEksempelKnapp then
-                    Containers.inputMedEksempelOgLagreKnapp (Just VilSeEksempel) VilLagreSammendragSkjema
+                    BrukerInput.inputMedEksempelOgLagreKnapp (Just VilSeEksempel) VilLagreSammendragSkjema
 
                  else
-                    Containers.inputMedEksempelOgLagreKnapp Nothing VilLagreSammendragSkjema
+                    BrukerInput.textareaSkjema { lagreMsg = VilLagreSammendragSkjema, lagreKnappTekst = "Lagre endringer" }
                 )
                     (viewSammendragInput sammendrag)
 
             SkriverSammendrag medEksempelKnapp sammendrag ->
                 (if medEksempelKnapp then
-                    Containers.inputMedEksempelOgGåVidereKnapp VilSeEksempel VilLagreSammendragSkjema
+                    BrukerInput.inputMedEksempelOgGåVidereKnapp VilSeEksempel VilLagreSammendragSkjema
 
                  else
-                    Containers.inputMedGåVidereKnapp VilLagreSammendragSkjema
+                    BrukerInput.textareaMedGåVidereKnapp VilLagreSammendragSkjema
                 )
                     (viewSammendragInput sammendrag)
 
@@ -2044,22 +2073,19 @@ viewBrukerInputForAndreSamtaleSteg info =
                     LoggInnLenke.viewLoggInnLenke
 
                 else
-                    text ""
+                    BrukerInput.utenInnhold
 
             LagringAvSammendragFeilet error _ ->
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp VilIkkeLagreSammendrag "Gå videre uten å lagre"
-                                |> Knapp.toHtml
                             ]
 
                     PrøvPåNytt ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreBekreftetSammendrag "Prøv på nytt"
-                                |> Knapp.toHtml
                             , Knapp.knapp VilIkkeLagreSammendrag "Gå videre uten å lagre"
-                                |> Knapp.toHtml
                             ]
 
                     LoggInn ->
@@ -2078,11 +2104,9 @@ viewBrukerInputForAndreSamtaleSteg info =
                 viewLeggTilAnnet
 
             DelMedArbeidsgiver _ ->
-                Containers.knapper Flytende
+                BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
-                        |> Knapp.toHtml
                     , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en skal bare være synlig for meg"
-                        |> Knapp.toHtml
                     ]
 
             SpørOmTilbakemeldingUnderOppfølging ->
@@ -2092,48 +2116,44 @@ viewBrukerInputForAndreSamtaleSteg info =
                 viewSpørOmTilbakemelding
 
             GiTilbakemelding ->
-                Containers.lenke
+                BrukerInput.lenke
                     (Lenke.lenke { tekst = "Gi tilbakemelding", url = "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585" }
                         |> Lenke.withTargetBlank
-                        |> Lenke.toHtml
                     )
 
             Avslutt _ ->
-                Containers.knapper Flytende
-                    [ a [ class "avslutt-knapp", href ("/cv-samtale/goto/forhandsvis?utgang=ferdig&seksjon=" ++ Metrikker.seksjonTilString Metrikker.Slutten) ]
-                        [ div [ class "Knapp" ]
-                            [ text "Avslutt og vis CV-en min" ]
-                        ]
-                    ]
+                BrukerInput.lenke
+                    (Lenke.lenke
+                        { tekst = "Avslutt og vis CV-en min"
+                        , url = "/cv-samtale/goto/forhandsvis?utgang=ferdig&seksjon=" ++ Metrikker.seksjonTilString Metrikker.Slutten
+                        }
+                        |> Lenke.withClass "Knapp avslutt-knapp"
+                    )
 
             LagrerSynlighet _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then
                     LoggInnLenke.viewLoggInnLenke
 
                 else
-                    text ""
+                    BrukerInput.utenInnhold
 
             LagringSynlighetFeilet error _ ->
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
-                        Containers.knapper Flytende
-                            [ Knapp.knapp (BrukerGirOppÅLagre "Gå videre") "Gå videre"
-                                |> Knapp.toHtml
-                            ]
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp BrukerGirOppÅLagre "Gå videre" ]
 
                     PrøvPåNytt ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagreSynlighetPåNytt "Prøv på nytt"
-                                |> Knapp.toHtml
-                            , Knapp.knapp (BrukerGirOppÅLagre "Gå videre") "Gå videre"
-                                |> Knapp.toHtml
+                            , Knapp.knapp BrukerGirOppÅLagre "Gå videre"
                             ]
 
                     LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
     else
-        text ""
+        BrukerInput.utenInnhold
 
 
 sammendragId : String
@@ -2141,64 +2161,55 @@ sammendragId =
     "sammendrag-input"
 
 
-viewLeggTilAutorisasjoner : Html AndreSamtaleStegMsg
+viewLeggTilAutorisasjoner : BrukerInput AndreSamtaleStegMsg
 viewLeggTilAutorisasjoner =
-    Containers.knapper Kolonne
+    BrukerInput.knapper Kolonne
         [ seksjonsvalgKnapp FagbrevSvennebrevValgt
         , seksjonsvalgKnapp MesterbrevValgt
         , seksjonsvalgKnapp AutorisasjonValgt
         , Knapp.knapp IngenAvAutorisasjonSeksjoneneValgt "Nei, gå videre"
-            |> Knapp.toHtml
         ]
 
 
-viewLeggTilAnnet : Html AndreSamtaleStegMsg
+viewLeggTilAnnet : BrukerInput AndreSamtaleStegMsg
 viewLeggTilAnnet =
-    Containers.knapper Kolonne
+    BrukerInput.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
         , seksjonsvalgKnapp KursValgt
         , seksjonsvalgKnapp SertifiseringValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
-            |> Knapp.toHtml
         ]
 
 
-viewSpørOmTilbakemelding : Html AndreSamtaleStegMsg
+viewSpørOmTilbakemelding : BrukerInput AndreSamtaleStegMsg
 viewSpørOmTilbakemelding =
-    Containers.knapper Flytende
+    BrukerInput.knapper Flytende
         [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
-            |> Knapp.toHtml
         , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
-            |> Knapp.toHtml
         ]
 
 
-viewSammendragInput : String -> List (Html AndreSamtaleStegMsg)
+viewSammendragInput : String -> Textarea AndreSamtaleStegMsg
 viewSammendragInput sammendrag =
-    [ Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
+    Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
         |> Textarea.withTextAreaClass "textarea_stor"
-        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
+        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
         |> Textarea.withId sammendragId
-        |> Textarea.toHtml
-    ]
 
 
-viewBekreftSammendrag : Html AndreSamtaleStegMsg
+viewBekreftSammendrag : BrukerInput AndreSamtaleStegMsg
 viewBekreftSammendrag =
-    Containers.knapper Flytende
+    BrukerInput.knapper Flytende
         [ Knapp.knapp VilLagreBekreftetSammendrag "Ja, jeg er fornøyd"
-            |> Knapp.toHtml
         , Knapp.knapp BrukerVilEndreSammendrag "Nei, jeg vil endre"
-            |> Knapp.toHtml
         ]
 
 
-seksjonsvalgKnapp : ValgtSeksjon -> Html AndreSamtaleStegMsg
+seksjonsvalgKnapp : ValgtSeksjon -> Knapp AndreSamtaleStegMsg
 seksjonsvalgKnapp seksjonsvalg =
     seksjonsvalg
         |> seksjonsvalgTilString
         |> Knapp.knapp (SeksjonValgt seksjonsvalg)
-        |> Knapp.toHtml
 
 
 seksjonsvalgTilString : ValgtSeksjon -> String

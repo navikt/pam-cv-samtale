@@ -10,21 +10,7 @@ månedKnapper : (Måned -> msg) -> Html msg
 månedKnapper onMånedClick =
     div [ class "knapperad" ]
         [ div [ class "knapper--måneder" ]
-            (List.map (månedKnapp onMånedClick)
-                [ Januar
-                , Februar
-                , Mars
-                , April
-                , Mai
-                , Juni
-                , Juli
-                , August
-                , September
-                , Oktober
-                , November
-                , Desember
-                ]
-            )
+            (List.map (månedKnapp onMånedClick) Dato.måneder)
         ]
 
 

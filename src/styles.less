@@ -405,40 +405,43 @@ html {
     height: 10px;
     border-radius: 100%;
     display: inline-block;
-    -webkit-animation: sk-bouncedelay 1.4s infinite ease-in-out both;
-    animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+    -webkit-animation: sk-bouncedelay 1s infinite ease-in-out both;
+    animation: sk-bouncedelay 1s infinite ease-in-out both;
     background: rgba(0, 0, 0, 1);
   }
 
   .bounce1 {
-    -webkit-animation-delay: -0.32s;
-    animation-delay: -0.32s;
+    -webkit-animation-delay: 0.2s;
+    animation-delay: 0.2s;
   }
-
   .bounce2 {
-    -webkit-animation-delay: -0.16s;
-    animation-delay: -0.16s;
+    -webkit-animation-delay: 0.36s;
+    animation-delay: 0.36s;
+  }
+  .bounce3 {
+    -webkit-animation-delay: 0.52s;
+    animation-delay: 0.52s;
   }
 
   @-webkit-keyframes sk-bouncedelay {
     0%,
-    80%,
+    90%,
     100% {
       -webkit-transform: scale(0)
     }
-    40% {
+    45% {
       -webkit-transform: scale(1.0)
     }
   }
 
   @keyframes sk-bouncedelay {
     0%,
-    80%,
+    90%,
     100% {
       -webkit-transform: scale(0);
       transform: scale(0);
     }
-    40% {
+    45% {
       -webkit-transform: scale(1.0);
       transform: scale(1.0);
     }
@@ -626,13 +629,22 @@ html {
   min-height: 12rem;
 }
 
-.avslutt-knapp {
+a.avslutt-knapp.Knapp {
   text-decoration: none;
+
+  &:hover {
+    color: white;
+  }
 }
 
 .skjemaelement__input.textarea--medMeta.overflow-auto-textbox {
   min-height: 6.5rem;
   overflow: auto;
+}
+
+.skjemaelement__måFyllesUt {
+  font-size: 14px;
+  color: #78706a;
 }
 
 .skjemaelement--checkbox-label {
@@ -644,6 +656,21 @@ html {
   justify-content: space-between;
   flex-direction: column;
 }
+
+.DatoInput-fieldset {
+  border: none;
+  padding: 0;
+  margin: 1rem 0 0;
+
+  legend.skjemaelement__label {
+    font-weight: bold;
+  }
+
+  .skjemaelement__måFyllesUt {
+    font-weight: normal;
+  }
+}
+
 
 .DatoInput-wrapper {
   display: flex;
@@ -666,7 +693,6 @@ html {
   display: flex;
   flex-direction: column;
   margin-bottom: 1rem;
-
 
   .Dato-wrapper {
     display: flex;
@@ -692,17 +718,11 @@ html {
 
 }
 
-.Varighet-kolonne {
+.Varighet-wrapper {
   display: flex;
-  flex-direction: column;
 
-  .Inputs-wrapper {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-  }
 
-  .Select-wrapper {
+  .selectContainer {
     width: 8rem;
   }
 
@@ -712,7 +732,7 @@ html {
 
   .Varighet-antall {
     width: 5rem;
-    margin-left: 1rem;
+    margin-right: 1rem;
   }
 
 }

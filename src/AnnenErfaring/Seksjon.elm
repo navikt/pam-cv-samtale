@@ -17,12 +17,11 @@ import Cv.AnnenErfaring exposing (AnnenErfaring)
 import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
+import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Checkbox as Checkbox
-import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
-import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Textarea as Textarea
 import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
@@ -32,6 +31,7 @@ import LagreStatus exposing (LagreStatus)
 import Meldinger.Melding as Melding exposing (Melding(..))
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
 import Validering
@@ -63,6 +63,17 @@ type SamtaleStatus
     | Ferdig (List AnnenErfaring) FerdigAnimertMeldingsLogg
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | AnnenAvslutning
+
+
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = RegistrerRolle RolleInfo
     | RegistrerBeskrivelse Bool BeskrivelseInfo
@@ -72,12 +83,12 @@ type Samtale
     | RegistrerNåværende ValidertFraDatoInfo
     | RegistrerTilMåned TilDatoInfo
     | RegistrerTilÅr TilDatoInfo
-    | VisOppsummering ValidertAnnenErfaringSkjema
+    | VisOppsummering OppsummeringsType ValidertAnnenErfaringSkjema
     | EndreOpplysninger AnnenErfaringSkjema
-    | VisOppsummeringEtterEndring ValidertAnnenErfaringSkjema
+    | BekreftSlettingAvPåbegynt ValidertAnnenErfaringSkjema
     | LagrerSkjema ValidertAnnenErfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertAnnenErfaringSkjema
-    | VenterPåAnimasjonFørFullføring (List AnnenErfaring)
+    | VenterPåAnimasjonFørFullføring (List AnnenErfaring) AvsluttetGrunn
 
 
 type alias RolleInfo =
@@ -209,6 +220,9 @@ type Msg
     | VilLagreAnnenErfaring
     | VilEndreOpplysninger
     | SkjemaEndret SkjemaEndring
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
     | AnnenErfaringLagret (Result Http.Error (List AnnenErfaring))
     | FerdigMedAnnenErfaring
@@ -240,7 +254,7 @@ update msg (Model model) =
                         Just _ ->
                             ( { info | tillatÅViseFeilmeldingRolle = True }
                                 |> RegistrerRolle
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -249,7 +263,7 @@ update msg (Model model) =
                             ( info.rolle
                                 |> rolleTilBeskrivelse
                                 |> RegistrerBeskrivelse True
-                                |> nesteSamtaleSteg model (Melding.svar [ info.rolle ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -262,7 +276,7 @@ update msg (Model model) =
                 RegistrerRolle info ->
                     ( { info | rolle = string }
                         |> RegistrerRolle
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -293,7 +307,7 @@ update msg (Model model) =
                         Nothing ->
                             ( input
                                 |> SpørOmBrukerVilLeggeInnTidsperiode
-                                |> nesteSamtaleSteg model (Melding.svar [ input.beskrivelse ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -309,7 +323,7 @@ update msg (Model model) =
                 RegistrerBeskrivelse medEksempelKnapp beskrivelse ->
                     ( { beskrivelse | beskrivelse = string }
                         |> RegistrerBeskrivelse medEksempelKnapp
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -323,7 +337,7 @@ update msg (Model model) =
                     ( info
                         |> beskrivelseTilFraDato
                         |> RegistrerFraMåned
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, det vil jeg" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -336,8 +350,8 @@ update msg (Model model) =
                 SpørOmBrukerVilLeggeInnTidsperiode info ->
                     ( info
                         |> beskrivelseTilSkjema
-                        |> VisOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, det vil jeg ikke" ])
+                        |> VisOppsummering FørsteGang
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -351,8 +365,7 @@ update msg (Model model) =
                     ( måned
                         |> setFraMåned fraDatoInfo
                         |> RegistrerFraÅr
-                        |> nesteSamtaleSteg model
-                            (Melding.svar [ måned |> Dato.månedTilString ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -371,7 +384,7 @@ update msg (Model model) =
                               , fraÅr = fraÅr
                               }
                                 |> RegistrerNåværende
-                                |> nesteSamtaleSteg model (Melding.svar [ fraDatoInfo.fraÅr ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -379,7 +392,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { fraDatoInfo | tillatÅViseFeilmeldingÅr = True }
                                 |> RegistrerFraÅr
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -392,7 +405,7 @@ update msg (Model model) =
                 RegistrerFraÅr fraDatoInfo ->
                     ( { fraDatoInfo | fraÅr = string }
                         |> RegistrerFraÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -405,8 +418,8 @@ update msg (Model model) =
                 RegistrerNåværende nåværendeInfo ->
                     ( nåværendeInfo
                         |> fraDatoTilSkjema
-                        |> VisOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja" ])
+                        |> VisOppsummering FørsteGang
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -420,7 +433,7 @@ update msg (Model model) =
                     ( fraDatoInfo
                         |> fraDatoTilTilDato
                         |> RegistrerTilMåned
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -433,8 +446,7 @@ update msg (Model model) =
                 RegistrerTilMåned tilDatoInfo ->
                     ( { tilDatoInfo | tilMåned = måned }
                         |> RegistrerTilÅr
-                        |> nesteSamtaleSteg model
-                            (Melding.svar [ måned |> Dato.månedTilString ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -448,8 +460,8 @@ update msg (Model model) =
                     case Dato.stringTilÅr tilDatoInfo.tilÅr of
                         Just tilÅr ->
                             ( tilDatoTilSkjema tilDatoInfo tilÅr
-                                |> VisOppsummering
-                                |> nesteSamtaleSteg model (Melding.svar [ tilDatoInfo.tilÅr ])
+                                |> VisOppsummering FørsteGang
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -457,7 +469,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { tilDatoInfo | tillatÅViseFeilmeldingÅr = True }
                                 |> RegistrerTilÅr
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -470,7 +482,7 @@ update msg (Model model) =
                 RegistrerTilÅr tilDatoInfo ->
                     ( { tilDatoInfo | tilÅr = string }
                         |> RegistrerTilÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -483,7 +495,7 @@ update msg (Model model) =
                 RegistrerFraÅr fraDatoInfo ->
                     ( { fraDatoInfo | tillatÅViseFeilmeldingÅr = True }
                         |> RegistrerFraÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -491,7 +503,7 @@ update msg (Model model) =
                 RegistrerTilÅr tilDatoInfo ->
                     ( { tilDatoInfo | tillatÅViseFeilmeldingÅr = True }
                         |> RegistrerTilÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -499,7 +511,7 @@ update msg (Model model) =
                 RegistrerRolle rolleInfo ->
                     ( { rolleInfo | tillatÅViseFeilmeldingRolle = True }
                         |> RegistrerRolle
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -509,11 +521,8 @@ update msg (Model model) =
 
         VilEndreOpplysninger ->
             case model.aktivSamtale of
-                VisOppsummering validertAnnenErfaringSkjema ->
-                    updateEtterVilEndreSkjema model validertAnnenErfaringSkjema
-
-                VisOppsummeringEtterEndring validertAnnenErfaringSkjema ->
-                    updateEtterVilEndreSkjema model validertAnnenErfaringSkjema
+                VisOppsummering _ validertAnnenErfaringSkjema ->
+                    updateEtterVilEndreSkjema model msg validertAnnenErfaringSkjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -524,8 +533,44 @@ update msg (Model model) =
                     ( annenErfaringSkjema
                         |> oppdaterSkjema skjemaEndring
                         |> EndreOpplysninger
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                VisOppsummering _ skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( VenterPåAnimasjonFørFullføring model.annenErfaringListe SlettetPåbegynt
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( VisOppsummering AvbrøtSletting skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -538,8 +583,8 @@ update msg (Model model) =
                     case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> VisOppsummeringEtterEndring
-                                |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
+                                |> VisOppsummering EtterEndring
+                                |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -548,7 +593,7 @@ update msg (Model model) =
                             ( skjema
                                 |> Skjema.tillatÅViseAlleFeilmeldinger
                                 |> EndreOpplysninger
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -558,17 +603,14 @@ update msg (Model model) =
 
         VilLagreAnnenErfaring ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
-
-                VisOppsummeringEtterEndring skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                VisOppsummering _ skjema ->
+                    updateEtterLagreKnappTrykket model msg skjema
 
                 LagringFeilet error skjema ->
                     ( error
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , Api.postAnnenErfaring AnnenErfaringLagret skjema
                     )
                         |> IkkeFerdig
@@ -592,9 +634,8 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til denne erfaringen." ] ]
                             in
-                            ( annenErfaringer
-                                |> VenterPåAnimasjonFørFullføring
-                                |> oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg }
+                            ( VenterPåAnimasjonFørFullføring annenErfaringer AnnenAvslutning
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -604,7 +645,7 @@ update msg (Model model) =
                                 if LagreStatus.forsøkPåNytt lagreStatus then
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , Api.postAnnenErfaring AnnenErfaringLagret skjema
                                     )
                                         |> IkkeFerdig
@@ -612,7 +653,7 @@ update msg (Model model) =
                                 else
                                     ( skjema
                                         |> LagringFeilet error
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , skjema
                                         |> Skjema.encode
                                         |> Api.logErrorWithRequestBody ErrorLogget "Lagre annen erfaring" error
@@ -622,7 +663,7 @@ update msg (Model model) =
                             else
                                 ( skjema
                                     |> LagringFeilet error
-                                    |> nesteSamtaleStegUtenMelding model
+                                    |> oppdaterSamtale model UtenSvar
                                 , Cmd.batch
                                     [ lagtTilSpørsmålCmd model.debugStatus
                                     , skjema
@@ -638,9 +679,8 @@ update msg (Model model) =
         FerdigMedAnnenErfaring ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( model.annenErfaringListe
-                        |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
+                    ( VenterPåAnimasjonFørFullføring model.annenErfaringListe AnnenAvslutning
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -656,7 +696,7 @@ update msg (Model model) =
                             ( lagreStatus
                                 |> LagreStatus.setForsøkPåNytt
                                 |> LagrerSkjema skjema
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -667,7 +707,7 @@ update msg (Model model) =
                                     ( error
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , Api.postAnnenErfaring AnnenErfaringLagret skjema
                                     )
 
@@ -733,7 +773,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring annenErfaringListe ->
+                VenterPåAnimasjonFørFullføring annenErfaringListe _ ->
                     Ferdig annenErfaringListe ferdigAnimertSamtale
 
                 _ ->
@@ -752,22 +792,22 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
                 |> IkkeFerdig
 
 
-updateEtterVilEndreSkjema : ModelInfo -> ValidertAnnenErfaringSkjema -> SamtaleStatus
-updateEtterVilEndreSkjema model skjema =
+updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertAnnenErfaringSkjema -> SamtaleStatus
+updateEtterVilEndreSkjema model msg skjema =
     ( skjema
         |> Skjema.tilUvalidertSkjema
         |> EndreOpplysninger
-        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , lagtTilSpørsmålCmd model.debugStatus
     )
         |> IkkeFerdig
 
 
-updateEtterLagreKnappTrykket : ModelInfo -> ValidertAnnenErfaringSkjema -> Melding -> SamtaleStatus
-updateEtterLagreKnappTrykket model skjema melding =
+updateEtterLagreKnappTrykket : ModelInfo -> Msg -> ValidertAnnenErfaringSkjema -> SamtaleStatus
+updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
-        |> nesteSamtaleSteg model melding
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , Api.postAnnenErfaring AnnenErfaringLagret skjema
     )
         |> IkkeFerdig
@@ -779,34 +819,36 @@ lagtTilSpørsmålCmd debugStatus =
         |> Cmd.map SamtaleAnimasjonMsg
 
 
-nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
-nesteSamtaleSteg modelInfo melding samtale =
+svarFraBrukerInput : ModelInfo -> Msg -> Melding
+svarFraBrukerInput modelInfo msg =
+    modelInfo
+        |> modelTilBrukerInput
+        |> BrukerInput.tilSvarMelding msg
+
+
+oppdaterSamtale : ModelInfo -> SamtaleOppdatering Msg -> Samtale -> Model
+oppdaterSamtale model meldingsoppdatering samtale =
     Model
-        { modelInfo
+        { model
             | aktivSamtale = samtale
             , seksjonsMeldingsLogg =
-                modelInfo.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSvar melding
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
-        }
+                case meldingsoppdatering of
+                    IngenNyeMeldinger ->
+                        model.seksjonsMeldingsLogg
 
+                    SvarFraMsg msg ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-nesteSamtaleStegUtenMelding : ModelInfo -> Samtale -> Model
-nesteSamtaleStegUtenMelding model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-            , seksjonsMeldingsLogg =
-                model.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-        }
+                    ManueltSvar melding ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar melding
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-
-oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
-oppdaterSamtaleSteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
+                    UtenSvar ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
         }
 
 
@@ -845,24 +887,24 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             [ Melding.spørsmål [ "Hvilket år sluttet du?" ]
             ]
 
-        VisOppsummering skjema ->
-            [ [ [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                ]
-              , validertSkjemaTilSetninger skjema
-              , [ Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-              ]
-                |> List.concat
-                |> Melding.spørsmål
-            ]
+        VisOppsummering oppsummeringsType skjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Ok, da lar jeg erfaringen stå." ]
+                    , oppsummeringsSpørsmål skjema
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål skjema ]
 
         EndreOpplysninger _ ->
             [ Melding.spørsmål [ "Nå kan du endre informasjonen." ] ]
 
-        VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+        BekreftSlettingAvPåbegynt _ ->
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne erfaringen?" ] ]
 
         LagrerSkjema _ _ ->
             []
@@ -870,8 +912,13 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre annen erfaring" } ]
 
-        VenterPåAnimasjonFørFullføring _ ->
-            []
+        VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg slettet erfaringen. Vil du legge inn flere kategorier?" ] ]
+
+                AnnenAvslutning ->
+                    [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
 
 validertSkjemaTilSetninger : ValidertAnnenErfaringSkjema -> List String
@@ -892,6 +939,20 @@ validertSkjemaTilSetninger validertSkjema =
             [ "Rolle: " ++ Skjema.innholdTekstFelt Rolle skjema
             , "Beskrivelse: " ++ Skjema.innholdTekstFelt Beskrivelse skjema
             ]
+
+
+oppsummeringsSpørsmål : ValidertAnnenErfaringSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    [ [ "Du har lagt inn dette:"
+      , Melding.tomLinje
+      ]
+    , validertSkjemaTilSetninger skjema
+    , [ Melding.tomLinje
+      , "Er informasjonen riktig?"
+      ]
+    ]
+        |> List.concat
+        |> Melding.spørsmål
 
 
 settFokus : Samtale -> Cmd Msg
@@ -957,111 +1018,108 @@ inputIdTilString inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
+    model
+        |> modelTilBrukerInput
+        |> BrukerInput.toHtml
+
+
+modelTilBrukerInput : ModelInfo -> BrukerInput Msg
+modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
             RegistrerRolle info ->
-                Containers.inputMedGåVidereKnapp VilRegistrereRolle
-                    [ info.rolle
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereRolle
+                    (info.rolle
                         |> Input.input { label = "Rolle", msg = OppdatererRolle }
                         |> Input.withOnEnter VilRegistrereRolle
                         |> Input.withId (inputIdTilString RolleId)
                         |> Input.withOnBlur FeltMisterFokus
-                        |> Input.withMaybeFeilmelding
+                        |> Input.withFeilmelding
                             (info.rolle
                                 |> Skjema.feilmeldingRolle
                                 |> maybeHvisTrue info.tillatÅViseFeilmeldingRolle
                             )
-                        |> Input.toHtml
-                    ]
+                        |> Input.withErObligatorisk
+                    )
 
             RegistrerBeskrivelse medEksempelKnapp info ->
                 (if medEksempelKnapp then
-                    Containers.inputMedEksempelOgGåVidereKnapp VilSeEksempel VilRegistrereBeskrivelse
+                    BrukerInput.inputMedEksempelOgGåVidereKnapp VilSeEksempel VilRegistrereBeskrivelse
 
                  else
-                    Containers.inputMedGåVidereKnapp VilRegistrereBeskrivelse
+                    BrukerInput.textareaMedGåVidereKnapp VilRegistrereBeskrivelse
                 )
-                    [ info.beskrivelse
+                    (info.beskrivelse
                         |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
-                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
+                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
                         |> Textarea.withId (inputIdTilString BeskrivelseId)
-                        |> Textarea.toHtml
-                    ]
+                    )
 
             SpørOmBrukerVilLeggeInnTidsperiode _ ->
-                Containers.knapper Flytende
+                BrukerInput.knapper Flytende
                     [ "Ja, det vil jeg"
                         |> Knapp.knapp SvarerJaTilTidsperiode
-                        |> Knapp.toHtml
                     , "Nei, det vil jeg ikke"
                         |> Knapp.knapp SvarerNeiTilTidsperiode
-                        |> Knapp.toHtml
                     ]
 
             RegistrerFraMåned _ ->
-                MånedKnapper.månedKnapper FraMånedValgt
+                BrukerInput.månedKnapper FraMånedValgt
 
             RegistrerFraÅr fraDatoInfo ->
-                Containers.inputMedGåVidereKnapp VilRegistrereFraÅr
-                    [ div [ class "år-wrapper" ]
-                        [ fraDatoInfo.fraÅr
-                            |> Input.input { label = "År", msg = OppdatererFraÅr }
-                            |> Input.withClass "aar"
-                            |> Input.withOnEnter VilRegistrereFraÅr
-                            |> Input.withOnBlur FeltMisterFokus
-                            |> Input.withId (inputIdTilString FraÅrId)
-                            |> Input.withMaybeFeilmelding
-                                (fraDatoInfo.fraÅr
-                                    |> Dato.feilmeldingÅr
-                                    |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
-                                )
-                            |> Input.toHtml
-                        ]
-                    ]
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereFraÅr
+                    (fraDatoInfo.fraÅr
+                        |> Input.input { label = "År", msg = OppdatererFraÅr }
+                        |> Input.withClass "aar"
+                        |> Input.withWrapperClass "år-wrapper"
+                        |> Input.withOnEnter VilRegistrereFraÅr
+                        |> Input.withOnBlur FeltMisterFokus
+                        |> Input.withId (inputIdTilString FraÅrId)
+                        |> Input.withFeilmelding
+                            (fraDatoInfo.fraÅr
+                                |> Dato.feilmeldingÅr
+                                |> maybeHvisTrue fraDatoInfo.tillatÅViseFeilmeldingÅr
+                            )
+                        |> Input.withErObligatorisk
+                    )
 
             RegistrerNåværende _ ->
-                Containers.knapper Flytende
+                BrukerInput.knapper Flytende
                     [ Knapp.knapp SvarerJaTilNåværende "Ja"
-                        |> Knapp.toHtml
                     , Knapp.knapp SvarerNeiTilNåværende "Nei"
-                        |> Knapp.toHtml
                     ]
 
             RegistrerTilMåned _ ->
-                MånedKnapper.månedKnapper TilMånedValgt
+                BrukerInput.månedKnapper TilMånedValgt
 
             RegistrerTilÅr tilDatoInfo ->
-                Containers.inputMedGåVidereKnapp VilRegistrereTilÅr
-                    [ div [ class "år-wrapper" ]
-                        [ tilDatoInfo.tilÅr
-                            |> Input.input { label = "År", msg = OppdatererTilÅr }
-                            |> Input.withClass "aar"
-                            |> Input.withOnEnter VilRegistrereTilÅr
-                            |> Input.withOnBlur FeltMisterFokus
-                            |> Input.withId (inputIdTilString TilÅrId)
-                            |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
-                            |> Input.toHtml
-                        ]
-                    ]
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereTilÅr
+                    (tilDatoInfo.tilÅr
+                        |> Input.input { label = "År", msg = OppdatererTilÅr }
+                        |> Input.withClass "aar"
+                        |> Input.withWrapperClass "år-wrapper"
+                        |> Input.withOnEnter VilRegistrereTilÅr
+                        |> Input.withOnBlur FeltMisterFokus
+                        |> Input.withId (inputIdTilString TilÅrId)
+                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
+                    )
 
-            VisOppsummering _ ->
-                viewBekreftOppsummering
-
-            VisOppsummeringEtterEndring _ ->
+            VisOppsummering _ _ ->
                 viewBekreftOppsummering
 
             EndreOpplysninger skjema ->
-                Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                BrukerInput.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
                     [ skjema
                         |> Skjema.innholdTekstFelt Rolle
                         |> Input.input { label = "Rolle", msg = Tekst Rolle >> SkjemaEndret }
-                        |> Input.withMaybeFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
+                        |> Input.withFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
                         |> Input.withOnBlur (SkjemaEndret RolleBlurred)
+                        |> Input.withErObligatorisk
                         |> Input.toHtml
                     , skjema
                         |> Skjema.innholdTekstFelt Beskrivelse
                         |> Textarea.textarea { label = "Beskrivelse", msg = Tekst Beskrivelse >> SkjemaEndret }
-                        |> Textarea.withMaybeFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse skjema) maxLengthBeskrivelse)
+                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse skjema) maxLengthBeskrivelse)
                         |> Textarea.toHtml
                     , skjema
                         |> Skjema.harDatoer
@@ -1074,46 +1132,48 @@ viewBrukerInput (Model model) =
                         text ""
                     ]
 
+            BekreftSlettingAvPåbegynt _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
+                    ]
+
             LagrerSkjema _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then
                     LoggInnLenke.viewLoggInnLenke
 
                 else
-                    text ""
+                    BrukerInput.utenInnhold
 
             LagringFeilet error _ ->
                 case ErrorHåndtering.operasjonEtterError error of
                     ErrorHåndtering.GiOpp ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     ErrorHåndtering.PrøvPåNytt ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreAnnenErfaring "Prøv igjen"
-                                |> Knapp.toHtml
                             , Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring _ ->
-                text ""
+            VenterPåAnimasjonFørFullføring _ _ ->
+                BrukerInput.utenInnhold
 
     else
-        text ""
+        BrukerInput.utenInnhold
 
 
-viewBekreftOppsummering : Html Msg
+viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
-    Containers.knapper Flytende
-        [ Knapp.knapp VilLagreAnnenErfaring "Ja, informasjonen er riktig"
-            |> Knapp.toHtml
+    BrukerInput.knapper Kolonne
+        [ Knapp.knapp VilLagreAnnenErfaring "Ja, det er riktig"
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
-            |> Knapp.toHtml
+        , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]
 
 
@@ -1122,27 +1182,29 @@ viewDatoPeriode skjema =
     div []
         [ div [ class "DatoInput-fra-til-rad" ]
             [ ValgfriDatoInput.datoInput
-                { label = "Fra"
+                { label = "Når begynte du?"
                 , onMånedChange = FraMåned >> SkjemaEndret
                 , måned = Skjema.fraMåned skjema
                 , onÅrChange = Tekst FraÅr >> SkjemaEndret
                 , år = Skjema.innholdTekstFelt FraÅr skjema
                 }
-                |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
-                |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingFraMåned skjema)
+                |> ValgfriDatoInput.withFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
+                |> ValgfriDatoInput.withFeilmeldingMåned (Skjema.feilmeldingFraMåned skjema)
                 |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
+                |> ValgfriDatoInput.withErObligatorisk
                 |> ValgfriDatoInput.toHtml
             , if not (Skjema.nåværende skjema) then
                 ValgfriDatoInput.datoInput
-                    { label = "Til"
+                    { label = "Når sluttet du?"
                     , onMånedChange = TilMåned >> SkjemaEndret
                     , måned = Skjema.tilMåned skjema
                     , onÅrChange = Tekst TilÅr >> SkjemaEndret
                     , år = Skjema.innholdTekstFelt TilÅr skjema
                     }
-                    |> ValgfriDatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
-                    |> ValgfriDatoInput.withMaybeFeilmeldingMåned (Skjema.feilmeldingTilMåned skjema)
+                    |> ValgfriDatoInput.withFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
+                    |> ValgfriDatoInput.withFeilmeldingMåned (Skjema.feilmeldingTilMåned skjema)
                     |> ValgfriDatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
+                    |> ValgfriDatoInput.withErObligatorisk
                     |> ValgfriDatoInput.toHtml
 
               else
@@ -1150,7 +1212,8 @@ viewDatoPeriode skjema =
             ]
         , skjema
             |> Skjema.nåværende
-            |> Checkbox.checkbox "Nåværende" (SkjemaEndret NåværendeToggled)
+            |> Checkbox.checkbox "Jeg holder fortsatt på" (SkjemaEndret NåværendeToggled)
+            |> Checkbox.withClass "blokk-m"
             |> Checkbox.toHtml
         ]
 

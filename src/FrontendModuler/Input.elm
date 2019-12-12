@@ -2,17 +2,18 @@ module FrontendModuler.Input exposing
     ( Enabled(..)
     , Input
     , InputOptions
+    , innhold
     , input
     , toHtml
     , withClass
     , withEnabled
+    , withErObligatorisk
     , withFeilmelding
     , withId
-    , withLabelId
-    , withMaybeFeilmelding
     , withOnBlur
     , withOnEnter
     , withPlaceholder
+    , withWrapperClass
     )
 
 import FrontendModuler.Feilmelding as Feilmelding
@@ -38,12 +39,14 @@ type alias Options msg =
     , innhold : String
     , feilmelding : Maybe String
     , classes : List String
+    , wrapperClasses : List String
     , onEnter : Maybe msg
     , onBlur : Maybe msg
     , id : Maybe String
     , enabled : Enabled
     , placeholder : Maybe String
     , ariaLabelledby : Maybe msg
+    , obligatorisk : Bool
     }
 
 
@@ -54,19 +57,21 @@ type alias InputOptions msg =
 
 
 input : InputOptions msg -> String -> Input msg
-input { msg, label } innhold =
+input { msg, label } innhold_ =
     Input
         { msg = msg
         , label = Label label
-        , innhold = innhold
+        , innhold = innhold_
         , feilmelding = Nothing
         , classes = []
+        , wrapperClasses = []
         , onEnter = Nothing
         , onBlur = Nothing
         , id = Nothing
         , enabled = Enabled
         , placeholder = Nothing
         , ariaLabelledby = Nothing
+        , obligatorisk = False
         }
 
 
@@ -75,18 +80,13 @@ type Enabled
     | Disabled
 
 
-withLabelId : String -> Input msg -> Input msg
-withLabelId id (Input options) =
-    Input { options | label = LabelId id }
+withErObligatorisk : Input msg -> Input msg
+withErObligatorisk (Input options) =
+    Input { options | obligatorisk = True }
 
 
-withFeilmelding : String -> Input msg -> Input msg
+withFeilmelding : Maybe String -> Input msg -> Input msg
 withFeilmelding feilmelding (Input options) =
-    Input { options | feilmelding = Just feilmelding }
-
-
-withMaybeFeilmelding : Maybe String -> Input msg -> Input msg
-withMaybeFeilmelding feilmelding (Input options) =
     Input { options | feilmelding = feilmelding }
 
 
@@ -98,6 +98,11 @@ withEnabled enabled (Input options) =
 withClass : String -> Input msg -> Input msg
 withClass class (Input options) =
     Input { options | classes = class :: options.classes }
+
+
+withWrapperClass : String -> Input msg -> Input msg
+withWrapperClass class (Input options) =
+    Input { options | wrapperClasses = class :: options.wrapperClasses }
 
 
 withOnEnter : msg -> Input msg -> Input msg
@@ -142,11 +147,19 @@ decodeEnter msg i =
 
 toHtml : Input msg -> Html msg
 toHtml (Input options) =
-    div [ class "skjemaelement" ]
+    div [ class "skjemaelement", optionClasses options.wrapperClasses ]
         (case options.label of
             Label label_ ->
                 [ label []
-                    [ span [ class "skjemaelement__label" ] [ text label_ ]
+                    [ span [ class "skjemaelement__label" ]
+                        (if options.obligatorisk then
+                            [ text label_
+                            , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
+                            ]
+
+                         else
+                            [ text label_ ]
+                        )
                     , htmlInput (Input options) Nothing
                     ]
                 , Feilmelding.htmlFeilmelding options.feilmelding
@@ -201,3 +214,8 @@ optionClasses classes =
 noAttribute : Html.Attribute msg
 noAttribute =
     classList []
+
+
+innhold : Input msg -> String
+innhold (Input options) =
+    options.innhold

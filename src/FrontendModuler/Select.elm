@@ -3,8 +3,8 @@ module FrontendModuler.Select exposing
     , select
     , toHtml
     , withClass
-    , withLabelId
-    , withMaybeFeilmelding
+    , withErObligatorisk
+    , withFeilmelding
     , withMaybeSelected
     , withSelected
     )
@@ -29,6 +29,7 @@ type Select msg
         , selectedValue : Maybe String
         , feilmelding : Maybe String
         , class : Maybe String
+        , obligatorisk : Bool
         }
 
 
@@ -41,12 +42,8 @@ select label msg listOfOptions =
         , selectedValue = Nothing
         , feilmelding = Nothing
         , class = Nothing
+        , obligatorisk = False
         }
-
-
-withLabelId : String -> Select msg -> Select msg
-withLabelId id (Select options) =
-    Select { options | label = LabelId id }
 
 
 withSelected : String -> Select msg -> Select msg
@@ -59,8 +56,8 @@ withMaybeSelected selectedValue (Select options) =
     Select { options | selectedValue = selectedValue }
 
 
-withMaybeFeilmelding : Maybe String -> Select msg -> Select msg
-withMaybeFeilmelding feilmelding (Select options) =
+withFeilmelding : Maybe String -> Select msg -> Select msg
+withFeilmelding feilmelding (Select options) =
     Select { options | feilmelding = feilmelding }
 
 
@@ -69,13 +66,26 @@ withClass class (Select options) =
     Select { options | class = Just class }
 
 
+withErObligatorisk : Select msg -> Select msg
+withErObligatorisk (Select options) =
+    Select { options | obligatorisk = True }
+
+
 toHtml : Select msg -> Html msg
 toHtml (Select options) =
     div [ class "skjemaelement" ]
         (case options.label of
             Label label_ ->
                 [ label []
-                    [ span [ class "skjemaelement__label" ] [ text label_ ]
+                    [ span [ class "skjemaelement__label" ]
+                        (if options.obligatorisk then
+                            [ text label_
+                            , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
+                            ]
+
+                         else
+                            [ text label_ ]
+                        )
                     , htmlSelect (Select options) Nothing
                     ]
                 , htmlFeilmelding options.feilmelding

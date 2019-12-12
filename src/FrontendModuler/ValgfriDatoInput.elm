@@ -2,9 +2,10 @@ module FrontendModuler.ValgfriDatoInput exposing
     ( DatoInput
     , datoInput
     , toHtml
-    , withMaybeFeilmeldingMåned
-    , withMaybeFeilmeldingPeriode
-    , withMaybeFeilmeldingÅr
+    , withErObligatorisk
+    , withFeilmeldingMåned
+    , withFeilmeldingPeriode
+    , withFeilmeldingÅr
     , withOnBlurÅr
     )
 
@@ -30,6 +31,7 @@ type alias Info msg =
     , feilmeldingÅr : Maybe String
     , feilmeldingPeriode : Maybe String
     , onBlurÅr : Maybe msg
+    , obligatorisk : Bool
     }
 
 
@@ -54,6 +56,7 @@ datoInput { label, år, onÅrChange, måned, onMånedChange } =
         , feilmeldingÅr = Nothing
         , feilmeldingPeriode = Nothing
         , onBlurÅr = Nothing
+        , obligatorisk = False
         }
 
 
@@ -96,18 +99,18 @@ feilMånedIPeriode (DatoInput info) =
             False
 
 
-withMaybeFeilmeldingÅr : Maybe String -> DatoInput msg -> DatoInput msg
-withMaybeFeilmeldingÅr feilmelding (DatoInput info) =
+withFeilmeldingÅr : Maybe String -> DatoInput msg -> DatoInput msg
+withFeilmeldingÅr feilmelding (DatoInput info) =
     DatoInput { info | feilmeldingÅr = feilmelding }
 
 
-withMaybeFeilmeldingMåned : Maybe String -> DatoInput msg -> DatoInput msg
-withMaybeFeilmeldingMåned feilmelding (DatoInput info) =
+withFeilmeldingMåned : Maybe String -> DatoInput msg -> DatoInput msg
+withFeilmeldingMåned feilmelding (DatoInput info) =
     DatoInput { info | feilmeldingMåned = feilmelding }
 
 
-withMaybeFeilmeldingPeriode : Maybe String -> DatoInput msg -> DatoInput msg
-withMaybeFeilmeldingPeriode feilmelding (DatoInput info) =
+withFeilmeldingPeriode : Maybe String -> DatoInput msg -> DatoInput msg
+withFeilmeldingPeriode feilmelding (DatoInput info) =
     DatoInput { info | feilmeldingPeriode = feilmelding }
 
 
@@ -116,63 +119,80 @@ withOnBlurÅr onBlur (DatoInput info) =
     DatoInput { info | onBlurÅr = Just onBlur }
 
 
+withErObligatorisk : DatoInput msg -> DatoInput msg
+withErObligatorisk (DatoInput options) =
+    DatoInput { options | obligatorisk = True }
+
+
 toHtml : DatoInput msg -> Html msg
 toHtml (DatoInput options) =
-    div [ class "ValgfriDatoInput-kolonne" ]
-        [ div [ class "Dato-wrapper" ]
-            [ Select.select
-                options.label
-                options.onMånedChange
-                [ ( "Måned", "Måned" )
-                , ( "Januar", "Januar" )
-                , ( "Februar", "Februar" )
-                , ( "Mars", "Mars" )
-                , ( "April", "April" )
-                , ( "Mai", "Mai" )
-                , ( "Juni", "Juni" )
-                , ( "Juli", "Juli" )
-                , ( "August", "August" )
-                , ( "September", "September" )
-                , ( "Oktober", "Oktober" )
-                , ( "November", "November" )
-                , ( "Desember", "Desember" )
+    fieldset [ class "DatoInput-fieldset" ]
+        [ legend [ class "skjemaelement__label" ]
+            (if options.obligatorisk then
+                [ text options.label
+                , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
                 ]
-                |> Select.withSelected
-                    (case options.måned of
-                        Nothing ->
-                            "Måned"
 
-                        Just måned_ ->
-                            Dato.månedTilString måned_
-                    )
-                |> Select.withClass
-                    ("DatoInput-måned"
-                        ++ (if feilMånedIPeriode (DatoInput options) then
-                                " skjemaelement__input--harFeil"
+             else
+                [ text options.label ]
+            )
+        , div
+            [ class "ValgfriDatoInput-kolonne" ]
+            [ div [ class "Dato-wrapper" ]
+                [ Select.select
+                    "Måned"
+                    options.onMånedChange
+                    [ ( "Måned", "Måned" )
+                    , ( "Januar", "Januar" )
+                    , ( "Februar", "Februar" )
+                    , ( "Mars", "Mars" )
+                    , ( "April", "April" )
+                    , ( "Mai", "Mai" )
+                    , ( "Juni", "Juni" )
+                    , ( "Juli", "Juli" )
+                    , ( "August", "August" )
+                    , ( "September", "September" )
+                    , ( "Oktober", "Oktober" )
+                    , ( "November", "November" )
+                    , ( "Desember", "Desember" )
+                    ]
+                    |> Select.withSelected
+                        (case options.måned of
+                            Nothing ->
+                                "Måned"
 
-                            else
-                                ""
-                           )
-                    )
-                |> Select.withMaybeFeilmelding options.feilmeldingMåned
-                |> Select.toHtml
-            , div [ class "DatoInput-år-wrapper" ]
-                [ Input.input { label = "År", msg = options.onÅrChange } options.år
-                    |> Input.withClass
-                        ("aar"
-                            ++ (if feilÅrIPeriode (DatoInput options) then
+                            Just måned_ ->
+                                Dato.månedTilString måned_
+                        )
+                    |> Select.withClass
+                        ("DatoInput-måned"
+                            ++ (if feilMånedIPeriode (DatoInput options) then
                                     " skjemaelement__input--harFeil"
 
                                 else
                                     ""
                                )
                         )
-                    |> Input.withMaybeFeilmelding options.feilmeldingÅr
-                    |> withMaybeOnBlur options.onBlurÅr
-                    |> Input.toHtml
+                    |> Select.withFeilmelding options.feilmeldingMåned
+                    |> Select.toHtml
+                , div [ class "DatoInput-år-wrapper" ]
+                    [ Input.input { label = "År", msg = options.onÅrChange } options.år
+                        |> Input.withClass
+                            ("aar"
+                                ++ (if feilÅrIPeriode (DatoInput options) then
+                                        " skjemaelement__input--harFeil"
+
+                                    else
+                                        ""
+                                   )
+                            )
+                        |> Input.withFeilmelding options.feilmeldingÅr
+                        |> withMaybeOnBlur options.onBlurÅr
+                        |> Input.toHtml
+                    ]
                 ]
+            , htmlFeilmelding (feilmeldingPeriode (DatoInput options))
             ]
-        , htmlFeilmelding (feilmeldingPeriode (DatoInput options))
         ]
 
 

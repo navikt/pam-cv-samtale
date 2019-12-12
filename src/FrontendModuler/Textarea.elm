@@ -1,13 +1,13 @@
 module FrontendModuler.Textarea exposing
     ( Textarea
     , TextareaOptions
+    , innhold
     , textarea
-    , toHtml
-    ,  withFeilmelding
+    ,  toHtml
        --    , withMaxLength
 
+    , withFeilmelding
     , withId
-    , withMaybeFeilmelding
     , withTextAreaClass
     )
 
@@ -39,11 +39,11 @@ type alias TextareaOptions msg =
 
 
 textarea : TextareaOptions msg -> String -> Textarea msg
-textarea { msg, label } innhold =
+textarea { msg, label } innhold_ =
     Textarea
         { msg = msg
         , label = label
-        , innhold = innhold
+        , innhold = innhold_
         , textAreaClass = ""
         , feilmelding = Nothing
         , maxLength = Nothing
@@ -56,13 +56,8 @@ withTextAreaClass textAreaClass (Textarea options) =
     Textarea { options | textAreaClass = textAreaClass }
 
 
-withFeilmelding : String -> Textarea msg -> Textarea msg
-withFeilmelding feilmelding (Textarea options) =
-    Textarea { options | feilmelding = Just feilmelding }
-
-
-withMaybeFeilmelding : Maybe String -> Textarea msg -> Textarea msg
-withMaybeFeilmelding maybeFeilmelding (Textarea options) =
+withFeilmelding : Maybe String -> Textarea msg -> Textarea msg
+withFeilmelding maybeFeilmelding (Textarea options) =
     Textarea { options | feilmelding = maybeFeilmelding }
 
 
@@ -135,3 +130,8 @@ toHtml (Textarea options) =
 noAttribute : Html.Attribute msg
 noAttribute =
     classList []
+
+
+innhold : Textarea msg -> String
+innhold (Textarea options) =
+    options.innhold

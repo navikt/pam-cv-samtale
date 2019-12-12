@@ -16,19 +16,21 @@ import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
-import ErrorHandtering exposing (OperasjonEtterError(..))
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
-import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
+import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Knapp as Knapp
-import FrontendModuler.LoggInnLenke as Common
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Textarea as Textarea
-import Html exposing (Html, text)
+import FrontendModuler.Typeahead
+import Html exposing (Html)
 import Http exposing (Error(..))
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
@@ -50,15 +52,28 @@ type alias ModelInfo =
     }
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt FagdokumentasjonType
+    | AnnenAvslutning
+
+
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = RegistrerKonsept FagdokumentasjonType Bool (Typeahead.Model Konsept)
+    | HentingFraTypeaheadFeilet FagdokumentasjonType (Typeahead.Model Konsept) Http.Error
+    | HenterFraTypeaheadPåNyttEtterFeiling FagdokumentasjonType (Typeahead.Model Konsept) Http.Error
     | RegistrerBeskrivelse FagdokumentasjonType Bool BeskrivelseInfo
-    | Oppsummering ValidertFagdokumentasjonSkjema
+    | Oppsummering OppsummeringsType ValidertFagdokumentasjonSkjema
     | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
-    | OppsummeringEtterEndring ValidertFagdokumentasjonSkjema
+    | BekreftSlettingAvPåbegynt ValidertFagdokumentasjonSkjema
     | Lagrer LagreStatus ValidertFagdokumentasjonSkjema
     | LagringFeilet ValidertFagdokumentasjonSkjema Http.Error
-    | VenterPåAnimasjonFørFullføring (List Fagdokumentasjon)
+    | VenterPåAnimasjonFørFullføring (List Fagdokumentasjon) AvsluttetGrunn
 
 
 type LagreStatus
@@ -100,11 +115,16 @@ type Msg
     = TypeaheadMsg (Typeahead.Msg Konsept)
     | HentetTypeahead (Result Http.Error (List Konsept))
     | BrukerVilRegistrereKonsept
+    | BrukerVilAvbryteHentingFraTypeahead
+    | BrukerVilPrøveÅHenteFraTypeaheadPåNytt
     | VilSeEksempel
     | BrukerVilRegistrereFagdokumentasjonBeskrivelse
     | OppdaterFagdokumentasjonBeskrivelse String
     | BrukerVilLagreIOppsummeringen
     | BrukerVilEndreOppsummeringen
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | BrukerLagrerSkjema
     | FagbrevSendtTilApi (Result Http.Error (List Fagdokumentasjon))
     | BrukerVilPrøveÅLagrePåNytt
@@ -134,7 +154,7 @@ update msg (Model model) =
                             |> Skjema.oppdaterKonsept skjema
                             |> Skjema.gjørFeilmeldingKonseptSynlig (Typeahead.inputStatus status == InputBlurred)
                             |> EndrerOppsummering nyTypeaheadModel
-                            |> oppdaterSamtaleSteg model
+                            |> oppdaterSamtale model IngenNyeMeldinger
                         , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput string ->
                                 skjema
@@ -153,26 +173,58 @@ update msg (Model model) =
                 RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
-                            ( let
-                                nyTypeaheadModel =
-                                    Typeahead.updateSuggestions Konsept.label typeaheadModel suggestions
-                              in
-                              nyTypeaheadModel
+                            ( suggestions
+                                |> Typeahead.updateSuggestions Konsept.label typeaheadModel
                                 |> RegistrerKonsept fagdokumentasjonType visFeilmelding
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         Err error ->
-                            ( Model model, logFeilmelding error "Hente FagbrevTypeahead" )
+                            ( error
+                                |> HentingFraTypeaheadFeilet fagdokumentasjonType typeaheadModel
+                                |> oppdaterSamtale model UtenSvar
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                , logFeilmelding error "Hente FagbrevTypeahead"
+                                ]
+                            )
+                                |> IkkeFerdig
+
+                HenterFraTypeaheadPåNyttEtterFeiling fagdokumentasjonType typeaheadModel _ ->
+                    case result of
+                        Ok suggestions ->
+                            ( Model
+                                { model
+                                    | aktivSamtale =
+                                        suggestions
+                                            |> Typeahead.updateSuggestions Konsept.label typeaheadModel
+                                            |> RegistrerKonsept fagdokumentasjonType False
+                                    , seksjonsMeldingsLogg =
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå gikk det!" ] ]
+                                }
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Err error ->
+                            ( error
+                                |> HentingFraTypeaheadFeilet fagdokumentasjonType typeaheadModel
+                                |> oppdaterSamtale model UtenSvar
+                            , Cmd.batch
+                                [ lagtTilSpørsmålCmd model.debugStatus
+                                , logFeilmelding error "Hente Yrketypeahead"
+                                ]
+                            )
                                 |> IkkeFerdig
 
                 EndrerOppsummering typeaheadModel skjema ->
                     case result of
                         Ok suggestions ->
                             ( EndrerOppsummering (Typeahead.updateSuggestions Konsept.label typeaheadModel suggestions) skjema
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -189,13 +241,34 @@ update msg (Model model) =
                 RegistrerKonsept fagdokumentasjonType _ typeaheadModel ->
                     case Typeahead.selected typeaheadModel of
                         Just konsept ->
-                            brukerVilRegistrereKonsept model fagdokumentasjonType konsept
+                            brukerVilRegistrereKonsept model msg fagdokumentasjonType konsept
 
                         Nothing ->
                             visFeilmeldingRegistrerKonsept model fagdokumentasjonType typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilPrøveÅHenteFraTypeaheadPåNytt ->
+            case model.aktivSamtale of
+                HentingFraTypeaheadFeilet fagdokumentasjonsType typeaheadModel error ->
+                    ( error
+                        |> HenterFraTypeaheadPåNyttEtterFeiling fagdokumentasjonsType typeaheadModel
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , hentTypeaheadSuggestions (Typeahead.inputValue typeaheadModel) fagdokumentasjonsType
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+        BrukerVilAvbryteHentingFraTypeahead ->
+            ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AnnenAvslutning
+                |> oppdaterSamtale model (SvarFraMsg msg)
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
 
         VilSeEksempel ->
             case model.aktivSamtale of
@@ -219,8 +292,8 @@ update msg (Model model) =
                     case feilmeldingBeskrivelsesfelt info.beskrivelse of
                         Nothing ->
                             ( Skjema.initValidertSkjema fagdokumentasjonType info.konsept info.beskrivelse
-                                |> Oppsummering
-                                |> nesteSamtaleSteg model (Melding.svar [ info.beskrivelse ])
+                                |> Oppsummering FørsteGang
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -233,24 +306,57 @@ update msg (Model model) =
 
         BrukerVilLagreIOppsummeringen ->
             case model.aktivSamtale of
-                Oppsummering skjema ->
+                Oppsummering _ skjema ->
                     LagrerFørsteGang
-                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
-
-                OppsummeringEtterEndring skjema ->
-                    LagrerFørsteGang
-                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                        |> updateEtterLagreKnappTrykket model msg skjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
-                Oppsummering validertSkjema ->
-                    initRedigeringAvValidertSkjema model validertSkjema
+                Oppsummering _ validertSkjema ->
+                    initRedigeringAvValidertSkjema model msg validertSkjema
 
-                OppsummeringEtterEndring validertSkjema ->
-                    initRedigeringAvValidertSkjema model validertSkjema
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                Oppsummering _ skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    let
+                        fagdokumentasjonsType =
+                            Skjema.fagdokumentasjonType (Skjema.tilUvalidertSkjema skjema)
+                    in
+                    ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe (SlettetPåbegynt fagdokumentasjonsType)
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( Oppsummering AvbrøtSletting skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -262,9 +368,8 @@ update msg (Model model) =
                         Just validertSkjema ->
                             IkkeFerdig
                                 ( validertSkjema
-                                    |> OppsummeringEtterEndring
-                                    |> nesteSamtaleSteg model
-                                        (Melding.svar (validertSkjemaTilSetninger validertSkjema))
+                                    |> Oppsummering EtterEndring
+                                    |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
 
@@ -273,7 +378,7 @@ update msg (Model model) =
                                 ( skjema
                                     |> Skjema.gjørFeilmeldingKonseptSynlig True
                                     |> EndrerOppsummering typeaheadModel
-                                    |> oppdaterSamtaleSteg model
+                                    |> oppdaterSamtale model IngenNyeMeldinger
                                 , Cmd.none
                                 )
 
@@ -283,19 +388,18 @@ update msg (Model model) =
         OppdaterFagdokumentasjonBeskrivelse beskrivelse ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse fagdokumentasjonType medEksempelKnapp info ->
-                    ( oppdaterSamtaleSteg model (RegistrerBeskrivelse fagdokumentasjonType medEksempelKnapp { info | beskrivelse = beskrivelse })
+                    ( { info | beskrivelse = beskrivelse }
+                        |> RegistrerBeskrivelse fagdokumentasjonType medEksempelKnapp
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
 
                 EndrerOppsummering typeaheadModel skjema ->
-                    ( Model
-                        { model
-                            | aktivSamtale =
-                                skjema
-                                    |> Skjema.oppdaterBeskrivelse beskrivelse
-                                    |> EndrerOppsummering typeaheadModel
-                        }
+                    ( skjema
+                        |> Skjema.oppdaterBeskrivelse beskrivelse
+                        |> EndrerOppsummering typeaheadModel
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -308,37 +412,29 @@ update msg (Model model) =
                 Lagrer lagreStatus skjema ->
                     case result of
                         Ok fagdokumentasjoner ->
-                            if lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus then
-                                ( Model
-                                    { model
-                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
-                                        , seksjonsMeldingsLogg =
-                                            model.seksjonsMeldingsLogg
-                                                |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja, jeg vil logge inn" ])
-                                                |> MeldingsLogg.leggTilSpørsmål
-                                                    [ meldingForLagringSuccess skjema ]
-                                    }
-                                , lagtTilSpørsmålCmd model.debugStatus
-                                )
-                                    |> IkkeFerdig
+                            let
+                                oppdatertMeldingslogg =
+                                    if lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus then
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                                            |> MeldingsLogg.leggTilSpørsmål
+                                                [ meldingForLagringSuccess skjema ]
 
-                            else
-                                ( Model
-                                    { model
-                                        | aktivSamtale = VenterPåAnimasjonFørFullføring fagdokumentasjoner
-                                        , seksjonsMeldingsLogg =
-                                            model.seksjonsMeldingsLogg
-                                                |> MeldingsLogg.leggTilSpørsmål
-                                                    [ meldingForLagringSuccess skjema ]
-                                    }
-                                , lagtTilSpørsmålCmd model.debugStatus
-                                )
-                                    |> IkkeFerdig
+                                    else
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSpørsmål
+                                                [ meldingForLagringSuccess skjema ]
+                            in
+                            ( VenterPåAnimasjonFørFullføring fagdokumentasjoner AnnenAvslutning
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
                         Err error ->
                             ( error
                                 |> LagringFeilet skjema
-                                |> nesteSamtaleStegUtenSvar model
+                                |> oppdaterSamtale model UtenSvar
                             , Cmd.batch
                                 [ lagtTilSpørsmålCmd model.debugStatus
                                 , logFeilmelding error "Lagre fagbrev"
@@ -356,7 +452,7 @@ update msg (Model model) =
                         LagringFeilet skjema ((BadStatus 401) as error) ->
                             ( skjema
                                 |> Lagrer (LagrerPåNyttEtterError error)
-                                |> nesteSamtaleStegUtenSvar model
+                                |> oppdaterSamtale model UtenSvar
                             , Api.postFagdokumentasjon FagbrevSendtTilApi skjema
                             )
                                 |> IkkeFerdig
@@ -364,7 +460,7 @@ update msg (Model model) =
                         Lagrer (LagrerPåNyttEtterError (BadStatus 401)) skjema ->
                             ( skjema
                                 |> Lagrer ForsøkÅLagrePåNyttEtterDetteForsøket
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -380,16 +476,15 @@ update msg (Model model) =
                 LagringFeilet skjema error ->
                     error
                         |> LagrerPåNyttEtterError
-                        |> updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, prøv på nytt" ])
+                        |> updateEtterLagreKnappTrykket model msg skjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         BrukerVilIkkePrøveÅLagrePåNytt ->
             IkkeFerdig
-                ( model.fagdokumentasjonListe
-                    |> VenterPåAnimasjonFørFullføring
-                    |> nesteSamtaleSteg model (Melding.svar [ "Nei, gå videre uten å lagre" ])
+                ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AnnenAvslutning
+                    |> oppdaterSamtale model (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
 
@@ -408,23 +503,23 @@ validertSkjemaTilSetninger : ValidertFagdokumentasjonSkjema -> List String
 validertSkjemaTilSetninger validertSkjema =
     let
         skjema =
-            Skjema.tilSkjema validertSkjema
+            Skjema.tilUvalidertSkjema validertSkjema
     in
     [ typeaheadLabel (Skjema.fagdokumentasjonType skjema) ++ ": " ++ Skjema.konseptStringFraValidertSkjema validertSkjema
     , "Beskrivelse: " ++ Skjema.beskrivelseFraValidertSkjema validertSkjema
     ]
 
 
-initRedigeringAvValidertSkjema : ModelInfo -> ValidertFagdokumentasjonSkjema -> SamtaleStatus
-initRedigeringAvValidertSkjema model validertSkjema =
+initRedigeringAvValidertSkjema : ModelInfo -> Msg -> ValidertFagdokumentasjonSkjema -> SamtaleStatus
+initRedigeringAvValidertSkjema model msg validertSkjema =
     ( validertSkjema
-        |> Skjema.tilSkjema
+        |> Skjema.tilUvalidertSkjema
         |> EndrerOppsummering (initSkjemaTypeaheadFraValidertSkjema validertSkjema)
-        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
         , validertSkjema
-            |> Skjema.tilSkjema
+            |> Skjema.tilUvalidertSkjema
             |> Skjema.fagdokumentasjonType
             |> hentTypeaheadSuggestions
                 (validertSkjema
@@ -450,7 +545,7 @@ initSkjemaTypeaheadFraValidertSkjema : ValidertFagdokumentasjonSkjema -> Typeahe
 initSkjemaTypeaheadFraValidertSkjema skjema =
     skjema
         |> Skjema.konseptFraValidertSkjema
-        |> initSkjemaTypeaheadFraKonsept (skjema |> Skjema.tilSkjema |> Skjema.fagdokumentasjonType)
+        |> initSkjemaTypeaheadFraKonsept (skjema |> Skjema.tilUvalidertSkjema |> Skjema.fagdokumentasjonType)
 
 
 initSkjemaTypeaheadFraKonsept : FagdokumentasjonType -> Konsept -> Typeahead.Model Konsept
@@ -473,7 +568,7 @@ updateSamtaleTypeahead model fagdokumentasjonType visFeilmelding msg typeaheadMo
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just konsept ->
-                    brukerVilRegistrereKonsept model fagdokumentasjonType konsept
+                    brukerVilRegistrereKonsept model (TypeaheadMsg msg) fagdokumentasjonType konsept
 
                 Nothing ->
                     visFeilmeldingRegistrerKonsept model fagdokumentasjonType nyTypeaheadModel
@@ -485,7 +580,7 @@ updateSamtaleTypeahead model fagdokumentasjonType visFeilmelding msg typeaheadMo
             IkkeFerdig
                 ( nyTypeaheadModel
                     |> RegistrerKonsept fagdokumentasjonType visFeilmelding
-                    |> oppdaterSamtaleSteg model
+                    |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         hentTypeaheadSuggestions string fagdokumentasjonType
@@ -497,19 +592,20 @@ updateSamtaleTypeahead model fagdokumentasjonType visFeilmelding msg typeaheadMo
 
 visFeilmeldingRegistrerKonsept : ModelInfo -> FagdokumentasjonType -> Typeahead.Model Konsept -> SamtaleStatus
 visFeilmeldingRegistrerKonsept model fagdokumentasjonType typeaheadModel =
-    ( RegistrerKonsept fagdokumentasjonType True typeaheadModel
-        |> oppdaterSamtaleSteg model
+    ( typeaheadModel
+        |> RegistrerKonsept fagdokumentasjonType True
+        |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )
         |> IkkeFerdig
 
 
-brukerVilRegistrereKonsept : ModelInfo -> FagdokumentasjonType -> Konsept -> SamtaleStatus
-brukerVilRegistrereKonsept model fagdokumentasjonType konsept =
+brukerVilRegistrereKonsept : ModelInfo -> Msg -> FagdokumentasjonType -> Konsept -> SamtaleStatus
+brukerVilRegistrereKonsept model msg fagdokumentasjonType konsept =
     ( konsept
         |> forrigetilBeskrivelseInfo
         |> RegistrerBeskrivelse fagdokumentasjonType True
-        |> nesteSamtaleSteg model (Melding.svar [ Konsept.label konsept ])
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , lagtTilSpørsmålCmd model.debugStatus
     )
         |> IkkeFerdig
@@ -541,12 +637,12 @@ hentTypeaheadSuggestions query fagdokumentasjonType =
             Api.getAutorisasjonTypeahead HentetTypeahead query
 
 
-updateEtterLagreKnappTrykket : ModelInfo -> ValidertFagdokumentasjonSkjema -> Melding -> LagreStatus -> SamtaleStatus
-updateEtterLagreKnappTrykket model skjema svar lagreStatus =
+updateEtterLagreKnappTrykket : ModelInfo -> Msg -> ValidertFagdokumentasjonSkjema -> LagreStatus -> SamtaleStatus
+updateEtterLagreKnappTrykket model msg skjema lagreStatus =
     IkkeFerdig
         ( skjema
             |> Lagrer lagreStatus
-            |> nesteSamtaleSteg model svar
+            |> oppdaterSamtale model (SvarFraMsg msg)
         , Cmd.batch
             [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
             , lagtTilSpørsmålCmd model.debugStatus
@@ -559,7 +655,7 @@ meldingForLagringSuccess skjema =
     let
         fagdokumentasjonType =
             skjema
-                |> Skjema.tilSkjema
+                |> Skjema.tilUvalidertSkjema
                 |> Skjema.fagdokumentasjonType
     in
     case fagdokumentasjonType of
@@ -580,7 +676,7 @@ lagringFeiletTidligerePåGrunnAvInnlogging lagreStatus =
             False
 
         LagrerPåNyttEtterError error ->
-            ErrorHandtering.operasjonEtterError error == LoggInn
+            ErrorHåndtering.operasjonEtterError error == LoggInn
 
         ForsøkÅLagrePåNyttEtterDetteForsøket ->
             True
@@ -591,15 +687,11 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring fagdokumentasjonListe ->
+                VenterPåAnimasjonFørFullføring fagdokumentasjonListe _ ->
                     Ferdig fagdokumentasjonListe ferdigAnimertSamtale
 
                 _ ->
-                    ( Model
-                        { model
-                            | seksjonsMeldingsLogg =
-                                nyMeldingsLogg
-                        }
+                    ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
                     , Cmd.batch
                         [ Cmd.map SamtaleAnimasjonMsg cmd
                         , settFokus model.aktivSamtale
@@ -631,34 +723,36 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
-nesteSamtaleSteg model melding samtaleSeksjon =
+svarFraBrukerInput : ModelInfo -> Msg -> Melding
+svarFraBrukerInput modelInfo msg =
+    modelInfo
+        |> modelTilBrukerInput
+        |> BrukerInput.tilSvarMelding msg
+
+
+oppdaterSamtale : ModelInfo -> SamtaleOppdatering Msg -> Samtale -> Model
+oppdaterSamtale model meldingsoppdatering samtale =
     Model
         { model
-            | aktivSamtale = samtaleSeksjon
+            | aktivSamtale = samtale
             , seksjonsMeldingsLogg =
-                model.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSvar melding
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-        }
+                case meldingsoppdatering of
+                    IngenNyeMeldinger ->
+                        model.seksjonsMeldingsLogg
 
+                    SvarFraMsg msg ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-nesteSamtaleStegUtenSvar : ModelInfo -> Samtale -> Model
-nesteSamtaleStegUtenSvar model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-            , seksjonsMeldingsLogg =
-                model.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-        }
+                    ManueltSvar melding ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar melding
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-
-oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
-oppdaterSamtaleSteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
+                    UtenSvar ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
         }
 
 
@@ -682,6 +776,12 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                     , Melding.spørsmål [ "Begynn å skriv inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
                     ]
 
+        HentingFraTypeaheadFeilet _ _ error ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "hente forslag i søkefeltet" } ]
+
+        HenterFraTypeaheadPåNyttEtterFeiling _ _ _ ->
+            []
+
         RegistrerBeskrivelse fagdokumentasjonType _ _ ->
             case fagdokumentasjonType of
                 SvennebrevFagbrev ->
@@ -696,18 +796,31 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                     [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ]
                     ]
 
-        Oppsummering skjema ->
-            [ [ [ "Du har lagt inn dette:"
-                , Melding.tomLinje
-                ]
-              , validertSkjemaTilSetninger skjema
-              , [ Melding.tomLinje
-                , "Er informasjonen riktig?"
-                ]
-              ]
-                |> List.concat
-                |> Melding.spørsmål
-            ]
+        Oppsummering oppsummeringsType validertSkjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    case Skjema.fagdokumentasjonType (Skjema.tilUvalidertSkjema validertSkjema) of
+                        SvennebrevFagbrev ->
+                            [ Melding.spørsmål [ "Ok, da lar jeg fagbrevet/svennebrevet stå." ]
+                            , oppsummeringsSpørsmål validertSkjema
+                            ]
+
+                        Mesterbrev ->
+                            [ Melding.spørsmål [ "Ok, da lar jeg mesterbrevet stå." ]
+                            , oppsummeringsSpørsmål validertSkjema
+                            ]
+
+                        Autorisasjon ->
+                            [ Melding.spørsmål [ "Ok, da lar jeg autorisasjonen stå." ]
+                            , oppsummeringsSpørsmål validertSkjema
+                            ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål validertSkjema
+                    ]
 
         EndrerOppsummering _ skjema ->
             case Skjema.fagdokumentasjonType skjema of
@@ -720,14 +833,36 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                 Autorisasjon ->
                     [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
 
-        OppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+        BekreftSlettingAvPåbegynt skjema ->
+            case Skjema.fagdokumentasjonType (Skjema.tilUvalidertSkjema skjema) of
+                SvennebrevFagbrev ->
+                    [ Melding.spørsmål [ "Er du sikker på at du vil slette dette fagbrevet/svennebrevet?" ] ]
 
+                Mesterbrev ->
+                    [ Melding.spørsmål [ "Er du sikker på at du vil slette dette mesterbrevet?" ] ]
+
+                Autorisasjon ->
+                    [ Melding.spørsmål [ "Er du sikker på at du vil slette denne autorisasjonen?" ] ]
+
+        --todo: legg inn
         LagringFeilet validertSkjema error ->
-            [ ErrorHandtering.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
+            [ ErrorHåndtering.errorMelding { operasjon = lagreOperasjonStringFraSkjema validertSkjema, error = error } ]
 
-        VenterPåAnimasjonFørFullføring _ ->
-            []
+        VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt fagdokumentasjonsType ->
+                    case fagdokumentasjonsType of
+                        SvennebrevFagbrev ->
+                            [ Melding.spørsmål [ "Nå har jeg slettet fagbrevet/svennebrevet. Vil du legge inn flere kategorier?" ] ]
+
+                        Mesterbrev ->
+                            [ Melding.spørsmål [ "Nå har jeg slettet mesterbrevet. Vil du legge inn flere kategorier?" ] ]
+
+                        Autorisasjon ->
+                            [ Melding.spørsmål [ "Nå har jeg slettet autorisasjonen. Vil du legge inn flere kategorier?" ] ]
+
+                AnnenAvslutning ->
+                    [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
         Lagrer _ _ ->
             []
@@ -736,7 +871,7 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
 lagreOperasjonStringFraSkjema : ValidertFagdokumentasjonSkjema -> String
 lagreOperasjonStringFraSkjema skjema =
     skjema
-        |> Skjema.tilSkjema
+        |> Skjema.tilUvalidertSkjema
         |> Skjema.fagdokumentasjonType
         |> lagreOperasjonStringFraFagdokumentasjonType
 
@@ -774,6 +909,20 @@ settFokusCmd inputId =
         |> Task.attempt FokusSatt
 
 
+oppsummeringsSpørsmål : ValidertFagdokumentasjonSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    [ [ "Du har lagt inn dette:"
+      , Melding.tomLinje
+      ]
+    , validertSkjemaTilSetninger skjema
+    , [ Melding.tomLinje
+      , "Er informasjonen riktig?"
+      ]
+    ]
+        |> List.concat
+        |> Melding.spørsmål
+
+
 eksemplerPåFagdokumentasjon : FagdokumentasjonType -> List Melding
 eksemplerPåFagdokumentasjon fagdokumentasjonType =
     case fagdokumentasjonType of
@@ -796,41 +945,66 @@ eksemplerPåFagdokumentasjon fagdokumentasjonType =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
+    model
+        |> modelTilBrukerInput
+        |> BrukerInput.toHtml
+
+
+modelTilBrukerInput : ModelInfo -> BrukerInput Msg
+modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
             RegistrerKonsept fagdokumentasjonType visFeilmelding typeaheadModel ->
-                Containers.typeaheadMedGåVidereKnapp BrukerVilRegistrereKonsept
-                    [ typeaheadModel
+                BrukerInput.typeaheadMedGåVidereKnapp BrukerVilRegistrereKonsept
+                    (typeaheadModel
                         |> feilmeldingTypeahead fagdokumentasjonType
                         |> maybeHvisTrue visFeilmelding
-                        |> Typeahead.view Konsept.label typeaheadModel
-                        |> Html.map TypeaheadMsg
-                    ]
+                        |> Typeahead.toViewElement Konsept.label typeaheadModel
+                        |> FrontendModuler.Typeahead.map TypeaheadMsg
+                    )
+
+            HentingFraTypeaheadFeilet _ _ error ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
+                            ]
+
+                    PrøvPåNytt ->
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp BrukerVilPrøveÅHenteFraTypeaheadPåNytt "Prøv igjen"
+                            , Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+            HenterFraTypeaheadPåNyttEtterFeiling _ _ error ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
+
+                    _ ->
+                        BrukerInput.utenInnhold
 
             RegistrerBeskrivelse _ medEksempelKnapp beskrivelseinfo ->
                 (if medEksempelKnapp then
-                    Containers.inputMedEksempelOgGåVidereKnapp VilSeEksempel BrukerVilRegistrereFagdokumentasjonBeskrivelse
+                    BrukerInput.inputMedEksempelOgGåVidereKnapp VilSeEksempel BrukerVilRegistrereFagdokumentasjonBeskrivelse
 
                  else
-                    Containers.inputMedGåVidereKnapp BrukerVilRegistrereFagdokumentasjonBeskrivelse
+                    BrukerInput.textareaMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
                 )
-                    [ beskrivelseinfo.beskrivelse
+                    (beskrivelseinfo.beskrivelse
                         |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
-                        |> Textarea.withMaybeFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
+                        |> Textarea.withFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
                         |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                        |> Textarea.toHtml
-                    ]
+                    )
 
-            Oppsummering _ ->
-                Containers.knapper Flytende
-                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                        |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-                        |> Knapp.toHtml
-                    ]
+            Oppsummering _ _ ->
+                viewBekreftOppsummering
 
             EndrerOppsummering typeaheadModel skjema ->
-                Containers.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre endringer" }
+                BrukerInput.skjema { lagreMsg = BrukerLagrerSkjema, lagreKnappTekst = "Lagre endringer" }
                     [ skjema
                         |> Skjema.feilmeldingTypeahead
                         |> Typeahead.view Konsept.label typeaheadModel
@@ -838,45 +1012,49 @@ viewBrukerInput (Model model) =
                     , skjema
                         |> Skjema.beskrivelse
                         |> Textarea.textarea { label = "Beskrivelse", msg = OppdaterFagdokumentasjonBeskrivelse }
-                        |> Textarea.withMaybeFeilmelding (Skjema.beskrivelse skjema |> feilmeldingBeskrivelsesfelt)
+                        |> Textarea.withFeilmelding (Skjema.beskrivelse skjema |> feilmeldingBeskrivelsesfelt)
                         |> Textarea.toHtml
                     ]
 
-            OppsummeringEtterEndring _ ->
-                Containers.knapper Flytende
-                    [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, informasjonen er riktig"
-                        |> Knapp.toHtml
-                    , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
-                        |> Knapp.toHtml
+            BekreftSlettingAvPåbegynt _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
             Lagrer _ _ ->
-                text ""
+                BrukerInput.utenInnhold
 
             LagringFeilet _ error ->
-                case ErrorHandtering.operasjonEtterError error of
+                case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     PrøvPåNytt ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
-                                |> Knapp.toHtml
                             , Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     LoggInn ->
-                        Common.viewLoggInnLenke
+                        LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring _ ->
-                text ""
+            VenterPåAnimasjonFørFullføring _ _ ->
+                BrukerInput.utenInnhold
 
     else
-        text ""
+        BrukerInput.utenInnhold
+
+
+viewBekreftOppsummering : BrukerInput Msg
+viewBekreftOppsummering =
+    BrukerInput.knapper Kolonne
+        [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, det er riktig"
+        , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
+        , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
+        ]
 
 
 type InputId

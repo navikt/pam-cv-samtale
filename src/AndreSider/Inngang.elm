@@ -7,7 +7,6 @@ import Browser.Navigation as Navigation
 import DebugStatus
 import Feilmelding
 import FrontendModuler.ArbeidsplassenHeader as ArbeidsplassenHeader
-import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.Lenkepanel as Lenkepanel
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -149,13 +148,15 @@ view model =
 viewBrukerInput : MeldingsLogg -> Html msg
 viewBrukerInput meldingsLogg =
     if MeldingsLogg.visBrukerInput meldingsLogg then
-        Containers.knapper Flytende
-            [ Lenkepanel.lenkepanel { tekst = "Jeg vil ha hjelp av roboten", url = "/cv-valg/samtale" }
-                |> Lenkepanel.withClass "inngang-lenkepanel"
-                |> Lenkepanel.toHtml
-            , Lenkepanel.lenkepanel { tekst = "Jeg vil fylle ut CV-en selv", url = "/cv-valg/skjema" }
-                |> Lenkepanel.withClass "inngang-lenkepanel"
-                |> Lenkepanel.toHtml
+        div [ class "knapperad" ]
+            [ div [ class "knapper--flytende" ]
+                [ Lenkepanel.lenkepanel { tekst = "Jeg vil ha hjelp av roboten", url = "/cv-valg/samtale" }
+                    |> Lenkepanel.withClass "inngang-lenkepanel"
+                    |> Lenkepanel.toHtml
+                , Lenkepanel.lenkepanel { tekst = "Jeg vil fylle ut CV-en selv", url = "/cv-valg/skjema" }
+                    |> Lenkepanel.withClass "inngang-lenkepanel"
+                    |> Lenkepanel.toHtml
+                ]
             ]
 
     else

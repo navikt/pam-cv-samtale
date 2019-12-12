@@ -17,13 +17,13 @@ import Dato exposing (Måned(..), År, datoTilString)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
+import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Checkbox as Checkbox
-import FrontendModuler.Containers as Containers exposing (KnapperLayout(..))
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
-import FrontendModuler.ManedKnapper as MånedKnapper
+import FrontendModuler.Typeahead
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
@@ -31,6 +31,7 @@ import LagreStatus exposing (LagreStatus)
 import Meldinger.Melding as Melding exposing (Melding(..))
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
+import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
@@ -64,6 +65,17 @@ type SamtaleStatus
     | Ferdig (List Sertifikat) FerdigAnimertMeldingsLogg
 
 
+type AvsluttetGrunn
+    = SlettetPåbegynt
+    | AnnenAvslutning
+
+
+type OppsummeringsType
+    = FørsteGang
+    | EtterEndring
+    | AvbrøtSletting
+
+
 type Samtale
     = RegistrerSertifikatFelt Bool (Typeahead.Model SertifikatTypeahead)
     | RegistrerUtsteder UtstederInfo
@@ -72,12 +84,12 @@ type Samtale
     | SpørOmUtløpsdatoFinnes ValidertFullførtDatoInfo
     | RegistrerUtløperMåned UtløpsdatoInfo
     | RegistrerUtløperÅr UtløpsdatoInfo
-    | VisOppsummering ValidertSertifikatSkjema
+    | VisOppsummering OppsummeringsType ValidertSertifikatSkjema
     | EndreOpplysninger (Typeahead.Model SertifikatTypeahead) SertifikatSkjema
-    | VisOppsummeringEtterEndring ValidertSertifikatSkjema
+    | BekreftSlettingAvPåbegynt ValidertSertifikatSkjema
     | LagrerSkjema ValidertSertifikatSkjema LagreStatus
     | LagringFeilet Http.Error ValidertSertifikatSkjema
-    | VenterPåAnimasjonFørFullføring (List Sertifikat)
+    | VenterPåAnimasjonFørFullføring (List Sertifikat) AvsluttetGrunn
 
 
 type alias UtstederInfo =
@@ -182,6 +194,9 @@ type Msg
     | VilLagreSertifikat
     | VilEndreOpplysninger
     | SkjemaEndret SkjemaEndring
+    | VilSlettePåbegynt
+    | BekrefterSlettPåbegynt
+    | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
     | SertifikatLagret (Result Http.Error (List Sertifikat))
     | FerdigMedSertifikat
@@ -222,7 +237,7 @@ update msg (Model model) =
                             |> Skjema.oppdaterSertifikat skjema
                             |> Skjema.visFeilmeldingSertifikatFelt (Typeahead.inputStatus status == InputBlurred)
                             |> EndreOpplysninger nyTypeaheadModel
-                            |> oppdaterSamtaleSteg model
+                            |> oppdaterSamtale model IngenNyeMeldinger
                         , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput query ->
                                 Api.getSertifikatTypeahead HentetTypeahead query
@@ -245,7 +260,7 @@ update msg (Model model) =
                             in
                             ( nyTypeaheadModel
                                 |> RegistrerSertifikatFelt visFeilmelding
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -258,7 +273,7 @@ update msg (Model model) =
                     case result of
                         Ok suggestions ->
                             ( EndreOpplysninger (Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel suggestions) skjema
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -291,7 +306,7 @@ update msg (Model model) =
                     ( input
                         |> utstederTilFullførtDato
                         |> RegistrerFullførtMåned
-                        |> nesteSamtaleSteg model (Melding.svar [ input.utsteder ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -305,7 +320,7 @@ update msg (Model model) =
                 RegistrerUtsteder utsteder ->
                     ( { utsteder | utsteder = string }
                         |> RegistrerUtsteder
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -320,8 +335,7 @@ update msg (Model model) =
                     ( måned
                         |> setFullførtMåned fullførtDatoInfo
                         |> RegistrerFullførtÅr
-                        |> nesteSamtaleSteg model
-                            (Melding.svar [ måned |> Dato.månedTilString ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -341,7 +355,7 @@ update msg (Model model) =
                               , fullførtÅr = fullførtÅr
                               }
                                 |> SpørOmUtløpsdatoFinnes
-                                |> nesteSamtaleSteg model (Melding.svar [ fullførtDatoInfo.fullførtÅr ])
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -349,7 +363,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
                                 |> RegistrerFullførtÅr
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -362,7 +376,7 @@ update msg (Model model) =
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | fullførtÅr = string }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -376,8 +390,8 @@ update msg (Model model) =
                 SpørOmUtløpsdatoFinnes fullførtDatoInfo ->
                     ( fullførtDatoInfo
                         |> validertFullførtDatoTilSkjema
-                        |> VisOppsummering
-                        |> nesteSamtaleSteg model (Melding.svar [ "Nei, sertifiseringen utløper ikke" ])
+                        |> VisOppsummering FørsteGang
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -392,7 +406,7 @@ update msg (Model model) =
                     ( fullførtDatoInfo
                         |> validertFullførtDatoTilUtløpsdato
                         |> RegistrerUtløperMåned
-                        |> nesteSamtaleSteg model (Melding.svar [ "Ja, sertifiseringen utløper" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -406,8 +420,7 @@ update msg (Model model) =
                 RegistrerUtløperMåned utløpsdatoInfo ->
                     ( { utløpsdatoInfo | utløperMåned = måned }
                         |> RegistrerUtløperÅr
-                        |> nesteSamtaleSteg model
-                            (Melding.svar [ måned |> Dato.månedTilString ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -422,8 +435,8 @@ update msg (Model model) =
                     case Dato.stringTilÅr utløpsdatoInfo.utløperÅr of
                         Just utløperÅr ->
                             ( utløpsdatoTilSkjema utløpsdatoInfo utløperÅr
-                                |> VisOppsummering
-                                |> nesteSamtaleSteg model (Melding.svar [ utløpsdatoInfo.utløperÅr ])
+                                |> VisOppsummering FørsteGang
+                                |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -431,7 +444,7 @@ update msg (Model model) =
                         Nothing ->
                             ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
                                 |> RegistrerUtløperÅr
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -444,7 +457,7 @@ update msg (Model model) =
                 RegistrerUtløperÅr utløpsdatoInfo ->
                     ( { utløpsdatoInfo | utløperÅr = string }
                         |> RegistrerUtløperÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -458,7 +471,7 @@ update msg (Model model) =
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -466,7 +479,7 @@ update msg (Model model) =
                 RegistrerUtløperÅr utløpsdatoInfo ->
                     ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
                         |> RegistrerUtløperÅr
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -477,11 +490,8 @@ update msg (Model model) =
 
         VilEndreOpplysninger ->
             case model.aktivSamtale of
-                VisOppsummering validertSertifikatSkjema ->
-                    updateEtterVilEndreSkjema model validertSertifikatSkjema
-
-                VisOppsummeringEtterEndring validertSertifikatSkjema ->
-                    updateEtterVilEndreSkjema model validertSertifikatSkjema
+                VisOppsummering _ validertSertifikatSkjema ->
+                    updateEtterVilEndreSkjema model msg validertSertifikatSkjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -492,7 +502,7 @@ update msg (Model model) =
                     ( sertifikatSkjema
                         |> oppdaterSkjema skjemaEndring
                         |> EndreOpplysninger typeaheadModel
-                        |> oppdaterSamtaleSteg model
+                        |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
@@ -501,14 +511,50 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
+        VilSlettePåbegynt ->
+            case model.aktivSamtale of
+                VisOppsummering _ skjema ->
+                    ( BekreftSlettingAvPåbegynt skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        BekrefterSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt _ ->
+                    ( VenterPåAnimasjonFørFullføring model.sertifikatListe SlettetPåbegynt
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        AngrerSlettPåbegynt ->
+            case model.aktivSamtale of
+                BekreftSlettingAvPåbegynt skjema ->
+                    ( VisOppsummering AvbrøtSletting skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
                 EndreOpplysninger typeaheadModel skjema ->
                     case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
-                                |> VisOppsummeringEtterEndring
-                                |> nesteSamtaleSteg model (Melding.svar (validertSkjemaTilSetninger validertSkjema))
+                                |> VisOppsummering EtterEndring
+                                |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -517,7 +563,7 @@ update msg (Model model) =
                             ( skjema
                                 |> Skjema.visAlleFeilmeldinger
                                 |> EndreOpplysninger typeaheadModel
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -527,17 +573,14 @@ update msg (Model model) =
 
         VilLagreSertifikat ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
-
-                VisOppsummeringEtterEndring skjema ->
-                    updateEtterLagreKnappTrykket model skjema (Melding.svar [ "Ja, informasjonen er riktig" ])
+                VisOppsummering _ skjema ->
+                    updateEtterLagreKnappTrykket model msg skjema
 
                 LagringFeilet error skjema ->
                     ( error
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
-                        |> nesteSamtaleSteg model (Melding.svar [ "Prøv igjen" ])
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , postEllerPutSertifikat SertifikatLagret skjema
                     )
                         |> IkkeFerdig
@@ -561,9 +604,8 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen lagret 👍" ] ]
                             in
-                            ( sertifikater
-                                |> VenterPåAnimasjonFørFullføring
-                                |> oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg }
+                            ( VenterPåAnimasjonFørFullføring sertifikater AnnenAvslutning
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -573,7 +615,7 @@ update msg (Model model) =
                                 if LagreStatus.forsøkPåNytt lagreStatus then
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , postEllerPutSertifikat SertifikatLagret skjema
                                     )
                                         |> IkkeFerdig
@@ -581,7 +623,7 @@ update msg (Model model) =
                                 else
                                     ( skjema
                                         |> LagringFeilet error
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , skjema
                                         |> Skjema.encode
                                         |> Api.logErrorWithRequestBody ErrorLogget "Lagre sertifikat" error
@@ -591,7 +633,7 @@ update msg (Model model) =
                             else
                                 ( skjema
                                     |> LagringFeilet error
-                                    |> nesteSamtaleStegUtenMelding model
+                                    |> oppdaterSamtale model UtenSvar
                                 , Cmd.batch
                                     [ lagtTilSpørsmålCmd model.debugStatus
                                     , skjema
@@ -608,9 +650,8 @@ update msg (Model model) =
         FerdigMedSertifikat ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( model.sertifikatListe
-                        |> VenterPåAnimasjonFørFullføring
-                        |> nesteSamtaleSteg model (Melding.svar [ "Gå videre" ])
+                    ( VenterPåAnimasjonFørFullføring model.sertifikatListe AnnenAvslutning
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -627,7 +668,7 @@ update msg (Model model) =
                             ( lagreStatus
                                 |> LagreStatus.setForsøkPåNytt
                                 |> LagrerSkjema skjema
-                                |> oppdaterSamtaleSteg model
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
@@ -638,7 +679,7 @@ update msg (Model model) =
                                     ( error
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
-                                        |> oppdaterSamtaleSteg model
+                                        |> oppdaterSamtale model IngenNyeMeldinger
                                     , postEllerPutSertifikat SertifikatLagret skjema
                                     )
 
@@ -727,8 +768,9 @@ brukerVilRegistrereFritekstSertifikat model typeaheadModel =
 
 visFeilmeldingRegistrerSertifikat : ModelInfo -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
 visFeilmeldingRegistrerSertifikat model typeaheadModel =
-    ( RegistrerSertifikatFelt True typeaheadModel
-        |> oppdaterSamtaleSteg model
+    ( typeaheadModel
+        |> RegistrerSertifikatFelt True
+        |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )
         |> IkkeFerdig
@@ -766,7 +808,7 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
             IkkeFerdig
                 ( nyTypeaheadModel
                     |> RegistrerSertifikatFelt visFeilmelding
-                    |> oppdaterSamtaleSteg model
+                    |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
                         Api.getSertifikatTypeahead HentetTypeahead string
@@ -828,7 +870,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring sertifikatListe ->
+                VenterPåAnimasjonFørFullføring sertifikatListe _ ->
                     Ferdig sertifikatListe ferdigAnimertSamtale
 
                 _ ->
@@ -852,7 +894,7 @@ brukerVelgerSertifikatFelt info sertifikatFelt =
     ( sertifikatFelt
         |> sertifikatFeltTilUtsteder
         |> RegistrerUtsteder
-        |> nesteSamtaleSteg info (Melding.svar [ sertifikatFeltTilString sertifikatFelt ])
+        |> oppdaterSamtale info (ManueltSvar (Melding.svar [ sertifikatFeltTilString sertifikatFelt ]))
     , lagtTilSpørsmålCmd info.debugStatus
     )
         |> IkkeFerdig
@@ -868,12 +910,12 @@ sertifikatFeltTilString sertifikatFelt =
             inputValue
 
 
-updateEtterVilEndreSkjema : ModelInfo -> ValidertSertifikatSkjema -> SamtaleStatus
-updateEtterVilEndreSkjema model skjema =
+updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertSertifikatSkjema -> SamtaleStatus
+updateEtterVilEndreSkjema model msg skjema =
     ( skjema
         |> Skjema.tilUvalidertSkjema
         |> EndreOpplysninger (initSkjemaTypeahead skjema)
-        |> nesteSamtaleSteg model (Melding.svar [ "Nei, jeg vil endre" ])
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
         , skjema
@@ -884,11 +926,11 @@ updateEtterVilEndreSkjema model skjema =
         |> IkkeFerdig
 
 
-updateEtterLagreKnappTrykket : ModelInfo -> ValidertSertifikatSkjema -> Melding -> SamtaleStatus
-updateEtterLagreKnappTrykket model skjema melding =
+updateEtterLagreKnappTrykket : ModelInfo -> Msg -> ValidertSertifikatSkjema -> SamtaleStatus
+updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
-        |> nesteSamtaleSteg model melding
+        |> oppdaterSamtale model (SvarFraMsg msg)
     , postEllerPutSertifikat SertifikatLagret skjema
     )
         |> IkkeFerdig
@@ -907,34 +949,36 @@ logFeilmelding error operasjon =
         |> Maybe.withDefault Cmd.none
 
 
-nesteSamtaleSteg : ModelInfo -> Melding -> Samtale -> Model
-nesteSamtaleSteg modelInfo melding samtale =
+svarFraBrukerInput : ModelInfo -> Msg -> Melding
+svarFraBrukerInput modelInfo msg =
+    modelInfo
+        |> modelTilBrukerInput
+        |> BrukerInput.tilSvarMelding msg
+
+
+oppdaterSamtale : ModelInfo -> SamtaleOppdatering Msg -> Samtale -> Model
+oppdaterSamtale model meldingsoppdatering samtale =
     Model
-        { modelInfo
+        { model
             | aktivSamtale = samtale
             , seksjonsMeldingsLogg =
-                modelInfo.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSvar melding
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
-        }
+                case meldingsoppdatering of
+                    IngenNyeMeldinger ->
+                        model.seksjonsMeldingsLogg
 
+                    SvarFraMsg msg ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-nesteSamtaleStegUtenMelding : ModelInfo -> Samtale -> Model
-nesteSamtaleStegUtenMelding model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
-            , seksjonsMeldingsLogg =
-                model.seksjonsMeldingsLogg
-                    |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtaleSeksjon)
-        }
+                    ManueltSvar melding ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSvar melding
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
 
-
-oppdaterSamtaleSteg : ModelInfo -> Samtale -> Model
-oppdaterSamtaleSteg model samtaleSeksjon =
-    Model
-        { model
-            | aktivSamtale = samtaleSeksjon
+                    UtenSvar ->
+                        model.seksjonsMeldingsLogg
+                            |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
         }
 
 
@@ -943,15 +987,12 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
     case sertifikatSeksjon of
         RegistrerSertifikatFelt _ _ ->
             [ Melding.spørsmål [ "Hva slags sertifikat eller sertifisering har du?" ]
-            , Melding.spørsmål
-                [ "Kanskje du har truckførerbevis T1, eller noe helt annet? 😊" ]
+            , Melding.spørsmål [ "Kanskje du har truckførerbevis T1, eller noe helt annet? 😊" ]
             ]
 
         RegistrerUtsteder _ ->
-            [ Melding.spørsmål
-                [ "Hvilken organisasjon sertifiserte deg?" ]
-            , Melding.spørsmål
-                [ "Er du usikker på hvem som har ansvar for sertifiseringen? Det står ofte på beviset ditt." ]
+            [ Melding.spørsmål [ "Hvilken organisasjon sertifiserte deg?" ]
+            , Melding.spørsmål [ "Er du usikker på hvem som har ansvar for sertifiseringen? Det står ofte på beviset ditt." ]
             ]
 
         RegistrerFullførtMåned _ ->
@@ -974,24 +1015,24 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
             [ Melding.spørsmål [ "Hvilket år utløper du sertifiseringen din?" ]
             ]
 
-        VisOppsummering skjema ->
-            [ Melding.spørsmål
-                ([ "Du har lagt inn dette:"
-                 , Melding.tomLinje
-                 ]
-                    ++ (validertSkjemaTilSetninger skjema
-                            ++ [ Melding.tomLinje
-                               , "Er informasjonen riktig?"
-                               ]
-                       )
-                )
-            ]
+        VisOppsummering oppsummeringsType skjema ->
+            case oppsummeringsType of
+                AvbrøtSletting ->
+                    [ Melding.spørsmål [ "Ok, da lar jeg sertifiseringen/sertifikatet stå." ]
+                    , oppsummeringsSpørsmål skjema
+                    ]
+
+                EtterEndring ->
+                    [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+
+                FørsteGang ->
+                    [ oppsummeringsSpørsmål skjema ]
 
         EndreOpplysninger _ _ ->
             [ Melding.spørsmål [ "Endre informasjonen i feltene under." ] ]
 
-        VisOppsummeringEtterEndring _ ->
-            [ Melding.spørsmål [ "Du har endret. Er det riktig nå?" ] ]
+        BekreftSlettingAvPåbegynt _ ->
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne sertifiseringen?" ] ]
 
         LagrerSkjema _ _ ->
             []
@@ -999,8 +1040,13 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre sertifikat/sertifisering" } ]
 
-        VenterPåAnimasjonFørFullføring _ ->
-            []
+        VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
+            case avsluttetGrunn of
+                SlettetPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg slettet sertifiseringen/sertifikatet. Vil du legge inn flere kategorier?" ] ]
+
+                _ ->
+                    [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
 
 validertSkjemaTilSetninger : ValidertSertifikatSkjema -> List String
@@ -1014,6 +1060,20 @@ validertSkjemaTilSetninger validertSkjema =
     , "Fullført: " ++ Dato.datoTilString (Skjema.fullførtMåned skjema) (Skjema.fullførtÅrValidert validertSkjema)
     , "Utløper: " ++ utløpsdatoTilString (Skjema.utløpsdatoValidert validertSkjema)
     ]
+
+
+oppsummeringsSpørsmål : ValidertSertifikatSkjema -> Melding
+oppsummeringsSpørsmål skjema =
+    Melding.spørsmål
+        ([ "Du har lagt inn dette:"
+         , Melding.tomLinje
+         ]
+            ++ (validertSkjemaTilSetninger skjema
+                    ++ [ Melding.tomLinje
+                       , "Er informasjonen riktig?"
+                       ]
+               )
+        )
 
 
 utløpsdatoTilString : Utløpsdato -> String
@@ -1081,82 +1141,79 @@ inputIdTilString inputId =
 
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
+    model
+        |> modelTilBrukerInput
+        |> BrukerInput.toHtml
+
+
+modelTilBrukerInput : ModelInfo -> BrukerInput Msg
+modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
             RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
-                Containers.typeaheadMedGåVidereKnapp VilRegistrereSertifikat
-                    [ typeaheadModel
+                BrukerInput.typeaheadMedGåVidereKnapp VilRegistrereSertifikat
+                    (typeaheadModel
                         |> feilmeldingTypeahead
                         |> maybeHvisTrue visFeilmelding
-                        |> Typeahead.view SertifikatTypeahead.label typeaheadModel
-                        |> Html.map TypeaheadMsg
-                    ]
+                        |> Typeahead.toViewElement SertifikatTypeahead.label typeaheadModel
+                        |> FrontendModuler.Typeahead.map TypeaheadMsg
+                    )
 
             RegistrerUtsteder input ->
-                Containers.inputMedGåVidereKnapp VilRegistrereUtsteder
-                    [ input.utsteder
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereUtsteder
+                    (input.utsteder
                         |> Input.input { label = "Utsteder", msg = OppdatererUtsteder }
                         |> Input.withOnEnter VilRegistrereUtsteder
                         |> Input.withId (inputIdTilString UtstederId)
-                        |> Input.toHtml
-                    ]
+                    )
 
             RegistrerFullførtMåned _ ->
-                MånedKnapper.månedKnapper FullførtMånedValgt
+                BrukerInput.månedKnapper FullførtMånedValgt
 
             RegistrerFullførtÅr fullførtDatoInfo ->
-                Containers.inputMedGåVidereKnapp VilRegistrereFullførtÅr
-                    [ div [ class "år-wrapper" ]
-                        [ fullførtDatoInfo.fullførtÅr
-                            |> Input.input { label = "År", msg = OppdatererFullførtÅr }
-                            |> Input.withClass "aar"
-                            |> Input.withOnEnter VilRegistrereFullførtÅr
-                            |> Input.withOnBlur ÅrMisterFokus
-                            |> Input.withId (inputIdTilString FullførtÅrId)
-                            |> Input.withMaybeFeilmelding
-                                (fullførtDatoInfo.fullførtÅr
-                                    |> Dato.feilmeldingÅr
-                                    |> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtÅr
-                                )
-                            |> Input.toHtml
-                        ]
-                    ]
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereFullførtÅr
+                    (fullførtDatoInfo.fullførtÅr
+                        |> Input.input { label = "År", msg = OppdatererFullførtÅr }
+                        |> Input.withClass "aar"
+                        |> Input.withWrapperClass "år-wrapper"
+                        |> Input.withOnEnter VilRegistrereFullførtÅr
+                        |> Input.withOnBlur ÅrMisterFokus
+                        |> Input.withId (inputIdTilString FullførtÅrId)
+                        |> Input.withFeilmelding
+                            (fullførtDatoInfo.fullførtÅr
+                                |> Dato.feilmeldingÅr
+                                |> maybeHvisTrue fullførtDatoInfo.visFeilmeldingFullførtÅr
+                            )
+                        |> Input.withErObligatorisk
+                    )
 
             SpørOmUtløpsdatoFinnes _ ->
-                Containers.knapper Flytende
-                    [ "Ja, sertifiseringen utløper"
-                        |> Knapp.knapp VilRegistrereUtløperMåned
-                        |> Knapp.toHtml
-                    , "Nei, sertifiseringen utløper ikke"
-                        |> Knapp.knapp VilIkkeRegistrereUtløpesdato
-                        |> Knapp.toHtml
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp VilRegistrereUtløperMåned "Ja, sertifiseringen utløper"
+                    , Knapp.knapp VilIkkeRegistrereUtløpesdato "Nei, sertifiseringen utløper ikke"
                     ]
 
             RegistrerUtløperMåned _ ->
-                MånedKnapper.månedKnapper UtløperMånedValgt
+                BrukerInput.månedKnapper UtløperMånedValgt
 
             RegistrerUtløperÅr utløpsdatoInfo ->
-                Containers.inputMedGåVidereKnapp VilRegistrereUtløperÅr
-                    [ div [ class "år-wrapper" ]
-                        [ utløpsdatoInfo.utløperÅr
-                            |> Input.input { label = "År", msg = OppdatererUtløperÅr }
-                            |> Input.withClass "aar"
-                            |> Input.withOnEnter VilRegistrereUtløperÅr
-                            |> Input.withOnBlur ÅrMisterFokus
-                            |> Input.withId (inputIdTilString UtløperÅrId)
-                            |> Input.withMaybeFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
-                            |> Input.toHtml
-                        ]
-                    ]
+                BrukerInput.inputMedGåVidereKnapp VilRegistrereUtløperÅr
+                    (utløpsdatoInfo.utløperÅr
+                        |> Input.input { label = "År", msg = OppdatererUtløperÅr }
+                        |> Input.withClass "aar"
+                        |> Input.withWrapperClass "år-wrapper"
+                        |> Input.withOnEnter VilRegistrereUtløperÅr
+                        |> Input.withOnBlur ÅrMisterFokus
+                        |> Input.withId (inputIdTilString UtløperÅrId)
+                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue utløpsdatoInfo.visFeilmeldingUtløperÅr) utløpsdatoInfo.utløperÅr)
+                        |> Input.withErObligatorisk
+                    )
 
-            VisOppsummering _ ->
-                viewBekreftOppsummering
-
-            VisOppsummeringEtterEndring _ ->
+            VisOppsummering _ _ ->
                 viewBekreftOppsummering
 
             EndreOpplysninger typeaheadModel skjema ->
-                Containers.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
+                BrukerInput.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
                     [ skjema
                         |> Skjema.feilmeldingSertifikatFelt
                         |> Typeahead.view SertifikatTypeahead.label typeaheadModel
@@ -1167,24 +1224,24 @@ viewBrukerInput (Model model) =
                         |> Input.toHtml
                     , div [ class "DatoInput-fra-til-rad" ]
                         [ DatoInput.datoInput
-                            { label = "Fullført"
+                            { label = "Når fullførte du sertifiseringen?"
                             , onMånedChange = FullførtMåned >> SkjemaEndret
                             , måned = Skjema.fullførtMåned skjema
                             , onÅrChange = FullførtÅr >> SkjemaEndret
                             , år = Skjema.fullførtÅr skjema
                             }
-                            |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
+                            |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
                             |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
                             |> DatoInput.toHtml
                         , if not (Skjema.utløperIkke skjema) then
                             DatoInput.datoInput
-                                { label = "Utløper"
+                                { label = "Når utløper sertifiseringen?"
                                 , onMånedChange = UtløperMåned >> SkjemaEndret
                                 , måned = Skjema.utløperMåned skjema
                                 , onÅrChange = UtløperÅr >> SkjemaEndret
                                 , år = Skjema.utløperÅr skjema
                                 }
-                                |> DatoInput.withMaybeFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
+                                |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
                                 |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
                                 |> DatoInput.toHtml
 
@@ -1194,7 +1251,14 @@ viewBrukerInput (Model model) =
                     , skjema
                         |> Skjema.utløperIkke
                         |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
+                        |> Checkbox.withClass "blokk-m"
                         |> Checkbox.toHtml
+                    ]
+
+            BekreftSlettingAvPåbegynt _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                    , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
             LagrerSkjema _ lagreStatus ->
@@ -1202,41 +1266,37 @@ viewBrukerInput (Model model) =
                     LoggInnLenke.viewLoggInnLenke
 
                 else
-                    text ""
+                    BrukerInput.utenInnhold
 
             LagringFeilet error _ ->
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedSertifikat "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     PrøvPåNytt ->
-                        Containers.knapper Flytende
+                        BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreSertifikat "Prøv igjen"
-                                |> Knapp.toHtml
                             , Knapp.knapp FerdigMedSertifikat "Gå videre"
-                                |> Knapp.toHtml
                             ]
 
                     LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring _ ->
-                text ""
+            VenterPåAnimasjonFørFullføring _ _ ->
+                BrukerInput.utenInnhold
 
     else
-        text ""
+        BrukerInput.utenInnhold
 
 
-viewBekreftOppsummering : Html Msg
+viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
-    Containers.knapper Flytende
-        [ Knapp.knapp VilLagreSertifikat "Ja, informasjonen er riktig"
-            |> Knapp.toHtml
+    BrukerInput.knapper Kolonne
+        [ Knapp.knapp VilLagreSertifikat "Ja, det er riktig"
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
-            |> Knapp.toHtml
+        , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]
 
 
