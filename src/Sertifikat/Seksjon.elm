@@ -1032,7 +1032,7 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
             [ Melding.spørsmål [ "Endre informasjonen i feltene under." ] ]
 
         BekreftSlettingAvPåbegynt _ ->
-            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne sertifiseringen?" ] ]
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne sertifiseringen/sertifikatet?" ] ]
 
         LagrerSkjema _ _ ->
             []
