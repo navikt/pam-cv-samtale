@@ -17,6 +17,7 @@ import Dato exposing (Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
@@ -1297,17 +1298,13 @@ modelTilBrukerInput model =
                     )
 
             RegistrerBeskrivelse medEksempelKnapp beskrivelseinfo ->
-                (if medEksempelKnapp then
-                    BrukerInput.inputMedEksempelOgGåVidereKnapp VilSeEksempel BrukerVilRegistrereBeskrivelse
-
-                 else
-                    BrukerInput.textareaMedGåVidereKnapp BrukerVilRegistrereBeskrivelse
-                )
-                    (beskrivelseinfo.beskrivelse
-                        |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
-                        |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse)
-                    )
+                beskrivelseinfo.beskrivelse
+                    |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
+                    |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
+                    |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse)
+                    |> BrukerInputMedGåVidereKnapp.textarea BrukerVilRegistrereBeskrivelse
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             RegistrereFraMåned _ ->
                 BrukerInput.månedKnapper BrukerTrykketFraMånedKnapp

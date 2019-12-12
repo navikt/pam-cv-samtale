@@ -21,6 +21,7 @@ import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Textarea as Textarea
@@ -990,17 +991,13 @@ modelTilBrukerInput model =
                         BrukerInput.utenInnhold
 
             RegistrerBeskrivelse _ medEksempelKnapp beskrivelseinfo ->
-                (if medEksempelKnapp then
-                    BrukerInput.inputMedEksempelOgGåVidereKnapp VilSeEksempel BrukerVilRegistrereFagdokumentasjonBeskrivelse
-
-                 else
-                    BrukerInput.textareaMedGåVidereKnapp BrukerVilRegistrereFagbrevBeskrivelse
-                )
-                    (beskrivelseinfo.beskrivelse
-                        |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
-                        |> Textarea.withFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
-                        |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                    )
+                beskrivelseinfo.beskrivelse
+                    |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
+                    |> Textarea.withFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
+                    |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
+                    |> BrukerInputMedGåVidereKnapp.textarea BrukerVilRegistrereFagdokumentasjonBeskrivelse
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             Oppsummering _ _ ->
                 viewBekreftOppsummering

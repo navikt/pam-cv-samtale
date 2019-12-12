@@ -18,6 +18,7 @@ import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
@@ -1045,17 +1046,13 @@ modelTilBrukerInput model =
                     )
 
             RegistrerBeskrivelse medEksempelKnapp info ->
-                (if medEksempelKnapp then
-                    BrukerInput.inputMedEksempelOgGåVidereKnapp VilSeEksempel VilRegistrereBeskrivelse
-
-                 else
-                    BrukerInput.textareaMedGåVidereKnapp VilRegistrereBeskrivelse
-                )
-                    (info.beskrivelse
-                        |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
-                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
-                        |> Textarea.withId (inputIdTilString BeskrivelseId)
-                    )
+                info.beskrivelse
+                    |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
+                    |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
+                    |> Textarea.withId (inputIdTilString BeskrivelseId)
+                    |> BrukerInputMedGåVidereKnapp.textarea VilRegistrereBeskrivelse
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             SpørOmBrukerVilLeggeInnTidsperiode _ ->
                 BrukerInput.knapper Flytende

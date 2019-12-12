@@ -16,6 +16,7 @@ import Feilmelding
 import Forerkort.Seksjon
 import FrontendModuler.Alertstripe as Alertstripe
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..), Knapp)
 import FrontendModuler.Lenke as Lenke
@@ -2051,22 +2052,17 @@ andreSamtaleStegTilBrukerInput info =
                         viewBekreftSammendrag
 
             EndrerSammendrag medEksempelKnapp sammendrag ->
-                (if medEksempelKnapp then
-                    BrukerInput.inputMedEksempelOgLagreKnapp (Just VilSeEksempel) VilLagreSammendragSkjema
-
-                 else
-                    BrukerInput.textareaSkjema { lagreMsg = VilLagreSammendragSkjema, lagreKnappTekst = "Lagre endringer" }
-                )
-                    (viewSammendragInput sammendrag)
+                viewSammendragInput sammendrag
+                    |> BrukerInputMedGåVidereKnapp.textarea VilLagreSammendragSkjema
+                    |> BrukerInputMedGåVidereKnapp.withAlternativKnappetekst "Lagre endringer"
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             SkriverSammendrag medEksempelKnapp sammendrag ->
-                (if medEksempelKnapp then
-                    BrukerInput.inputMedEksempelOgGåVidereKnapp VilSeEksempel VilLagreSammendragSkjema
-
-                 else
-                    BrukerInput.textareaMedGåVidereKnapp VilLagreSammendragSkjema
-                )
-                    (viewSammendragInput sammendrag)
+                viewSammendragInput sammendrag
+                    |> BrukerInputMedGåVidereKnapp.textarea VilLagreSammendragSkjema
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             LagrerSammendrag _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then
