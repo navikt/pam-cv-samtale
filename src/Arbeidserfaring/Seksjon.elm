@@ -596,7 +596,9 @@ update msg (Model model) =
                                 |> MeldingsLogg.leggTilSpørsmål eksemplerPåArbeidserfaring
                     in
                     IkkeFerdig
-                        ( oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } (RegistrereArbeidsoppgaver False info)
+                        ( info
+                            |> RegistrereArbeidsoppgaver False
+                            |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
 

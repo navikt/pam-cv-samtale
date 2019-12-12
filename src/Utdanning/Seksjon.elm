@@ -370,7 +370,9 @@ update msg (Model model) =
                                 |> MeldingsLogg.leggTilSpørsmål (eksemplerPåUtdanning beskrivelseinfo.forrige.forrige.forrige)
                     in
                     IkkeFerdig
-                        ( oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } (RegistrerBeskrivelse False beskrivelseinfo)
+                        ( beskrivelseinfo
+                            |> RegistrerBeskrivelse False
+                            |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
 
@@ -380,7 +382,12 @@ update msg (Model model) =
         OppdaterBeskrivelse beskrivelse ->
             case model.aktivSamtale of
                 RegistrerBeskrivelse medEksempelKnapp beskrivelseinfo ->
-                    IkkeFerdig ( oppdaterSamtaleSteg model (RegistrerBeskrivelse medEksempelKnapp { beskrivelseinfo | beskrivelse = beskrivelse }), Cmd.none )
+                    IkkeFerdig
+                        ( { beskrivelseinfo | beskrivelse = beskrivelse }
+                            |> RegistrerBeskrivelse medEksempelKnapp
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )

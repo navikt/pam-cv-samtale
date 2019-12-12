@@ -279,7 +279,9 @@ update msg (Model model) =
                                 |> MeldingsLogg.leggTilSpørsmål (eksemplerPåFagdokumentasjon fagdokumentasjonType)
                     in
                     IkkeFerdig
-                        ( oppdaterSamtaleSteg { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } (RegistrerBeskrivelse fagdokumentasjonType False beskrivelseinfo)
+                        ( beskrivelseinfo
+                            |> RegistrerBeskrivelse fagdokumentasjonType False
+                            |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
 
