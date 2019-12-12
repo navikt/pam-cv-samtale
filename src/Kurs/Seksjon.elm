@@ -838,7 +838,7 @@ samtaleTilMeldingsLogg kursSeksjon =
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå har jeg slettet kurset. Vil du legge til flere kategorier?" ] ]
+                    [ Melding.spørsmål [ "Nå har jeg slettet kurset." ] ]
 
                 _ ->
                     []

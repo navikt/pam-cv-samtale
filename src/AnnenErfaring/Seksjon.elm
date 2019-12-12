@@ -504,7 +504,7 @@ update msg (Model model) =
 
         VilEndreOpplysninger ->
             case model.aktivSamtale of
-                VisOppsummering validertAnnenErfaringSkjema ->
+                VisOppsummering _ validertAnnenErfaringSkjema ->
                     updateEtterVilEndreSkjema model msg validertAnnenErfaringSkjema
 
                 _ ->
@@ -899,7 +899,7 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå har jeg slettet erfaringen. Vil du legge til flere kategorier" ] ]
+                    [ Melding.spørsmål [ "Nå har jeg slettet erfaringen." ] ]
 
                 LaTilNy ->
                     []

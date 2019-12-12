@@ -842,13 +842,13 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                 SlettetPåbegynt fagdokumentasjonsType ->
                     case fagdokumentasjonsType of
                         SvennebrevFagbrev ->
-                            [ Melding.spørsmål [ "Nå har jeg slettet fagbrevet/svennebrevet. Vil du legge til flere kategorier?" ] ]
+                            [ Melding.spørsmål [ "Nå har jeg slettet fagbrevet/svennebrevet." ] ]
 
                         Mesterbrev ->
-                            [ Melding.spørsmål [ "Nå har jeg slettet mesterbrevet. Vil du legge til flere kategorier?" ] ]
+                            [ Melding.spørsmål [ "Nå har jeg slettet mesterbrevet." ] ]
 
                         Autorisasjon ->
-                            [ Melding.spørsmål [ "Nå har jeg slettet autorisasjonen. Vil du legge til flere kategorier?" ] ]
+                            [ Melding.spørsmål [ "Nå har jeg slettet autorisasjonen." ] ]
 
                 _ ->
                     []
