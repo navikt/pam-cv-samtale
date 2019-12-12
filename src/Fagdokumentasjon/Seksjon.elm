@@ -781,17 +781,17 @@ samtaleTilMeldingsLogg fagbrevSeksjon =
                 AvbrøtSletting ->
                     case Skjema.fagdokumentasjonType (Skjema.tilUvalidertSkjema validertSkjema) of
                         SvennebrevFagbrev ->
-                            [ Melding.spørsmål [ "Ok, da lar vi fagbrevet/svennebrevet stå." ]
+                            [ Melding.spørsmål [ "Ok, da lar jeg fagbrevet/svennebrevet stå." ]
                             , oppsummeringsSpørsmål validertSkjema
                             ]
 
                         Mesterbrev ->
-                            [ Melding.spørsmål [ "Ok, da lar vi mesterbrevet stå." ]
+                            [ Melding.spørsmål [ "Ok, da lar jeg mesterbrevet stå." ]
                             , oppsummeringsSpørsmål validertSkjema
                             ]
 
                         Autorisasjon ->
-                            [ Melding.spørsmål [ "Ok, da lar vi autorisasjonen stå." ]
+                            [ Melding.spørsmål [ "Ok, da lar jeg autorisasjonen stå." ]
                             , oppsummeringsSpørsmål validertSkjema
                             ]
 

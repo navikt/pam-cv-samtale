@@ -573,7 +573,10 @@ update msg (Model model) =
         BekrefterSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt _ ->
-                    ( oppdaterSamtale model (SvarFraMsg msg) (LeggTilFlereUtdanninger SlettetPåbegynt), lagtTilSpørsmålCmd model.debugStatus )
+                    ( LeggTilFlereUtdanninger SlettetPåbegynt
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
                         |> IkkeFerdig
 
                 _ ->
@@ -1107,7 +1110,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         Oppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Ok, da lar vi utdanningen stå." ]
+                    [ Melding.spørsmål [ "Ok, da lar jeg utdanningen stå." ]
                     , oppsummeringsSpørsmål validertSkjema
                     ]
 

@@ -909,7 +909,7 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
         Oppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Ok, da lar vi førerkortet stå." ]
+                    [ Melding.spørsmål [ "Ok, da lar jeg førerkortet stå." ]
                     , oppsummeringsSpørsmål validertSkjema
                     ]
 
