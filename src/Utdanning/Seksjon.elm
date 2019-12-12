@@ -1145,8 +1145,12 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre utdanning" } ]
 
         VenterPåAnimasjonFørFullføring liste avsluttetGrunn ->
-            if List.isEmpty liste && avsluttetGrunn /= SlettetPåbegynt then
-                [ Melding.spørsmål [ "Siden du ikke har utdanning, går vi videre til arbeidserfaring." ] ]
+            if List.isEmpty liste then
+                if avsluttetGrunn == SlettetPåbegynt then
+                    [ Melding.spørsmål [ "Da går vi videre til arbeidserfaring." ] ]
+
+                else
+                    [ Melding.spørsmål [ "Siden du ikke har utdanning, går vi videre til arbeidserfaring." ] ]
 
             else
                 [ Melding.spørsmål [ "Bra jobba! Da går vi videre." ] ]
