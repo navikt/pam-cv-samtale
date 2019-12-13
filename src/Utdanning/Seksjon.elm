@@ -354,7 +354,7 @@ update msg (Model model) =
                     IkkeFerdig
                         ( retninginfo
                             |> forrigeTilBeskrivelseInfo
-                            |> RegistrerBeskrivelse True
+                            |> RegistrerBeskrivelse (detFinnesEksemplerForNivå retninginfo.forrige.forrige)
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
@@ -368,6 +368,7 @@ update msg (Model model) =
                     let
                         oppdatertMeldingslogg =
                             model.seksjonsMeldingsLogg
+                                |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
                                 |> MeldingsLogg.leggTilSpørsmål (eksemplerPåUtdanning beskrivelseinfo.forrige.forrige.forrige)
                     in
                     IkkeFerdig
@@ -1205,6 +1206,13 @@ oppsummeringsSpørsmål skjema =
     ]
         |> List.concat
         |> Melding.spørsmål
+
+
+detFinnesEksemplerForNivå : Nivå -> Bool
+detFinnesEksemplerForNivå nivå =
+    nivå
+        |> eksemplerPåUtdanning
+        |> (not << List.isEmpty)
 
 
 eksemplerPåUtdanning : Nivå -> List Melding

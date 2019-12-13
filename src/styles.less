@@ -214,13 +214,7 @@ html {
     width: 62px;
   }
 
-  .eksempel {
-    background-color: #e6f4ef ;
-    color: #062140;
-  }
-
-  .melding:after,
-  .eksempel:after {
+  .melding:after {
     content: '';
     position: absolute;
     left: 0;
@@ -234,6 +228,15 @@ html {
     margin-left: -6px;
     opacity: 1;
     transition: opacity 0.3s ease-in-out;
+  }
+
+  .melding.eksempel {
+    background-color: #e6f4ef ;
+    color: #062140;
+  }
+
+  .eksempel.melding:after {
+    border-right-color: #e6f4ef;
   }
 
   .skjult.melding:after {
@@ -316,8 +319,7 @@ html {
   }
 }
 
-.melding,
-.eksempel{
+.melding {
   @media (min-width: 672px) {
     max-width: @meldingBredde;
   }
@@ -549,6 +551,14 @@ html {
   .select-i-samtaleflyt-wrapper {
     display: flex;
     justify-content: flex-end;
+  }
+
+  .gå-videre-knapp {
+    display: flex;
+    justify-content: flex-end;
+    .Knapp:not(:first-of-type){
+      margin-left: 0.5rem;
+    }
   }
 
   .knappekolonne {

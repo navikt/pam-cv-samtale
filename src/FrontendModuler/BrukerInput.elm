@@ -191,7 +191,7 @@ tilString msg brukerInput =
                 |> Maybe.withDefault ""
 
         BrukerInputMedGåVidereKnapp brukerInputMedGåVidereKnapp_ ->
-            BrukerInputMedGåVidereKnapp.tilString brukerInputMedGåVidereKnapp_
+            BrukerInputMedGåVidereKnapp.tilString msg brukerInputMedGåVidereKnapp_
 
         Skjema _ _ ->
             ""

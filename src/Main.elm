@@ -961,29 +961,14 @@ updateAndreSamtaleSteg model msg info =
         VilSeEksempel ->
             case info.aktivSamtale of
                 SkriverSammendrag _ tekst ->
-                    let
-                        oppdatertMeldingslogg =
-                            info.meldingsLogg
-                                |> MeldingsLogg.leggTilSpørsmål eksemplerPåSammendrag
-                    in
-                    ( tekst
+                    tekst
                         |> SkriverSammendrag False
-                        |> oppdaterSamtale model { info | meldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
+                        |> visEksemplerSammendrag model info msg
 
                 EndrerSammendrag _ tekst ->
-                    --todo: funksjon
-                    let
-                        oppdatertMeldingslogg =
-                            info.meldingsLogg
-                                |> MeldingsLogg.leggTilSpørsmål eksemplerPåSammendrag
-                    in
-                    ( tekst
+                    tekst
                         |> EndrerSammendrag False
-                        |> oppdaterSamtale model { info | meldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
+                        |> visEksemplerSammendrag model info msg
 
                 _ ->
                     ( model, Cmd.none )
@@ -1403,6 +1388,20 @@ gåTilEndreSammendrag model info msg medEksempelKnapp sammendragTekst =
     )
 
 
+visEksemplerSammendrag : SuccessModel -> AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> Samtale -> ( SuccessModel, Cmd SuccessMsg )
+visEksemplerSammendrag model info msg aktivSamtale =
+    let
+        oppdatertMeldingslogg =
+            info.meldingsLogg
+                |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
+                |> MeldingsLogg.leggTilSpørsmål eksemplerPåSammendrag
+    in
+    ( aktivSamtale
+        |> oppdaterSamtale model { info | meldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+
+
 gåTilAvslutning : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
 gåTilAvslutning model info =
     if Person.underOppfolging model.person then
@@ -1792,7 +1791,7 @@ viewSpørsmål spørsmål =
                     "melding "
 
                 SpørsmålMedEksempel ->
-                    "eksempel "
+                    "melding eksempel "
 
                 Svar ->
                     ""

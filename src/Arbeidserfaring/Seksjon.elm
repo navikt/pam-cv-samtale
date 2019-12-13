@@ -594,6 +594,7 @@ update msg (Model model) =
                     let
                         oppdatertMeldingslogg =
                             model.seksjonsMeldingsLogg
+                                |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
                                 |> MeldingsLogg.leggTilSpørsmål eksemplerPåArbeidserfaring
                     in
                     IkkeFerdig

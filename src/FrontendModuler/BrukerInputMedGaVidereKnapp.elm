@@ -133,7 +133,7 @@ toHtml (BrukerInputMedGåVidereKnapp info) =
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema typeahead-skjema-height-wrapper" ]
                     [ Typeahead.toHtml typeaheadElement
-                    , div [ class "knappekolonne" ]
+                    , div [ class "gå-videre-knapp" ]
                         [ gåVidereKnapp info ]
                     ]
                 ]
@@ -144,7 +144,7 @@ gåVidereHtml info inputElement =
     div [ class "skjema-wrapper" ]
         [ div [ class "skjema" ]
             [ inputElement
-            , div [ class "knappekolonne" ]
+            , div [ class "gå-videre-knapp" ]
                 [ eksempelKnapp info.visEksempelMsg
                 , gåVidereKnapp info
                 ]
@@ -156,11 +156,16 @@ eksempelKnapp : Maybe msg -> Html msg
 eksempelKnapp maybeEksempelMsg =
     case maybeEksempelMsg of
         Just visEksempelMsg ->
-            Knapp.knapp visEksempelMsg "Jeg vil se eksempel"
+            Knapp.knapp visEksempelMsg visEksempelKnappTekst
                 |> Knapp.toHtml
 
         Nothing ->
             text ""
+
+
+visEksempelKnappTekst : String
+visEksempelKnappTekst =
+    "Jeg vil se eksempel"
 
 
 gåVidereKnapp : Info msg -> Html msg
@@ -175,29 +180,39 @@ gåVidereKnapp info =
 --- TIL STRING ---
 
 
-tilString : BrukerInputMedGåVidereKnapp msg -> String
-tilString (BrukerInputMedGåVidereKnapp info) =
-    case info.inputElement of
-        InputElement inputElement ->
-            if (Input.innhold >> String.trim >> String.isEmpty) inputElement then
-                "Gå videre"
+tilString : msg -> BrukerInputMedGåVidereKnapp msg -> String
+tilString msg (BrukerInputMedGåVidereKnapp info) =
+    if visEksempelKnappTrykket msg info.visEksempelMsg then
+        visEksempelKnappTekst
 
-            else
-                Input.innhold inputElement
+    else if (inputElementInnhold >> String.trim >> String.isEmpty) info.inputElement then
+        "Gå videre"
+
+    else
+        inputElementInnhold info.inputElement
+
+
+visEksempelKnappTrykket : msg -> Maybe msg -> Bool
+visEksempelKnappTrykket msgSendt visEksempelMsg =
+    case visEksempelMsg of
+        Just msg ->
+            msg == msgSendt
+
+        Nothing ->
+            False
+
+
+inputElementInnhold : InputElement msg -> String
+inputElementInnhold inputElement_ =
+    case inputElement_ of
+        InputElement inputElement ->
+            Input.innhold inputElement
 
         TextareaElement textareaElement ->
-            if (Textarea.innhold >> String.trim >> String.isEmpty) textareaElement then
-                "Gå videre"
-
-            else
-                Textarea.innhold textareaElement
+            Textarea.innhold textareaElement
 
         TypeaheadElement typeaheadElement ->
-            if (Typeahead.innhold >> String.trim >> String.isEmpty) typeaheadElement then
-                "Gå videre"
-
-            else
-                Typeahead.innhold typeaheadElement
+            Typeahead.innhold typeaheadElement
 
         SelectElement selectElement ->
             --- TODO: Fiks dette
