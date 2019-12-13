@@ -493,7 +493,7 @@ begynnÅViseBrukerInput (MeldingsLogg meldingsLoggInfo) =
             MeldingsLogg meldingsLoggInfo
 
         AlleMeldingerFerdigAnimert ->
-            MeldingsLogg meldingsLoggInfo
+            MeldingsLogg { meldingsLoggInfo | ikkeVist = VenterPåÅScrolleTilInput }
 
 
 startScrollingTilInput : Time.Posix -> Viewport -> MeldingsLogg -> MeldingsLogg

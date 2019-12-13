@@ -48,6 +48,15 @@ update debugStatus msg meldingsLogg =
                     if DebugStatus.hoppOverMeldingsanimasjon debugStatus then
                         hoppOverMeldingsanimasjon meldingsLogg
 
+                    else if MeldingsLogg.alleMeldingerVises meldingsLogg then
+                        ( meldingsLogg
+                        , meldingsLogg
+                            |> ventetidFørBrukerinputScrollesInn
+                            |> DebugStatus.meldingsTimeout debugStatus
+                            |> Process.sleep
+                            |> Task.attempt (always VisBrukerInput)
+                        )
+
                     else
                         let
                             nyMeldingslogg =
@@ -102,7 +111,7 @@ update debugStatus msg meldingsLogg =
             in
             if MeldingsLogg.alleMeldingerVises nyMeldingslogg then
                 ( nyMeldingslogg
-                , meldingsLogg
+                , nyMeldingslogg
                     |> ventetidFørBrukerinputScrollesInn
                     |> DebugStatus.meldingsTimeout debugStatus
                     |> Process.sleep
