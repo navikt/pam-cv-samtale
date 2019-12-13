@@ -452,15 +452,19 @@ stringTilÅr string =
             Nothing
 
         Nothing ->
-            Just (År string)
+            Just (År (String.trim string))
 
 
 feilmeldingÅr : String -> Maybe String
 feilmeldingÅr år_ =
-    if String.isEmpty år_ then
+    let
+        trimmetÅr =
+            String.trim år_
+    in
+    if String.isEmpty trimmetÅr then
         Just "Skriv årstall"
 
-    else if String.length år_ /= 4 || String.toInt år_ == Nothing then
+    else if String.length trimmetÅr /= 4 || String.toInt trimmetÅr == Nothing then
         Just "Kun 4 siffer"
 
     else
