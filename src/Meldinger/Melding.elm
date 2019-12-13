@@ -1,8 +1,12 @@
 module Meldinger.Melding exposing
     ( Melding
+    , MeldingsType(..)
     , Tekstområde(..)
     , antallOrd
+    , eksempel
+    , eksempelMedTittel
     , innhold
+    , meldingstype
     , spørsmål
     , spørsmålMedTekstområder
     , svar
@@ -11,38 +15,64 @@ module Meldinger.Melding exposing
 
 
 type Melding
-    = Melding (List Tekstområde)
+    = Melding MeldingsType (List Tekstområde)
+
+
+type MeldingsType
+    = Spørsmål
+    | SpørsmålMedEksempel
+    | Svar
 
 
 type Tekstområde
     = Avsnitt String
     | Seksjon String (List String)
+    | Overskrift String
+
+
+eksempelMedTittel : String -> List String -> Melding
+eksempelMedTittel tittel list =
+    [ Overskrift tittel ]
+        ++ List.map Avsnitt list
+        |> Melding SpørsmålMedEksempel
+
+
+eksempel : List String -> Melding
+eksempel list =
+    [ Overskrift "Eksempel: " ]
+        ++ List.map Avsnitt list
+        |> Melding SpørsmålMedEksempel
 
 
 spørsmål : List String -> Melding
 spørsmål list =
     list
         |> List.map Avsnitt
-        |> Melding
+        |> Melding Spørsmål
 
 
 spørsmålMedTekstområder : List Tekstområde -> Melding
 spørsmålMedTekstområder tekstområder =
-    Melding tekstområder
+    Melding Spørsmål tekstområder
 
 
 svar : List String -> Melding
 svar list =
     list
         |> List.map Avsnitt
-        |> Melding
+        |> Melding Svar
 
 
 innhold : Melding -> List Tekstområde
-innhold (Melding tekstområder) =
+innhold (Melding _ tekstområder) =
     tekstområder
         |> List.map splitInnhold
         |> List.concat
+
+
+meldingstype : Melding -> MeldingsType
+meldingstype (Melding meldingsType _) =
+    meldingsType
 
 
 splitInnhold : Tekstområde -> List Tekstområde
@@ -61,6 +91,9 @@ splitInnhold tekstområde =
                 |> Seksjon label
                 |> List.singleton
 
+        Overskrift string ->
+            [ Overskrift string ]
+
 
 erstattTommeLinjer : String -> String
 erstattTommeLinjer linje =
@@ -77,7 +110,7 @@ tomLinje =
 
 
 antallOrd : Melding -> Int
-antallOrd (Melding tekstområder) =
+antallOrd (Melding _ tekstområder) =
     tekstområder
         |> List.map antallOrdITekstområde
         |> List.sum
@@ -95,3 +128,8 @@ antallOrdITekstområde tekstområde =
             list
                 |> List.map (String.split " " >> List.length)
                 |> List.sum
+
+        Overskrift string ->
+            string
+                |> String.split " "
+                |> List.length

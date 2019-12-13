@@ -16,6 +16,7 @@ import Feilmelding
 import Forerkort.Seksjon
 import FrontendModuler.Alertstripe as Alertstripe
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..), Knapp)
 import FrontendModuler.Lenke as Lenke
@@ -29,7 +30,7 @@ import Http
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
 import Meldinger.Konstanter as Konstanter
-import Meldinger.Melding as Melding exposing (Melding, Tekstområde(..))
+import Meldinger.Melding as Melding exposing (Melding, MeldingsType(..), Tekstområde(..))
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsGruppeViewState(..), MeldingsLogg, SpørsmålsGruppeViewState)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
@@ -872,9 +873,9 @@ type Samtale
     | LeggTilFlereAutorisasjoner
     | LeggTilAnnet
     | LeggTilFlereAnnet
-    | BekreftSammendrag BekreftSammendragState
-    | SkriverSammendrag String
-    | EndrerSammendrag String
+    | BekreftSammendrag Bool BekreftSammendragState
+    | SkriverSammendrag Bool String
+    | EndrerSammendrag Bool String
     | LagrerSammendrag String LagreStatus
     | LagringAvSammendragFeilet Http.Error String
     | DelMedArbeidsgiver Bool
@@ -892,6 +893,7 @@ type Samtale
 
 type AndreSamtaleStegMsg
     = BrukerSierHeiIIntroduksjonen
+    | VilSeEksempel
     | BrukerVilEndreSammendrag
     | SammendragEndret String
     | VilLagreSammendragSkjema
@@ -956,36 +958,51 @@ updateAndreSamtaleSteg model msg info =
         IngenAvDeAndreSeksjoneneValgt ->
             gåVidereFraSeksjonsvalg model info
 
+        VilSeEksempel ->
+            case info.aktivSamtale of
+                SkriverSammendrag _ tekst ->
+                    tekst
+                        |> SkriverSammendrag False
+                        |> visEksemplerSammendrag model info msg
+
+                EndrerSammendrag _ tekst ->
+                    tekst
+                        |> EndrerSammendrag False
+                        |> visEksemplerSammendrag model info msg
+
+                _ ->
+                    ( model, Cmd.none )
+
         BrukerVilEndreSammendrag ->
             case info.aktivSamtale of
-                BekreftSammendrag bekreftSammendragState ->
+                BekreftSammendrag medEksempelKnapp bekreftSammendragState ->
                     case bekreftSammendragState of
                         OpprinneligSammendrag sammendrag ->
                             sammendrag
                                 |> Sammendrag.toString
-                                |> gåTilEndreSammendrag model info msg
+                                |> gåTilEndreSammendrag model info msg medEksempelKnapp
 
                         NyttSammendrag sammendrag ->
-                            gåTilEndreSammendrag model info msg sammendrag
+                            gåTilEndreSammendrag model info msg medEksempelKnapp sammendrag
 
                         EndretSammendrag sammendrag ->
-                            gåTilEndreSammendrag model info msg sammendrag
+                            gåTilEndreSammendrag model info msg medEksempelKnapp sammendrag
 
                 _ ->
                     ( model, Cmd.none )
 
         SammendragEndret tekst ->
             case info.aktivSamtale of
-                EndrerSammendrag _ ->
+                EndrerSammendrag medEksempelKnapp _ ->
                     ( tekst
-                        |> EndrerSammendrag
+                        |> EndrerSammendrag medEksempelKnapp
                         |> oppdaterSamtale model info IngenNyeMeldinger
                     , Cmd.none
                     )
 
-                SkriverSammendrag _ ->
+                SkriverSammendrag medEksempelKnapp _ ->
                     ( tekst
-                        |> SkriverSammendrag
+                        |> SkriverSammendrag medEksempelKnapp
                         |> oppdaterSamtale model info IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -995,7 +1012,7 @@ updateAndreSamtaleSteg model msg info =
 
         VilLagreSammendragSkjema ->
             case info.aktivSamtale of
-                EndrerSammendrag tekst ->
+                EndrerSammendrag medEksempelKnapp tekst ->
                     case Validering.feilmeldingMaxAntallTegn tekst 4000 of
                         Just _ ->
                             ( model, Cmd.none )
@@ -1003,12 +1020,12 @@ updateAndreSamtaleSteg model msg info =
                         Nothing ->
                             ( tekst
                                 |> EndretSammendrag
-                                |> BekreftSammendrag
+                                |> BekreftSammendrag medEksempelKnapp
                                 |> oppdaterSamtale model info (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
 
-                SkriverSammendrag tekst ->
+                SkriverSammendrag medEksempelKnapp tekst ->
                     case Validering.feilmeldingMaxAntallTegn tekst 4000 of
                         Just _ ->
                             ( model, Cmd.none )
@@ -1016,7 +1033,7 @@ updateAndreSamtaleSteg model msg info =
                         Nothing ->
                             ( tekst
                                 |> NyttSammendrag
-                                |> BekreftSammendrag
+                                |> BekreftSammendrag medEksempelKnapp
                                 |> oppdaterSamtale model info (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -1034,7 +1051,7 @@ updateAndreSamtaleSteg model msg info =
                     , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
                     )
 
-                BekreftSammendrag bekreftSammendragState ->
+                BekreftSammendrag _ bekreftSammendragState ->
                     case bekreftSammendragState of
                         OpprinneligSammendrag _ ->
                             { info
@@ -1342,13 +1359,13 @@ gåVidereFraSeksjonsvalg model info =
             case Cv.sammendrag model.cv of
                 Just sammendrag ->
                     if String.isEmpty (String.trim (Sammendrag.toString sammendrag)) then
-                        SkriverSammendrag ""
+                        SkriverSammendrag True ""
 
                     else
-                        BekreftSammendrag (OpprinneligSammendrag sammendrag)
+                        BekreftSammendrag True (OpprinneligSammendrag sammendrag)
 
                 Nothing ->
-                    EndrerSammendrag ""
+                    EndrerSammendrag True ""
     in
     ( { meldingsLogg =
             info.meldingsLogg
@@ -1362,11 +1379,25 @@ gåVidereFraSeksjonsvalg model info =
     )
 
 
-gåTilEndreSammendrag : SuccessModel -> AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> String -> ( SuccessModel, Cmd SuccessMsg )
-gåTilEndreSammendrag model info msg sammendragTekst =
+gåTilEndreSammendrag : SuccessModel -> AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> Bool -> String -> ( SuccessModel, Cmd SuccessMsg )
+gåTilEndreSammendrag model info msg medEksempelKnapp sammendragTekst =
     ( sammendragTekst
-        |> EndrerSammendrag
+        |> EndrerSammendrag medEksempelKnapp
         |> oppdaterSamtale model info (SvarFraMsg msg)
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+
+
+visEksemplerSammendrag : SuccessModel -> AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> Samtale -> ( SuccessModel, Cmd SuccessMsg )
+visEksemplerSammendrag model info msg aktivSamtale =
+    let
+        oppdatertMeldingslogg =
+            info.meldingsLogg
+                |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
+                |> MeldingsLogg.leggTilSpørsmål eksemplerPåSammendrag
+    in
+    ( aktivSamtale
+        |> oppdaterSamtale model { info | meldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
     , lagtTilSpørsmålCmd model.debugStatus
     )
 
@@ -1450,7 +1481,7 @@ samtaleTilMeldingsLogg samtale =
         LeggTilFlereAnnet ->
             []
 
-        BekreftSammendrag bekreftState ->
+        BekreftSammendrag _ bekreftState ->
             case bekreftState of
                 OpprinneligSammendrag sammendrag ->
                     [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
@@ -1477,10 +1508,10 @@ samtaleTilMeldingsLogg samtale =
                 EndretSammendrag _ ->
                     [ Melding.spørsmål [ "Nå har du endret. Er du fornøyd?" ] ]
 
-        EndrerSammendrag _ ->
+        EndrerSammendrag _ _ ->
             [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
 
-        SkriverSammendrag _ ->
+        SkriverSammendrag _ _ ->
             [ Melding.spørsmål [ "Supert, nå er vi snart ferdig med CV-en." ]
             , Melding.spørsmål [ "Nå skal du skrive et sammendrag. Her har du mulighet til å selge deg inn. Fortell arbeidsgivere om kompetansen din og personlige egenskaper." ]
             , Melding.spørsmål [ "Skriv sammendraget ditt i boksen under." ]
@@ -1543,6 +1574,26 @@ lagtTilSpørsmålCmd debugStatus =
         |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
 
 
+eksemplerPåSammendrag : List Melding
+eksemplerPåSammendrag =
+    [ Melding.eksempelMedTittel "Eksempel 1:"
+        [ "Jeg er student, for tiden avslutter jeg mastergrad i økonomi og administrasjon ved Universitetet i Stavanger. Masteroppgaven min handler om endringsledelse i oljenæringen. Ved siden av studiene har jeg jobbet som guide på Norsk Oljemuseum."
+        , Melding.tomLinje
+        , "På fritiden spiller jeg fotball og sitter i styret til studentidrettslaget."
+        , Melding.tomLinje
+        , "Jeg er strukturert og løsningsorientert. Mine tidligere arbeidsgivere har beskrevet meg som effektiv, ansvarsbevisst og positiv."
+        ]
+    , Melding.eksempelMedTittel "Eksempel 2:"
+        [ "- Fagbrev i logistikk og transport"
+        , "- 16 års erfaring fra lager og logistikk"
+        , "- Har hatt hovedansvar for varemottak og forsendelser"
+        , "- Erfaring med flere logistikksystemer"
+        , "- God IT-kompetanse"
+        , "- Nøyaktig, fleksibel og har høy arbeidskapasitet"
+        ]
+    ]
+
+
 andreSamtaleStegTilMetrikkSeksjon : AndreSamtaleStegInfo -> Metrikker.Seksjon
 andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
     case aktivSamtale of
@@ -1561,13 +1612,13 @@ andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
         LeggTilFlereAnnet ->
             Metrikker.LeggTilAnnet
 
-        BekreftSammendrag _ ->
+        BekreftSammendrag _ _ ->
             Metrikker.Sammendrag
 
-        SkriverSammendrag _ ->
+        SkriverSammendrag _ _ ->
             Metrikker.Sammendrag
 
-        EndrerSammendrag _ ->
+        EndrerSammendrag _ _ ->
             Metrikker.Sammendrag
 
         LagrerSammendrag _ _ ->
@@ -1733,13 +1784,25 @@ viewMeldingsgruppe meldingsGruppe =
 
 viewSpørsmål : SpørsmålViewState -> Html msg
 viewSpørsmål spørsmål =
+    let
+        spørsmålClass =
+            case SpørsmålViewState.meldingsType spørsmål of
+                Spørsmål ->
+                    "melding "
+
+                SpørsmålMedEksempel ->
+                    "melding eksempel "
+
+                Svar ->
+                    ""
+    in
     div [ class "meldingsrad sporsmal" ]
         [ div [ class "robot", robotAttribute spørsmål ]
             [ i [ class "Robotlogo" ] [] ]
         , case SpørsmålViewState.spørsmålStyle spørsmål of
             FørSkriveindikator ->
                 div
-                    [ class "melding skjult"
+                    [ class (spørsmålClass ++ "skjult")
                     , ariaLive "off"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
@@ -1747,7 +1810,7 @@ viewSpørsmål spørsmål =
 
             Skriveindikator ->
                 div
-                    [ class "melding skriveindikator"
+                    [ class (spørsmålClass ++ "skriveindikator")
                     , ariaLive "off"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
@@ -1755,7 +1818,7 @@ viewSpørsmål spørsmål =
 
             StørrelseKalkuleres ->
                 article
-                    [ class "melding kalkulerer"
+                    [ class (spørsmålClass ++ "kalkulerer")
                     , ariaLive "polite"
                     , id (SpørsmålViewState.id spørsmål)
                     ]
@@ -1780,7 +1843,7 @@ viewSpørsmål spørsmål =
                         width + (2 * padding) + 1
                 in
                 article
-                    [ class "melding ferdiganimert"
+                    [ class (spørsmålClass ++ "ferdiganimert")
                     , ariaLive "polite"
                     , style "height" (String.fromInt snakkebobleHeight ++ "px")
                     , style "width" (String.fromInt snakkebobleWidth ++ "px")
@@ -1797,7 +1860,7 @@ viewSpørsmål spørsmål =
 
             MeldingFerdigAnimert ->
                 article
-                    [ class "melding"
+                    [ class spørsmålClass
                     , classList [ ( "ikke-siste", ikkeSisteMelding spørsmål ) ]
                     , ariaLive "polite"
                     , id (SpørsmålViewState.id spørsmål)
@@ -1874,6 +1937,9 @@ viewTekstområde tekstområde =
         Seksjon labelTekst tekster ->
             section [ ariaLabel labelTekst ]
                 (List.map viewAvsnitt tekster)
+
+        Overskrift tekst ->
+            span [ class "eksempel-tittel" ] [ text tekst ]
 
 
 viewAvsnitt : String -> Html msg
@@ -1973,7 +2039,7 @@ andreSamtaleStegTilBrukerInput info =
                     [ Knapp.knapp BrukerSierHeiIIntroduksjonen "Ja!"
                     ]
 
-            BekreftSammendrag bekreftSammendragState ->
+            BekreftSammendrag _ bekreftSammendragState ->
                 case bekreftSammendragState of
                     OpprinneligSammendrag _ ->
                         viewBekreftSammendrag
@@ -1984,13 +2050,18 @@ andreSamtaleStegTilBrukerInput info =
                     EndretSammendrag _ ->
                         viewBekreftSammendrag
 
-            EndrerSammendrag sammendrag ->
-                BrukerInput.textareaSkjema { lagreMsg = VilLagreSammendragSkjema, lagreKnappTekst = "Lagre endringer" }
-                    (viewSammendragInput sammendrag)
+            EndrerSammendrag medEksempelKnapp sammendrag ->
+                viewSammendragInput sammendrag
+                    |> BrukerInputMedGåVidereKnapp.textarea VilLagreSammendragSkjema
+                    |> BrukerInputMedGåVidereKnapp.withAlternativKnappetekst "Lagre endringer"
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
-            SkriverSammendrag sammendrag ->
-                BrukerInput.textareaMedGåVidereKnapp VilLagreSammendragSkjema
-                    (viewSammendragInput sammendrag)
+            SkriverSammendrag medEksempelKnapp sammendrag ->
+                viewSammendragInput sammendrag
+                    |> BrukerInputMedGåVidereKnapp.textarea VilLagreSammendragSkjema
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             LagrerSammendrag _ lagreStatus ->
                 if LagreStatus.lagrerEtterUtlogging lagreStatus then

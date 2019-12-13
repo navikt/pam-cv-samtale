@@ -17,6 +17,7 @@ import Dato exposing (Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
@@ -72,7 +73,7 @@ type Samtale
     | RegistrerNivå
     | RegistrerSkole SkoleInfo
     | RegistrerRetning RetningInfo
-    | RegistrerBeskrivelse BeskrivelseInfo
+    | RegistrerBeskrivelse Bool BeskrivelseInfo
     | RegistrereFraMåned FraDatoInfo
     | RegistrereFraÅr FraDatoInfo
     | RegistrereNåværende NåværendeInfo
@@ -212,6 +213,7 @@ type Msg
     | OppdaterRetning String
     | BrukerVilRegistrereRetning
     | OppdaterBeskrivelse String
+    | VilSeEksempel
     | BrukerVilRegistrereBeskrivelse
     | BrukerTrykketFraMånedKnapp Måned
     | OppdaterFraÅr String
@@ -351,8 +353,27 @@ update msg (Model model) =
                     IkkeFerdig
                         ( retninginfo
                             |> forrigeTilBeskrivelseInfo
-                            |> RegistrerBeskrivelse
+                            |> RegistrerBeskrivelse (detFinnesEksemplerForNivå retninginfo.forrige.forrige)
                             |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilSeEksempel ->
+            case model.aktivSamtale of
+                RegistrerBeskrivelse _ beskrivelseinfo ->
+                    let
+                        oppdatertMeldingslogg =
+                            model.seksjonsMeldingsLogg
+                                |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                                |> MeldingsLogg.leggTilSpørsmål (eksemplerPåUtdanning beskrivelseinfo.forrige.forrige.forrige)
+                    in
+                    IkkeFerdig
+                        ( beskrivelseinfo
+                            |> RegistrerBeskrivelse False
+                            |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
 
@@ -361,10 +382,10 @@ update msg (Model model) =
 
         OppdaterBeskrivelse beskrivelse ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse beskrivelseinfo ->
+                RegistrerBeskrivelse medEksempelKnapp beskrivelseinfo ->
                     IkkeFerdig
                         ( { beskrivelseinfo | beskrivelse = beskrivelse }
-                            |> RegistrerBeskrivelse
+                            |> RegistrerBeskrivelse medEksempelKnapp
                             |> oppdaterSamtale model IngenNyeMeldinger
                         , Cmd.none
                         )
@@ -374,7 +395,7 @@ update msg (Model model) =
 
         BrukerVilRegistrereBeskrivelse ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse beskrivelseinfo ->
+                RegistrerBeskrivelse _ beskrivelseinfo ->
                     case Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse of
                         Nothing ->
                             IkkeFerdig
@@ -875,7 +896,7 @@ settFokus samtale =
         RegistrerRetning _ ->
             settFokusCmd RegistrerRetningInput
 
-        RegistrerBeskrivelse _ ->
+        RegistrerBeskrivelse _ _ ->
             settFokusCmd RegistrerBeskrivelseInput
 
         RegistrereFraÅr _ ->
@@ -1084,7 +1105,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
             , Melding.spørsmål [ "Kanskje du har en bachelor i historie, eller elektrofag fra videregående?" ]
             ]
 
-        RegistrerBeskrivelse _ ->
+        RegistrerBeskrivelse _ _ ->
             [ Melding.spørsmål [ "Skriv noen ord om denne utdanningen. Har du fordypning i noen fag?" ] ]
 
         RegistrereFraMåned _ ->
@@ -1190,6 +1211,43 @@ oppsummeringsSpørsmål skjema =
         |> Melding.spørsmål
 
 
+detFinnesEksemplerForNivå : Nivå -> Bool
+detFinnesEksemplerForNivå nivå =
+    nivå
+        |> eksemplerPåUtdanning
+        |> (not << List.isEmpty)
+
+
+eksemplerPåUtdanning : Nivå -> List Melding
+eksemplerPåUtdanning nivå =
+    case nivå of
+        Grunnskole ->
+            []
+
+        VideregåendeYrkesskole ->
+            [ Melding.eksempelMedTittel "Eksempel 1:" [ "Fordypning i matematikk og fysikk." ]
+            , Melding.eksempelMedTittel "Eksempel 2:" [ "Elektrofag Vg1 og Vg2, spesialisering i datateknologi og elektronikk." ]
+            ]
+
+        Fagskole ->
+            [ Melding.eksempel [ "Maskinteknikk i mekanisk industri, prosjekt- og kvalitetsledelse og økonomistyring." ]
+            ]
+
+        Folkehøyskole ->
+            []
+
+        HøyereUtdanning1til4 ->
+            [ Melding.eksempel [ "Fordypning i offentlig politikk og administrasjon. Bacheloroppgave om ulik politisk utvikling i de skandinaviske landene etter 1970." ]
+            ]
+
+        HøyereUtdanning4pluss ->
+            [ Melding.eksempel [ "Spesialisering i anvendt finans. Utvekslingsstudent på University of London (høstsemesteret 2017)." ]
+            ]
+
+        Doktorgrad ->
+            []
+
+
 
 --- VIEW ---
 
@@ -1250,13 +1308,14 @@ modelTilBrukerInput model =
                         |> Input.withOnEnter BrukerVilRegistrereRetning
                     )
 
-            RegistrerBeskrivelse beskrivelseinfo ->
-                BrukerInput.textareaMedGåVidereKnapp BrukerVilRegistrereBeskrivelse
-                    (beskrivelseinfo.beskrivelse
-                        |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
-                        |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse)
-                    )
+            RegistrerBeskrivelse medEksempelKnapp beskrivelseinfo ->
+                beskrivelseinfo.beskrivelse
+                    |> Textarea.textarea { msg = OppdaterBeskrivelse, label = "Beskriv utdanningen" }
+                    |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
+                    |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse)
+                    |> BrukerInputMedGåVidereKnapp.textarea BrukerVilRegistrereBeskrivelse
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             RegistrereFraMåned _ ->
                 BrukerInput.månedKnapper BrukerTrykketFraMånedKnapp

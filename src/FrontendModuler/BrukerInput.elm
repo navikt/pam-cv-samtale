@@ -1,6 +1,7 @@
 module FrontendModuler.BrukerInput exposing
     ( BrukerInput
     , KnapperLayout(..)
+    , brukerInputMedGåVidereKnapp
     , datoInputMedGåVidereKnapp
     , inputMedGåVidereKnapp
     , knapper
@@ -9,7 +10,6 @@ module FrontendModuler.BrukerInput exposing
     , selectMedGåVidereKnapp
     , skjema
     , textareaMedGåVidereKnapp
-    , textareaSkjema
     , tilSvarMelding
     , toHtml
     , typeaheadMedGåVidereKnapp
@@ -17,6 +17,7 @@ module FrontendModuler.BrukerInput exposing
     )
 
 import Dato exposing (Måned)
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
 import FrontendModuler.DatoInputMedDag as DatoInputMedDag exposing (DatoInputMedDag)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Knapp)
@@ -33,13 +34,8 @@ import Meldinger.Melding as Melding exposing (Melding)
 
 type BrukerInput msg
     = Knapper KnapperLayout (List (Knapp msg))
-    | InputMedGåVidereKnapp msg (Input msg)
-    | TextareaMedGåVidereKnapp msg (Textarea msg)
-    | TextareaSkjema { lagreMsg : msg, lagreKnappTekst : String } (Textarea msg)
-    | SelectMedGåVidereKnapp msg (Select msg)
-    | TypeaheadMedGåVidereKnapp msg (Typeahead msg)
+    | BrukerInputMedGåVidereKnapp (BrukerInputMedGåVidereKnapp msg)
     | MånedKnapper (Måned -> msg)
-    | DatoInputMedGåVidereKnapp msg (DatoInputMedDag msg)
     | Skjema { lagreMsg : msg, lagreKnappTekst : String } (List (Html msg))
     | Lenke (Lenke msg)
     | UtenInnhold
@@ -66,33 +62,38 @@ månedKnapper =
 
 
 inputMedGåVidereKnapp : msg -> Input msg -> BrukerInput msg
-inputMedGåVidereKnapp =
-    InputMedGåVidereKnapp
+inputMedGåVidereKnapp gåVidereMsg inputElement =
+    BrukerInputMedGåVidereKnapp.input gåVidereMsg inputElement
+        |> brukerInputMedGåVidereKnapp
+
+
+brukerInputMedGåVidereKnapp : BrukerInputMedGåVidereKnapp msg -> BrukerInput msg
+brukerInputMedGåVidereKnapp =
+    BrukerInputMedGåVidereKnapp
 
 
 textareaMedGåVidereKnapp : msg -> Textarea msg -> BrukerInput msg
-textareaMedGåVidereKnapp =
-    TextareaMedGåVidereKnapp
+textareaMedGåVidereKnapp gåVidereMsg textareaElement =
+    BrukerInputMedGåVidereKnapp.textarea gåVidereMsg textareaElement
+        |> brukerInputMedGåVidereKnapp
 
 
 typeaheadMedGåVidereKnapp : msg -> Typeahead msg -> BrukerInput msg
-typeaheadMedGåVidereKnapp =
-    TypeaheadMedGåVidereKnapp
+typeaheadMedGåVidereKnapp gåVidereMsg typeaheadElement =
+    BrukerInputMedGåVidereKnapp.typeahead gåVidereMsg typeaheadElement
+        |> brukerInputMedGåVidereKnapp
 
 
 selectMedGåVidereKnapp : msg -> Select msg -> BrukerInput msg
-selectMedGåVidereKnapp =
-    SelectMedGåVidereKnapp
+selectMedGåVidereKnapp gåVidereMsg selectElement =
+    BrukerInputMedGåVidereKnapp.select gåVidereMsg selectElement
+        |> brukerInputMedGåVidereKnapp
 
 
 datoInputMedGåVidereKnapp : msg -> DatoInputMedDag msg -> BrukerInput msg
-datoInputMedGåVidereKnapp =
-    DatoInputMedGåVidereKnapp
-
-
-textareaSkjema : { lagreMsg : msg, lagreKnappTekst : String } -> Textarea msg -> BrukerInput msg
-textareaSkjema =
-    TextareaSkjema
+datoInputMedGåVidereKnapp gåVidereMsg datoInputElement =
+    BrukerInputMedGåVidereKnapp.datoInput gåVidereMsg datoInputElement
+        |> brukerInputMedGåVidereKnapp
 
 
 skjema : { lagreMsg : msg, lagreKnappTekst : String } -> List (Html msg) -> BrukerInput msg
@@ -137,21 +138,6 @@ toHtml brukerInput =
                             (List.map Knapp.toHtml knappeElementer)
                         ]
 
-        InputMedGåVidereKnapp gåVidereMsg inputElement ->
-            inputElement
-                |> Input.toHtml
-                |> gåVidereHtml gåVidereMsg
-
-        SelectMedGåVidereKnapp gåVidereMsg selectElement ->
-            selectElement
-                |> Select.toHtml
-                |> gåVidereHtml gåVidereMsg
-
-        DatoInputMedGåVidereKnapp gåVidereMsg datoInputElement ->
-            datoInputElement
-                |> DatoInputMedDag.toHtml
-                |> gåVidereHtml gåVidereMsg
-
         Skjema { lagreMsg, lagreKnappTekst } skjemaelementer ->
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema" ]
@@ -174,53 +160,14 @@ toHtml brukerInput =
                     ]
                 ]
 
-        UtenInnhold ->
-            text ""
-
-        TypeaheadMedGåVidereKnapp gåVidereMsg typeahead ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema typeahead-skjema-height-wrapper" ]
-                    [ typeahead
-                        |> Typeahead.toHtml
-                    , div [ class "gå-videre-knapp" ]
-                        [ Knapp.knapp gåVidereMsg "Gå videre"
-                            |> Knapp.toHtml
-                        ]
-                    ]
-                ]
-
-        TextareaMedGåVidereKnapp gåVidereMsg textareaElement ->
-            textareaElement
-                |> Textarea.toHtml
-                |> gåVidereHtml gåVidereMsg
-
-        TextareaSkjema { lagreMsg, lagreKnappTekst } textareaElement ->
-            div [ class "skjema-wrapper" ]
-                [ div [ class "skjema" ]
-                    [ textareaElement
-                        |> Textarea.toHtml
-                    , div [ class "gå-videre-knapp" ]
-                        [ Knapp.knapp lagreMsg lagreKnappTekst
-                            |> Knapp.toHtml
-                        ]
-                    ]
-                ]
-
         MånedKnapper onMånedClick ->
             MånedKnapper.månedKnapper onMånedClick
 
+        UtenInnhold ->
+            text ""
 
-gåVidereHtml : msg -> Html msg -> Html msg
-gåVidereHtml gåVidereMsg inputElement =
-    div [ class "skjema-wrapper" ]
-        [ div [ class "skjema" ]
-            [ inputElement
-            , div [ class "gå-videre-knapp" ]
-                [ Knapp.knapp gåVidereMsg "Gå videre"
-                    |> Knapp.toHtml
-                ]
-            ]
-        ]
+        BrukerInputMedGåVidereKnapp brukerInputMedGåVidereKnapp_ ->
+            BrukerInputMedGåVidereKnapp.toHtml brukerInputMedGåVidereKnapp_
 
 
 
@@ -243,18 +190,10 @@ tilString msg brukerInput =
                 |> Maybe.map Knapp.innhold
                 |> Maybe.withDefault ""
 
-        InputMedGåVidereKnapp _ inputElement ->
-            if (Input.innhold >> String.trim >> String.isEmpty) inputElement then
-                "Gå videre"
+        BrukerInputMedGåVidereKnapp brukerInputMedGåVidereKnapp_ ->
+            BrukerInputMedGåVidereKnapp.tilString msg brukerInputMedGåVidereKnapp_
 
-            else
-                Input.innhold inputElement
-
-        SelectMedGåVidereKnapp _ selectElement ->
-            --- TODO: Fiks dette
-            ""
-
-        Skjema record list ->
+        Skjema _ _ ->
             ""
 
         Lenke lenke_ ->
@@ -263,32 +202,8 @@ tilString msg brukerInput =
         UtenInnhold ->
             ""
 
-        TypeaheadMedGåVidereKnapp _ typeaheadElement ->
-            if (Typeahead.innhold >> String.trim >> String.isEmpty) typeaheadElement then
-                "Gå videre"
-
-            else
-                Typeahead.innhold typeaheadElement
-
-        TextareaMedGåVidereKnapp _ textareaElement ->
-            if (Textarea.innhold >> String.trim >> String.isEmpty) textareaElement then
-                "Gå videre"
-
-            else
-                Textarea.innhold textareaElement
-
-        TextareaSkjema { lagreKnappTekst } textareaElement ->
-            if (Textarea.innhold >> String.trim >> String.isEmpty) textareaElement then
-                lagreKnappTekst
-
-            else
-                Textarea.innhold textareaElement
-
         MånedKnapper månedMsg ->
             Dato.måneder
                 |> List.find (\måned -> månedMsg måned == msg)
                 |> Maybe.map Dato.månedTilString
                 |> Maybe.withDefault ""
-
-        DatoInputMedGåVidereKnapp _ _ ->
-            ""

@@ -230,6 +230,15 @@ html {
     transition: opacity 0.3s ease-in-out;
   }
 
+  .melding.eksempel {
+    background-color: #e6f4ef;
+    color: #062140;
+  }
+
+  .eksempel.melding:after {
+    border-right-color: #e6f4ef;
+  }
+
   .skjult.melding:after {
     opacity: 0;
   }
@@ -279,6 +288,11 @@ html {
       display: inline-block;
       background-image: data-uri('image/svg+xml;charset=UTF-8', '../assets/RobotIkon.svg');
     }
+  }
+
+
+  .eksempel-tittel {
+    font-weight: bold;
   }
 }
 
@@ -402,10 +416,12 @@ html {
     -webkit-animation-delay: 0.2s;
     animation-delay: 0.2s;
   }
+
   .bounce2 {
     -webkit-animation-delay: 0.36s;
     animation-delay: 0.36s;
   }
+
   .bounce3 {
     -webkit-animation-delay: 0.52s;
     animation-delay: 0.52s;
@@ -542,6 +558,10 @@ html {
   .gå-videre-knapp {
     display: flex;
     justify-content: flex-end;
+
+    .Knapp:not(:first-of-type) {
+      margin-left: 0.5rem;
+    }
   }
 }
 

@@ -18,6 +18,7 @@ import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
@@ -76,7 +77,7 @@ type OppsummeringsType
 
 type Samtale
     = RegistrerRolle RolleInfo
-    | RegistrerBeskrivelse BeskrivelseInfo
+    | RegistrerBeskrivelse Bool BeskrivelseInfo
     | SpørOmBrukerVilLeggeInnTidsperiode BeskrivelseInfo
     | RegistrerFraMåned FraDatoInfo
     | RegistrerFraÅr FraDatoInfo
@@ -204,6 +205,7 @@ tilDatoTilSkjema info tilÅr =
 type Msg
     = VilRegistrereRolle
     | OppdatererRolle String
+    | VilSeEksempel
     | VilRegistrereBeskrivelse
     | OppdatererBeskrivelse String
     | SvarerJaTilTidsperiode
@@ -261,7 +263,7 @@ update msg (Model model) =
                         Nothing ->
                             ( info.rolle
                                 |> rolleTilBeskrivelse
-                                |> RegistrerBeskrivelse
+                                |> RegistrerBeskrivelse True
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -283,9 +285,28 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilSeEksempel ->
+            case model.aktivSamtale of
+                RegistrerBeskrivelse _ info ->
+                    let
+                        oppdatertMeldingslogg =
+                            model.seksjonsMeldingsLogg
+                                |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                                |> MeldingsLogg.leggTilSpørsmål eksemplerPåAnnenErfaring
+                    in
+                    IkkeFerdig
+                        ( info
+                            |> RegistrerBeskrivelse False
+                            |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         VilRegistrereBeskrivelse ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse input ->
+                RegistrerBeskrivelse _ input ->
                     case Validering.feilmeldingMaxAntallTegn input.beskrivelse maxLengthBeskrivelse of
                         Nothing ->
                             ( input
@@ -303,9 +324,9 @@ update msg (Model model) =
 
         OppdatererBeskrivelse string ->
             case model.aktivSamtale of
-                RegistrerBeskrivelse beskrivelse ->
+                RegistrerBeskrivelse medEksempelKnapp beskrivelse ->
                     ( { beskrivelse | beskrivelse = string }
-                        |> RegistrerBeskrivelse
+                        |> RegistrerBeskrivelse medEksempelKnapp
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -840,11 +861,10 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
     case annenErfaringSeksjon of
         RegistrerRolle _ ->
             [ Melding.spørsmål [ "Så bra at du har mer erfaring. Hvilken rolle har du hatt?" ]
-            , Melding.spørsmål
-                [ "Har du jobbet som fotballtrener, besøksvenn, eller noe helt annet?" ]
+            , Melding.spørsmål [ "Har du jobbet som fotballtrener, besøksvenn, eller noe helt annet?" ]
             ]
 
-        RegistrerBeskrivelse _ ->
+        RegistrerBeskrivelse _ _ ->
             [ Melding.spørsmål [ "Hva var jobben din?" ]
             ]
 
@@ -945,7 +965,7 @@ settFokus samtale =
         RegistrerRolle _ ->
             settFokusCmd RolleId
 
-        RegistrerBeskrivelse _ ->
+        RegistrerBeskrivelse _ _ ->
             settFokusCmd BeskrivelseId
 
         RegistrerFraÅr _ ->
@@ -963,6 +983,14 @@ settFokusCmd inputId =
     Process.sleep 200
         |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
+
+
+eksemplerPåAnnenErfaring : List Melding
+eksemplerPåAnnenErfaring =
+    [ Melding.eksempelMedTittel "Eksempel 1:" [ "5 års erfaring som fotballtrener for jente- og guttelag i Moss FK." ]
+    , Melding.eksempelMedTittel "Eksempel 2:" [ "Vært besøksvenn i Røde Kors, 2 timer per uke. Har besøkt en eldre, enslig mann og bidratt til sosiale aktiviteter." ]
+    , Melding.eksempelMedTittel "Eksempel 3:" [ "2 års erfaring som kasserer i Elgveien borettslag." ]
+    ]
 
 
 
@@ -1018,13 +1046,14 @@ modelTilBrukerInput model =
                         |> Input.withErObligatorisk
                     )
 
-            RegistrerBeskrivelse info ->
-                BrukerInput.textareaMedGåVidereKnapp VilRegistrereBeskrivelse
-                    (info.beskrivelse
-                        |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
-                        |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
-                        |> Textarea.withId (inputIdTilString BeskrivelseId)
-                    )
+            RegistrerBeskrivelse medEksempelKnapp info ->
+                info.beskrivelse
+                    |> Textarea.textarea { label = "Beskriv oppgavene dine", msg = OppdatererBeskrivelse }
+                    |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn info.beskrivelse maxLengthBeskrivelse)
+                    |> Textarea.withId (inputIdTilString BeskrivelseId)
+                    |> BrukerInputMedGåVidereKnapp.textarea VilRegistrereBeskrivelse
+                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             SpørOmBrukerVilLeggeInnTidsperiode _ ->
                 BrukerInput.knapper Flytende

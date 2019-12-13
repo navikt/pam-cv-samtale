@@ -11,12 +11,13 @@ module Meldinger.SporsmalViewState exposing
     , initKalkuleres
     , initSkriver
     , medIkonForFørsteMelding
+    , meldingsType
     , spørsmålStyle
     , tekst
     , utenIkon
     )
 
-import Meldinger.Melding as Melding exposing (Melding, Tekstområde(..))
+import Meldinger.Melding as Melding exposing (Melding, MeldingsType(..), Tekstområde(..))
 
 
 type SpørsmålViewState
@@ -139,3 +140,8 @@ ikonStatus (SpørsmålViewState info) =
 id : SpørsmålViewState -> String
 id (SpørsmålViewState info) =
     info.id
+
+
+meldingsType : SpørsmålViewState -> MeldingsType
+meldingsType (SpørsmålViewState info) =
+    Melding.meldingstype info.melding
