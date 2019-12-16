@@ -6,7 +6,7 @@ module FrontendModuler.DatoInputMedDag exposing
     , withId
     )
 
-import Dato exposing (DatoFeilmelding)
+import Dato.Dato as Dato exposing (DatoFeilmelding)
 import Dato.Maned as Måned exposing (Måned)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Select as Select

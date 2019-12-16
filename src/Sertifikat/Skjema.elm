@@ -34,7 +34,7 @@ module Sertifikat.Skjema exposing
     , visFeilmeldingUtløperÅr
     )
 
-import Dato exposing (År)
+import Dato.Dato as Dato exposing (År)
 import Dato.Maned exposing (Måned(..))
 import Json.Encode
 import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)

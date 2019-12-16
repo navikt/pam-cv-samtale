@@ -13,7 +13,7 @@ import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
-import Dato exposing (TilDato(..), År)
+import Dato.Dato as Dato exposing (TilDato(..), År)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))

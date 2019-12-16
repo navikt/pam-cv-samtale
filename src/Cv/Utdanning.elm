@@ -12,7 +12,7 @@ module Cv.Utdanning exposing
     , utdanningsretning
     )
 
-import Dato exposing (TilDato(..), År)
+import Dato.Dato as Dato exposing (TilDato(..), År)
 import Dato.Maned exposing (Måned)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)

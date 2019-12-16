@@ -1,4 +1,4 @@
-module Dato exposing
+module Dato.Dato exposing
     ( Dato
     , DatoFeilmelding
     , DatoPeriode(..)

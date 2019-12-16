@@ -29,7 +29,7 @@ module Utdanning.Skjema exposing
     )
 
 import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
-import Dato exposing (TilDato(..), År)
+import Dato.Dato as Dato exposing (TilDato(..), År)
 import Dato.Maned exposing (Måned(..))
 import Json.Encode
 import Validering

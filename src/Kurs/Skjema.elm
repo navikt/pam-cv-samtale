@@ -32,7 +32,7 @@ module Kurs.Skjema exposing
     , varighetEnhetTilString
     )
 
-import Dato exposing (År)
+import Dato.Dato as Dato exposing (År)
 import Dato.Maned exposing (Måned)
 import Json.Encode
 
