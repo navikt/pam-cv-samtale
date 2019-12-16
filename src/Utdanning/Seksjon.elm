@@ -1267,7 +1267,7 @@ modelTilBrukerInput model =
             Intro _ ->
                 if List.isEmpty model.utdanningListe then
                     BrukerInput.knapper Flytende
-                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
+                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdanning"
                         , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg har ikke utdanning"
                         ]
 
