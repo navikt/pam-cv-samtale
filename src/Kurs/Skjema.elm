@@ -293,8 +293,8 @@ feilmeldingValgfrittFullførtÅr (UvalidertSkjema skjema) =
     if String.isEmpty skjema.fullførtÅr then
         Nothing
 
-    else if skjema.tillatÅViseFeilmeldingFullførtÅr && (String.length skjema.fullførtÅr /= 4 || String.toInt skjema.fullførtÅr == Nothing) then
-        Just "Kun 4 siffer"
+    else if skjema.tillatÅViseFeilmeldingFullførtÅr then
+        Dato.feilmeldingÅr skjema.fullførtÅr
 
     else
         Nothing
@@ -365,7 +365,7 @@ validerFullført fullførtMåned_ fullførtÅr_ =
         maybeFullførtÅr =
             Dato.stringTilÅr fullførtÅr_
     in
-    if fullførtMåned_ == Nothing && String.isEmpty fullførtÅr_ then
+    if fullførtMåned_ == Nothing && (String.trim >> String.isEmpty) fullførtÅr_ then
         -- Alt er ok hvis ingen datoer valgt
         Just IkkeOppgitt
 

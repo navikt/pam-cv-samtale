@@ -26,7 +26,6 @@ module Dato exposing
     , stringTilÅr
     , toString
     , validerDato
-    , validerÅr
     , årTilString
     )
 
@@ -69,7 +68,7 @@ måneder =
 type alias DatoInfo =
     { dag : String
     , måned : Måned
-    , år : String
+    , år : År
     }
 
 
@@ -81,22 +80,12 @@ toString : Dato -> String
 toString dato =
     case dato of
         Dato dato_ ->
-            dato_.dag ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ dato_.år
-
-
-maybeDatoToString : Maybe Dato -> Maybe String
-maybeDatoToString dato =
-    case dato of
-        Just (Dato info) ->
-            Just ("" ++ info.år)
-
-        Nothing ->
-            Nothing
+            dato_.dag ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ årTilString dato_.år
 
 
 getDatoÅr : Dato -> String
 getDatoÅr (Dato datoInfo) =
-    datoInfo.år
+    årTilString datoInfo.år
 
 
 getDatoMåned : Dato -> Måned
@@ -119,17 +108,18 @@ validerDato : { dag : String, måned : Maybe Måned, år : String } -> DatoValid
 validerDato { dag, måned, år } =
     case måned of
         Just måned_ ->
-            if validerÅr år && validerDag dag then
-                DatoValiderer
-                    (Dato
-                        { dag = formaterDag dag
-                        , måned = måned_
-                        , år = år
-                        }
-                    )
+            case ( stringTilÅr år, validerDag dag ) of
+                ( Just år_, True ) ->
+                    DatoValiderer
+                        (Dato
+                            { dag = formaterDag dag
+                            , måned = måned_
+                            , år = år_
+                            }
+                        )
 
-            else
-                DatoValideringsfeil
+                _ ->
+                    DatoValideringsfeil
 
         Nothing ->
             if String.isEmpty dag && String.isEmpty år then
@@ -151,7 +141,7 @@ feilmeldingForDato : { dag : String, måned : Maybe Måned, år : String } -> Ma
 feilmeldingForDato { dag, måned, år } =
     case måned of
         Just måned_ ->
-            if not (validerÅr år) then
+            if stringTilÅr år == Nothing then
                 Just
                     { feilmelding = "År kan kun ha fire siffer"
                     , feilPåDag = False
@@ -206,7 +196,7 @@ encodeMaybeDato : Maybe Dato -> Json.Encode.Value
 encodeMaybeDato dato =
     case dato of
         Just (Dato dato_) ->
-            Json.Encode.string (dato_.år ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ dato_.dag)
+            Json.Encode.string (årTilString dato_.år ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ dato_.dag)
 
         Nothing ->
             Json.Encode.null
@@ -412,24 +402,6 @@ månedTilNummerMåned maaned =
 
         Desember ->
             "12"
-
-
-validerÅr : String -> Bool
-validerÅr string =
-    case String.isEmpty string of
-        True ->
-            False
-
-        False ->
-            case String.toInt string of
-                Just aar ->
-                    aar
-                        > 1000
-                        && String.length string
-                        == 4
-
-                Nothing ->
-                    False
 
 
 
