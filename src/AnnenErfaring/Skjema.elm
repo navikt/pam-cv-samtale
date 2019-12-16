@@ -32,7 +32,8 @@ module AnnenErfaring.Skjema exposing
     , valider
     )
 
-import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
+import Dato exposing (DatoPeriode(..), TilDato(..), År)
+import Dato.Maned exposing (Måned(..))
 import Json.Encode
 import Validering
 

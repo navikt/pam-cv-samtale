@@ -14,7 +14,8 @@ import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.AnnenErfaring exposing (AnnenErfaring)
-import Dato exposing (DatoPeriode(..), Måned(..), TilDato(..), År)
+import Dato exposing (DatoPeriode(..), TilDato(..), År)
+import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
@@ -210,12 +211,12 @@ type Msg
     | OppdatererBeskrivelse String
     | SvarerJaTilTidsperiode
     | SvarerNeiTilTidsperiode
-    | FraMånedValgt Dato.Måned
+    | FraMånedValgt Måned
     | VilRegistrereFraÅr
     | OppdatererFraÅr String
     | SvarerJaTilNåværende
     | SvarerNeiTilNåværende
-    | TilMånedValgt Dato.Måned
+    | TilMånedValgt Måned
     | VilRegistrereTilÅr
     | OppdatererTilÅr String
     | VilLagreAnnenErfaring
@@ -735,7 +736,7 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
-setFraMåned : FraDatoInfo -> Dato.Måned -> FraDatoInfo
+setFraMåned : FraDatoInfo -> Måned -> FraDatoInfo
 setFraMåned fraDatoInfo måned =
     { fraDatoInfo | fraMåned = måned }
 
@@ -751,12 +752,12 @@ oppdaterSkjema endring skjema =
 
         FraMåned månedString ->
             månedString
-                |> Dato.stringTilMaybeMåned
+                |> Måned.fraString
                 |> Skjema.oppdaterFraMåned skjema
 
         TilMåned månedString ->
             månedString
-                |> Dato.stringTilMaybeMåned
+                |> Måned.fraString
                 |> Skjema.oppdaterTilMåned skjema
 
         NåværendeToggled ->

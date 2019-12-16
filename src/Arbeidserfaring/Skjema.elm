@@ -32,7 +32,8 @@ module Arbeidserfaring.Skjema exposing
 
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
-import Dato exposing (Måned(..), TilDato(..), År)
+import Dato exposing (TilDato(..), År)
+import Dato.Maned exposing (Måned(..))
 import Json.Encode
 import Validering
 

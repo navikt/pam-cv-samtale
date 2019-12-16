@@ -16,7 +16,7 @@ module FrontendModuler.BrukerInput exposing
     , utenInnhold
     )
 
-import Dato exposing (Måned)
+import Dato.Maned as Måned exposing (Måned)
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
 import FrontendModuler.DatoInputMedDag as DatoInputMedDag exposing (DatoInputMedDag)
 import FrontendModuler.Input as Input exposing (Input)
@@ -203,7 +203,7 @@ tilString msg brukerInput =
             ""
 
         MånedKnapper månedMsg ->
-            Dato.måneder
+            Måned.måneder
                 |> List.find (\måned -> månedMsg måned == msg)
-                |> Maybe.map Dato.månedTilString
+                |> Maybe.map Måned.tilString
                 |> Maybe.withDefault ""

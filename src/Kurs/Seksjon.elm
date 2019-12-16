@@ -13,7 +13,8 @@ import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Kurs exposing (Kurs)
-import Dato exposing (Måned(..), År)
+import Dato exposing (År)
+import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
@@ -188,7 +189,7 @@ type Msg
     | OppdatererKursholder String
     | SvarerJaTilFullførtDato
     | SvarerNeiTilFullførtDato
-    | FullførtMånedValgt Dato.Måned
+    | FullførtMånedValgt Måned
     | VilRegistrereFullførtÅr
     | OppdatererFullførtÅr String
     | VarighetEnhetValgt VarighetEnhet
@@ -663,7 +664,7 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
-setFullførtMåned : FullførtDatoInfo -> Dato.Måned -> FullførtDatoInfo
+setFullførtMåned : FullførtDatoInfo -> Måned -> FullførtDatoInfo
 setFullførtMåned fullførtDatoInfo måned =
     { fullførtDatoInfo | fullførtMåned = måned }
 
@@ -676,7 +677,7 @@ oppdaterSkjema endring skjema =
 
         FullførtMåned månedString ->
             månedString
-                |> Dato.stringTilMaybeMåned
+                |> Måned.fraString
                 |> Skjema.oppdaterFullførtMåned skjema
 
         VarighetEnhet string ->

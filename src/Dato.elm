@@ -3,7 +3,6 @@ module Dato exposing
     , DatoFeilmelding
     , DatoPeriode(..)
     , DatoValidering(..)
-    , Måned(..)
     , TilDato(..)
     , År
     , datoTilString
@@ -17,52 +16,16 @@ module Dato exposing
     , getDatoDag
     , getDatoMåned
     , getDatoÅr
-    , månedTilNummerMåned
-    , månedTilString
-    , måneder
     , periodeTilString
-    , stringTilMaybeMåned
-    , stringTilMåned
     , stringTilÅr
     , toString
     , validerDato
     , årTilString
     )
 
+import Dato.Maned as Måned exposing (Måned(..))
 import Json.Decode exposing (Decoder)
 import Json.Encode
-
-
-type Måned
-    = Januar
-    | Februar
-    | Mars
-    | April
-    | Mai
-    | Juni
-    | Juli
-    | August
-    | September
-    | Oktober
-    | November
-    | Desember
-
-
-måneder : List Måned
-måneder =
-    [ Januar
-    , Februar
-    , Mars
-    , April
-    , Mai
-    , Juni
-    , Juli
-    , August
-    , September
-    , Oktober
-    , November
-    , Desember
-    ]
 
 
 type alias DatoInfo =
@@ -80,7 +43,7 @@ toString : Dato -> String
 toString dato =
     case dato of
         Dato dato_ ->
-            dato_.dag ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ årTilString dato_.år
+            dato_.dag ++ "-" ++ Måned.tilNummer dato_.måned ++ "-" ++ årTilString dato_.år
 
 
 getDatoÅr : Dato -> String
@@ -196,212 +159,10 @@ encodeMaybeDato : Maybe Dato -> Json.Encode.Value
 encodeMaybeDato dato =
     case dato of
         Just (Dato dato_) ->
-            Json.Encode.string (årTilString dato_.år ++ "-" ++ månedTilNummerMåned dato_.måned ++ "-" ++ dato_.dag)
+            Json.Encode.string (årTilString dato_.år ++ "-" ++ Måned.tilNummer dato_.måned ++ "-" ++ dato_.dag)
 
         Nothing ->
             Json.Encode.null
-
-
-månedTilString : Måned -> String
-månedTilString mnd =
-    case mnd of
-        Januar ->
-            "Januar"
-
-        Februar ->
-            "Februar"
-
-        Mars ->
-            "Mars"
-
-        April ->
-            "April"
-
-        Mai ->
-            "Mai"
-
-        Juni ->
-            "Juni"
-
-        Juli ->
-            "Juli"
-
-        August ->
-            "August"
-
-        September ->
-            "September"
-
-        Oktober ->
-            "Oktober"
-
-        November ->
-            "November"
-
-        Desember ->
-            "Desember"
-
-
-stringTilMåned : String -> Måned
-stringTilMåned string =
-    case string of
-        "Januar" ->
-            Januar
-
-        "Februar" ->
-            Februar
-
-        "Mars" ->
-            Mars
-
-        "April" ->
-            April
-
-        "Mai" ->
-            Mai
-
-        "Juni" ->
-            Juni
-
-        "Juli" ->
-            Juli
-
-        "August" ->
-            August
-
-        "September" ->
-            September
-
-        "Oktober" ->
-            Oktober
-
-        "November" ->
-            November
-
-        "Desember" ->
-            Desember
-
-        "01" ->
-            Januar
-
-        "02" ->
-            Februar
-
-        "03" ->
-            Mars
-
-        "04" ->
-            April
-
-        "05" ->
-            Mai
-
-        "06" ->
-            Juni
-
-        "07" ->
-            Juli
-
-        "08" ->
-            August
-
-        "09" ->
-            September
-
-        "10" ->
-            Oktober
-
-        "11" ->
-            November
-
-        "12" ->
-            Desember
-
-        _ ->
-            Januar
-
-
-stringTilMaybeMåned : String -> Maybe Måned
-stringTilMaybeMåned string =
-    case string of
-        "Januar" ->
-            Just Januar
-
-        "Februar" ->
-            Just Februar
-
-        "Mars" ->
-            Just Mars
-
-        "April" ->
-            Just April
-
-        "Mai" ->
-            Just Mai
-
-        "Juni" ->
-            Just Juni
-
-        "Juli" ->
-            Just Juli
-
-        "August" ->
-            Just August
-
-        "September" ->
-            Just September
-
-        "Oktober" ->
-            Just Oktober
-
-        "November" ->
-            Just November
-
-        "Desember" ->
-            Just Desember
-
-        _ ->
-            Nothing
-
-
-månedTilNummerMåned : Måned -> String
-månedTilNummerMåned maaned =
-    case maaned of
-        Januar ->
-            "01"
-
-        Februar ->
-            "02"
-
-        Mars ->
-            "03"
-
-        April ->
-            "04"
-
-        Mai ->
-            "05"
-
-        Juni ->
-            "06"
-
-        Juli ->
-            "07"
-
-        August ->
-            "08"
-
-        September ->
-            "09"
-
-        Oktober ->
-            "10"
-
-        November ->
-            "11"
-
-        Desember ->
-            "12"
 
 
 
@@ -447,7 +208,7 @@ decodeMonthYear : String -> Decoder ( Måned, År )
 decodeMonthYear string =
     case String.split "-" string of
         årString :: månedString :: [] ->
-            case ( stringTilÅr årString, nummerStringTilMåned månedString ) of
+            case ( stringTilÅr årString, Måned.fraNummer månedString ) of
                 ( Just år_, Just måned_ ) ->
                     Json.Decode.succeed ( måned_, år_ )
 
@@ -458,52 +219,9 @@ decodeMonthYear string =
             Json.Decode.fail ("Kan ikke decode YearMonth \"" ++ string ++ "\". Forventet streng på formen \"yyyy-mm\"")
 
 
-nummerStringTilMåned : String -> Maybe Måned
-nummerStringTilMåned string =
-    case string of
-        "01" ->
-            Just Januar
-
-        "02" ->
-            Just Februar
-
-        "03" ->
-            Just Mars
-
-        "04" ->
-            Just April
-
-        "05" ->
-            Just Mai
-
-        "06" ->
-            Just Juni
-
-        "07" ->
-            Just Juli
-
-        "08" ->
-            Just August
-
-        "09" ->
-            Just September
-
-        "10" ->
-            Just Oktober
-
-        "11" ->
-            Just November
-
-        "12" ->
-            Just Desember
-
-        _ ->
-            Nothing
-
-
 encodeMonthYear : Måned -> År -> Json.Encode.Value
 encodeMonthYear måned_ (År år_) =
-    Json.Encode.string (år_ ++ "-" ++ månedTilNummerMåned måned_)
+    Json.Encode.string (år_ ++ "-" ++ Måned.tilNummer måned_)
 
 
 
@@ -534,7 +252,7 @@ tilDatoTilString tilDato =
 
 datoTilString : Måned -> År -> String
 datoTilString måned_ år_ =
-    månedTilString måned_ ++ " " ++ årTilString år_
+    Måned.tilString måned_ ++ " " ++ årTilString år_
 
 
 

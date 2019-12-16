@@ -29,7 +29,8 @@ module Utdanning.Skjema exposing
     )
 
 import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
-import Dato exposing (Måned(..), TilDato(..), År)
+import Dato exposing (TilDato(..), År)
+import Dato.Maned exposing (Måned(..))
 import Json.Encode
 import Validering
 
@@ -103,7 +104,7 @@ månedFraTilDato : TilDato -> Måned
 månedFraTilDato tilDato =
     case tilDato of
         Nåværende ->
-            Dato.Juni
+            Juni
 
         Avsluttet måned _ ->
             måned

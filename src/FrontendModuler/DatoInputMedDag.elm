@@ -6,7 +6,8 @@ module FrontendModuler.DatoInputMedDag exposing
     , withId
     )
 
-import Dato exposing (DatoFeilmelding, Måned)
+import Dato exposing (DatoFeilmelding)
+import Dato.Maned as Måned exposing (Måned)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Select as Select
 import Html exposing (..)
@@ -115,7 +116,7 @@ toHtml (DatoInputMedDag options) =
                         , ( "November", "November" )
                         , ( "Desember", "Desember" )
                         ]
-                        |> Select.withMaybeSelected (Maybe.map Dato.månedTilString options.måned)
+                        |> Select.withMaybeSelected (Maybe.map Måned.tilString options.måned)
                         |> Select.withClass "DatoInput-måned"
                         |> Select.withFeilmelding
                             (case options.feilmelding of
