@@ -137,7 +137,11 @@ feilmeldingForDato { dag, måned, år } =
 
 
 formaterDag : String -> String
-formaterDag dag =
+formaterDag utrimmetDag =
+    let
+        dag =
+            String.trim utrimmetDag
+    in
     if String.length dag == 1 then
         "0" ++ dag
 
@@ -147,7 +151,7 @@ formaterDag dag =
 
 validerDag : String -> Bool
 validerDag dag =
-    case String.toInt dag of
+    case (String.trim >> String.toInt) dag of
         Just dagSomInt ->
             dagSomInt > 0 && dagSomInt <= 31
 
