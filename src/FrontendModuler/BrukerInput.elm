@@ -8,6 +8,7 @@ module FrontendModuler.BrukerInput exposing
     , lenke
     , månedKnapper
     , selectMedGåVidereKnapp
+    , selectMedGåVidereKnapp2
     , skjema
     , textareaMedGåVidereKnapp
     , tilSvarMelding
@@ -92,9 +93,17 @@ selectMedGåVidereKnapp gåVidereMsg selectElement =
         |> brukerInputMedGåVidereKnapp
 
 
-datoInputMedGåVidereKnapp : msg -> DatoInputMedDag msg -> BrukerInput msg
-datoInputMedGåVidereKnapp gåVidereMsg datoInputElement =
-    BrukerInputMedGåVidereKnapp.datoInput gåVidereMsg datoInputElement
+selectMedGåVidereKnapp2 : { onGåVidere : msg, onAvbryt : msg } -> Select msg -> BrukerInput msg
+selectMedGåVidereKnapp2 { onGåVidere, onAvbryt } selectElement =
+    BrukerInputMedGåVidereKnapp.select onGåVidere selectElement
+        |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp onAvbryt
+        |> brukerInputMedGåVidereKnapp
+
+
+datoInputMedGåVidereKnapp : { onGåVidere : msg, onAvbryt : msg } -> DatoInputMedDag msg -> BrukerInput msg
+datoInputMedGåVidereKnapp { onGåVidere, onAvbryt } datoInputElement =
+    BrukerInputMedGåVidereKnapp.datoInput onGåVidere datoInputElement
+        |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp onAvbryt
         |> brukerInputMedGåVidereKnapp
 
 
