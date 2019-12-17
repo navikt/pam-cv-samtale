@@ -16,7 +16,7 @@ module FrontendModuler.BrukerInput exposing
     , utenInnhold
     )
 
-import Dato exposing (Måned)
+import Dato.Maned as Måned exposing (Måned)
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
 import FrontendModuler.DatoInputMedDag exposing (DatoInputMedDag)
 import FrontendModuler.Input exposing (Input)
@@ -209,7 +209,7 @@ tilString msg brukerInput =
                 "Avbryt"
 
             else
-                Dato.måneder
+                Måned.måneder
                     |> List.find (\måned -> onMånedValg måned == msg)
-                    |> Maybe.map Dato.månedTilString
+                    |> Maybe.map Måned.tilString
                     |> Maybe.withDefault ""

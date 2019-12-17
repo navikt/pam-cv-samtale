@@ -13,7 +13,8 @@ import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Forerkort as Forerkort exposing (Førerkort, Klasse(..))
-import Dato exposing (Dato, DatoValidering(..), Måned)
+import Dato.Dato as Dato exposing (Dato, DatoValidering(..))
+import Dato.Maned as Måned exposing (Måned)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Forerkort.ForerkortKode as FørerkortKode exposing (FørerkortKode)
@@ -155,7 +156,7 @@ oppdaterSkjema endring skjema =
 
         FraMåned måned ->
             måned
-                |> Dato.stringTilMaybeMåned
+                |> Måned.fraString
                 |> Skjema.oppdaterFraMåned skjema
 
         FraDag dag ->
@@ -166,7 +167,7 @@ oppdaterSkjema endring skjema =
 
         TilMåned måned ->
             måned
-                |> Dato.stringTilMaybeMåned
+                |> Måned.fraString
                 |> Skjema.oppdaterTilMåned skjema
 
         TilDag dag ->
@@ -416,7 +417,7 @@ update msg (Model model) =
         BrukerEndrerFraMåned måned ->
             case model.aktivSamtale of
                 RegistrereFraDato info ->
-                    ( { info | måned = Dato.stringTilMaybeMåned måned }
+                    ( { info | måned = Måned.fraString måned }
                         |> RegistrereFraDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
@@ -493,7 +494,7 @@ update msg (Model model) =
         BrukerEndrerTilMåned måned ->
             case model.aktivSamtale of
                 RegistrereTilDato info ->
-                    ( { info | måned = Dato.stringTilMaybeMåned måned }
+                    ( { info | måned = Måned.fraString måned }
                         |> RegistrereTilDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none

@@ -14,7 +14,8 @@ module Cv.Arbeidserfaring exposing
     )
 
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
-import Dato exposing (Måned, TilDato(..), År)
+import Dato.Dato as Dato exposing (TilDato(..), År)
+import Dato.Maned exposing (Måned)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 

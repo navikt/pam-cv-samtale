@@ -15,7 +15,8 @@ import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Arbeidserfaring exposing (Arbeidserfaring)
-import Dato exposing (Måned(..), TilDato(..), År)
+import Dato.Dato as Dato exposing (TilDato(..), År)
+import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
@@ -134,13 +135,13 @@ type Msg
     | VilSeEksempel
     | BrukerOppdatererArbeidsoppgaver String
     | BrukerVilRegistrereArbeidsoppgaver
-    | BrukerTrykketFraMånedKnapp Dato.Måned
+    | BrukerTrykketFraMånedKnapp Måned
     | BrukerOppdatererFraÅr String
     | FraÅrMisterFokus
     | BrukerVilRegistrereFraÅr
     | BrukerSvarerJaTilNåværende
     | BrukerSvarerNeiTilNåværende
-    | BrukerTrykketTilMånedKnapp Dato.Måned
+    | BrukerTrykketTilMånedKnapp Måned
     | BrukerOppdatererTilÅr String
     | TilÅrMisterFokus
     | BrukerVilRegistrereTilÅr
@@ -1181,12 +1182,12 @@ oppdaterSkjema endring skjema =
 
         FraMåned månedString ->
             månedString
-                |> Dato.stringTilMåned
+                |> Måned.stringTilMåned
                 |> Skjema.oppdaterFraMåned skjema
 
         TilMåned månedString ->
             månedString
-                |> Dato.stringTilMåned
+                |> Måned.stringTilMåned
                 |> Skjema.oppdaterTilMåned skjema
 
         FraÅrBlurred ->

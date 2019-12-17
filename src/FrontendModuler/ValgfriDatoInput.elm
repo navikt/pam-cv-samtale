@@ -9,7 +9,7 @@ module FrontendModuler.ValgfriDatoInput exposing
     , withOnBlurÅr
     )
 
-import Dato exposing (Måned)
+import Dato.Maned as Måned exposing (Måned)
 import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Select as Select
@@ -162,7 +162,7 @@ toHtml (DatoInput options) =
                                 "Måned"
 
                             Just måned_ ->
-                                Dato.månedTilString måned_
+                                Måned.tilString måned_
                         )
                     |> Select.withClass
                         ("DatoInput-måned"

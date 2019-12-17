@@ -6,7 +6,7 @@ module FrontendModuler.DatoInput exposing
     , withOnBlurÅr
     )
 
-import Dato exposing (Måned)
+import Dato.Maned as Måned exposing (Måned)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Select as Select
 import Html exposing (..)
@@ -84,7 +84,7 @@ toHtml (DatoInput options) =
                 , ( "November", "November" )
                 , ( "Desember", "Desember" )
                 ]
-                |> Select.withSelected (Dato.månedTilString options.måned)
+                |> Select.withSelected (Måned.tilString options.måned)
                 |> Select.withClass "DatoInput-måned"
                 |> Select.toHtml
             , div [ class "DatoInput-år-wrapper" ]

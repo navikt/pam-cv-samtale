@@ -13,7 +13,8 @@ import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Sertifikat exposing (Sertifikat)
-import Dato exposing (Måned(..), År, datoTilString)
+import Dato.Dato as Dato exposing (År, datoTilString)
+import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
@@ -185,12 +186,12 @@ type Msg
     | VilRegistrereSertifikat
     | VilRegistrereUtsteder
     | OppdatererUtsteder String
-    | FullførtMånedValgt Dato.Måned
+    | FullførtMånedValgt Måned
     | VilRegistrereFullførtÅr
     | OppdatererFullførtÅr String
     | VilRegistrereUtløperMåned
     | VilIkkeRegistrereUtløpesdato
-    | UtløperMånedValgt Dato.Måned
+    | UtløperMånedValgt Måned
     | VilRegistrereUtløperÅr
     | OppdatererUtløperÅr String
     | VilLagreSertifikat
@@ -882,7 +883,7 @@ feilmeldingTypeahead typeaheadModel =
             Just "Velg eller skriv inn sertifisering eller sertifikat"
 
 
-setFullførtMåned : FullførtDatoInfo -> Dato.Måned -> FullførtDatoInfo
+setFullførtMåned : FullførtDatoInfo -> Måned -> FullførtDatoInfo
 setFullførtMåned fullførtDatoInfo måned =
     { fullførtDatoInfo | fullførtMåned = måned }
 
@@ -895,7 +896,7 @@ oppdaterSkjema endring skjema =
 
         FullførtMåned månedString ->
             månedString
-                |> Dato.stringTilMåned
+                |> Måned.stringTilMåned
                 |> Skjema.oppdaterFullførtMåned skjema
 
         FullførtÅr string ->
@@ -903,7 +904,7 @@ oppdaterSkjema endring skjema =
 
         UtløperMåned månedString ->
             månedString
-                |> Dato.stringTilMåned
+                |> Måned.stringTilMåned
                 |> Skjema.oppdaterUtløperMåned skjema
 
         UtløperÅr string ->

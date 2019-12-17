@@ -28,7 +28,8 @@ module Forerkort.Skjema exposing
     , valider
     )
 
-import Dato exposing (Dato, Måned)
+import Dato.Dato as Dato exposing (Dato)
+import Dato.Maned exposing (Måned)
 import Forerkort.ForerkortKode as FørerkortKode exposing (FørerkortKode)
 import Json.Encode
 

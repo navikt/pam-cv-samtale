@@ -13,7 +13,8 @@ import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
-import Dato exposing (Måned(..), TilDato(..), År)
+import Dato.Dato as Dato exposing (TilDato(..), År)
+import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
@@ -925,12 +926,12 @@ oppdaterSkjema skjemaEndring skjema =
 
         FraMåned månedString ->
             månedString
-                |> Dato.stringTilMåned
+                |> Måned.stringTilMåned
                 |> Skjema.oppdaterFraMåned skjema
 
         TilMåned månedString ->
             månedString
-                |> Dato.stringTilMåned
+                |> Måned.stringTilMåned
                 |> Skjema.oppdaterTilMåned skjema
 
         Nivå nivåString ->
@@ -1333,7 +1334,7 @@ modelTilBrukerInput model =
             Intro _ ->
                 if List.isEmpty model.utdanningListe then
                     BrukerInput.knapper Flytende
-                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdannning"
+                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdanning"
                         , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg har ikke utdanning"
                         ]
 
