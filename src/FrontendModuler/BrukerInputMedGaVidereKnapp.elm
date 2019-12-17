@@ -8,12 +8,13 @@ module FrontendModuler.BrukerInputMedGaVidereKnapp exposing
     , toHtml
     , typeahead
     , withAlternativKnappetekst
+    , withAvbrytKnapp
     , withVisEksempelKnapp
     )
 
 import FrontendModuler.DatoInputMedDag as DatoInputMedDag exposing (DatoInputMedDag)
 import FrontendModuler.Input as Input exposing (Input)
-import FrontendModuler.Knapp as Knapp
+import FrontendModuler.Knapp as Knapp exposing (Type(..))
 import FrontendModuler.Select as Select exposing (Select)
 import FrontendModuler.Textarea as Textarea exposing (Textarea)
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
@@ -22,14 +23,15 @@ import Html.Attributes exposing (class)
 
 
 type BrukerInputMedGåVidereKnapp msg
-    = BrukerInputMedGåVidereKnapp (Info msg)
+    = BrukerInputMedGåVidereKnapp (Options msg)
 
 
-type alias Info msg =
+type alias Options msg =
     { inputElement : InputElement msg
     , gåVidereMsg : msg
     , alternativKnappetekst : Maybe String
     , visEksempelMsg : Maybe msg
+    , onAvbrytMsg : Maybe msg
     }
 
 
@@ -78,6 +80,7 @@ init gåVidereMsg inputElement =
         , gåVidereMsg = gåVidereMsg
         , alternativKnappetekst = Nothing
         , visEksempelMsg = Nothing
+        , onAvbrytMsg = Nothing
         }
 
 
@@ -86,17 +89,22 @@ init gåVidereMsg inputElement =
 
 
 withAlternativKnappetekst : String -> BrukerInputMedGåVidereKnapp msg -> BrukerInputMedGåVidereKnapp msg
-withAlternativKnappetekst alternativKnappetekst (BrukerInputMedGåVidereKnapp info) =
-    BrukerInputMedGåVidereKnapp { info | alternativKnappetekst = Just alternativKnappetekst }
+withAlternativKnappetekst alternativKnappetekst (BrukerInputMedGåVidereKnapp options) =
+    BrukerInputMedGåVidereKnapp { options | alternativKnappetekst = Just alternativKnappetekst }
 
 
 withVisEksempelKnapp : Bool -> msg -> BrukerInputMedGåVidereKnapp msg -> BrukerInputMedGåVidereKnapp msg
-withVisEksempelKnapp eksempelKnappSkalVises visEksempelMsg (BrukerInputMedGåVidereKnapp info) =
+withVisEksempelKnapp eksempelKnappSkalVises visEksempelMsg (BrukerInputMedGåVidereKnapp options) =
     if eksempelKnappSkalVises then
-        BrukerInputMedGåVidereKnapp { info | visEksempelMsg = Just visEksempelMsg }
+        BrukerInputMedGåVidereKnapp { options | visEksempelMsg = Just visEksempelMsg }
 
     else
-        BrukerInputMedGåVidereKnapp info
+        BrukerInputMedGåVidereKnapp options
+
+
+withAvbrytKnapp : msg -> BrukerInputMedGåVidereKnapp msg -> BrukerInputMedGåVidereKnapp msg
+withAvbrytKnapp onAvbrytMsg (BrukerInputMedGåVidereKnapp options) =
+    BrukerInputMedGåVidereKnapp { options | onAvbrytMsg = Just onAvbrytMsg }
 
 
 
@@ -104,15 +112,15 @@ withVisEksempelKnapp eksempelKnappSkalVises visEksempelMsg (BrukerInputMedGåVid
 
 
 toHtml : BrukerInputMedGåVidereKnapp msg -> Html msg
-toHtml (BrukerInputMedGåVidereKnapp info) =
-    case info.inputElement of
+toHtml (BrukerInputMedGåVidereKnapp options) =
+    case options.inputElement of
         InputElement inputElement ->
             inputElement
                 |> Input.toHtml
-                |> gåVidereHtml info
+                |> gåVidereHtml options
 
         SelectElement selectElement ->
-            gåVidereHtml info
+            gåVidereHtml options
                 (div [ class "select-i-samtaleflyt-wrapper" ]
                     [ selectElement
                         |> Select.toHtml
@@ -122,45 +130,72 @@ toHtml (BrukerInputMedGåVidereKnapp info) =
         DatoInputMedDagElement datoInputElement ->
             datoInputElement
                 |> DatoInputMedDag.toHtml
-                |> gåVidereHtml info
+                |> gåVidereHtml options
 
         TextareaElement textareaElement ->
             textareaElement
                 |> Textarea.toHtml
-                |> gåVidereHtml info
+                |> gåVidereHtml options
 
         TypeaheadElement typeaheadElement ->
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema typeahead-skjema-height-wrapper" ]
                     [ Typeahead.toHtml typeaheadElement
-                    , div [ class "gå-videre-knapp" ]
-                        [ gåVidereKnapp info ]
+                    , knapper options
                     ]
                 ]
 
 
-gåVidereHtml : Info msg -> Html msg -> Html msg
-gåVidereHtml info inputElement =
+gåVidereHtml : Options msg -> Html msg -> Html msg
+gåVidereHtml options inputElement =
     div [ class "skjema-wrapper" ]
         [ div [ class "skjema" ]
             [ inputElement
-            , div [ class "gå-videre-knapp" ]
-                [ eksempelKnapp info.visEksempelMsg
-                , gåVidereKnapp info
-                ]
+            , knapper options
             ]
         ]
 
 
-eksempelKnapp : Maybe msg -> Html msg
-eksempelKnapp maybeEksempelMsg =
-    case maybeEksempelMsg of
-        Just visEksempelMsg ->
-            Knapp.knapp visEksempelMsg visEksempelKnappTekst
-                |> Knapp.toHtml
+knapper : Options msg -> Html msg
+knapper options =
+    case ( options.visEksempelMsg, options.onAvbrytMsg ) of
+        ( Just visEksempelMsg, Just avbrytMsg ) ->
+            div []
+                [ div [ class "gå-videre-knapp" ]
+                    [ eksempelKnapp visEksempelMsg
+                    , gåVidereKnapp options
+                    ]
+                , div [ class "avbryt-rad" ]
+                    [ avbrytKnapp avbrytMsg
+                    ]
+                ]
 
-        Nothing ->
-            text ""
+        ( Just visEksempelMsg, Nothing ) ->
+            div [ class "gå-videre-knapp" ]
+                [ eksempelKnapp visEksempelMsg
+                , gåVidereKnapp options
+                ]
+
+        ( Nothing, _ ) ->
+            div [ class "gå-videre-knapp" ]
+                [ options.onAvbrytMsg
+                    |> Maybe.map avbrytKnapp
+                    |> Maybe.withDefault (text "")
+                , gåVidereKnapp options
+                ]
+
+
+avbrytKnapp : msg -> Html msg
+avbrytKnapp avbrytMsg =
+    Knapp.knapp avbrytMsg "Avbryt"
+        |> Knapp.withType Flat
+        |> Knapp.toHtml
+
+
+eksempelKnapp : msg -> Html msg
+eksempelKnapp visEksempelMsg =
+    Knapp.knapp visEksempelMsg visEksempelKnappTekst
+        |> Knapp.toHtml
 
 
 visEksempelKnappTekst : String
@@ -168,11 +203,11 @@ visEksempelKnappTekst =
     "Jeg vil se eksempel"
 
 
-gåVidereKnapp : Info msg -> Html msg
-gåVidereKnapp info =
-    info.alternativKnappetekst
+gåVidereKnapp : Options msg -> Html msg
+gåVidereKnapp options =
+    options.alternativKnappetekst
         |> Maybe.withDefault "Gå videre"
-        |> Knapp.knapp info.gåVidereMsg
+        |> Knapp.knapp options.gåVidereMsg
         |> Knapp.toHtml
 
 
@@ -182,8 +217,11 @@ gåVidereKnapp info =
 
 tilString : msg -> BrukerInputMedGåVidereKnapp msg -> String
 tilString msg (BrukerInputMedGåVidereKnapp info) =
-    if visEksempelKnappTrykket msg info.visEksempelMsg then
+    if maybeKnappTrykket msg info.visEksempelMsg then
         visEksempelKnappTekst
+
+    else if maybeKnappTrykket msg info.onAvbrytMsg then
+        "Avbryt"
 
     else if (inputElementInnhold >> String.trim >> String.isEmpty) info.inputElement then
         "Gå videre"
@@ -192,8 +230,8 @@ tilString msg (BrukerInputMedGåVidereKnapp info) =
         inputElementInnhold info.inputElement
 
 
-visEksempelKnappTrykket : msg -> Maybe msg -> Bool
-visEksempelKnappTrykket msgSendt visEksempelMsg =
+maybeKnappTrykket : msg -> Maybe msg -> Bool
+maybeKnappTrykket msgSendt visEksempelMsg =
     case visEksempelMsg of
         Just msg ->
             msg == msgSendt

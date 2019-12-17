@@ -35,7 +35,7 @@ type alias UvalidertSkjemaInfo =
 
 
 
---INIT --
+--- INIT ---
 
 
 init : FagdokumentasjonType -> Konsept -> String -> FagdokumentasjonSkjema
@@ -180,7 +180,7 @@ validertSkjema (UvalidertSkjema info) =
 
 
 
--- ENCODE --
+--- ENCODE ---
 
 
 encode : ValidertFagdokumentasjonSkjema -> Json.Encode.Value

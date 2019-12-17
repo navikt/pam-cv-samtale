@@ -16,7 +16,7 @@ import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
-import FrontendModuler.Knapp as Knapp exposing (Knapp)
+import FrontendModuler.Knapp as Knapp exposing (Knapp, Type(..))
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Select as Select
 import Html exposing (..)
@@ -61,9 +61,15 @@ type Samtale
     | LeggTilSkriftlig SpråkMedMuntlig
     | LagrerSpråk SpråkSkjema LagreStatus
     | LagringFeilet Http.Error SpråkSkjema
-    | LeggTilFlereSpråk Bool
+    | LeggTilFlereSpråk AvsluttetGrunn
     | SpråkKodeneFeilet (Maybe Http.Error)
     | VenterPåAnimasjonFørFullføring
+
+
+type AvsluttetGrunn
+    = LagtInnSpråk
+    | IkkeLagtInnSpråk
+    | AvbruttPåbegynt
 
 
 type SamtaleStatus
@@ -107,6 +113,7 @@ type Msg
     | SpråkKoderHentet (Result Http.Error (List SpråkKode))
     | BrukerVilHenteSpråkKoderPåNytt
     | BrukerVilAvslutteSeksjonen
+    | BrukerVilAvbryteRegistreringen
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | ErrorLogget
@@ -205,7 +212,8 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         BrukerKanIkkeEngelsk ->
-            ( LeggTilFlereSpråk False
+            ( IkkeLagtInnSpråk
+                |> LeggTilFlereSpråk
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -267,7 +275,7 @@ update msg (Model model) =
                             lagringLykkes model språk lagreStatus LeggTilEngelsk
 
                         LagrerSpråk _ lagreStatus ->
-                            lagringLykkes model språk lagreStatus (LeggTilFlereSpråk True)
+                            lagringLykkes model språk lagreStatus (LeggTilFlereSpråk LagtInnSpråk)
 
                         _ ->
                             IkkeFerdig ( Model model, Cmd.none )
@@ -339,6 +347,14 @@ update msg (Model model) =
 
         BrukerVilAvslutteSeksjonen ->
             ( VenterPåAnimasjonFørFullføring
+                |> oppdaterSamtale model (SvarFraMsg msg)
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
+
+        BrukerVilAvbryteRegistreringen ->
+            ( AvbruttPåbegynt
+                |> LeggTilFlereSpråk
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -556,24 +572,28 @@ samtaleTilMeldingsLogg model språkSeksjon =
         LagringFeilet error skjema ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre " ++ String.toLower (Skjema.språkNavn skjema) } ]
 
-        LeggTilFlereSpråk medOppsummering ->
-            [ [ if medOppsummering then
-                    [ "Bra! Nå har du lagt til "
-                        ++ (model.språk
-                                |> List.filterMap Spraakferdighet.sprak
-                                |> List.map String.toLower
-                                |> listeTilSetning
-                           )
-                        ++ "."
+        LeggTilFlereSpråk avsluttetGrunn ->
+            [ case avsluttetGrunn of
+                LagtInnSpråk ->
+                    [ Melding.spørsmål
+                        [ "Bra! Nå har du lagt til "
+                            ++ (model.språk
+                                    |> List.filterMap Spraakferdighet.sprak
+                                    |> List.map String.toLower
+                                    |> listeTilSetning
+                               )
+                            ++ "."
+                        ]
                     ]
 
-                else
+                IkkeLagtInnSpråk ->
                     []
-              , [ "Kan du flere språk?" ]
-              ]
-                |> List.concat
-                |> Melding.spørsmål
+
+                AvbruttPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg avbrutt." ] ]
+            , [ Melding.spørsmål [ "Kan du flere språk?" ] ]
             ]
+                |> List.concat
 
         SpråkKodeneFeilet _ ->
             [ Melding.spørsmål [ "Oops! Jeg klarte ikke hente listen over språk man kan velge", "Vil du at jeg skal prøve på nytt eller avslutte og gå videre?", "Prøv gjerne igjen senere." ] ]
@@ -754,6 +774,8 @@ modelTilBrukerInput model =
                     , muntligKnapp språkKode Godt
                     , muntligKnapp språkKode VeldigGodt
                     , muntligKnapp språkKode Førstespråk
+                    , Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
+                        |> Knapp.withType Flat
                     ]
 
             LeggTilSkriftlig språkKode ->
@@ -762,12 +784,14 @@ modelTilBrukerInput model =
                     , skriftligKnapp språkKode.språk Godt
                     , skriftligKnapp språkKode.språk VeldigGodt
                     , skriftligKnapp språkKode.språk Førstespråk
+                    , Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
+                        |> Knapp.withType Flat
                     ]
 
             VelgNyttSpråk velgNyttSpråkInfo ->
                 case model.språkKoder of
                     Success list ->
-                        BrukerInput.selectMedGåVidereKnapp BrukerVilGåVidereMedValgtSpråk
+                        BrukerInput.selectMedGåVidereKnapp2 { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedValgtSpråk }
                             (Select.select "Språk"
                                 BrukerHarValgtSpråkFraDropdown
                                 (( "Velg språk", "Velg språk" )

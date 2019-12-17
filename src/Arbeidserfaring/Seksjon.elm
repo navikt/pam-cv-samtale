@@ -71,7 +71,8 @@ type SamtaleStatus
 
 
 type AvsluttetGrunn
-    = SlettetPåbegynt
+    = AvbruttPåbegynt
+    | SlettetPåbegynt
     | AnnenAvslutning
     | EndretEksisterende
 
@@ -103,7 +104,8 @@ type Samtale
     | BekreftSlettingAvPåbegynt ValidertArbeidserfaringSkjema
     | LagrerArbeidserfaring ValidertArbeidserfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
-    | SpørOmBrukerVilLeggeInnMer AvsluttetGrunn
+    | SpørOmBrukerVilLeggeInnMer (List Arbeidserfaring) AvsluttetGrunn
+    | BekreftAvbrytingAvRegistreringen Samtale
     | StartNyArbeidserfaring (Typeahead.Model Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
     | VenterPåAnimasjonFørFullføring String
 
@@ -153,6 +155,9 @@ type Msg
     | ArbeidserfaringLagret (Result Http.Error (List Arbeidserfaring))
     | BrukerVilPrøveÅLagrePåNytt
     | BrukerVilAvbryteLagringen
+    | BrukerVilAvbryteRegistreringen
+    | BrukerBekrefterAvbrytingAvRegistrering
+    | BrukerVilIkkeAvbryteRegistreringen
     | NyArbeidserfaring
     | FerdigMedArbeidserfaring
     | WindowEndrerVisibility Visibility
@@ -842,7 +847,8 @@ update msg (Model model) =
         BekrefterSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt _ ->
-                    ( SpørOmBrukerVilLeggeInnMer SlettetPåbegynt
+                    ( SlettetPåbegynt
+                        |> SpørOmBrukerVilLeggeInnMer model.arbeidserfaringListe
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -909,11 +915,13 @@ update msg (Model model) =
                                         AnnenAvslutning
                             in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                SpørOmBrukerVilLeggeInnMer avsluttetGrunn
+                                avsluttetGrunn
+                                    |> SpørOmBrukerVilLeggeInnMer arbeidserfaringer
                                     |> oppdaterSamtale { model | arbeidserfaringListe = arbeidserfaringer } (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                               else
-                                SpørOmBrukerVilLeggeInnMer avsluttetGrunn
+                                avsluttetGrunn
+                                    |> SpørOmBrukerVilLeggeInnMer arbeidserfaringer
                                     |> oppdaterSamtale { model | arbeidserfaringListe = arbeidserfaringer } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -971,6 +979,45 @@ update msg (Model model) =
 
         BrukerVilAvbryteLagringen ->
             IkkeFerdig ( Model model, Cmd.none )
+
+        BrukerVilAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                RegistrerYrke _ _ ->
+                    avbrytRegistrering model msg
+
+                _ ->
+                    ( model.aktivSamtale
+                        |> BekreftAvbrytingAvRegistreringen
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+        BrukerBekrefterAvbrytingAvRegistrering ->
+            avbrytRegistrering model msg
+
+        BrukerVilIkkeAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                BekreftAvbrytingAvRegistreringen samtaleStegFørAvbryting ->
+                    ( Model
+                        { model
+                            | aktivSamtale = samtaleStegFørAvbryting
+                            , seksjonsMeldingsLogg =
+                                model.seksjonsMeldingsLogg
+                                    |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                                    |> MeldingsLogg.leggTilSpørsmål
+                                        (List.concat
+                                            [ [ Melding.spørsmål [ "Ok. Da fortsetter vi der vi slapp." ] ]
+                                            , samtaleTilMeldingsLogg samtaleStegFørAvbryting
+                                            ]
+                                        )
+                        }
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         NyArbeidserfaring ->
             ( initSamtaleTypeahead
@@ -1045,6 +1092,16 @@ update msg (Model model) =
 
         FokusSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
+avbrytRegistrering model msg =
+    ( AvbruttPåbegynt
+        |> SpørOmBrukerVilLeggeInnMer model.arbeidserfaringListe
+        |> oppdaterSamtale model (SvarFraMsg msg)
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
 
 
 updateSamtaleTypeahead : ModelInfo -> Bool -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
@@ -1393,20 +1450,28 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre arbeidserfaringen" } ]
 
-        SpørOmBrukerVilLeggeInnMer avsluttetGrunn ->
-            case avsluttetGrunn of
+        SpørOmBrukerVilLeggeInnMer arbeidserfaringer avsluttetGrunn ->
+            [ case avsluttetGrunn of
+                AvbruttPåbegynt ->
+                    Melding.spørsmål [ "Nå har jeg avbrutt." ]
+
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå har jeg slettet arbeidserfaringen. Vil du legge inn flere arbeidserfaringer?" ] ]
+                    Melding.spørsmål [ "Nå har jeg slettet arbeidserfaringen." ]
 
                 EndretEksisterende ->
-                    [ Melding.spørsmål [ "Flott! Nå er arbeidserfaringen endret." ]
-                    , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
-                    ]
+                    Melding.spørsmål [ "Flott! Nå er arbeidserfaringen endret." ]
 
                 AnnenAvslutning ->
-                    [ Melding.spørsmål [ "Flott! Nå er arbeidserfaringen lagret." ]
-                    , Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
-                    ]
+                    Melding.spørsmål [ "Flott! Nå er arbeidserfaringen lagret." ]
+            , if List.isEmpty arbeidserfaringer then
+                Melding.spørsmål [ "Har du arbeidserfaring du vil legge inn i CV-en?" ]
+
+              else
+                Melding.spørsmål [ "Vil du legge inn flere arbeidserfaringer?" ]
+            ]
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            [ Melding.spørsmål [ "Hvis du avbryter, blir ikke denne arbeidserfaringen lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
 
         StartNyArbeidserfaring _ ->
             [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
@@ -1509,13 +1574,7 @@ modelTilBrukerInput model =
                     (List.map lagArbeidserfaringKnapp model.arbeidserfaringListe)
 
             RegistrerYrke visFeilmelding typeaheadModel ->
-                BrukerInput.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
-                    (typeaheadModel
-                        |> feilmeldingTypeahead
-                        |> maybeHvisTrue visFeilmelding
-                        |> Typeahead.toViewElement Yrke.label typeaheadModel
-                        |> FrontendModuler.Typeahead.map TypeaheadMsg
-                    )
+                viewRegistrerYrke visFeilmelding typeaheadModel
 
             HentingFraTypeaheadFeilet _ error ->
                 case ErrorHåndtering.operasjonEtterError error of
@@ -1548,7 +1607,7 @@ modelTilBrukerInput model =
                     ]
 
             EndreJobbtittel jobbtittelInfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilRegistrereJobbtittel
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereJobbtittel }
                     (jobbtittelInfo.jobbtittel
                         |> Input.input { label = "Stilling/yrke som vil vises i CV-en", msg = BrukerOppdatererJobbtittelFelt }
                         |> Input.withOnEnter BrukerVilRegistrereJobbtittel
@@ -1556,7 +1615,7 @@ modelTilBrukerInput model =
                     )
 
             RegistrereBedriftsnavn bedriftnanvsInfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilRegistrereBedriftsnavn
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereBedriftsnavn }
                     (bedriftnanvsInfo.bedriftNavn
                         |> Input.input { label = "Bedriftens navn", msg = BrukerOppdatererBedriftsnavn }
                         |> Input.withOnEnter BrukerVilRegistrereBedriftsnavn
@@ -1564,7 +1623,7 @@ modelTilBrukerInput model =
                     )
 
             RegistrereSted stedInfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilRegistrereSted
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereSted }
                     (stedInfo.lokasjon
                         |> Input.input { label = "By, sted eller land", msg = BrukerOppdatererSted }
                         |> Input.withOnEnter BrukerVilRegistrereSted
@@ -1578,13 +1637,14 @@ modelTilBrukerInput model =
                     |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn arbeidsoppgaverInfo.arbeidsoppgaver maxLengthArbeidsoppgaver)
                     |> BrukerInputMedGåVidereKnapp.textarea BrukerVilRegistrereArbeidsoppgaver
                     |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp BrukerVilAvbryteRegistreringen
                     |> BrukerInput.brukerInputMedGåVidereKnapp
 
             RegistrereFraMåned _ ->
-                BrukerInput.månedKnapper BrukerTrykketFraMånedKnapp
+                BrukerInput.månedKnapper { onAvbryt = BrukerVilAvbryteRegistreringen, onMånedValg = BrukerTrykketFraMånedKnapp }
 
             RegistrereFraÅr fraDatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilRegistrereFraÅr
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereFraÅr }
                     (fraDatoInfo.fraÅr
                         |> Input.input { label = "År", msg = BrukerOppdatererFraÅr }
                         |> Input.withClass "aar"
@@ -1603,10 +1663,10 @@ modelTilBrukerInput model =
                     ]
 
             RegistrereTilMåned _ ->
-                BrukerInput.månedKnapper BrukerTrykketTilMånedKnapp
+                BrukerInput.månedKnapper { onAvbryt = BrukerVilAvbryteRegistreringen, onMånedValg = BrukerTrykketTilMånedKnapp }
 
             RegistrereTilÅr tilDatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilRegistrereTilÅr
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereTilÅr }
                     (tilDatoInfo.tilÅr
                         |> Input.input { label = "År", msg = BrukerOppdatererTilÅr }
                         |> Input.withClass "aar"
@@ -1715,12 +1775,12 @@ modelTilBrukerInput model =
                     LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            SpørOmBrukerVilLeggeInnMer _ ->
+            SpørOmBrukerVilLeggeInnMer arbeidserfaringer _ ->
                 BrukerInput.knapper Flytende
                     ([ [ Knapp.knapp NyArbeidserfaring "Ja, legg til en arbeidserfaring"
                        , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle"
                        ]
-                     , if List.length model.arbeidserfaringListe > 0 then
+                     , if List.length arbeidserfaringer > 0 then
                         [ Knapp.knapp BrukerVilRedigereArbeidserfaring "Nei, jeg vil endre det jeg har lagt inn" ]
 
                        else
@@ -1730,13 +1790,16 @@ modelTilBrukerInput model =
                     )
 
             StartNyArbeidserfaring typeaheadModel ->
-                BrukerInput.typeaheadMedGåVidereKnapp BrukerVilRegistrereYrke
-                    (Typeahead.toViewElement Yrke.label typeaheadModel Nothing
-                        |> FrontendModuler.Typeahead.map TypeaheadMsg
-                    )
+                viewRegistrerYrke False typeaheadModel
 
             VenterPåAnimasjonFørFullføring _ ->
                 BrukerInput.utenInnhold
+
+            BekreftAvbrytingAvRegistreringen _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BrukerBekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                    , Knapp.knapp BrukerVilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
+                    ]
 
     else
         BrukerInput.utenInnhold
@@ -1784,6 +1847,17 @@ inputIdTilString inputId =
 
         TilÅrInput ->
             "arbeidserfaring-registrer-til-år"
+
+
+viewRegistrerYrke : Bool -> Typeahead.Model Yrke -> BrukerInput Msg
+viewRegistrerYrke visFeilmelding typeaheadModel =
+    BrukerInput.typeaheadMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereYrke }
+        (typeaheadModel
+            |> feilmeldingTypeahead
+            |> maybeHvisTrue visFeilmelding
+            |> Typeahead.toViewElement Yrke.label typeaheadModel
+            |> FrontendModuler.Typeahead.map TypeaheadMsg
+        )
 
 
 viewBekreftOppsummering : Bool -> BrukerInput Msg

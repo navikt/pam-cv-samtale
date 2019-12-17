@@ -35,6 +35,7 @@ type Enabled
 type Type
     = Normal
     | Hoved
+    | Flat
 
 
 knapp : msg -> String -> Knapp msg
@@ -62,7 +63,11 @@ toHtml (Knapp options) =
     case options.enabled of
         Enabled ->
             button
-                [ classList [ ( "Knapp", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
+                [ classList
+                    [ ( "Knapp", True )
+                    , ( "Knapp--hoved", options.knappeType == Hoved )
+                    , ( "Knapp--flat", options.knappeType == Flat )
+                    ]
                 , onClick options.msg
                 ]
                 [ text options.innhold ]

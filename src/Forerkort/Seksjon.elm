@@ -56,7 +56,8 @@ type alias ModelInfo =
 
 
 type AvsluttetGrunn
-    = SlettetPåbegynt
+    = AvbruttPåbegynt
+    | SlettetPåbegynt
     | AnnenAvslutning
 
 
@@ -79,6 +80,7 @@ type Samtale
     | LagrerFørerkortKlasseB ValidertFørerkortSkjema LagreStatus
     | LagringFeilet Http.Error ValidertFørerkortSkjema
     | LeggTilFlereFørerkort AvsluttetGrunn
+    | BekreftAvbrytingAvRegistreringen Samtale
     | VenterPåAnimasjonFørFullføring (List Førerkort)
 
 
@@ -125,6 +127,9 @@ type Msg
     | VilSlettePåbegynt
     | BekrefterSlettPåbegynt
     | AngrerSlettPåbegynt
+    | BrukerVilAvbryteRegistreringen
+    | BrukerBekrefterAvbrytingAvRegistrering
+    | BrukerVilIkkeAvbryteRegistreringen
     | VilLagreEndretSkjema
     | FerdigMedFørerkort
     | SendSkjemaPåNytt
@@ -688,6 +693,45 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        BrukerVilAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                VelgNyttFørerkort _ ->
+                    avbrytRegistrering model msg
+
+                _ ->
+                    ( model.aktivSamtale
+                        |> BekreftAvbrytingAvRegistreringen
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+        BrukerBekrefterAvbrytingAvRegistrering ->
+            avbrytRegistrering model msg
+
+        BrukerVilIkkeAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                BekreftAvbrytingAvRegistreringen samtaleStegFørAvbryting ->
+                    ( Model
+                        { model
+                            | aktivSamtale = samtaleStegFørAvbryting
+                            , seksjonsMeldingsLogg =
+                                model.seksjonsMeldingsLogg
+                                    |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                                    |> MeldingsLogg.leggTilSpørsmål
+                                        (List.concat
+                                            [ [ Melding.spørsmål [ "Ok. Da fortsetter vi der vi slapp." ] ]
+                                            , samtaleTilMeldingsLogg model samtaleStegFørAvbryting
+                                            ]
+                                        )
+                        }
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         WindowEndrerVisibility visibility ->
             case visibility of
                 Visible ->
@@ -735,6 +779,16 @@ update msg (Model model) =
 
         FokusSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
+avbrytRegistrering model msg =
+    ( AvbruttPåbegynt
+        |> LeggTilFlereFørerkort
+        |> oppdaterSamtale model (SvarFraMsg msg)
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
 
 
 validertSkjemaTilSetninger : ValidertFørerkortSkjema -> List String
@@ -873,6 +927,11 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
 
         LeggTilFlereFørerkort avsluttetGrunn ->
             case avsluttetGrunn of
+                AvbruttPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg avbrutt." ]
+                    , Melding.spørsmål [ "Har du andre førerkort?" ]
+                    ]
+
                 SlettetPåbegynt ->
                     [ Melding.spørsmål [ "Nå har jeg slettet førerkortet. Har du andre førerkort?" ] ]
 
@@ -887,10 +946,11 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
                                )
                             ++ "."
                         ]
-                    , Melding.spørsmål
-                        [ "Har du andre førerkort?"
-                        ]
+                    , Melding.spørsmål [ "Har du andre førerkort?" ]
                     ]
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            [ Melding.spørsmål [ "Hvis du avbryter, blir ikke dette førerkortet lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
 
         VelgNyttFørerkort _ ->
             [ Melding.spørsmål [ "Hvilket førerkort har du?" ] ]
@@ -1087,7 +1147,7 @@ modelTilBrukerInput model =
                     ]
 
             VelgNyttFørerkort velgNyttFørerkortInfo ->
-                BrukerInput.selectMedGåVidereKnapp BrukerVilGåVidereMedValgtFørerkort
+                BrukerInput.selectMedGåVidereKnapp2 { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedValgtFørerkort }
                     (Select.select "Førerkort"
                         BrukerHarValgtFørerkortFraDropdown
                         (( "Velg førerkort", "Velg førerkort" )
@@ -1109,7 +1169,7 @@ modelTilBrukerInput model =
                 BrukerInput.utenInnhold
 
             RegistrereFraDato info ->
-                BrukerInput.datoInputMedGåVidereKnapp BrukerVilGåVidereMedFraDato
+                BrukerInput.datoInputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedFraDato }
                     ({ label = "Gyldig fra dato"
                      , onDagChange = BrukerEndrerFraDag
                      , dag = info.dag
@@ -1130,7 +1190,7 @@ modelTilBrukerInput model =
                     )
 
             RegistrereTilDato info ->
-                BrukerInput.datoInputMedGåVidereKnapp BrukerVilGåVidereMedTilDato
+                BrukerInput.datoInputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedTilDato }
                     ({ label = "Utløper dato"
                      , onDagChange = BrukerEndrerTilDag
                      , dag = info.dag
@@ -1198,6 +1258,12 @@ modelTilBrukerInput model =
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
+                    ]
+
+            BekreftAvbrytingAvRegistreringen _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BrukerBekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                    , Knapp.knapp BrukerVilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
                     ]
 
             LagringFeilet error _ ->
