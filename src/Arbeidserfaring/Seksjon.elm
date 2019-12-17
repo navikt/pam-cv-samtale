@@ -1007,7 +1007,7 @@ update msg (Model model) =
                                     |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
                                     |> MeldingsLogg.leggTilSpørsmål
                                         (List.concat
-                                            [ [ Melding.spørsmål [ "Ok, da fortsetter vi." ] ]
+                                            [ [ Melding.spørsmål [ "Ok. Da fortsetter vi der vi slapp." ] ]
                                             , samtaleTilMeldingsLogg samtaleStegFørAvbryting
                                             ]
                                         )
