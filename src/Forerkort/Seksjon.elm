@@ -1147,7 +1147,7 @@ modelTilBrukerInput model =
                     ]
 
             VelgNyttFørerkort velgNyttFørerkortInfo ->
-                BrukerInput.selectMedGåVidereKnapp2 { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedValgtFørerkort }
+                BrukerInput.selectMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedValgtFørerkort }
                     (Select.select "Førerkort"
                         BrukerHarValgtFørerkortFraDropdown
                         (( "Velg førerkort", "Velg førerkort" )

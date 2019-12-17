@@ -791,7 +791,7 @@ modelTilBrukerInput model =
             VelgNyttSpråk velgNyttSpråkInfo ->
                 case model.språkKoder of
                     Success list ->
-                        BrukerInput.selectMedGåVidereKnapp2 { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedValgtSpråk }
+                        BrukerInput.selectMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedValgtSpråk }
                             (Select.select "Språk"
                                 BrukerHarValgtSpråkFraDropdown
                                 (( "Velg språk", "Velg språk" )

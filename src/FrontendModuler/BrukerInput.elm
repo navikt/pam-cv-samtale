@@ -8,7 +8,6 @@ module FrontendModuler.BrukerInput exposing
     , lenke
     , månedKnapper
     , selectMedGåVidereKnapp
-    , selectMedGåVidereKnapp2
     , skjema
     , textareaMedGåVidereKnapp
     , tilSvarMelding
@@ -87,14 +86,8 @@ typeaheadMedGåVidereKnapp { onGåVidere, onAvbryt } typeaheadElement =
         |> brukerInputMedGåVidereKnapp
 
 
-selectMedGåVidereKnapp : msg -> Select msg -> BrukerInput msg
-selectMedGåVidereKnapp gåVidereMsg selectElement =
-    BrukerInputMedGåVidereKnapp.select gåVidereMsg selectElement
-        |> brukerInputMedGåVidereKnapp
-
-
-selectMedGåVidereKnapp2 : { onGåVidere : msg, onAvbryt : msg } -> Select msg -> BrukerInput msg
-selectMedGåVidereKnapp2 { onGåVidere, onAvbryt } selectElement =
+selectMedGåVidereKnapp : { onGåVidere : msg, onAvbryt : msg } -> Select msg -> BrukerInput msg
+selectMedGåVidereKnapp { onGåVidere, onAvbryt } selectElement =
     BrukerInputMedGåVidereKnapp.select onGåVidere selectElement
         |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp onAvbryt
         |> brukerInputMedGåVidereKnapp
