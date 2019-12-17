@@ -21,7 +21,7 @@ import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKna
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
-import FrontendModuler.Knapp as Knapp exposing (Knapp)
+import FrontendModuler.Knapp as Knapp exposing (Knapp, Type(..))
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Select as Select
 import FrontendModuler.Textarea as Textarea
@@ -30,7 +30,7 @@ import Html.Attributes exposing (..)
 import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
 import Meldinger.Melding as Melding exposing (Melding, Tekstområde(..))
-import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
@@ -56,7 +56,8 @@ type alias ModelInfo =
 
 
 type AvsluttetGrunn
-    = SlettetPåbegynt
+    = AvbruttPåbegynt
+    | SlettetPåbegynt
     | EndretEksisterende
     | AnnenAvslutning
 
@@ -84,7 +85,8 @@ type Samtale
     | BekreftSlettingAvPåbegynt ValidertUtdanningSkjema
     | LagrerSkjema ValidertUtdanningSkjema LagreStatus
     | LagringFeilet Http.Error ValidertUtdanningSkjema
-    | LeggTilFlereUtdanninger AvsluttetGrunn
+    | LeggTilFlereUtdanninger (List Utdanning) AvsluttetGrunn
+    | BekreftAvbrytingAvRegistreringen Samtale
     | VenterPåAnimasjonFørFullføring (List Utdanning) AvsluttetGrunn
 
 
@@ -235,6 +237,9 @@ type Msg
     | UtdanningSendtTilApi (Result Http.Error (List Utdanning))
     | BrukerVilPrøveÅLagrePåNytt
     | BrukerVilAvbryteLagringen
+    | BrukerVilAvbryteRegistreringen
+    | BrukerBekrefterAvbrytingAvRegistrering
+    | BrukerVilIkkeAvbryteRegistreringen
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
@@ -593,7 +598,8 @@ update msg (Model model) =
         BekrefterSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt _ ->
-                    ( LeggTilFlereUtdanninger SlettetPåbegynt
+                    ( SlettetPåbegynt
+                        |> LeggTilFlereUtdanninger model.utdanningListe
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -672,13 +678,13 @@ update msg (Model model) =
                                         AnnenAvslutning
                             in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                oppdaterSamtale
-                                    { model | utdanningListe = value }
-                                    (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
-                                    (LeggTilFlereUtdanninger avsluttetGrunn)
+                                avsluttetGrunn
+                                    |> LeggTilFlereUtdanninger value
+                                    |> oppdaterSamtale { model | utdanningListe = value } (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                               else
-                                LeggTilFlereUtdanninger avsluttetGrunn
+                                avsluttetGrunn
+                                    |> LeggTilFlereUtdanninger model.utdanningListe
                                     |> oppdaterSamtale { model | utdanningListe = value } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -729,7 +735,8 @@ update msg (Model model) =
                                     else
                                         AnnenAvslutning
                             in
-                            ( LeggTilFlereUtdanninger avsluttetGrunn
+                            ( avsluttetGrunn
+                                |> LeggTilFlereUtdanninger model.utdanningListe
                                 |> oppdaterSamtale { model | utdanningListe = value } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -772,6 +779,48 @@ update msg (Model model) =
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
+
+        BrukerVilAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                RegistrerNivå ->
+                    avbrytRegistrering model msg
+
+                RegistrerSkole _ ->
+                    avbrytRegistrering model msg
+
+                _ ->
+                    ( model.aktivSamtale
+                        |> BekreftAvbrytingAvRegistreringen
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+        BrukerBekrefterAvbrytingAvRegistrering ->
+            avbrytRegistrering model msg
+
+        BrukerVilIkkeAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                BekreftAvbrytingAvRegistreringen samtaleStegFørAvbryting ->
+                    ( Model
+                        { model
+                            | aktivSamtale = samtaleStegFørAvbryting
+                            , seksjonsMeldingsLogg =
+                                model.seksjonsMeldingsLogg
+                                    |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                                    |> MeldingsLogg.leggTilSpørsmål
+                                        (List.concat
+                                            [ [ Melding.spørsmål [ "Ok, da fortsetter vi." ] ]
+                                            , samtaleTilMeldingsLogg samtaleStegFørAvbryting
+                                            ]
+                                        )
+                        }
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         WindowEndrerVisibility visibility ->
             case visibility of
@@ -828,6 +877,16 @@ update msg (Model model) =
 
         FokusSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
+avbrytRegistrering model msg =
+    ( AvbruttPåbegynt
+        |> LeggTilFlereUtdanninger model.utdanningListe
+        |> oppdaterSamtale model (SvarFraMsg msg)
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
 
 
 nivåToString : Nivå -> String
@@ -1147,20 +1206,31 @@ samtaleTilMeldingsLogg utdanningSeksjon =
         BekreftSlettingAvPåbegynt _ ->
             [ Melding.spørsmål [ "Er du sikker på at du vil slette denne utdanningen?" ] ]
 
-        LeggTilFlereUtdanninger avsluttetGrunn ->
-            case avsluttetGrunn of
+        LeggTilFlereUtdanninger utdanninger avsluttetGrunn ->
+            [ case avsluttetGrunn of
+                AvbruttPåbegynt ->
+                    Melding.spørsmål [ "Nå har jeg avbrutt." ]
+
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå har jeg slettet utdanningen. Vil du legge inn flere utdanninger?" ] ]
+                    Melding.spørsmål [ "Nå har jeg slettet utdanningen." ]
 
                 EndretEksisterende ->
-                    [ Melding.spørsmål [ "Så bra! Nå er utdanningen endret👍" ]
-                    , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
-                    ]
+                    Melding.spørsmål [ "Så bra! Nå er utdanningen endret👍" ]
 
                 AnnenAvslutning ->
-                    [ Melding.spørsmål [ "Så bra! Nå er utdanningen lagret👍" ]
-                    , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
-                    ]
+                    Melding.spørsmål [ "Så bra! Nå er utdanningen lagret👍" ]
+            , if List.isEmpty utdanninger then
+                Melding.spørsmål [ "Har du utdanning du vil legge inn i CV-en?" ]
+
+              else
+                Melding.spørsmål [ "Vil du legge inn flere utdanninger?" ]
+            ]
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            [ Melding.spørsmål [ "Hvis du avbryter, blir ikke denne utdanningen lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
+
+        LagrerSkjema _ _ ->
+            []
 
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre utdanning" } ]
@@ -1175,9 +1245,6 @@ samtaleTilMeldingsLogg utdanningSeksjon =
 
             else
                 [ Melding.spørsmål [ "Bra jobba! Da går vi videre." ] ]
-
-        LagrerSkjema _ _ ->
-            []
 
 
 validertSkjemaTilSetninger : ValidertUtdanningSkjema -> List String
@@ -1283,17 +1350,19 @@ modelTilBrukerInput model =
 
             RegistrerNivå ->
                 BrukerInput.knapper Kolonne
-                    [ Knapp.knapp (BrukerVilRegistrereNivå Grunnskole) (nivåToString Grunnskole)
-                    , Knapp.knapp (BrukerVilRegistrereNivå VideregåendeYrkesskole) (nivåToString VideregåendeYrkesskole)
-                    , Knapp.knapp (BrukerVilRegistrereNivå Fagskole) (nivåToString Fagskole)
-                    , Knapp.knapp (BrukerVilRegistrereNivå Folkehøyskole) (nivåToString Folkehøyskole)
-                    , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning1til4) (nivåToString HøyereUtdanning1til4)
-                    , Knapp.knapp (BrukerVilRegistrereNivå HøyereUtdanning4pluss) (nivåToString HøyereUtdanning4pluss)
-                    , Knapp.knapp (BrukerVilRegistrereNivå Doktorgrad) (nivåToString Doktorgrad)
+                    [ velgNivåKnapp Grunnskole
+                    , velgNivåKnapp VideregåendeYrkesskole
+                    , velgNivåKnapp Fagskole
+                    , velgNivåKnapp Folkehøyskole
+                    , velgNivåKnapp HøyereUtdanning1til4
+                    , velgNivåKnapp HøyereUtdanning4pluss
+                    , velgNivåKnapp Doktorgrad
+                    , Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
+                        |> Knapp.withType Flat
                     ]
 
             RegistrerSkole skoleinfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilRegistrereSkole
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereSkole }
                     (skoleinfo.skole
                         |> Input.input { msg = OppdaterSkole, label = "Skole/studiested" }
                         |> Input.withOnEnter BrukerVilRegistrereSkole
@@ -1301,7 +1370,7 @@ modelTilBrukerInput model =
                     )
 
             RegistrerRetning retningsinfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilRegistrereRetning
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereRetning }
                     (retningsinfo.retning
                         |> Input.input { msg = OppdaterRetning, label = "Grad og utdanningsretning" }
                         |> Input.withId (inputIdTilString RegistrerRetningInput)
@@ -1315,13 +1384,14 @@ modelTilBrukerInput model =
                     |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn beskrivelseinfo.beskrivelse maxLengthBeskrivelse)
                     |> BrukerInputMedGåVidereKnapp.textarea BrukerVilRegistrereBeskrivelse
                     |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp BrukerVilAvbryteRegistreringen
                     |> BrukerInput.brukerInputMedGåVidereKnapp
 
             RegistrereFraMåned _ ->
-                BrukerInput.månedKnapper BrukerTrykketFraMånedKnapp
+                BrukerInput.månedKnapper { onAvbryt = BrukerVilAvbryteRegistreringen, onMånedValg = BrukerTrykketFraMånedKnapp }
 
             RegistrereFraÅr fraDatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilGåVidereMedFraÅr
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedFraÅr }
                     (fraDatoInfo.fraÅr
                         |> Input.input { label = "År", msg = OppdaterFraÅr }
                         |> Input.withWrapperClass "år-wrapper"
@@ -1339,10 +1409,10 @@ modelTilBrukerInput model =
                     ]
 
             RegistrereTilMåned _ ->
-                BrukerInput.månedKnapper BrukerTrykketTilMånedKnapp
+                BrukerInput.månedKnapper { onAvbryt = BrukerVilAvbryteRegistreringen, onMånedValg = BrukerTrykketTilMånedKnapp }
 
             RegistrereTilÅr tilDatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp BrukerVilGåTilOppsummering
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåTilOppsummering }
                     (tilDatoInfo.tilÅr
                         |> Input.input { label = "År", msg = OppdaterTilÅr }
                         |> Input.withWrapperClass "år-wrapper"
@@ -1370,12 +1440,12 @@ modelTilBrukerInput model =
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
-            LeggTilFlereUtdanninger avsluttetGrunn ->
+            LeggTilFlereUtdanninger utdanninger avsluttetGrunn ->
                 BrukerInput.knapper Flytende
                     ([ [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                        , Knapp.knapp (GåTilArbeidserfaring avsluttetGrunn) "Nei, jeg er ferdig"
                        ]
-                     , if List.length model.utdanningListe > 0 then
+                     , if List.length utdanninger > 0 then
                         [ Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn" ]
 
                        else
@@ -1406,6 +1476,12 @@ modelTilBrukerInput model =
 
                     LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
+
+            BekreftAvbrytingAvRegistreringen _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BrukerBekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                    , Knapp.knapp BrukerVilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
+                    ]
 
             VenterPåAnimasjonFørFullføring _ _ ->
                 BrukerInput.utenInnhold
@@ -1443,6 +1519,13 @@ inputIdTilString inputId =
 
         EndrerOppsummeringInput ->
             "utdanning-endrer-oppsummering"
+
+
+velgNivåKnapp : Nivå -> Knapp Msg
+velgNivåKnapp nivå =
+    nivå
+        |> nivåToString
+        |> Knapp.knapp (BrukerVilRegistrereNivå nivå)
 
 
 maybeHvisTrue : Bool -> Maybe a -> Maybe a
@@ -1601,9 +1684,9 @@ init debugStatus gammelMeldingsLogg utdanningListe =
     in
     ( Model
         { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål
-                (samtaleTilMeldingsLogg aktivSamtale)
-                (tilMeldingsLogg gammelMeldingsLogg)
+            gammelMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
         , utdanningListe = utdanningListe
         , debugStatus = debugStatus

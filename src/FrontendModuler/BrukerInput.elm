@@ -18,14 +18,14 @@ module FrontendModuler.BrukerInput exposing
 
 import Dato exposing (Måned)
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
-import FrontendModuler.DatoInputMedDag as DatoInputMedDag exposing (DatoInputMedDag)
-import FrontendModuler.Input as Input exposing (Input)
+import FrontendModuler.DatoInputMedDag exposing (DatoInputMedDag)
+import FrontendModuler.Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Knapp)
 import FrontendModuler.Lenke as Lenke exposing (Lenke)
 import FrontendModuler.ManedKnapper as MånedKnapper
-import FrontendModuler.Select as Select exposing (Select)
-import FrontendModuler.Textarea as Textarea exposing (Textarea)
-import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
+import FrontendModuler.Select exposing (Select)
+import FrontendModuler.Textarea exposing (Textarea)
+import FrontendModuler.Typeahead exposing (Typeahead)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import List.Extra as List
@@ -35,7 +35,7 @@ import Meldinger.Melding as Melding exposing (Melding)
 type BrukerInput msg
     = Knapper KnapperLayout (List (Knapp msg))
     | BrukerInputMedGåVidereKnapp (BrukerInputMedGåVidereKnapp msg)
-    | MånedKnapper (Måned -> msg)
+    | MånedKnapper { onMånedValg : Måned -> msg, onAvbryt : msg }
     | Skjema { lagreMsg : msg, lagreKnappTekst : String } (List (Html msg))
     | Lenke (Lenke msg)
     | UtenInnhold
@@ -56,14 +56,15 @@ knapper =
     Knapper
 
 
-månedKnapper : (Måned -> msg) -> BrukerInput msg
+månedKnapper : { onMånedValg : Måned -> msg, onAvbryt : msg } -> BrukerInput msg
 månedKnapper =
     MånedKnapper
 
 
-inputMedGåVidereKnapp : msg -> Input msg -> BrukerInput msg
-inputMedGåVidereKnapp gåVidereMsg inputElement =
-    BrukerInputMedGåVidereKnapp.input gåVidereMsg inputElement
+inputMedGåVidereKnapp : { onGåVidere : msg, onAvbryt : msg } -> Input msg -> BrukerInput msg
+inputMedGåVidereKnapp { onGåVidere, onAvbryt } inputElement =
+    BrukerInputMedGåVidereKnapp.input onGåVidere inputElement
+        |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp onAvbryt
         |> brukerInputMedGåVidereKnapp
 
 
@@ -78,9 +79,10 @@ textareaMedGåVidereKnapp gåVidereMsg textareaElement =
         |> brukerInputMedGåVidereKnapp
 
 
-typeaheadMedGåVidereKnapp : msg -> Typeahead msg -> BrukerInput msg
-typeaheadMedGåVidereKnapp gåVidereMsg typeaheadElement =
-    BrukerInputMedGåVidereKnapp.typeahead gåVidereMsg typeaheadElement
+typeaheadMedGåVidereKnapp : { onGåVidere : msg, onAvbryt : msg } -> Typeahead msg -> BrukerInput msg
+typeaheadMedGåVidereKnapp { onGåVidere, onAvbryt } typeaheadElement =
+    BrukerInputMedGåVidereKnapp.typeahead onGåVidere typeaheadElement
+        |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp onAvbryt
         |> brukerInputMedGåVidereKnapp
 
 
@@ -160,8 +162,8 @@ toHtml brukerInput =
                     ]
                 ]
 
-        MånedKnapper onMånedClick ->
-            MånedKnapper.månedKnapper onMånedClick
+        MånedKnapper { onMånedValg, onAvbryt } ->
+            MånedKnapper.månedKnapper { onMånedValg = onMånedValg, onAvbryt = onAvbryt }
 
         UtenInnhold ->
             text ""
@@ -202,8 +204,12 @@ tilString msg brukerInput =
         UtenInnhold ->
             ""
 
-        MånedKnapper månedMsg ->
-            Dato.måneder
-                |> List.find (\måned -> månedMsg måned == msg)
-                |> Maybe.map Dato.månedTilString
-                |> Maybe.withDefault ""
+        MånedKnapper { onMånedValg, onAvbryt } ->
+            if msg == onAvbryt then
+                "Avbryt"
+
+            else
+                Dato.måneder
+                    |> List.find (\måned -> onMånedValg måned == msg)
+                    |> Maybe.map Dato.månedTilString
+                    |> Maybe.withDefault ""

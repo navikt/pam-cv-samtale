@@ -66,7 +66,8 @@ type SamtaleStatus
 
 
 type AvsluttetGrunn
-    = SlettetPåbegynt
+    = AvbruttPåbegynt
+    | SlettetPåbegynt
     | AnnenAvslutning
 
 
@@ -89,6 +90,7 @@ type Samtale
     | BekreftSlettingAvPåbegynt ValidertSertifikatSkjema
     | LagrerSkjema ValidertSertifikatSkjema LagreStatus
     | LagringFeilet Http.Error ValidertSertifikatSkjema
+    | BekreftAvbrytingAvRegistreringen Samtale
     | VenterPåAnimasjonFørFullføring (List Sertifikat) AvsluttetGrunn
 
 
@@ -199,6 +201,9 @@ type Msg
     | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
     | SertifikatLagret (Result Http.Error (List Sertifikat))
+    | VilAvbryteRegistreringen
+    | BekrefterAvbrytingAvRegistrering
+    | VilIkkeAvbryteRegistreringen
     | FerdigMedSertifikat
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
@@ -647,6 +652,45 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
+        VilAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                RegistrerSertifikatFelt _ _ ->
+                    avbrytRegistrering model msg
+
+                _ ->
+                    ( model.aktivSamtale
+                        |> BekreftAvbrytingAvRegistreringen
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+        BekrefterAvbrytingAvRegistrering ->
+            avbrytRegistrering model msg
+
+        VilIkkeAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                BekreftAvbrytingAvRegistreringen samtaleStegFørAvbryting ->
+                    ( Model
+                        { model
+                            | aktivSamtale = samtaleStegFørAvbryting
+                            , seksjonsMeldingsLogg =
+                                model.seksjonsMeldingsLogg
+                                    |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                                    |> MeldingsLogg.leggTilSpørsmål
+                                        (List.concat
+                                            [ [ Melding.spørsmål [ "Ok, da fortsetter vi." ] ]
+                                            , samtaleTilMeldingsLogg samtaleStegFørAvbryting
+                                            ]
+                                        )
+                        }
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         FerdigMedSertifikat ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
@@ -754,6 +798,16 @@ sertifikatFeltFraTypeaheadModel typeaheadModel =
 
             else
                 Nothing
+
+
+avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
+avbrytRegistrering model msg =
+    ( AvbruttPåbegynt
+        |> VenterPåAnimasjonFørFullføring model.sertifikatListe
+        |> oppdaterSamtale model (SvarFraMsg msg)
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
 
 
 brukerVilRegistrereFritekstSertifikat : ModelInfo -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
@@ -1040,12 +1094,18 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre sertifikat/sertifisering" } ]
 
+        BekreftAvbrytingAvRegistreringen _ ->
+            [ Melding.spørsmål [ "Hvis du avbryter, blir ikke sertifikatet/sertifiseringen lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
+
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
+                AvbruttPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg avbrutt. Vil du legge inn flere kategorier?" ] ]
+
                 SlettetPåbegynt ->
                     [ Melding.spørsmål [ "Nå har jeg slettet sertifiseringen/sertifikatet. Vil du legge inn flere kategorier?" ] ]
 
-                _ ->
+                AnnenAvslutning ->
                     [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
 
@@ -1151,7 +1211,7 @@ modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
             RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
-                BrukerInput.typeaheadMedGåVidereKnapp VilRegistrereSertifikat
+                BrukerInput.typeaheadMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereSertifikat }
                     (typeaheadModel
                         |> feilmeldingTypeahead
                         |> maybeHvisTrue visFeilmelding
@@ -1160,7 +1220,7 @@ modelTilBrukerInput model =
                     )
 
             RegistrerUtsteder input ->
-                BrukerInput.inputMedGåVidereKnapp VilRegistrereUtsteder
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereUtsteder }
                     (input.utsteder
                         |> Input.input { label = "Utsteder", msg = OppdatererUtsteder }
                         |> Input.withOnEnter VilRegistrereUtsteder
@@ -1168,10 +1228,10 @@ modelTilBrukerInput model =
                     )
 
             RegistrerFullførtMåned _ ->
-                BrukerInput.månedKnapper FullførtMånedValgt
+                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = FullførtMånedValgt }
 
             RegistrerFullførtÅr fullførtDatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp VilRegistrereFullførtÅr
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFullførtÅr }
                     (fullførtDatoInfo.fullførtÅr
                         |> Input.input { label = "År", msg = OppdatererFullførtÅr }
                         |> Input.withClass "aar"
@@ -1194,10 +1254,10 @@ modelTilBrukerInput model =
                     ]
 
             RegistrerUtløperMåned _ ->
-                BrukerInput.månedKnapper UtløperMånedValgt
+                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = UtløperMånedValgt }
 
             RegistrerUtløperÅr utløpsdatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp VilRegistrereUtløperÅr
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereUtløperÅr }
                     (utløpsdatoInfo.utløperÅr
                         |> Input.input { label = "År", msg = OppdatererUtløperÅr }
                         |> Input.withClass "aar"
@@ -1283,6 +1343,12 @@ modelTilBrukerInput model =
 
                     LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
+
+            BekreftAvbrytingAvRegistreringen _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                    , Knapp.knapp VilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
+                    ]
 
             VenterPåAnimasjonFørFullføring _ _ ->
                 BrukerInput.utenInnhold

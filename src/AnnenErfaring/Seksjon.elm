@@ -65,7 +65,8 @@ type SamtaleStatus
 
 
 type AvsluttetGrunn
-    = SlettetPåbegynt
+    = AvbruttPåbegynt
+    | SlettetPåbegynt
     | AnnenAvslutning
 
 
@@ -89,6 +90,7 @@ type Samtale
     | BekreftSlettingAvPåbegynt ValidertAnnenErfaringSkjema
     | LagrerSkjema ValidertAnnenErfaringSkjema LagreStatus
     | LagringFeilet Http.Error ValidertAnnenErfaringSkjema
+    | BekreftAvbrytingAvRegistreringen Samtale
     | VenterPåAnimasjonFørFullføring (List AnnenErfaring) AvsluttetGrunn
 
 
@@ -224,6 +226,9 @@ type Msg
     | VilSlettePåbegynt
     | BekrefterSlettPåbegynt
     | AngrerSlettPåbegynt
+    | VilAvbryteRegistreringen
+    | BekrefterAvbrytingAvRegistrering
+    | VilIkkeAvbryteRegistreringen
     | VilLagreEndretSkjema
     | AnnenErfaringLagret (Result Http.Error (List AnnenErfaring))
     | FerdigMedAnnenErfaring
@@ -581,6 +586,45 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                RegistrerRolle _ ->
+                    avbrytRegistrering model msg
+
+                _ ->
+                    ( model.aktivSamtale
+                        |> BekreftAvbrytingAvRegistreringen
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+        BekrefterAvbrytingAvRegistrering ->
+            avbrytRegistrering model msg
+
+        VilIkkeAvbryteRegistreringen ->
+            case model.aktivSamtale of
+                BekreftAvbrytingAvRegistreringen samtaleStegFørAvbryting ->
+                    ( Model
+                        { model
+                            | aktivSamtale = samtaleStegFørAvbryting
+                            , seksjonsMeldingsLogg =
+                                model.seksjonsMeldingsLogg
+                                    |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
+                                    |> MeldingsLogg.leggTilSpørsmål
+                                        (List.concat
+                                            [ [ Melding.spørsmål [ "Ok, da fortsetter vi." ] ]
+                                            , samtaleTilMeldingsLogg samtaleStegFørAvbryting
+                                            ]
+                                        )
+                        }
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
                 EndreOpplysninger skjema ->
@@ -733,6 +777,16 @@ update msg (Model model) =
 
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
+avbrytRegistrering model msg =
+    ( AvbruttPåbegynt
+        |> VenterPåAnimasjonFørFullføring model.annenErfaringListe
+        |> oppdaterSamtale model (SvarFraMsg msg)
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
 
 
 setFraMåned : FraDatoInfo -> Dato.Måned -> FraDatoInfo
@@ -916,8 +970,14 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre annen erfaring" } ]
 
+        BekreftAvbrytingAvRegistreringen _ ->
+            [ Melding.spørsmål [ "Hvis du avbryter, blir ikke erfaringen lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
+
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
+                AvbruttPåbegynt ->
+                    [ Melding.spørsmål [ "Nå har jeg avbrutt. Vil du legge inn flere kategorier?" ] ]
+
                 SlettetPåbegynt ->
                     [ Melding.spørsmål [ "Nå har jeg slettet erfaringen. Vil du legge inn flere kategorier?" ] ]
 
@@ -1032,7 +1092,7 @@ modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
             RegistrerRolle info ->
-                BrukerInput.inputMedGåVidereKnapp VilRegistrereRolle
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereRolle }
                     (info.rolle
                         |> Input.input { label = "Rolle", msg = OppdatererRolle }
                         |> Input.withOnEnter VilRegistrereRolle
@@ -1053,21 +1113,20 @@ modelTilBrukerInput model =
                     |> Textarea.withId (inputIdTilString BeskrivelseId)
                     |> BrukerInputMedGåVidereKnapp.textarea VilRegistrereBeskrivelse
                     |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
+                    |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp VilAvbryteRegistreringen
                     |> BrukerInput.brukerInputMedGåVidereKnapp
 
             SpørOmBrukerVilLeggeInnTidsperiode _ ->
                 BrukerInput.knapper Flytende
-                    [ "Ja, det vil jeg"
-                        |> Knapp.knapp SvarerJaTilTidsperiode
-                    , "Nei, det vil jeg ikke"
-                        |> Knapp.knapp SvarerNeiTilTidsperiode
+                    [ Knapp.knapp SvarerJaTilTidsperiode "Ja, det vil jeg"
+                    , Knapp.knapp SvarerNeiTilTidsperiode "Nei, det vil jeg ikke"
                     ]
 
             RegistrerFraMåned _ ->
-                BrukerInput.månedKnapper FraMånedValgt
+                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = FraMånedValgt }
 
             RegistrerFraÅr fraDatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp VilRegistrereFraÅr
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFraÅr }
                     (fraDatoInfo.fraÅr
                         |> Input.input { label = "År", msg = OppdatererFraÅr }
                         |> Input.withClass "aar"
@@ -1090,10 +1149,10 @@ modelTilBrukerInput model =
                     ]
 
             RegistrerTilMåned _ ->
-                BrukerInput.månedKnapper TilMånedValgt
+                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = TilMånedValgt }
 
             RegistrerTilÅr tilDatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp VilRegistrereTilÅr
+                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereTilÅr }
                     (tilDatoInfo.tilÅr
                         |> Input.input { label = "År", msg = OppdatererTilÅr }
                         |> Input.withClass "aar"
@@ -1160,6 +1219,12 @@ modelTilBrukerInput model =
 
                     ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
+
+            BekreftAvbrytingAvRegistreringen _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                    , Knapp.knapp VilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
+                    ]
 
             VenterPåAnimasjonFørFullføring _ _ ->
                 BrukerInput.utenInnhold
