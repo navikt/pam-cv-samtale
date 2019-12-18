@@ -70,6 +70,11 @@ type SamtaleStatus
     | Ferdig FerdigAnimertMeldingsLogg
 
 
+type RegistreringsType
+    = RegistrerFørsteGang
+    | HarRegistrertFør
+
+
 type AvsluttetGrunn
     = AvbruttPåbegynt
     | SlettetPåbegynt
@@ -86,7 +91,7 @@ type OppsummeringsType
 type Samtale
     = Intro
     | VelgEnArbeidserfaringÅRedigere
-    | RegistrerYrke Bool (Typeahead.Model Yrke)
+    | RegistrerYrke RegistreringsType { visFeilmelding : Bool } (Typeahead.Model Yrke)
     | HentingFraTypeaheadFeilet (Typeahead.Model Yrke) Http.Error
     | HenterFraTypeaheadPåNyttEtterFeiling (Typeahead.Model Yrke) Http.Error
     | SpørOmBrukerVilEndreJobbtittel JobbtittelInfo
@@ -106,7 +111,6 @@ type Samtale
     | LagringFeilet Http.Error ValidertArbeidserfaringSkjema
     | SpørOmBrukerVilLeggeInnMer (List Arbeidserfaring) AvsluttetGrunn
     | BekreftAvbrytingAvRegistreringen Samtale
-    | StartNyArbeidserfaring (Typeahead.Model Yrke) -- Denne brukes kun for å få en annen melding fra Cvert i meldingsloggen, men hopper over til RegistrerYrke etter det
     | VenterPåAnimasjonFørFullføring String
 
 
@@ -342,7 +346,7 @@ update msg (Model model) =
 
         BrukerVilLeggeTilNyArbeidserfaring ->
             ( initSamtaleTypeahead
-                |> RegistrerYrke False
+                |> RegistrerYrke HarRegistrertFør { visFeilmelding = False }
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -350,11 +354,8 @@ update msg (Model model) =
 
         TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                RegistrerYrke visFeilmelding typeaheadModel ->
-                    updateSamtaleTypeahead model visFeilmelding typeaheadMsg typeaheadModel
-
-                StartNyArbeidserfaring typeaheadModel ->
-                    updateSamtaleTypeahead model False typeaheadMsg typeaheadModel
+                RegistrerYrke registreringsType visFeilmelding typeaheadModel ->
+                    updateSamtaleTypeahead model registreringsType visFeilmelding typeaheadMsg typeaheadModel
 
                 RedigerOppsummering gammelTypeaheadModel skjema ->
                     let
@@ -381,12 +382,12 @@ update msg (Model model) =
 
         HentetYrkeTypeahead result ->
             case model.aktivSamtale of
-                RegistrerYrke visFeilmelding typeaheadModel ->
+                RegistrerYrke registreringsType visFeilmelding typeaheadModel ->
                     case result of
                         Ok suggestions ->
                             ( suggestions
                                 |> Typeahead.updateSuggestions Yrke.label typeaheadModel
-                                |> RegistrerYrke visFeilmelding
+                                |> RegistrerYrke registreringsType visFeilmelding
                                 |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
@@ -411,7 +412,7 @@ update msg (Model model) =
                                     | aktivSamtale =
                                         suggestions
                                             |> Typeahead.updateSuggestions Yrke.label typeaheadModel
-                                            |> RegistrerYrke False
+                                            |> RegistrerYrke RegistrerFørsteGang { visFeilmelding = False }
                                     , seksjonsMeldingsLogg =
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå gikk det!" ] ]
@@ -450,13 +451,13 @@ update msg (Model model) =
 
         BrukerVilRegistrereYrke ->
             case model.aktivSamtale of
-                RegistrerYrke _ typeaheadModel ->
+                RegistrerYrke registreringsType _ typeaheadModel ->
                     case Typeahead.selected typeaheadModel of
                         Just yrke ->
                             brukerVelgerYrke model msg yrke
 
                         Nothing ->
-                            visFeilmeldingRegistrerYrke model typeaheadModel
+                            visFeilmeldingRegistrerYrke model registreringsType typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -982,7 +983,7 @@ update msg (Model model) =
 
         BrukerVilAvbryteRegistreringen ->
             case model.aktivSamtale of
-                RegistrerYrke _ _ ->
+                RegistrerYrke _ _ _ ->
                     avbrytRegistrering model msg
 
                 _ ->
@@ -1021,7 +1022,7 @@ update msg (Model model) =
 
         NyArbeidserfaring ->
             ( initSamtaleTypeahead
-                |> StartNyArbeidserfaring
+                |> RegistrerYrke HarRegistrertFør { visFeilmelding = False }
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -1104,8 +1105,8 @@ avbrytRegistrering model msg =
         |> IkkeFerdig
 
 
-updateSamtaleTypeahead : ModelInfo -> Bool -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
-updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
+updateSamtaleTypeahead : ModelInfo -> RegistreringsType -> { visFeilmelding : Bool } -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
+updateSamtaleTypeahead model registreringsType visFeilmelding msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
             Typeahead.update Yrke.label msg typeaheadModel
@@ -1117,15 +1118,15 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
                     brukerVelgerYrke model (TypeaheadMsg msg) yrke
 
                 Nothing ->
-                    visFeilmeldingRegistrerYrke model nyTypeaheadModel
+                    visFeilmeldingRegistrerYrke model registreringsType nyTypeaheadModel
 
         Typeahead.InputBlurred ->
-            visFeilmeldingRegistrerYrke model nyTypeaheadModel
+            visFeilmeldingRegistrerYrke model registreringsType nyTypeaheadModel
 
         Typeahead.NoChange ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> RegistrerYrke visFeilmelding
+                    |> RegistrerYrke registreringsType visFeilmelding
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
@@ -1251,7 +1252,7 @@ updateEtterLagreKnappTrykket model msg skjema =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
-        RegistrerYrke _ _ ->
+        RegistrerYrke _ _ _ ->
             settFokusCmd YrkeTypeaheadId
 
         EndreJobbtittel _ ->
@@ -1310,10 +1311,10 @@ feilmeldingTypeahead typeaheadModel =
             Just "Velg et yrke fra listen med forslag som kommer opp"
 
 
-visFeilmeldingRegistrerYrke : ModelInfo -> Typeahead.Model Yrke -> SamtaleStatus
-visFeilmeldingRegistrerYrke model typeaheadModel =
+visFeilmeldingRegistrerYrke : ModelInfo -> RegistreringsType -> Typeahead.Model Yrke -> SamtaleStatus
+visFeilmeldingRegistrerYrke model registreringsType typeaheadModel =
     ( typeaheadModel
-        |> RegistrerYrke True
+        |> RegistrerYrke registreringsType { visFeilmelding = True }
         |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )
@@ -1362,11 +1363,16 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         VelgEnArbeidserfaringÅRedigere ->
             [ Melding.spørsmål [ "Hvilken arbeidserfaring ønsker du å endre?" ] ]
 
-        RegistrerYrke _ _ ->
-            [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
-            , Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
-            , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
-            ]
+        RegistrerYrke registreringstype _ _ ->
+            case registreringstype of
+                RegistrerFørsteGang ->
+                    [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
+                    , Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
+                    , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
+                    ]
+
+                HarRegistrertFør ->
+                    [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
 
         HentingFraTypeaheadFeilet _ error ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "hente forslag i søkefeltet" } ]
@@ -1473,9 +1479,6 @@ samtaleTilMeldingsLogg personaliaSeksjon =
         BekreftAvbrytingAvRegistreringen _ ->
             [ Melding.spørsmål [ "Hvis du avbryter, blir ikke denne arbeidserfaringen lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
 
-        StartNyArbeidserfaring _ ->
-            [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
-
         VenterPåAnimasjonFørFullføring string ->
             [ Melding.spørsmål [ string ] ]
 
@@ -1573,7 +1576,7 @@ modelTilBrukerInput model =
                 BrukerInput.knapper Kolonne
                     (List.map lagArbeidserfaringKnapp model.arbeidserfaringListe)
 
-            RegistrerYrke visFeilmelding typeaheadModel ->
+            RegistrerYrke _ visFeilmelding typeaheadModel ->
                 viewRegistrerYrke visFeilmelding typeaheadModel
 
             HentingFraTypeaheadFeilet _ error ->
@@ -1789,9 +1792,6 @@ modelTilBrukerInput model =
                         |> List.concat
                     )
 
-            StartNyArbeidserfaring typeaheadModel ->
-                viewRegistrerYrke False typeaheadModel
-
             VenterPåAnimasjonFørFullføring _ ->
                 BrukerInput.utenInnhold
 
@@ -1849,8 +1849,8 @@ inputIdTilString inputId =
             "arbeidserfaring-registrer-til-år"
 
 
-viewRegistrerYrke : Bool -> Typeahead.Model Yrke -> BrukerInput Msg
-viewRegistrerYrke visFeilmelding typeaheadModel =
+viewRegistrerYrke : { visFeilmelding : Bool } -> Typeahead.Model Yrke -> BrukerInput Msg
+viewRegistrerYrke { visFeilmelding } typeaheadModel =
     BrukerInput.typeaheadMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereYrke }
         (typeaheadModel
             |> feilmeldingTypeahead
