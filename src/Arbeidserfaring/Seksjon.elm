@@ -346,7 +346,7 @@ update msg (Model model) =
 
         BrukerVilLeggeTilNyArbeidserfaring ->
             ( initSamtaleTypeahead
-                |> RegistrerYrke HarRegistrertFør { visFeilmelding = False }
+                |> RegistrerYrke RegistrerFørsteGang { visFeilmelding = False }
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -1368,11 +1368,13 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                 RegistrerFørsteGang ->
                     [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
                     , Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
-                    , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
+                    , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk. Du kan endre hva som vises på CV-en senere." ]
                     ]
 
                 HarRegistrertFør ->
-                    [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
+                    [ Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
+                    , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk. Du kan endre hva som vises på CV-en senere." ]
+                    ]
 
         HentingFraTypeaheadFeilet _ error ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "hente forslag i søkefeltet" } ]
