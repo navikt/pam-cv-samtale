@@ -189,6 +189,7 @@ avbrytKnapp : msg -> Html msg
 avbrytKnapp avbrytMsg =
     Knapp.knapp avbrytMsg "Avbryt"
         |> Knapp.withType Flat
+        |> Knapp.withMouseDown avbrytMsg
         |> Knapp.toHtml
 
 

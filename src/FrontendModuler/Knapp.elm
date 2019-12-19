@@ -7,6 +7,7 @@ module FrontendModuler.Knapp exposing
     , msg
     , toHtml
     , withEnabled
+    , withMouseDown
     , withType
     )
 
@@ -24,6 +25,7 @@ type alias Options msg =
     , innhold : String
     , enabled : Enabled
     , knappeType : Type
+    , onMouseDown : Maybe msg
     }
 
 
@@ -45,6 +47,7 @@ knapp msg_ innhold_ =
         , innhold = innhold_
         , enabled = Enabled
         , knappeType = Normal
+        , onMouseDown = Nothing
         }
 
 
@@ -58,6 +61,11 @@ withType knappeType (Knapp options) =
     Knapp { options | knappeType = knappeType }
 
 
+withMouseDown : msg -> Knapp msg -> Knapp msg
+withMouseDown onMouseDown (Knapp options) =
+    Knapp { options | onMouseDown = Just onMouseDown }
+
+
 toHtml : Knapp msg -> Html msg
 toHtml (Knapp options) =
     case options.enabled of
@@ -69,6 +77,9 @@ toHtml (Knapp options) =
                     , ( "Knapp--flat", options.knappeType == Flat )
                     ]
                 , onClick options.msg
+                , options.onMouseDown
+                    |> Maybe.map onMouseDown
+                    |> Maybe.withDefault (classList [])
                 ]
                 [ text options.innhold ]
 
