@@ -220,13 +220,11 @@ type Msg
     | BrukerVilRegistrereBeskrivelse
     | BrukerTrykketFraMånedKnapp Måned
     | OppdaterFraÅr String
-    | FraÅrMisterFokus
     | BrukerVilGåVidereMedFraÅr
     | BrukerSvarerJaTilNaavarende
     | BrukerSvarerNeiTilNaavarende
     | BrukerTrykketTilMånedKnapp Måned
     | OppdaterTilÅr String
-    | TilÅrMisterFokus
     | BrukerVilGåTilOppsummering
     | BrukerVilEndreOppsummering
     | VilSlettePåbegynt
@@ -244,6 +242,8 @@ type Msg
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
+    | FeltMisterFokus
+    | TimeoutEtterAtFeltMistetFokus
     | ErrorLogget
 
 
@@ -444,19 +444,6 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        FraÅrMisterFokus ->
-            case model.aktivSamtale of
-                RegistrereFraÅr fraDatoInfo ->
-                    ( { fraDatoInfo | visÅrFeilmelding = True }
-                        |> RegistrereFraÅr
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
         BrukerVilGåVidereMedFraÅr ->
             case model.aktivSamtale of
                 RegistrereFraÅr datoInfo ->
@@ -528,20 +515,6 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrereTilÅr tilDatoInfo ->
                     ( { tilDatoInfo | tilÅr = string }
-                        |> RegistrereTilÅr
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        TilÅrMisterFokus ->
-            case model.aktivSamtale of
-                RegistrereTilÅr tilDatoInfo ->
-                    ( { tilDatoInfo | visÅrFeilmelding = True }
                         |> RegistrereTilÅr
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
@@ -669,10 +642,10 @@ update msg (Model model) =
             case model.aktivSamtale of
                 LagrerSkjema skjema lagreStatus ->
                     case result of
-                        Ok value ->
+                        Ok nyUtdanningsListe ->
                             let
                                 avsluttetGrunn =
-                                    if List.length model.utdanningListe == List.length value then
+                                    if List.length model.utdanningListe == List.length nyUtdanningsListe then
                                         EndretEksisterende
 
                                     else
@@ -680,13 +653,13 @@ update msg (Model model) =
                             in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                 avsluttetGrunn
-                                    |> LeggTilFlereUtdanninger value
-                                    |> oppdaterSamtale { model | utdanningListe = value } (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
+                                    |> LeggTilFlereUtdanninger nyUtdanningsListe
+                                    |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                               else
                                 avsluttetGrunn
-                                    |> LeggTilFlereUtdanninger model.utdanningListe
-                                    |> oppdaterSamtale { model | utdanningListe = value } UtenSvar
+                                    |> LeggTilFlereUtdanninger nyUtdanningsListe
+                                    |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -727,18 +700,18 @@ update msg (Model model) =
 
                 Oppsummering _ skjema ->
                     case result of
-                        Ok value ->
+                        Ok nyUtdanningsListe ->
                             let
                                 avsluttetGrunn =
-                                    if List.length model.utdanningListe == List.length value then
+                                    if List.length model.utdanningListe == List.length nyUtdanningsListe then
                                         EndretEksisterende
 
                                     else
                                         AnnenAvslutning
                             in
                             ( avsluttetGrunn
-                                |> LeggTilFlereUtdanninger model.utdanningListe
-                                |> oppdaterSamtale { model | utdanningListe = value } UtenSvar
+                                |> LeggTilFlereUtdanninger nyUtdanningsListe
+                                |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -878,6 +851,30 @@ update msg (Model model) =
 
         FokusSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+        FeltMisterFokus ->
+            IkkeFerdig ( Model model, mistetFokusCmd )
+
+        TimeoutEtterAtFeltMistetFokus ->
+            case model.aktivSamtale of
+                RegistrereFraÅr fraDatoInfo ->
+                    ( { fraDatoInfo | visÅrFeilmelding = True }
+                        |> RegistrereFraÅr
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                RegistrereTilÅr tilDatoInfo ->
+                    ( { tilDatoInfo | visÅrFeilmelding = True }
+                        |> RegistrereTilÅr
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
 
 avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
@@ -1021,6 +1018,12 @@ lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
     SamtaleAnimasjon.startAnimasjon debugStatus
         |> Cmd.map SamtaleAnimasjonMsg
+
+
+mistetFokusCmd : Cmd Msg
+mistetFokusCmd =
+    Process.sleep 100
+        |> Task.perform (\_ -> TimeoutEtterAtFeltMistetFokus)
 
 
 settFokusCmd : InputId -> Cmd Msg
@@ -1399,7 +1402,7 @@ modelTilBrukerInput model =
                         |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visÅrFeilmelding) fraDatoInfo.fraÅr)
                         |> Input.withId (inputIdTilString RegistrereFraÅrInput)
                         |> Input.withOnEnter BrukerVilGåVidereMedFraÅr
-                        |> Input.withOnBlur FraÅrMisterFokus
+                        |> Input.withOnBlur FeltMisterFokus
                         |> Input.withErObligatorisk
                     )
 
@@ -1420,7 +1423,7 @@ modelTilBrukerInput model =
                         |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visÅrFeilmelding) tilDatoInfo.tilÅr)
                         |> Input.withId (inputIdTilString RegistrereTilÅrInput)
                         |> Input.withOnEnter BrukerVilGåTilOppsummering
-                        |> Input.withOnBlur TilÅrMisterFokus
+                        |> Input.withOnBlur FeltMisterFokus
                         |> Input.withErObligatorisk
                     )
 

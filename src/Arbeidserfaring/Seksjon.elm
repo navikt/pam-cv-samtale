@@ -125,6 +125,8 @@ type Msg
     | BrukerHopperOverArbeidserfaring
     | TypeaheadMsg (Typeahead.Msg Yrke)
     | HentetYrkeTypeahead (Result Http.Error (List Yrke))
+    | FeltMisterFokus
+    | TimeoutEtterAtFeltMistetFokus
     | BrukerVilRegistrereYrke
     | BrukerVilAvbryteHentingFraTypeahead
     | BrukerVilPrøveÅHenteFraTypeaheadPåNytt
@@ -141,13 +143,11 @@ type Msg
     | BrukerVilRegistrereArbeidsoppgaver
     | BrukerTrykketFraMånedKnapp Måned
     | BrukerOppdatererFraÅr String
-    | FraÅrMisterFokus
     | BrukerVilRegistrereFraÅr
     | BrukerSvarerJaTilNåværende
     | BrukerSvarerNeiTilNåværende
     | BrukerTrykketTilMånedKnapp Måned
     | BrukerOppdatererTilÅr String
-    | TilÅrMisterFokus
     | BrukerVilRegistrereTilÅr
     | BrukerVilRedigereOppsummering
     | SkjemaEndret SkjemaEndring
@@ -346,7 +346,7 @@ update msg (Model model) =
 
         BrukerVilLeggeTilNyArbeidserfaring ->
             ( initSamtaleTypeahead
-                |> RegistrerYrke HarRegistrertFør { visFeilmelding = False }
+                |> RegistrerYrke RegistrerFørsteGang { visFeilmelding = False }
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -448,6 +448,33 @@ update msg (Model model) =
                 _ ->
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
+
+        FeltMisterFokus ->
+            IkkeFerdig ( Model model, mistetFokusCmd )
+
+        TimeoutEtterAtFeltMistetFokus ->
+            case model.aktivSamtale of
+                RegistrerYrke registreringsType _ typeaheadModel ->
+                    visFeilmeldingRegistrerYrke model registreringsType typeaheadModel
+
+                RegistrereFraÅr fraDatoInfo ->
+                    ( { fraDatoInfo | visFeilmeldingFraÅr = True }
+                        |> RegistrereFraÅr
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                RegistrereTilÅr tilDatoInfo ->
+                    ( { tilDatoInfo | visFeilmeldingTilÅr = True }
+                        |> RegistrereTilÅr
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerVilRegistrereYrke ->
             case model.aktivSamtale of
@@ -676,20 +703,6 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        FraÅrMisterFokus ->
-            case model.aktivSamtale of
-                RegistrereFraÅr fraDatoInfo ->
-                    ( { fraDatoInfo | visFeilmeldingFraÅr = True }
-                        |> RegistrereFraÅr
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
         BrukerVilRegistrereFraÅr ->
             case model.aktivSamtale of
                 RegistrereFraÅr fraDatoInfo ->
@@ -764,20 +777,6 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrereTilÅr tilDatoInfo ->
                     ( { tilDatoInfo | tilÅr = string }
-                        |> RegistrereTilÅr
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        TilÅrMisterFokus ->
-            case model.aktivSamtale of
-                RegistrereTilÅr tilDatoInfo ->
-                    ( { tilDatoInfo | visFeilmeldingTilÅr = True }
                         |> RegistrereTilÅr
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
@@ -1121,7 +1120,12 @@ updateSamtaleTypeahead model registreringsType visFeilmelding msg typeaheadModel
                     visFeilmeldingRegistrerYrke model registreringsType nyTypeaheadModel
 
         Typeahead.InputBlurred ->
-            visFeilmeldingRegistrerYrke model registreringsType nyTypeaheadModel
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerYrke registreringsType visFeilmelding
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , mistetFokusCmd
+                )
 
         Typeahead.NoChange ->
             IkkeFerdig
@@ -1290,6 +1294,12 @@ lagtTilSpørsmålCmd debugStatus =
         |> Cmd.map SamtaleAnimasjonMsg
 
 
+mistetFokusCmd : Cmd Msg
+mistetFokusCmd =
+    Process.sleep 100
+        |> Task.perform (\_ -> TimeoutEtterAtFeltMistetFokus)
+
+
 brukerVelgerYrke : ModelInfo -> Msg -> Yrke -> SamtaleStatus
 brukerVelgerYrke info msg yrkesTypeahead =
     ( yrkesTypeahead
@@ -1368,11 +1378,13 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                 RegistrerFørsteGang ->
                     [ Melding.spørsmål [ "Nå skal du legge inn arbeidserfaring. La oss begynne med det siste arbeidsforholdet." ]
                     , Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
-                    , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk." ]
+                    , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk. Du kan endre hva som vises på CV-en senere." ]
                     ]
 
                 HarRegistrertFør ->
-                    [ Melding.spørsmål [ "Da begynner vi på nytt med å registrere yrke. Husk at du kan endre tittel som kommer på CVen senere" ] ]
+                    [ Melding.spørsmål [ "Først må du velge et yrke. Begynn å skriv, velg fra listen med forslag som kommer opp." ]
+                    , Melding.spørsmål [ "Du må velge et av forslagene, da kan arbeidsgivere finne deg når de søker etter folk. Du kan endre hva som vises på CV-en senere." ]
+                    ]
 
         HentingFraTypeaheadFeilet _ error ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "hente forslag i søkefeltet" } ]
@@ -1653,7 +1665,7 @@ modelTilBrukerInput model =
                         |> Input.withClass "aar"
                         |> Input.withWrapperClass "år-wrapper"
                         |> Input.withOnEnter BrukerVilRegistrereFraÅr
-                        |> Input.withOnBlur FraÅrMisterFokus
+                        |> Input.withOnBlur FeltMisterFokus
                         |> Input.withId (inputIdTilString FraÅrInput)
                         |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue fraDatoInfo.visFeilmeldingFraÅr) fraDatoInfo.fraÅr)
                         |> Input.withErObligatorisk
@@ -1675,7 +1687,7 @@ modelTilBrukerInput model =
                         |> Input.withClass "aar"
                         |> Input.withWrapperClass "år-wrapper"
                         |> Input.withOnEnter BrukerVilRegistrereTilÅr
-                        |> Input.withOnBlur TilÅrMisterFokus
+                        |> Input.withOnBlur FeltMisterFokus
                         |> Input.withId (inputIdTilString TilÅrInput)
                         |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.visFeilmeldingTilÅr) tilDatoInfo.tilÅr)
                         |> Input.withErObligatorisk
