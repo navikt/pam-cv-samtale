@@ -116,7 +116,7 @@ const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
             console.log(JSON.stringify({ level: 'Error', message: 'server.ts: Metrikk-logging cv-valg feilet', error: error }));
         } else if (response && response.statusCode > 201) {
             console.log(JSON.stringify({
-                level: 'Error',
+                level: response.statusCode === 401 || response.statusCode === 403 || response.statusCode === 406 ? 'Warning' : 'Error',
                 message: `server.ts: Metrikk-logging cv-valg resulterte i status code: ${response.statusCode}`,
                 body: response.body
             }))
