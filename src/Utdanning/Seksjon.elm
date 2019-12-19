@@ -642,10 +642,10 @@ update msg (Model model) =
             case model.aktivSamtale of
                 LagrerSkjema skjema lagreStatus ->
                     case result of
-                        Ok value ->
+                        Ok nyUtdanningsListe ->
                             let
                                 avsluttetGrunn =
-                                    if List.length model.utdanningListe == List.length value then
+                                    if List.length model.utdanningListe == List.length nyUtdanningsListe then
                                         EndretEksisterende
 
                                     else
@@ -653,13 +653,13 @@ update msg (Model model) =
                             in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                 avsluttetGrunn
-                                    |> LeggTilFlereUtdanninger value
-                                    |> oppdaterSamtale { model | utdanningListe = value } (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
+                                    |> LeggTilFlereUtdanninger nyUtdanningsListe
+                                    |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                               else
                                 avsluttetGrunn
-                                    |> LeggTilFlereUtdanninger model.utdanningListe
-                                    |> oppdaterSamtale { model | utdanningListe = value } UtenSvar
+                                    |> LeggTilFlereUtdanninger nyUtdanningsListe
+                                    |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -700,18 +700,18 @@ update msg (Model model) =
 
                 Oppsummering _ skjema ->
                     case result of
-                        Ok value ->
+                        Ok nyUtdanningsListe ->
                             let
                                 avsluttetGrunn =
-                                    if List.length model.utdanningListe == List.length value then
+                                    if List.length model.utdanningListe == List.length nyUtdanningsListe then
                                         EndretEksisterende
 
                                     else
                                         AnnenAvslutning
                             in
                             ( avsluttetGrunn
-                                |> LeggTilFlereUtdanninger model.utdanningListe
-                                |> oppdaterSamtale { model | utdanningListe = value } UtenSvar
+                                |> LeggTilFlereUtdanninger nyUtdanningsListe
+                                |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
