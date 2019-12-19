@@ -108,12 +108,13 @@ forrigetilBeskrivelseInfo konseptTypeahead =
 
 
 
----UPDATE---
+--- UPDATE ---
 
 
 type Msg
     = TypeaheadMsg (Typeahead.Msg Konsept)
     | HentetTypeahead (Result Http.Error (List Konsept))
+    | TimeoutEtterAtFeltMistetFokus
     | BrukerVilRegistrereKonsept
     | BrukerVilAvbryteHentingFraTypeahead
     | BrukerVilPrøveÅHenteFraTypeaheadPåNytt
@@ -235,6 +236,14 @@ update msg (Model model) =
                         Err error ->
                             ( Model model, logFeilmelding error "Hente AutorisasjonTypeahead" )
                                 |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        TimeoutEtterAtFeltMistetFokus ->
+            case model.aktivSamtale of
+                RegistrerKonsept _ typeaheadModel ->
+                    visFeilmeldingRegistrerKonsept model typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -626,7 +635,12 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
                     visFeilmeldingRegistrerKonsept model nyTypeaheadModel
 
         Typeahead.InputBlurred ->
-            visFeilmeldingRegistrerKonsept model nyTypeaheadModel
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerKonsept visFeilmelding
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , mistetFokusCmd
+                )
 
         Typeahead.NoChange ->
             IkkeFerdig
@@ -766,6 +780,12 @@ lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
     SamtaleAnimasjon.startAnimasjon debugStatus
         |> Cmd.map SamtaleAnimasjonMsg
+
+
+mistetFokusCmd : Cmd Msg
+mistetFokusCmd =
+    Process.sleep 100
+        |> Task.perform (\_ -> TimeoutEtterAtFeltMistetFokus)
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg

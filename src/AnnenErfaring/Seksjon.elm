@@ -237,6 +237,7 @@ type Msg
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
     | FeltMisterFokus
+    | TimeoutEtterAtFeltMistetFokus
     | ErrorLogget
 
 
@@ -501,6 +502,9 @@ update msg (Model model) =
                     IkkeFerdig ( Model model, Cmd.none )
 
         FeltMisterFokus ->
+            IkkeFerdig ( Model model, mistetFokusCmd )
+
+        TimeoutEtterAtFeltMistetFokus ->
             case model.aktivSamtale of
                 RegistrerFraÅr fraDatoInfo ->
                     ( { fraDatoInfo | tillatÅViseFeilmeldingÅr = True }
@@ -878,6 +882,12 @@ lagtTilSpørsmålCmd debugStatus =
         |> Cmd.map SamtaleAnimasjonMsg
 
 
+mistetFokusCmd : Cmd Msg
+mistetFokusCmd =
+    Process.sleep 100
+        |> Task.perform (\_ -> TimeoutEtterAtFeltMistetFokus)
+
+
 svarFraBrukerInput : ModelInfo -> Msg -> Melding
 svarFraBrukerInput modelInfo msg =
     modelInfo
@@ -1162,6 +1172,7 @@ modelTilBrukerInput model =
                         |> Input.withOnBlur FeltMisterFokus
                         |> Input.withId (inputIdTilString TilÅrId)
                         |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilDatoInfo.tillatÅViseFeilmeldingÅr) tilDatoInfo.tilÅr)
+                        |> Input.withErObligatorisk
                     )
 
             VisOppsummering _ _ ->

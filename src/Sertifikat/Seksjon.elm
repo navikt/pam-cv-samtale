@@ -210,6 +210,7 @@ type Msg
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
     | ÅrMisterFokus
+    | TimeoutEtterAtFeltMistetFokus
     | ErrorLogget
 
 
@@ -473,7 +474,13 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         ÅrMisterFokus ->
+            IkkeFerdig ( Model model, mistetFokusCmd )
+
+        TimeoutEtterAtFeltMistetFokus ->
             case model.aktivSamtale of
+                RegistrerSertifikatFelt _ typeaheadModel ->
+                    visFeilmeldingRegistrerSertifikat model typeaheadModel
+
                 RegistrerFullførtÅr fullførtDatoInfo ->
                     ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
                         |> RegistrerFullførtÅr
@@ -857,7 +864,12 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
                     visFeilmeldingRegistrerSertifikat model nyTypeaheadModel
 
         Typeahead.InputBlurred ->
-            visFeilmeldingRegistrerSertifikat model nyTypeaheadModel
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerSertifikatFelt visFeilmelding
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , mistetFokusCmd
+                )
 
         Typeahead.NoChange ->
             IkkeFerdig
@@ -995,6 +1007,12 @@ lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
 lagtTilSpørsmålCmd debugStatus =
     SamtaleAnimasjon.startAnimasjon debugStatus
         |> Cmd.map SamtaleAnimasjonMsg
+
+
+mistetFokusCmd : Cmd Msg
+mistetFokusCmd =
+    Process.sleep 100
+        |> Task.perform (\_ -> TimeoutEtterAtFeltMistetFokus)
 
 
 logFeilmelding : Http.Error -> String -> Cmd Msg
