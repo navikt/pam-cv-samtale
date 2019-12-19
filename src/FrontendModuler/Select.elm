@@ -13,7 +13,8 @@ import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaLabelledby)
-import Html.Events exposing (onInput)
+import Html.Events exposing (on, onInput, targetValue)
+import Json.Decode
 
 
 type Label
@@ -103,7 +104,7 @@ htmlSelect (Select options) labelId =
     div [ class "selectContainer input--fullbredde" ]
         [ List.map (optionToHtml options.selectedValue) options.listOfOptions
             |> Html.select
-                [ onInput options.msg
+                [ onChange options.msg
                 , classList
                     [ ( "skjemaelement__input", True )
                     , ( "skjemaelement__input--harFeil", options.feilmelding /= Nothing )
@@ -116,6 +117,11 @@ htmlSelect (Select options) labelId =
                     |> Maybe.withDefault noAttribute
                 ]
         ]
+
+
+onChange : (String -> msg) -> Html.Attribute msg
+onChange msgConstructor =
+    on "change" (Json.Decode.map msgConstructor targetValue)
 
 
 optionToHtml : Maybe String -> ( String, String ) -> Html msg
