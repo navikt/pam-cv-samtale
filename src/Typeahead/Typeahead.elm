@@ -3,6 +3,7 @@ module Typeahead.Typeahead exposing
     , InputStatus(..)
     , Model
     , Msg
+    , Query
     , TypeaheadInitInfo
     , TypeaheadInitWithSelectedInfo
     , getSuggestionsStatus
@@ -10,6 +11,7 @@ module Typeahead.Typeahead exposing
     , initWithSelected
     , inputStatus
     , inputValue
+    , queryToString
     , selected
     , toViewElement
     , update
@@ -50,9 +52,18 @@ selected (Model model) =
     model.selected
 
 
+type Query
+    = Query TypeaheadState.Query
+
+
+queryToString : Query -> String
+queryToString (Query typeaheadStateQuery) =
+    TypeaheadState.queryToString typeaheadStateQuery
+
+
 type GetSuggestionStatus
     = DoNothing
-    | GetSuggestionsForInput String
+    | GetSuggestionsForInput Query
 
 
 type InputStatus
@@ -96,13 +107,21 @@ update : (a -> String) -> Msg a -> Model a -> ( Model a, Status )
 update toString msg (Model model) =
     case msg of
         BrukerOppdatererInput string ->
-            ( model.typeaheadState
-                |> TypeaheadState.updateValue string
-                |> TypeaheadState.showSuggestions
+            let
+                newTypeaheadState =
+                    model.typeaheadState
+                        |> TypeaheadState.updateValue string
+                        |> TypeaheadState.showSuggestions
+            in
+            ( newTypeaheadState
                 |> updateTypeaheadState toString model
             , Status
-                { getSuggestionStatus = GetSuggestionsForInput string
-                , inputStatus = NoChange
+                { inputStatus = NoChange
+                , getSuggestionStatus =
+                    newTypeaheadState
+                        |> TypeaheadState.query
+                        |> Query
+                        |> GetSuggestionsForInput
                 }
             )
 
@@ -192,7 +211,8 @@ update toString msg (Model model) =
                 { inputStatus = NoChange
                 , getSuggestionStatus =
                     model.typeaheadState
-                        |> TypeaheadState.value
+                        |> TypeaheadState.query
+                        |> Query
                         |> GetSuggestionsForInput
                 }
             )
@@ -219,28 +239,32 @@ updateTypeaheadState toString model typeaheadState =
 
 updateAfterSelect : (a -> String) -> a -> ModelInfo a -> ( Model a, Status )
 updateAfterSelect toString selected_ model =
+    let
+        newTypeaheadState =
+            model.typeaheadState
+                |> TypeaheadState.updateValue (toString selected_)
+                |> TypeaheadState.hideSuggestions
+    in
     ( Model
         { model
             | selected = Just selected_
-            , typeaheadState =
-                model.typeaheadState
-                    |> TypeaheadState.updateValue (toString selected_)
-                    |> TypeaheadState.hideSuggestions
+            , typeaheadState = newTypeaheadState
         }
     , Status
         { getSuggestionStatus =
-            selected_
-                |> toString
+            newTypeaheadState
+                |> TypeaheadState.query
+                |> Query
                 |> GetSuggestionsForInput
         , inputStatus = NoChange
         }
     )
 
 
-updateSuggestions : (a -> String) -> Model a -> Result Http.Error (List a) -> Model a
-updateSuggestions toString (Model model) suggestions =
+updateSuggestions : (a -> String) -> Model a -> Query -> Result Http.Error (List a) -> Model a
+updateSuggestions toString (Model model) (Query query) suggestions =
     model.typeaheadState
-        |> TypeaheadState.updateSuggestions "" suggestions
+        |> TypeaheadState.updateSuggestions query suggestions
         |> updateTypeaheadState toString model
 
 
@@ -322,17 +346,24 @@ type alias TypeaheadInitInfo a =
     }
 
 
-init : TypeaheadInitInfo a -> Model a
+init : TypeaheadInitInfo a -> ( Model a, Query )
 init input =
-    Model
-        { selected = Nothing
-        , id = input.id
-        , label = input.label
-        , typeaheadState =
+    let
+        typeaheadState =
             input.value
                 |> TypeaheadState.init
                 |> TypeaheadState.hideSuggestions
+    in
+    ( Model
+        { selected = Nothing
+        , id = input.id
+        , label = input.label
+        , typeaheadState = typeaheadState
         }
+    , typeaheadState
+        |> TypeaheadState.query
+        |> Query
+    )
 
 
 type alias TypeaheadInitWithSelectedInfo a =
@@ -343,9 +374,16 @@ type alias TypeaheadInitWithSelectedInfo a =
     }
 
 
-initWithSelected : TypeaheadInitWithSelectedInfo a -> Model a
+initWithSelected : TypeaheadInitWithSelectedInfo a -> ( Model a, Query )
 initWithSelected input =
-    Model
+    let
+        typeaheadState =
+            input.selected
+                |> input.toString
+                |> TypeaheadState.init
+                |> TypeaheadState.hideSuggestions
+    in
+    ( Model
         { selected = Just input.selected
         , id = input.id
         , label = input.label
@@ -355,3 +393,7 @@ initWithSelected input =
                 |> TypeaheadState.init
                 |> TypeaheadState.hideSuggestions
         }
+    , typeaheadState
+        |> TypeaheadState.query
+        |> Query
+    )

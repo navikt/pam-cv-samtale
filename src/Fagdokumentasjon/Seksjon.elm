@@ -29,7 +29,7 @@ import FrontendModuler.Typeahead
 import Html exposing (Html)
 import Http exposing (Error(..))
 import Meldinger.Melding as Melding exposing (Melding)
-import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
@@ -112,7 +112,7 @@ forrigetilBeskrivelseInfo konseptTypeahead =
 
 type Msg
     = TypeaheadMsg (Typeahead.Msg Konsept)
-    | HentetTypeahead (Result Http.Error (List Konsept))
+    | HentetTypeahead Typeahead.Query (Result Http.Error (List Konsept))
     | TimeoutEtterAtFeltMistetFokus
     | BrukerVilRegistrereKonsept
     | VilSeEksempel
@@ -157,10 +157,10 @@ update msg (Model model) =
                             |> EndrerOppsummering nyTypeaheadModel
                             |> oppdaterSamtale model IngenNyeMeldinger
                         , case Typeahead.getSuggestionsStatus status of
-                            GetSuggestionsForInput string ->
+                            GetSuggestionsForInput query ->
                                 skjema
                                     |> Skjema.fagdokumentasjonType
-                                    |> hentTypeaheadSuggestions string
+                                    |> hentTypeaheadSuggestions query
 
                             DoNothing ->
                                 Cmd.none
@@ -169,11 +169,11 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        HentetTypeahead result ->
+        HentetTypeahead query result ->
             case model.aktivSamtale of
                 RegistrerKonsept visFeilmelding typeaheadModel ->
                     ( result
-                        |> Typeahead.updateSuggestions Konsept.label typeaheadModel
+                        |> Typeahead.updateSuggestions Konsept.label typeaheadModel query
                         |> RegistrerKonsept visFeilmelding
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
@@ -184,7 +184,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 EndrerOppsummering typeaheadModel skjema ->
-                    ( EndrerOppsummering (Typeahead.updateSuggestions Konsept.label typeaheadModel result) skjema
+                    ( EndrerOppsummering (Typeahead.updateSuggestions Konsept.label typeaheadModel query result) skjema
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
                         |> Result.error
@@ -508,26 +508,26 @@ validertSkjemaTilSetninger validertSkjema =
 
 initRedigeringAvValidertSkjema : ModelInfo -> Msg -> ValidertFagdokumentasjonSkjema -> SamtaleStatus
 initRedigeringAvValidertSkjema model msg validertSkjema =
+    let
+        ( typeaheadModel, query ) =
+            initSkjemaTypeaheadFraValidertSkjema validertSkjema
+    in
     ( validertSkjema
         |> Skjema.tilUvalidertSkjema
-        |> EndrerOppsummering (initSkjemaTypeaheadFraValidertSkjema validertSkjema)
+        |> EndrerOppsummering typeaheadModel
         |> oppdaterSamtale model (SvarFraMsg msg)
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
         , validertSkjema
             |> Skjema.tilUvalidertSkjema
             |> Skjema.fagdokumentasjonType
-            |> hentTypeaheadSuggestions
-                (validertSkjema
-                    |> Skjema.konseptFraValidertSkjema
-                    |> Konsept.label
-                )
+            |> hentTypeaheadSuggestions query
         ]
     )
         |> IkkeFerdig
 
 
-initSamtaleTypeahead : FagdokumentasjonType -> Typeahead.Model Konsept
+initSamtaleTypeahead : FagdokumentasjonType -> ( Typeahead.Model Konsept, Typeahead.Query )
 initSamtaleTypeahead fagdokumentasjonType =
     Typeahead.init
         { value = ""
@@ -537,14 +537,14 @@ initSamtaleTypeahead fagdokumentasjonType =
         }
 
 
-initSkjemaTypeaheadFraValidertSkjema : ValidertFagdokumentasjonSkjema -> Typeahead.Model Konsept
+initSkjemaTypeaheadFraValidertSkjema : ValidertFagdokumentasjonSkjema -> ( Typeahead.Model Konsept, Typeahead.Query )
 initSkjemaTypeaheadFraValidertSkjema skjema =
     skjema
         |> Skjema.konseptFraValidertSkjema
         |> initSkjemaTypeaheadFraKonsept (skjema |> Skjema.tilUvalidertSkjema |> Skjema.fagdokumentasjonType)
 
 
-initSkjemaTypeaheadFraKonsept : FagdokumentasjonType -> Konsept -> Typeahead.Model Konsept
+initSkjemaTypeaheadFraKonsept : FagdokumentasjonType -> Konsept -> ( Typeahead.Model Konsept, Typeahead.Query )
 initSkjemaTypeaheadFraKonsept fagdokumentasjonType konsept =
     Typeahead.initWithSelected
         { selected = konsept
@@ -583,8 +583,8 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
                     |> RegistrerKonsept visFeilmelding
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput string ->
-                        hentTypeaheadSuggestions string model.fagdokumentasjonType
+                    GetSuggestionsForInput query ->
+                        hentTypeaheadSuggestions query model.fagdokumentasjonType
 
                     DoNothing ->
                         Cmd.none
@@ -625,7 +625,7 @@ feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType =
             "Velg en autorisasjon fra listen med forslag som kommer opp"
 
 
-hentTypeaheadSuggestions : String -> FagdokumentasjonType -> Cmd Msg
+hentTypeaheadSuggestions : Typeahead.Query -> FagdokumentasjonType -> Cmd Msg
 hentTypeaheadSuggestions query fagdokumentasjonType =
     case fagdokumentasjonType of
         SvennebrevFagbrev ->
@@ -1121,12 +1121,13 @@ init fagdokumentasjonType debugStatus gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
             initSamtaleTypeahead fagdokumentasjonType
+                |> Tuple.first
                 |> RegistrerKonsept False
     in
     ( Model
         { seksjonsMeldingsLogg =
             gammelMeldingsLogg
-                |> tilMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg fagdokumentasjonType aktivSamtale)
         , aktivSamtale = aktivSamtale
         , fagdokumentasjonListe = fagdokumentasjonListe

@@ -1232,7 +1232,9 @@ init debugStatus gammelMeldingsLogg kursListe =
     in
     ( Model
         { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (MeldingsLogg.tilMeldingsLogg gammelMeldingsLogg)
+            gammelMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
         , kursListe = kursListe
         , debugStatus = debugStatus

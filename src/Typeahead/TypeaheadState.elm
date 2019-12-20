@@ -1,5 +1,6 @@
 module Typeahead.TypeaheadState exposing
     ( ActiveState(..)
+    , Query
     , TypeaheadState
     , active
     , arrowDown
@@ -9,6 +10,8 @@ module Typeahead.TypeaheadState exposing
     , hideSuggestions
     , init
     , mapSuggestions
+    , query
+    , queryToString
     , removeActive
     , showSuggestions
     , updateActive
@@ -24,6 +27,7 @@ import List.Extra as List
 type TypeaheadState a
     = TypeaheadState
         { value : String
+        , queryOfCurrentSuggestions : Query
         , suggestions : SuggestionList a
         }
 
@@ -39,10 +43,25 @@ type SuggestionList a
     | SuggestionError Bool Http.Error
 
 
+type Query
+    = Query String
+
+
+query : TypeaheadState a -> Query
+query (TypeaheadState info) =
+    Query info.value
+
+
+queryToString : Query -> String
+queryToString (Query string) =
+    string
+
+
 init : String -> TypeaheadState a
 init value_ =
     TypeaheadState
         { value = value_
+        , queryOfCurrentSuggestions = Query value_
         , suggestions = NoneActive []
         }
 
@@ -73,30 +92,35 @@ updateValue value_ (TypeaheadState info) =
     TypeaheadState { info | value = value_ }
 
 
-updateSuggestions : String -> Result Http.Error (List a) -> TypeaheadState a -> TypeaheadState a
-updateSuggestions value_ suggestionResult (TypeaheadState info) =
-    TypeaheadState
-        { info
-            | suggestions =
-                case suggestionResult of
-                    Ok suggestions ->
-                        case info.suggestions of
-                            HideSuggestions _ ->
-                                HideSuggestions suggestions
+updateSuggestions : Query -> Result Http.Error (List a) -> TypeaheadState a -> TypeaheadState a
+updateSuggestions query_ suggestionResult (TypeaheadState info) =
+    if queryToString info.queryOfCurrentSuggestions == info.value then
+        TypeaheadState info
 
-                            NoneActive _ ->
-                                NoneActive suggestions
+    else
+        TypeaheadState
+            { info
+                | queryOfCurrentSuggestions = query_
+                , suggestions =
+                    case suggestionResult of
+                        Ok suggestions ->
+                            case info.suggestions of
+                                HideSuggestions _ ->
+                                    HideSuggestions suggestions
 
-                            SuggestionActive record ->
-                                -- TODO: Denne burde ta vare på aktivt element
-                                NoneActive suggestions
+                                NoneActive _ ->
+                                    NoneActive suggestions
 
-                            SuggestionError _ _ ->
-                                NoneActive suggestions
+                                SuggestionActive record ->
+                                    -- TODO: Denne burde ta vare på aktivt element
+                                    NoneActive suggestions
 
-                    Err error_ ->
-                        SuggestionError True error_
-        }
+                                SuggestionError _ _ ->
+                                    NoneActive suggestions
+
+                        Err error_ ->
+                            SuggestionError True error_
+            }
 
 
 updateActive : a -> TypeaheadState a -> TypeaheadState a

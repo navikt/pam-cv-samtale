@@ -123,7 +123,7 @@ type Msg
     | BrukerHarValgtArbeidserfaringÅRedigere Arbeidserfaring
     | BrukerHopperOverArbeidserfaring
     | TypeaheadMsg (Typeahead.Msg Yrke)
-    | HentetYrkeTypeahead (Result Http.Error (List Yrke))
+    | HentetYrkeTypeahead Typeahead.Query (Result Http.Error (List Yrke))
     | FeltMisterFokus
     | TimeoutEtterAtFeltMistetFokus
     | BrukerVilRegistrereYrke
@@ -326,23 +326,24 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring ->
+            let
+                ( typeaheadModel, query ) =
+                    initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring
+            in
             ( arbeidserfaring
                 |> Skjema.fraArbeidserfaring
-                |> RedigerOppsummering (initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring)
+                |> RedigerOppsummering typeaheadModel
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , Cmd.batch
                 [ lagtTilSpørsmålCmd model.debugStatus
-                , arbeidserfaring
-                    |> Cv.Arbeidserfaring.yrke
-                    |> Maybe.map Yrke.label
-                    |> Maybe.map (Api.getYrkeTypeahead HentetYrkeTypeahead)
-                    |> Maybe.withDefault Cmd.none
+                , Api.getYrkeTypeahead HentetYrkeTypeahead query
                 ]
             )
                 |> IkkeFerdig
 
         BrukerVilLeggeTilNyArbeidserfaring ->
             ( initSamtaleTypeahead
+                |> Tuple.first
                 |> RegistrerYrke RegistrerFørsteGang { visFeilmelding = False }
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
@@ -367,8 +368,8 @@ update msg (Model model) =
                             |> RedigerOppsummering nyTypeaheadModel
                             |> oppdaterSamtale model IngenNyeMeldinger
                         , case Typeahead.getSuggestionsStatus status of
-                            GetSuggestionsForInput string ->
-                                Api.getYrkeTypeahead HentetYrkeTypeahead string
+                            GetSuggestionsForInput query ->
+                                Api.getYrkeTypeahead HentetYrkeTypeahead query
 
                             DoNothing ->
                                 Cmd.none
@@ -377,11 +378,11 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        HentetYrkeTypeahead result ->
+        HentetYrkeTypeahead query result ->
             case model.aktivSamtale of
                 RegistrerYrke registreringsType visFeilmelding typeaheadModel ->
                     ( result
-                        |> Typeahead.updateSuggestions Yrke.label typeaheadModel
+                        |> Typeahead.updateSuggestions Yrke.label typeaheadModel query
                         |> RegistrerYrke registreringsType visFeilmelding
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
@@ -392,7 +393,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 RedigerOppsummering typeaheadModel skjema ->
-                    ( RedigerOppsummering (Typeahead.updateSuggestions Yrke.label typeaheadModel result) skjema
+                    ( RedigerOppsummering (Typeahead.updateSuggestions Yrke.label typeaheadModel query result) skjema
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
                         |> Result.error
@@ -954,6 +955,7 @@ update msg (Model model) =
 
         NyArbeidserfaring ->
             ( initSamtaleTypeahead
+                |> Tuple.first
                 |> RegistrerYrke HarRegistrertFør { visFeilmelding = False }
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
@@ -1066,15 +1068,15 @@ updateSamtaleTypeahead model registreringsType visFeilmelding msg typeaheadModel
                     |> RegistrerYrke registreringsType visFeilmelding
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput string ->
-                        Api.getYrkeTypeahead HentetYrkeTypeahead string
+                    GetSuggestionsForInput query ->
+                        Api.getYrkeTypeahead HentetYrkeTypeahead query
 
                     DoNothing ->
                         Cmd.none
                 )
 
 
-initSamtaleTypeahead : Typeahead.Model Yrke
+initSamtaleTypeahead : ( Typeahead.Model Yrke, Typeahead.Query )
 initSamtaleTypeahead =
     Typeahead.init
         { value = ""
@@ -1084,7 +1086,7 @@ initSamtaleTypeahead =
         }
 
 
-initSkjemaTypeaheadFraArbeidserfaring : Arbeidserfaring -> Typeahead.Model Yrke
+initSkjemaTypeaheadFraArbeidserfaring : Arbeidserfaring -> ( Typeahead.Model Yrke, Typeahead.Query )
 initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring =
     arbeidserfaring
         |> Cv.Arbeidserfaring.yrke
@@ -1099,7 +1101,7 @@ initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring =
             )
 
 
-initSkjemaTypeaheadFraYrke : Yrke -> Typeahead.Model Yrke
+initSkjemaTypeaheadFraYrke : Yrke -> ( Typeahead.Model Yrke, Typeahead.Query )
 initSkjemaTypeaheadFraYrke yrke =
     Typeahead.initWithSelected
         { selected = yrke
@@ -1161,16 +1163,17 @@ updateEtterFullførtMelding info ( nyMeldingsLogg, cmd ) =
 
 updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertArbeidserfaringSkjema -> SamtaleStatus
 updateEtterVilEndreSkjema model msg skjema =
+    let
+        ( typeaheadModel, query ) =
+            initSkjemaTypeaheadFraYrke (Skjema.yrke skjema)
+    in
     ( skjema
         |> Skjema.tilUvalidertSkjema
-        |> RedigerOppsummering (initSkjemaTypeaheadFraYrke (Skjema.yrke skjema))
+        |> RedigerOppsummering typeaheadModel
         |> oppdaterSamtale model (SvarFraMsg msg)
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
-        , skjema
-            |> Skjema.yrke
-            |> Yrke.label
-            |> Api.getYrkeTypeahead HentetYrkeTypeahead
+        , Api.getYrkeTypeahead HentetYrkeTypeahead query
         ]
     )
         |> IkkeFerdig

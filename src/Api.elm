@@ -64,6 +64,7 @@ import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (Sertifika
 import Sertifikat.Skjema
 import Sprak.Skjema
 import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
+import Typeahead.Typeahead as Typeahead
 import Url.Builder
 import Utdanning.Skjema
 
@@ -279,11 +280,11 @@ putSertifikat msgConstructor skjema id =
         }
 
 
-getYrkeTypeahead : (Result Error (List Yrke) -> msg) -> String -> Cmd msg
-getYrkeTypeahead msgConstructor string =
+getYrkeTypeahead : (Typeahead.Query -> Result Error (List Yrke) -> msg) -> Typeahead.Query -> Cmd msg
+getYrkeTypeahead msgConstructor query =
     Http.get
-        { url = "/cv-samtale/api/rest/typeahead/yrke" ++ Url.Builder.toQuery [ Url.Builder.string "q" string ]
-        , expect = expectJson msgConstructor (Json.Decode.list YrkeTypeahead.decode)
+        { url = "/cv-samtale/api/rest/typeahead/yrke" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
+        , expect = expectJson (msgConstructor query) (Json.Decode.list YrkeTypeahead.decode)
         }
 
 
@@ -324,35 +325,35 @@ postFagdokumentasjon msgConstructor skjema =
         }
 
 
-getFagbrevTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd msg
-getFagbrevTypeahead msgConstructor string =
+getFagbrevTypeahead : (Typeahead.Query -> Result Error (List Konsept) -> msg) -> Typeahead.Query -> Cmd msg
+getFagbrevTypeahead msgConstructor query =
     Http.get
-        { url = "/cv-samtale/api/rest/typeahead/fagbrev" ++ Url.Builder.toQuery [ Url.Builder.string "q" string ]
-        , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.Konsept.decode)
+        { url = "/cv-samtale/api/rest/typeahead/fagbrev" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
+        , expect = expectJson (msgConstructor query) (Json.Decode.list Fagdokumentasjon.Konsept.decode)
         }
 
 
-getMesterbrevTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd msg
-getMesterbrevTypeahead msgConstructor string =
+getMesterbrevTypeahead : (Typeahead.Query -> Result Error (List Konsept) -> msg) -> Typeahead.Query -> Cmd msg
+getMesterbrevTypeahead msgConstructor query =
     Http.get
-        { url = "/cv-samtale/api/rest/typeahead/mesterbrev" ++ Url.Builder.toQuery [ Url.Builder.string "q" string ]
-        , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.Konsept.decode)
+        { url = "/cv-samtale/api/rest/typeahead/mesterbrev" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
+        , expect = expectJson (msgConstructor query) (Json.Decode.list Fagdokumentasjon.Konsept.decode)
         }
 
 
-getAutorisasjonTypeahead : (Result Error (List Konsept) -> msg) -> String -> Cmd msg
-getAutorisasjonTypeahead msgConstructor string =
+getAutorisasjonTypeahead : (Typeahead.Query -> Result Error (List Konsept) -> msg) -> Typeahead.Query -> Cmd msg
+getAutorisasjonTypeahead msgConstructor query =
     Http.get
-        { url = "/cv-samtale/api/rest/typeahead/autorisasjoner" ++ Url.Builder.toQuery [ Url.Builder.string "q" string ]
-        , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.Konsept.decode)
+        { url = "/cv-samtale/api/rest/typeahead/autorisasjoner" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
+        , expect = expectJson (msgConstructor query) (Json.Decode.list Fagdokumentasjon.Konsept.decode)
         }
 
 
-getSertifikatTypeahead : (Result Error (List SertifikatTypeahead) -> msg) -> String -> Cmd msg
-getSertifikatTypeahead msgConstructor string =
+getSertifikatTypeahead : (Typeahead.Query -> Result Error (List SertifikatTypeahead) -> msg) -> Typeahead.Query -> Cmd msg
+getSertifikatTypeahead msgConstructor query =
     Http.get
-        { url = "/cv-samtale/api/rest/typeahead/autorisasjon" ++ Url.Builder.toQuery [ Url.Builder.string "q" string ]
-        , expect = expectJson msgConstructor (Json.Decode.list SertifikatTypeahead.decode)
+        { url = "/cv-samtale/api/rest/typeahead/autorisasjon" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
+        , expect = expectJson (msgConstructor query) (Json.Decode.list SertifikatTypeahead.decode)
         }
 
 

@@ -30,7 +30,7 @@ import Html.Attributes exposing (..)
 import Http exposing (Error)
 import LagreStatus exposing (LagreStatus)
 import Meldinger.Melding as Melding exposing (Melding(..))
-import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilMeldingsLogg)
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
@@ -183,7 +183,7 @@ utløpsdatoTilSkjema info år =
 
 type Msg
     = TypeaheadMsg (Typeahead.Msg SertifikatTypeahead)
-    | HentetTypeahead (Result Http.Error (List SertifikatTypeahead))
+    | HentetTypeahead Typeahead.Query (Result Http.Error (List SertifikatTypeahead))
     | VilRegistrereSertifikat
     | VilRegistrereUtsteder
     | OppdatererUtsteder String
@@ -257,11 +257,11 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        HentetTypeahead result ->
+        HentetTypeahead query result ->
             case model.aktivSamtale of
                 RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
                     ( result
-                        |> Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel
+                        |> Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel query
                         |> RegistrerSertifikatFelt visFeilmelding
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
@@ -272,7 +272,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 EndreOpplysninger typeaheadModel skjema ->
-                    ( EndreOpplysninger (Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel result) skjema
+                    ( EndreOpplysninger (Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel query result) skjema
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
                         |> Result.error
@@ -747,7 +747,7 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
-initSamtaleTypeahead : Typeahead.Model SertifikatTypeahead
+initSamtaleTypeahead : ( Typeahead.Model SertifikatTypeahead, Typeahead.Query )
 initSamtaleTypeahead =
     Typeahead.init
         { value = ""
@@ -757,7 +757,7 @@ initSamtaleTypeahead =
         }
 
 
-initSkjemaTypeahead : ValidertSertifikatSkjema -> Typeahead.Model SertifikatTypeahead
+initSkjemaTypeahead : ValidertSertifikatSkjema -> ( Typeahead.Model SertifikatTypeahead, Typeahead.Query )
 initSkjemaTypeahead skjema =
     case Skjema.sertifikatFeltValidert skjema of
         SertifikatFraTypeahead sertifikatTypeahead ->
@@ -971,15 +971,17 @@ sertifikatFeltTilString sertifikatFelt =
 
 updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertSertifikatSkjema -> SamtaleStatus
 updateEtterVilEndreSkjema model msg skjema =
+    let
+        ( typeaheadModel, query ) =
+            initSkjemaTypeahead skjema
+    in
     ( skjema
         |> Skjema.tilUvalidertSkjema
-        |> EndreOpplysninger (initSkjemaTypeahead skjema)
+        |> EndreOpplysninger typeaheadModel
         |> oppdaterSamtale model (SvarFraMsg msg)
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
-        , skjema
-            |> Skjema.sertifikatString
-            |> Api.getSertifikatTypeahead HentetTypeahead
+        , Api.getSertifikatTypeahead HentetTypeahead query
         ]
     )
         |> IkkeFerdig
@@ -1404,11 +1406,15 @@ init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Sertifikat -> ( Model, C
 init debugStatus gammelMeldingsLogg sertifikatListe =
     let
         aktivSamtale =
-            RegistrerSertifikatFelt False initSamtaleTypeahead
+            initSamtaleTypeahead
+                |> Tuple.first
+                |> RegistrerSertifikatFelt False
     in
     ( Model
         { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale) (tilMeldingsLogg gammelMeldingsLogg)
+            gammelMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
         , sertifikatListe = sertifikatListe
         , debugStatus = debugStatus
