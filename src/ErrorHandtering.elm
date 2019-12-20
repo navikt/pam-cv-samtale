@@ -2,7 +2,9 @@ module ErrorHandtering exposing
     ( OperasjonEtterError(..)
     , errorMelding
     , feilmeldingEtterErrorILoading
+    , feilmeldingTypeahead
     , operasjonEtterError
+    , prøvPåNyttEtterTypeaheadError
     )
 
 import Http
@@ -19,11 +21,11 @@ errorMelding { operasjon, error } =
 
         Http.Timeout ->
             -- PrøvPåNytt
-            Melding.spørsmål [ "Hmm, nå klarte jeg ikke å " ++ operasjon ++ ". 😔 Det kan ha skjedd noe galt hos oss, eller kanskje du ikke er på nett. Sjekk om du er koblet til Internett og prøv igjen." ]
+            Melding.spørsmål [ "Hmm, nå klarte jeg ikke å " ++ operasjon ++ " 😕 Det kan ha skjedd noe galt hos oss, eller kanskje du ikke er på nett. Sjekk om du er koblet til Internett og prøv igjen." ]
 
         Http.NetworkError ->
             -- PrøvPåNytt
-            Melding.spørsmål [ "Hmm, nå klarte jeg ikke å " ++ operasjon ++ " 😔 Du er ikke på nett. Koble til Internett og prøv igjen." ]
+            Melding.spørsmål [ "Hmm, nå klarte jeg ikke å " ++ operasjon ++ " 😕 Du er ikke på nett. Koble til Internett og prøv igjen." ]
 
         Http.BadStatus 401 ->
             -- LoggInn
@@ -84,3 +86,41 @@ feilmeldingEtterErrorILoading error =
 
         Http.BadBody _ ->
             "Det skjedde noe feil under lasting av siden."
+
+
+feilmeldingTypeahead : Http.Error -> String
+feilmeldingTypeahead error =
+    case error of
+        Http.BadUrl _ ->
+            "Oi! Nå skjedde det en feil, jeg klarte ikke å hente forslag i søkefeltet. Jeg beklager 😔"
+
+        Http.Timeout ->
+            "Hmm, nå klarte jeg ikke å hente forslag i søkefeltet 😕 Det kan ha skjedd noe galt hos oss, eller kanskje du ikke er på nett. Sjekk om du er koblet til Internett og prøv igjen."
+
+        Http.NetworkError ->
+            "Hmm, nå klarte jeg ikke å hente forslag i søkefeltet 😕 Du er ikke på nett. Koble til Internett og prøv igjen."
+
+        Http.BadStatus _ ->
+            "Oi! Nå skjedde det en feil, jeg klarte ikke å hente forslag i søkefeltet. Jeg beklager 😔"
+
+        Http.BadBody _ ->
+            "Oi! Nå skjedde det en feil, jeg klarte ikke å hente forslag i søkefeltet. Jeg beklager 😔"
+
+
+prøvPåNyttEtterTypeaheadError : Http.Error -> Bool
+prøvPåNyttEtterTypeaheadError error =
+    case error of
+        Http.BadUrl _ ->
+            False
+
+        Http.Timeout ->
+            True
+
+        Http.NetworkError ->
+            True
+
+        Http.BadStatus _ ->
+            True
+
+        Http.BadBody _ ->
+            False

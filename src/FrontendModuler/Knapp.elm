@@ -6,6 +6,7 @@ module FrontendModuler.Knapp exposing
     , knapp
     , msg
     , toHtml
+    , withAttribute
     , withEnabled
     , withMouseDown
     , withType
@@ -26,6 +27,7 @@ type alias Options msg =
     , enabled : Enabled
     , knappeType : Type
     , onMouseDown : Maybe msg
+    , extraAttributes : List (Html.Attribute msg)
     }
 
 
@@ -48,6 +50,7 @@ knapp msg_ innhold_ =
         , enabled = Enabled
         , knappeType = Normal
         , onMouseDown = Nothing
+        , extraAttributes = []
         }
 
 
@@ -66,28 +69,45 @@ withMouseDown onMouseDown (Knapp options) =
     Knapp { options | onMouseDown = Just onMouseDown }
 
 
+withAttribute : Html.Attribute msg -> Knapp msg -> Knapp msg
+withAttribute attribute (Knapp options) =
+    Knapp { options | extraAttributes = attribute :: options.extraAttributes }
+
+
 toHtml : Knapp msg -> Html msg
 toHtml (Knapp options) =
     case options.enabled of
         Enabled ->
             button
-                [ classList
-                    [ ( "Knapp", True )
-                    , ( "Knapp--hoved", options.knappeType == Hoved )
-                    , ( "Knapp--flat", options.knappeType == Flat )
+                (List.concat
+                    [ options.extraAttributes
+                    , [ classList
+                            [ ( "Knapp", True )
+                            , ( "Knapp--hoved", options.knappeType == Hoved )
+                            , ( "Knapp--flat", options.knappeType == Flat )
+                            ]
+                      , onClick options.msg
+                      , options.onMouseDown
+                            |> Maybe.map onMouseDown
+                            |> Maybe.withDefault (classList [])
+                      ]
                     ]
-                , onClick options.msg
-                , options.onMouseDown
-                    |> Maybe.map onMouseDown
-                    |> Maybe.withDefault (classList [])
-                ]
+                )
                 [ text options.innhold ]
 
         Disabled ->
             button
-                [ classList [ ( "Knapp", True ), ( "Knapp--disabled", True ), ( "Knapp--hoved", options.knappeType == Hoved ) ]
-                , disabled True
-                ]
+                (List.concat
+                    [ options.extraAttributes
+                    , [ classList
+                            [ ( "Knapp", True )
+                            , ( "Knapp--disabled", True )
+                            , ( "Knapp--hoved", options.knappeType == Hoved )
+                            ]
+                      , disabled True
+                      ]
+                    ]
+                )
                 [ text options.innhold ]
 
 

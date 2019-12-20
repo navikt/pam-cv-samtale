@@ -8,16 +8,20 @@ module FrontendModuler.Typeahead exposing
     , toHtml
     , typeahead
     , withErObligatorisk
+    , withErrorMelding
     , withFeilmelding
     , withOnBlur
     , withOnFocus
+    , withPrøvIgjenKnapp
     , withSuggestions
     )
 
+import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (..)
 import Html.Events exposing (..)
+import Http
 import Json.Decode
 import List.Extra as List
 
@@ -34,6 +38,8 @@ type alias TypeaheadInfo msg =
     , suggestions : List (Suggestion msg)
     , inputId : String
     , feilmelding : Maybe String
+    , errorMelding : Maybe String
+    , prøvIgjenMsg : Maybe msg
     , onFocus : Maybe msg
     , onBlur : Maybe msg
     , obligatorisk : Bool
@@ -65,6 +71,8 @@ typeahead options innhold_ =
         , suggestions = []
         , inputId = options.inputId
         , feilmelding = Nothing
+        , errorMelding = Nothing
+        , prøvIgjenMsg = Nothing
         , onFocus = Nothing
         , onBlur = Nothing
         , obligatorisk = False
@@ -87,6 +95,16 @@ withSuggestions suggestions (Typeahead options) =
 withFeilmelding : Maybe String -> Typeahead msg -> Typeahead msg
 withFeilmelding feilmelding (Typeahead options) =
     Typeahead { options | feilmelding = feilmelding }
+
+
+withErrorMelding : Maybe String -> Typeahead msg -> Typeahead msg
+withErrorMelding errorMelding (Typeahead options) =
+    Typeahead { options | errorMelding = errorMelding }
+
+
+withPrøvIgjenKnapp : Maybe msg -> Typeahead msg -> Typeahead msg
+withPrøvIgjenKnapp prøvIgjenMsg (Typeahead options) =
+    Typeahead { options | prøvIgjenMsg = prøvIgjenMsg }
 
 
 withOnFocus : msg -> Typeahead msg -> Typeahead msg
@@ -162,31 +180,60 @@ toHtml (Typeahead options) =
                     |> Maybe.withDefault noAttribute
                 ]
                 []
-            , if List.isEmpty options.suggestions then
-                text ""
-
-              else
-                options.suggestions
-                    |> List.map (viewSuggestion options.inputId)
-                    |> ul
-                        [ onMouseLeave (options.onTypeaheadChange MouseLeaveSuggestions)
-                        , id (suggestionsId options.inputId)
-                        , ariaExpanded "true"
-                        , role "listbox"
+            , case options.errorMelding of
+                Just errorMelding ->
+                    div
+                        [ class "suggestion-list typeahead-error"
+                        , role "alert"
+                        , ariaLive "assertive"
                         , tabindex -1
                         , options.onFocus
                             |> Maybe.map onFocus
                             |> Maybe.withDefault noAttribute
+                        , options.onBlur
+                            |> Maybe.map onBlur
+                            |> Maybe.withDefault noAttribute
                         ]
+                        [ p []
+                            [ text errorMelding ]
+                        , case options.prøvIgjenMsg of
+                            Just prøvIgjenMsg ->
+                                Knapp.knapp prøvIgjenMsg "Prøv igjen"
+                                    |> Knapp.withAttribute (options.onBlur |> Maybe.map onBlur |> Maybe.withDefault noAttribute)
+                                    |> Knapp.withAttribute (options.onFocus |> Maybe.map onFocus |> Maybe.withDefault noAttribute)
+                                    |> Knapp.toHtml
+
+                            Nothing ->
+                                text ""
+                        ]
+
+                Nothing ->
+                    if List.isEmpty options.suggestions then
+                        text ""
+
+                    else
+                        options.suggestions
+                            |> List.map (viewSuggestion options.inputId)
+                            |> ul
+                                [ onMouseLeave (options.onTypeaheadChange MouseLeaveSuggestions)
+                                , class "suggestion-list"
+                                , id (suggestionsId options.inputId)
+                                , ariaExpanded "true"
+                                , role "listbox"
+                                , tabindex -1
+                                , options.onFocus
+                                    |> Maybe.map onFocus
+                                    |> Maybe.withDefault noAttribute
+                                ]
             ]
-        , case options.feilmelding of
-            Just feilmelding ->
+        , case ( options.feilmelding, options.errorMelding ) of
+            ( Just feilmelding, Nothing ) ->
                 div [ role "alert", ariaLive "assertive" ]
                     [ div [ class "skjemaelement__feilmelding" ]
                         [ text feilmelding ]
                     ]
 
-            Nothing ->
+            _ ->
                 text ""
         ]
 
@@ -250,9 +297,11 @@ map msgConstructor (Typeahead options) =
         , innhold = options.innhold
         , inputId = options.inputId
         , feilmelding = options.feilmelding
+        , errorMelding = options.errorMelding
         , obligatorisk = options.obligatorisk
         , onInput = options.onInput >> msgConstructor
         , onTypeaheadChange = options.onTypeaheadChange >> msgConstructor
+        , prøvIgjenMsg = Maybe.map msgConstructor options.prøvIgjenMsg
         , onFocus = Maybe.map msgConstructor options.onFocus
         , onBlur = Maybe.map msgConstructor options.onBlur
         , suggestions =

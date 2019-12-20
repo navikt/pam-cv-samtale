@@ -33,6 +33,7 @@ import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLog
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
+import Result.Extra as Result
 import Task
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 
@@ -68,8 +69,6 @@ type OppsummeringsType
 
 type Samtale
     = RegistrerKonsept Bool (Typeahead.Model Konsept)
-    | HentingFraTypeaheadFeilet (Typeahead.Model Konsept) Http.Error
-    | HenterFraTypeaheadPåNyttEtterFeiling (Typeahead.Model Konsept) Http.Error
     | RegistrerBeskrivelse Bool BeskrivelseInfo
     | Oppsummering OppsummeringsType ValidertFagdokumentasjonSkjema
     | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
@@ -116,8 +115,6 @@ type Msg
     | HentetTypeahead (Result Http.Error (List Konsept))
     | TimeoutEtterAtFeltMistetFokus
     | BrukerVilRegistrereKonsept
-    | BrukerVilAvbryteHentingFraTypeahead
-    | BrukerVilPrøveÅHenteFraTypeaheadPåNytt
     | VilSeEksempel
     | BrukerVilRegistrereFagdokumentasjonBeskrivelse
     | OppdaterFagdokumentasjonBeskrivelse String
@@ -175,67 +172,26 @@ update msg (Model model) =
         HentetTypeahead result ->
             case model.aktivSamtale of
                 RegistrerKonsept visFeilmelding typeaheadModel ->
-                    case result of
-                        Ok suggestions ->
-                            ( suggestions
-                                |> Typeahead.updateSuggestions Konsept.label typeaheadModel
-                                |> RegistrerKonsept visFeilmelding
-                                |> oppdaterSamtale model IngenNyeMeldinger
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( error
-                                |> HentingFraTypeaheadFeilet typeaheadModel
-                                |> oppdaterSamtale model UtenSvar
-                            , Cmd.batch
-                                [ lagtTilSpørsmålCmd model.debugStatus
-                                , logFeilmelding error "Hente FagbrevTypeahead"
-                                ]
-                            )
-                                |> IkkeFerdig
-
-                HenterFraTypeaheadPåNyttEtterFeiling typeaheadModel _ ->
-                    case result of
-                        Ok suggestions ->
-                            ( Model
-                                { model
-                                    | aktivSamtale =
-                                        suggestions
-                                            |> Typeahead.updateSuggestions Konsept.label typeaheadModel
-                                            |> RegistrerKonsept False
-                                    , seksjonsMeldingsLogg =
-                                        model.seksjonsMeldingsLogg
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå gikk det!" ] ]
-                                }
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( error
-                                |> HentingFraTypeaheadFeilet typeaheadModel
-                                |> oppdaterSamtale model UtenSvar
-                            , Cmd.batch
-                                [ lagtTilSpørsmålCmd model.debugStatus
-                                , logFeilmelding error "Hente Yrketypeahead"
-                                ]
-                            )
-                                |> IkkeFerdig
+                    ( result
+                        |> Typeahead.updateSuggestions Konsept.label typeaheadModel
+                        |> RegistrerKonsept visFeilmelding
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , result
+                        |> Result.error
+                        |> Maybe.map (logFeilmelding "Hente FagbrevTypeahead")
+                        |> Maybe.withDefault Cmd.none
+                    )
+                        |> IkkeFerdig
 
                 EndrerOppsummering typeaheadModel skjema ->
-                    case result of
-                        Ok suggestions ->
-                            ( EndrerOppsummering (Typeahead.updateSuggestions Konsept.label typeaheadModel suggestions) skjema
-                                |> oppdaterSamtale model IngenNyeMeldinger
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( Model model, logFeilmelding error "Hente AutorisasjonTypeahead" )
-                                |> IkkeFerdig
+                    ( EndrerOppsummering (Typeahead.updateSuggestions Konsept.label typeaheadModel result) skjema
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , result
+                        |> Result.error
+                        |> Maybe.map (logFeilmelding "Hente AutorisasjonTypeahead")
+                        |> Maybe.withDefault Cmd.none
+                    )
+                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -260,27 +216,6 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
-
-        BrukerVilPrøveÅHenteFraTypeaheadPåNytt ->
-            case model.aktivSamtale of
-                HentingFraTypeaheadFeilet typeaheadModel error ->
-                    ( error
-                        |> HenterFraTypeaheadPåNyttEtterFeiling typeaheadModel
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , hentTypeaheadSuggestions (Typeahead.inputValue typeaheadModel) model.fagdokumentasjonType
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        BrukerVilAvbryteHentingFraTypeahead ->
-            ( VenterPåAnimasjonFørFullføring model.fagdokumentasjonListe AnnenAvslutning
-                |> oppdaterSamtale model (SvarFraMsg msg)
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
 
         VilSeEksempel ->
             case model.aktivSamtale of
@@ -449,7 +384,7 @@ update msg (Model model) =
                                 |> oppdaterSamtale model UtenSvar
                             , Cmd.batch
                                 [ lagtTilSpørsmålCmd model.debugStatus
-                                , logFeilmelding error "Lagre fagbrev"
+                                , logFeilmelding "Lagre fagbrev" error
                                 ]
                             )
                                 |> IkkeFerdig
@@ -788,8 +723,8 @@ mistetFokusCmd =
         |> Task.perform (\_ -> TimeoutEtterAtFeltMistetFokus)
 
 
-logFeilmelding : Http.Error -> String -> Cmd Msg
-logFeilmelding error operasjon =
+logFeilmelding : String -> Http.Error -> Cmd Msg
+logFeilmelding operasjon error =
     Feilmelding.feilmelding operasjon error
         |> Maybe.map (Api.logError ErrorLogget)
         |> Maybe.withDefault Cmd.none
@@ -847,12 +782,6 @@ samtaleTilMeldingsLogg fagdokumentasjonType fagbrevSeksjon =
                     [ Melding.spørsmål [ "Hva er navnet på autorisasjonen din?" ]
                     , Melding.spørsmål [ "Begynn å skriv inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
                     ]
-
-        HentingFraTypeaheadFeilet _ error ->
-            [ ErrorHåndtering.errorMelding { error = error, operasjon = "hente forslag i søkefeltet" } ]
-
-        HenterFraTypeaheadPåNyttEtterFeiling _ _ ->
-            []
 
         RegistrerBeskrivelse _ _ ->
             case fagdokumentasjonType of
@@ -1048,30 +977,6 @@ modelTilBrukerInput model =
                         |> Typeahead.toViewElement Konsept.label typeaheadModel
                         |> FrontendModuler.Typeahead.map TypeaheadMsg
                     )
-
-            HentingFraTypeaheadFeilet _ error ->
-                case ErrorHåndtering.operasjonEtterError error of
-                    GiOpp ->
-                        BrukerInput.knapper Flytende
-                            [ Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
-                            ]
-
-                    PrøvPåNytt ->
-                        BrukerInput.knapper Flytende
-                            [ Knapp.knapp BrukerVilPrøveÅHenteFraTypeaheadPåNytt "Prøv igjen"
-                            , Knapp.knapp BrukerVilAvbryteHentingFraTypeahead "Gå videre"
-                            ]
-
-                    LoggInn ->
-                        LoggInnLenke.viewLoggInnLenke
-
-            HenterFraTypeaheadPåNyttEtterFeiling _ error ->
-                case ErrorHåndtering.operasjonEtterError error of
-                    LoggInn ->
-                        LoggInnLenke.viewLoggInnLenke
-
-                    _ ->
-                        BrukerInput.utenInnhold
 
             RegistrerBeskrivelse medEksempelKnapp beskrivelseinfo ->
                 beskrivelseinfo.beskrivelse
