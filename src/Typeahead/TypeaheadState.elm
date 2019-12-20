@@ -4,6 +4,7 @@ module Typeahead.TypeaheadState exposing
     , active
     , arrowDown
     , arrowUp
+    , error
     , findSuggestionMatchingInputValue
     , hideSuggestions
     , init
@@ -16,6 +17,7 @@ module Typeahead.TypeaheadState exposing
     , value
     )
 
+import Http
 import List.Extra as List
 
 
@@ -34,6 +36,7 @@ type SuggestionList a
         , active_ : a
         , after : List a
         }
+    | SuggestionError Http.Error
 
 
 init : String -> TypeaheadState a
@@ -61,27 +64,38 @@ active (TypeaheadState info) =
         SuggestionActive { active_ } ->
             Just active_
 
+        SuggestionError _ ->
+            Nothing
+
 
 updateValue : String -> TypeaheadState a -> TypeaheadState a
 updateValue value_ (TypeaheadState info) =
     TypeaheadState { info | value = value_ }
 
 
-updateSuggestions : String -> List a -> TypeaheadState a -> TypeaheadState a
-updateSuggestions value_ suggestions (TypeaheadState info) =
+updateSuggestions : String -> Result Http.Error (List a) -> TypeaheadState a -> TypeaheadState a
+updateSuggestions value_ suggestionResult (TypeaheadState info) =
     TypeaheadState
         { info
             | suggestions =
-                case info.suggestions of
-                    HideSuggestions _ ->
-                        HideSuggestions suggestions
+                case suggestionResult of
+                    Ok suggestions ->
+                        case info.suggestions of
+                            HideSuggestions _ ->
+                                HideSuggestions suggestions
 
-                    NoneActive _ ->
-                        NoneActive suggestions
+                            NoneActive _ ->
+                                NoneActive suggestions
 
-                    SuggestionActive record ->
-                        -- TODO: Denne burde ta vare på aktivt element
-                        NoneActive suggestions
+                            SuggestionActive record ->
+                                -- TODO: Denne burde ta vare på aktivt element
+                                NoneActive suggestions
+
+                            SuggestionError _ ->
+                                NoneActive suggestions
+
+                    Err error_ ->
+                        SuggestionError error_
         }
 
 
@@ -103,6 +117,9 @@ updateActiveSuggestion newActive suggestionList =
             [ before, [ active_ ], after ]
                 |> List.concat
                 |> makeActive newActive
+
+        SuggestionError error_ ->
+            SuggestionError error_
 
 
 makeActive : a -> List a -> SuggestionList a
@@ -170,6 +187,9 @@ arrowDown (TypeaheadState info) =
                                 [ before, [ active_ ], after ]
                                     |> List.concat
                                     |> NoneActive
+
+                    SuggestionError error_ ->
+                        SuggestionError error_
         }
 
 
@@ -212,6 +232,9 @@ arrowUp (TypeaheadState info) =
                                 [ before, [ active_ ], after ]
                                     |> List.concat
                                     |> NoneActive
+
+                    SuggestionError error_ ->
+                        SuggestionError error_
         }
 
 
@@ -248,6 +271,9 @@ removeActiveFromSuggestions suggestionList =
                 |> List.concat
                 |> NoneActive
 
+        SuggestionError error_ ->
+            SuggestionError error_
+
 
 showSuggestions : TypeaheadState a -> TypeaheadState a
 showSuggestions (TypeaheadState info) =
@@ -263,6 +289,9 @@ showSuggestions (TypeaheadState info) =
 
                     SuggestionActive record ->
                         SuggestionActive record
+
+                    SuggestionError error_ ->
+                        SuggestionError error_
         }
 
 
@@ -282,6 +311,9 @@ hideSuggestions (TypeaheadState info) =
                         [ before, [ active_ ], after ]
                             |> List.concat
                             |> HideSuggestions
+
+                    SuggestionError error_ ->
+                        SuggestionError error_
         }
 
 
@@ -306,6 +338,9 @@ findSuggestionMatchingInputValue toString (TypeaheadState info) =
                 |> List.concat
                 |> List.find predicate
 
+        SuggestionError _ ->
+            Nothing
+
 
 type ActiveState
     = Active
@@ -327,3 +362,22 @@ mapSuggestions function (TypeaheadState info) =
                 , [ function Active active_ ]
                 , List.map (function NotActive) after
                 ]
+
+        SuggestionError _ ->
+            []
+
+
+error : TypeaheadState a -> Maybe Http.Error
+error (TypeaheadState info) =
+    case info.suggestions of
+        SuggestionError error_ ->
+            Just error_
+
+        HideSuggestions list ->
+            Nothing
+
+        NoneActive list ->
+            Nothing
+
+        SuggestionActive record ->
+            Nothing

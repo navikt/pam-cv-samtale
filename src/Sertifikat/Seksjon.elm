@@ -34,6 +34,7 @@ import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLog
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
+import Result.Extra as Result
 import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import Task
@@ -259,35 +260,26 @@ update msg (Model model) =
         HentetTypeahead result ->
             case model.aktivSamtale of
                 RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
-                    case result of
-                        Ok suggestions ->
-                            let
-                                nyTypeaheadModel =
-                                    Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel suggestions
-                            in
-                            ( nyTypeaheadModel
-                                |> RegistrerSertifikatFelt visFeilmelding
-                                |> oppdaterSamtale model IngenNyeMeldinger
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( Model model, logFeilmelding error "Hent SertifikatTypeahead" )
-                                |> IkkeFerdig
+                    ( result
+                        |> Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel
+                        |> RegistrerSertifikatFelt visFeilmelding
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , result
+                        |> Result.error
+                        |> Maybe.map (logFeilmelding "Hent SertifikatTypeahead")
+                        |> Maybe.withDefault Cmd.none
+                    )
+                        |> IkkeFerdig
 
                 EndreOpplysninger typeaheadModel skjema ->
-                    case result of
-                        Ok suggestions ->
-                            ( EndreOpplysninger (Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel suggestions) skjema
-                                |> oppdaterSamtale model IngenNyeMeldinger
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                        Err error ->
-                            ( Model model, logFeilmelding error "Hent SertifikatTypeahead" )
-                                |> IkkeFerdig
+                    ( EndreOpplysninger (Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel result) skjema
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , result
+                        |> Result.error
+                        |> Maybe.map (logFeilmelding "Hent SertifikatTypeahead")
+                        |> Maybe.withDefault Cmd.none
+                    )
+                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -1015,8 +1007,8 @@ mistetFokusCmd =
         |> Task.perform (\_ -> TimeoutEtterAtFeltMistetFokus)
 
 
-logFeilmelding : Http.Error -> String -> Cmd Msg
-logFeilmelding error operasjon =
+logFeilmelding : String -> Http.Error -> Cmd Msg
+logFeilmelding operasjon error =
     Feilmelding.feilmelding operasjon error
         |> Maybe.map (Api.logError (always ErrorLogget))
         |> Maybe.withDefault Cmd.none

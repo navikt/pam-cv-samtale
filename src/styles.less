@@ -799,7 +799,7 @@ a.avslutt-knapp.Knapp {
 .typeahead {
   position: relative;
 
-  ul {
+  .suggestion-list {
     position: absolute;
     top: 100%;
     left: 0;
@@ -811,8 +811,21 @@ a.avslutt-knapp.Knapp {
     border: 1px solid @green;
     border-top: none;
     box-shadow: 0 5px 15px -5px @navGra60;
+  }
+
+  ul.suggestion-list {
     overflow: auto;
     max-height: 122px;
+  }
+
+  .suggestion-list.typeahead-error {
+    padding: 1rem;
+    p {
+      margin: 0;
+    }
+    .Knapp {
+      margin-top: 1rem;
+    }
   }
 
   ul li {

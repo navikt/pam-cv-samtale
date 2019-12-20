@@ -17,8 +17,10 @@ module Typeahead.Typeahead exposing
     , view
     )
 
+import ErrorHandtering as ErrorHåndtering
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
 import Html exposing (..)
+import Http
 import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
@@ -87,6 +89,7 @@ type Msg a
     | BrukerVelgerElement a
     | TypeaheadFikkFokus
     | TypeaheadMistetFokus
+    | BrukerTrykketPåPrøvIgjen
 
 
 update : (a -> String) -> Msg a -> Model a -> ( Model a, Status )
@@ -183,6 +186,17 @@ update toString msg (Model model) =
                 }
             )
 
+        BrukerTrykketPåPrøvIgjen ->
+            ( Model model
+            , Status
+                { inputStatus = NoChange
+                , getSuggestionStatus =
+                    model.typeaheadState
+                        |> TypeaheadState.value
+                        |> GetSuggestionsForInput
+                }
+            )
+
 
 updateTypeaheadState : (a -> String) -> ModelInfo a -> TypeaheadState a -> Model a
 updateTypeaheadState toString model typeaheadState =
@@ -223,7 +237,7 @@ updateAfterSelect toString selected_ model =
     )
 
 
-updateSuggestions : (a -> String) -> Model a -> List a -> Model a
+updateSuggestions : (a -> String) -> Model a -> Result Http.Error (List a) -> Model a
 updateSuggestions toString (Model model) suggestions =
     model.typeaheadState
         |> TypeaheadState.updateSuggestions "" suggestions
@@ -247,10 +261,34 @@ toViewElement toString (Model model) feilmelding =
         |> Typeahead.typeahead { label = model.label, onInput = BrukerOppdatererInput, onTypeaheadChange = BrukerTrykkerTypeaheadTast, inputId = model.id }
         |> Typeahead.withSuggestions (viewSuggestion toString model.typeaheadState)
         |> Typeahead.withFeilmelding feilmelding
+        |> Typeahead.withErrorMelding (errorMelding model.typeaheadState)
+        |> Typeahead.withPrøvIgjenKnapp (prøvPåNyttMsg model.typeaheadState)
         |> Typeahead.withOnFocus TypeaheadFikkFokus
         |> Typeahead.withOnBlur TypeaheadMistetFokus
         -- Foreløpig er alle typeaheadfeltene våre obligatoriske, så sender med dette valget uansett
         |> Typeahead.withErObligatorisk
+
+
+errorMelding : TypeaheadState a -> Maybe String
+errorMelding typeaheadState =
+    typeaheadState
+        |> TypeaheadState.error
+        |> Maybe.map ErrorHåndtering.feilmeldingTypeahead
+
+
+prøvPåNyttMsg : TypeaheadState a -> Maybe (Msg a)
+prøvPåNyttMsg typeaheadState =
+    typeaheadState
+        |> TypeaheadState.error
+        |> Maybe.map ErrorHåndtering.prøvPåNyttEtterTypeaheadError
+        |> Maybe.andThen
+            (\prøvPåNytt ->
+                if prøvPåNytt then
+                    Just BrukerTrykketPåPrøvIgjen
+
+                else
+                    Nothing
+            )
 
 
 viewSuggestion : (a -> String) -> TypeaheadState a -> List (Typeahead.Suggestion (Msg a))
