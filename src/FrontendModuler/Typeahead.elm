@@ -182,12 +182,25 @@ toHtml (Typeahead options) =
                 []
             , case options.errorMelding of
                 Just errorMelding ->
-                    div [ class "suggestion-list typeahead-error", role "alert", ariaLive "assertive" ]
+                    div
+                        [ class "suggestion-list typeahead-error"
+                        , role "alert"
+                        , ariaLive "assertive"
+                        , tabindex -1
+                        , options.onFocus
+                            |> Maybe.map onFocus
+                            |> Maybe.withDefault noAttribute
+                        , options.onBlur
+                            |> Maybe.map onBlur
+                            |> Maybe.withDefault noAttribute
+                        ]
                         [ p []
                             [ text errorMelding ]
                         , case options.prøvIgjenMsg of
                             Just prøvIgjenMsg ->
                                 Knapp.knapp prøvIgjenMsg "Prøv igjen"
+                                    |> Knapp.withAttribute (options.onBlur |> Maybe.map onBlur |> Maybe.withDefault noAttribute)
+                                    |> Knapp.withAttribute (options.onFocus |> Maybe.map onFocus |> Maybe.withDefault noAttribute)
                                     |> Knapp.toHtml
 
                             Nothing ->

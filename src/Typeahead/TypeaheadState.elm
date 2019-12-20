@@ -36,7 +36,7 @@ type SuggestionList a
         , active_ : a
         , after : List a
         }
-    | SuggestionError Http.Error
+    | SuggestionError Bool Http.Error
 
 
 init : String -> TypeaheadState a
@@ -64,7 +64,7 @@ active (TypeaheadState info) =
         SuggestionActive { active_ } ->
             Just active_
 
-        SuggestionError _ ->
+        SuggestionError _ _ ->
             Nothing
 
 
@@ -91,11 +91,11 @@ updateSuggestions value_ suggestionResult (TypeaheadState info) =
                                 -- TODO: Denne burde ta vare på aktivt element
                                 NoneActive suggestions
 
-                            SuggestionError _ ->
+                            SuggestionError _ _ ->
                                 NoneActive suggestions
 
                     Err error_ ->
-                        SuggestionError error_
+                        SuggestionError True error_
         }
 
 
@@ -118,8 +118,8 @@ updateActiveSuggestion newActive suggestionList =
                 |> List.concat
                 |> makeActive newActive
 
-        SuggestionError error_ ->
-            SuggestionError error_
+        SuggestionError _ _ ->
+            suggestionList
 
 
 makeActive : a -> List a -> SuggestionList a
@@ -188,8 +188,8 @@ arrowDown (TypeaheadState info) =
                                     |> List.concat
                                     |> NoneActive
 
-                    SuggestionError error_ ->
-                        SuggestionError error_
+                    SuggestionError _ _ ->
+                        info.suggestions
         }
 
 
@@ -233,8 +233,8 @@ arrowUp (TypeaheadState info) =
                                     |> List.concat
                                     |> NoneActive
 
-                    SuggestionError error_ ->
-                        SuggestionError error_
+                    SuggestionError _ _ ->
+                        info.suggestions
         }
 
 
@@ -261,7 +261,7 @@ removeActiveFromSuggestions : SuggestionList a -> SuggestionList a
 removeActiveFromSuggestions suggestionList =
     case suggestionList of
         HideSuggestions suggestions ->
-            NoneActive suggestions
+            HideSuggestions suggestions
 
         NoneActive suggestions ->
             NoneActive suggestions
@@ -271,8 +271,8 @@ removeActiveFromSuggestions suggestionList =
                 |> List.concat
                 |> NoneActive
 
-        SuggestionError error_ ->
-            SuggestionError error_
+        SuggestionError _ _ ->
+            suggestionList
 
 
 showSuggestions : TypeaheadState a -> TypeaheadState a
@@ -290,8 +290,8 @@ showSuggestions (TypeaheadState info) =
                     SuggestionActive record ->
                         SuggestionActive record
 
-                    SuggestionError error_ ->
-                        SuggestionError error_
+                    SuggestionError _ error_ ->
+                        SuggestionError True error_
         }
 
 
@@ -312,8 +312,8 @@ hideSuggestions (TypeaheadState info) =
                             |> List.concat
                             |> HideSuggestions
 
-                    SuggestionError error_ ->
-                        SuggestionError error_
+                    SuggestionError _ error_ ->
+                        SuggestionError False error_
         }
 
 
@@ -338,7 +338,7 @@ findSuggestionMatchingInputValue toString (TypeaheadState info) =
                 |> List.concat
                 |> List.find predicate
 
-        SuggestionError _ ->
+        SuggestionError _ _ ->
             Nothing
 
 
@@ -363,15 +363,19 @@ mapSuggestions function (TypeaheadState info) =
                 , List.map (function NotActive) after
                 ]
 
-        SuggestionError _ ->
+        SuggestionError _ _ ->
             []
 
 
 error : TypeaheadState a -> Maybe Http.Error
 error (TypeaheadState info) =
     case info.suggestions of
-        SuggestionError error_ ->
-            Just error_
+        SuggestionError showError error_ ->
+            if showError then
+                Just error_
+
+            else
+                Nothing
 
         HideSuggestions list ->
             Nothing
