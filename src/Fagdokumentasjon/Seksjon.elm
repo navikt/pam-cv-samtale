@@ -590,6 +590,16 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
                         Cmd.none
                 )
 
+        NewActiveElement ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerKonsept visFeilmelding
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , nyTypeaheadModel
+                    |> Typeahead.scrollActiveSuggestionIntoView Konsept.label Nothing
+                    |> Cmd.map TypeaheadMsg
+                )
+
 
 visFeilmeldingRegistrerKonsept : ModelInfo -> Typeahead.Model Konsept -> SamtaleStatus
 visFeilmeldingRegistrerKonsept model typeaheadModel =

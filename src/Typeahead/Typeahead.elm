@@ -12,6 +12,7 @@ module Typeahead.Typeahead exposing
     , inputStatus
     , inputValue
     , queryToString
+    , scrollActiveSuggestionIntoView
     , selected
     , toViewElement
     , update
@@ -19,10 +20,12 @@ module Typeahead.Typeahead exposing
     , view
     )
 
+import Browser.Dom
 import ErrorHandtering as ErrorHåndtering
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
 import Html exposing (..)
 import Http
+import Task
 import Typeahead.TypeaheadState as TypeaheadState exposing (TypeaheadState)
 
 
@@ -39,6 +42,7 @@ type alias ModelInfo a =
     , typeaheadState : TypeaheadState a
     , id : String
     , label : String
+    , lastMousePosition : { x : Float, y : Float }
     }
 
 
@@ -69,6 +73,7 @@ type GetSuggestionStatus
 type InputStatus
     = Submit
     | InputBlurred
+    | NewActiveElement
     | NoChange
 
 
@@ -96,11 +101,12 @@ inputStatus (Status info) =
 type Msg a
     = BrukerOppdatererInput String
     | BrukerTrykkerTypeaheadTast Typeahead.Operation
-    | BrukerHovrerOverTypeaheadSuggestion a
+    | BrukerHovrerOverTypeaheadSuggestion a { x : Float, y : Float }
     | BrukerVelgerElement a
     | TypeaheadFikkFokus
     | TypeaheadMistetFokus
     | BrukerTrykketPåPrøvIgjen
+    | SuggestionListeScrollet (Result Browser.Dom.Error ())
 
 
 update : (a -> String) -> Msg a -> Model a -> ( Model a, Status )
@@ -133,7 +139,7 @@ update toString msg (Model model) =
                         |> updateTypeaheadState toString model
                     , Status
                         { getSuggestionStatus = DoNothing
-                        , inputStatus = NoChange
+                        , inputStatus = NewActiveElement
                         }
                     )
 
@@ -143,7 +149,7 @@ update toString msg (Model model) =
                         |> updateTypeaheadState toString model
                     , Status
                         { getSuggestionStatus = DoNothing
-                        , inputStatus = NoChange
+                        , inputStatus = NewActiveElement
                         }
                     )
 
@@ -172,10 +178,15 @@ update toString msg (Model model) =
                         }
                     )
 
-        BrukerHovrerOverTypeaheadSuggestion active ->
-            ( model.typeaheadState
-                |> TypeaheadState.updateActive active
-                |> updateTypeaheadState toString model
+        BrukerHovrerOverTypeaheadSuggestion active coords ->
+            ( -- Ikke sett ny aktiv suggestion hvis musen ikke har beveget seg. Da er messagen sendt pga at listen er scrollet.
+              if model.lastMousePosition == coords then
+                Model model
+
+              else
+                model.typeaheadState
+                    |> TypeaheadState.updateActive active
+                    |> updateTypeaheadState toString { model | lastMousePosition = coords }
             , Status
                 { getSuggestionStatus = DoNothing
                 , inputStatus = NoChange
@@ -214,6 +225,14 @@ update toString msg (Model model) =
                         |> TypeaheadState.query
                         |> Query
                         |> GetSuggestionsForInput
+                }
+            )
+
+        SuggestionListeScrollet _ ->
+            ( Model model
+            , Status
+                { getSuggestionStatus = DoNothing
+                , inputStatus = NoChange
                 }
             )
 
@@ -266,6 +285,13 @@ updateSuggestions toString (Model model) (Query query) suggestions =
     model.typeaheadState
         |> TypeaheadState.updateSuggestions query suggestions
         |> updateTypeaheadState toString model
+
+
+scrollActiveSuggestionIntoView : (a -> String) -> Maybe String -> Model a -> Cmd (Msg a)
+scrollActiveSuggestionIntoView toString feilmelding model =
+    toViewElement toString model feilmelding
+        |> Typeahead.scrollActiveSuggestionIntoView
+        |> Task.attempt SuggestionListeScrollet
 
 
 
@@ -359,6 +385,7 @@ init input =
         , id = input.id
         , label = input.label
         , typeaheadState = typeaheadState
+        , lastMousePosition = { x = 0, y = 0 }
         }
     , typeaheadState
         |> TypeaheadState.query
@@ -387,6 +414,7 @@ initWithSelected input =
         { selected = Just input.selected
         , id = input.id
         , label = input.label
+        , lastMousePosition = { x = 0, y = 0 }
         , typeaheadState =
             input.selected
                 |> input.toString
