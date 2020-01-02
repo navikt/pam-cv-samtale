@@ -94,7 +94,7 @@ updateValue value_ (TypeaheadState info) =
 
 updateSuggestions : Query -> Result Http.Error (List a) -> TypeaheadState a -> TypeaheadState a
 updateSuggestions query_ suggestionResult (TypeaheadState info) =
-    if queryToString info.queryOfCurrentSuggestions == info.value then
+    if queryToString info.queryOfCurrentSuggestions == info.value && queryToString query_ /= info.value then
         TypeaheadState info
 
     else
