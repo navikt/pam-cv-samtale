@@ -5,6 +5,7 @@ module FrontendModuler.Typeahead exposing
     , TypeaheadOptions
     , innhold
     , map
+    , scrollActiveSuggestionIntoView
     , toHtml
     , typeahead
     , withErObligatorisk
@@ -16,14 +17,16 @@ module FrontendModuler.Typeahead exposing
     , withSuggestions
     )
 
+import Browser.Dom as Dom
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (..)
 import Html.Events exposing (..)
-import Http
 import Json.Decode
+import Json.Decode.Pipeline
 import List.Extra as List
+import Task exposing (Task)
 
 
 type Typeahead msg
@@ -81,7 +84,7 @@ typeahead options innhold_ =
 
 type alias Suggestion msg =
     { innhold : String
-    , onActive : msg
+    , onActive : { x : Float, y : Float } -> msg
     , onClick : msg
     , active : Bool
     }
@@ -251,7 +254,7 @@ viewSuggestion : String -> Suggestion msg -> Html msg
 viewSuggestion inputFeltId suggestion =
     li
         [ onClick suggestion.onClick
-        , onMouseEnter suggestion.onActive
+        , onMouseEnterWithCoords suggestion.onActive
         , role "option"
         , id (suggestionId inputFeltId suggestion)
         , if suggestion.active then
@@ -263,6 +266,30 @@ viewSuggestion inputFeltId suggestion =
         [ span [ classList [ ( "typetext", True ), ( "active", suggestion.active ) ] ]
             [ text suggestion.innhold ]
         ]
+
+
+onMouseEnterWithCoords : ({ x : Float, y : Float } -> msg) -> Html.Attribute msg
+onMouseEnterWithCoords msgConstructor =
+    on "mousemove" (mouseMoveDecoder msgConstructor)
+
+
+mouseMoveDecoder : ({ x : Float, y : Float } -> msg) -> Json.Decode.Decoder msg
+mouseMoveDecoder msgConstructor =
+    decodeMouseEvent
+        |> Json.Decode.map msgConstructor
+
+
+decodeMouseEvent : Json.Decode.Decoder { x : Float, y : Float }
+decodeMouseEvent =
+    Json.Decode.succeed MouseCoord
+        |> Json.Decode.Pipeline.required "x" Json.Decode.float
+        |> Json.Decode.Pipeline.required "y" Json.Decode.float
+
+
+type alias MouseCoord =
+    { x : Float
+    , y : Float
+    }
 
 
 suggestionId : String -> Suggestion msg -> String
@@ -309,7 +336,7 @@ map msgConstructor (Typeahead options) =
                 |> List.map
                     (\suggestion ->
                         { innhold = suggestion.innhold
-                        , onActive = msgConstructor suggestion.onActive
+                        , onActive = suggestion.onActive >> msgConstructor
                         , onClick = msgConstructor suggestion.onClick
                         , active = suggestion.active
                         }
@@ -320,3 +347,91 @@ map msgConstructor (Typeahead options) =
 innhold : Typeahead msg -> String
 innhold (Typeahead options) =
     options.innhold
+
+
+
+--- SCROLL TASK ---
+
+
+scrollActiveSuggestionIntoView : Typeahead msg -> Task Dom.Error ()
+scrollActiveSuggestionIntoView (Typeahead options) =
+    options
+        |> getActiveElement
+        |> Maybe.map (getElementsAndScroll options)
+        |> Maybe.withDefault (Task.succeed ())
+
+
+getActiveElement : TypeaheadInfo msg -> Maybe (Task Dom.Error Dom.Element)
+getActiveElement options =
+    options.suggestions
+        |> List.find .active
+        |> Maybe.map (suggestionId options.inputId)
+        |> Maybe.map Dom.getElement
+
+
+getElementsAndScroll : TypeaheadInfo msg -> Task Dom.Error Dom.Element -> Task Dom.Error ()
+getElementsAndScroll options task =
+    task
+        |> getSuggestionDomElements options
+        |> Task.andThen (scrollIntoView options)
+
+
+type alias SuggestionDomElements =
+    { suggestion : Dom.Element
+    , suggestionsViewport : Dom.Viewport
+    , suggestionsElement : Dom.Element
+    }
+
+
+getSuggestionDomElements : TypeaheadInfo msg -> Task Dom.Error Dom.Element -> Task Dom.Error SuggestionDomElements
+getSuggestionDomElements options task =
+    Task.map3
+        SuggestionDomElements
+        task
+        (getViewportOfSuggestions options)
+        (getSuggestionsElement options)
+
+
+getViewportOfSuggestions : TypeaheadInfo msg -> Task Dom.Error Dom.Viewport
+getViewportOfSuggestions options =
+    options.inputId
+        |> suggestionsId
+        |> Dom.getViewportOf
+
+
+getSuggestionsElement : TypeaheadInfo msg -> Task Dom.Error Dom.Element
+getSuggestionsElement options =
+    options.inputId
+        |> suggestionsId
+        |> Dom.getElement
+
+
+scrollIntoView : TypeaheadInfo msg -> SuggestionDomElements -> Task Dom.Error ()
+scrollIntoView options domElements =
+    if domElements.suggestion.element.y < domElements.suggestionsElement.element.y then
+        Dom.setViewportOf (suggestionsId options.inputId) 0 (scrollElementTilØverstY domElements)
+
+    else if domElements.suggestion.element.y + domElements.suggestion.element.height > domElements.suggestionsElement.element.y + domElements.suggestionsElement.element.height then
+        Dom.setViewportOf (suggestionsId options.inputId) 0 (scrollElementTilNederstY domElements)
+
+    else
+        Task.succeed ()
+
+
+scrollElementTilNederstY : SuggestionDomElements -> Float
+scrollElementTilNederstY domElements =
+    let
+        yForElementISuggestionsViewport =
+            relativYPosisjonForElement domElements
+    in
+    yForElementISuggestionsViewport + domElements.suggestion.element.height - domElements.suggestionsViewport.viewport.height
+
+
+scrollElementTilØverstY : SuggestionDomElements -> Float
+scrollElementTilØverstY t =
+    relativYPosisjonForElement t
+
+
+relativYPosisjonForElement : SuggestionDomElements -> Float
+relativYPosisjonForElement t =
+    t.suggestion.element.y - t.suggestionsElement.element.y + t.suggestionsViewport.viewport.y

@@ -1075,6 +1075,16 @@ updateSamtaleTypeahead model registreringsType visFeilmelding msg typeaheadModel
                         Cmd.none
                 )
 
+        NewActiveElement ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerYrke registreringsType visFeilmelding
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , nyTypeaheadModel
+                    |> Typeahead.scrollActiveSuggestionIntoView Yrke.label Nothing
+                    |> Cmd.map TypeaheadMsg
+                )
+
 
 initSamtaleTypeahead : ( Typeahead.Model Yrke, Typeahead.Query )
 initSamtaleTypeahead =

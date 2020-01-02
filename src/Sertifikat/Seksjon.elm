@@ -876,6 +876,16 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
                         Cmd.none
                 )
 
+        NewActiveElement ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> RegistrerSertifikatFelt visFeilmelding
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , nyTypeaheadModel
+                    |> Typeahead.scrollActiveSuggestionIntoView SertifikatTypeahead.label Nothing
+                    |> Cmd.map TypeaheadMsg
+                )
+
 
 feilmeldingTypeahead : Typeahead.Model SertifikatTypeahead -> Maybe String
 feilmeldingTypeahead typeaheadModel =
