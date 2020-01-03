@@ -12,9 +12,9 @@ module Personalia.Personalia exposing
     , telefon
     )
 
-import Html exposing (Html)
-import Json.Decode exposing (Decoder, map, nullable, string, succeed)
+import Json.Decode exposing (Decoder, nullable, string, succeed)
 import Json.Decode.Pipeline exposing (required)
+import Personalia.PersonaliaId as PersonaliaId exposing (PersonaliaId)
 
 
 type Personalia
@@ -22,7 +22,7 @@ type Personalia
 
 
 type alias PersonaliaInfo =
-    { id : String
+    { id : PersonaliaId
     , fornavn : Maybe String
     , etternavn : Maybe String
     , epost : Maybe String
@@ -34,7 +34,7 @@ type alias PersonaliaInfo =
     }
 
 
-id : Personalia -> String
+id : Personalia -> PersonaliaId
 id (Personalia info) =
     info.id
 
@@ -86,13 +86,13 @@ poststed (Personalia info) =
 decode : Decoder Personalia
 decode =
     decodeBackendData
-        |> map Personalia
+        |> Json.Decode.map Personalia
 
 
 decodeBackendData : Decoder PersonaliaInfo
 decodeBackendData =
     succeed PersonaliaInfo
-        |> required "id" string
+        |> required "id" PersonaliaId.decode
         |> required "fornavn" (nullable string)
         |> required "etternavn" (nullable string)
         |> required "epost" (nullable string)
