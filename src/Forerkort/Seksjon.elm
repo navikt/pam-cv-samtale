@@ -13,14 +13,13 @@ import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Cv.Forerkort as Forerkort exposing (Førerkort, Klasse(..))
-import Dato.Dato as Dato exposing (Dato, DatoValidering(..))
-import Dato.Maned as Måned exposing (Måned)
+import Dato.Dato as Dato exposing (DatoValidering(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Forerkort.ForerkortKode as FørerkortKode exposing (FørerkortKode)
 import Forerkort.Skjema as Skjema exposing (FørerkortSkjema, ValidertFørerkortSkjema)
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
-import FrontendModuler.DatoInputMedDag as DatoInputMedDag
+import FrontendModuler.DatoInputEttFelt as DatoInputEttFelt
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Select as Select
@@ -71,10 +70,10 @@ type Samtale
     = IntroLeggTilKlasseB (List Førerkort)
     | SvarteNeiPåKlasseB
     | VelgNyttFørerkort { valgtFørerkort : Maybe FørerkortKode, feilmelding : Maybe String }
-    | RegistrereFraDato { valgtFørerkort : FørerkortKode, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
-    | RegistrereTilDato { valgtFørerkort : FørerkortKode, fraDato : Maybe Dato, dag : String, måned : Maybe Måned, år : String, visFeilmelding : Bool }
+    | RegistrereFraDato { valgtFørerkort : FørerkortKode, dato : String, visFeilmelding : Bool }
+    | RegistrereTilDato { valgtFørerkort : FørerkortKode, fraDato : Maybe String, tilDato : String, visFeilmelding : Bool }
     | Oppsummering OppsummeringsType ValidertFørerkortSkjema
-    | EndreSkjema { skjema : FørerkortSkjema, visFeilmelding : Bool }
+    | EndreSkjema FørerkortSkjema
     | BekreftSlettingAvPåbegynt ValidertFørerkortSkjema
     | LagrerFørerkort ValidertFørerkortSkjema LagreStatus
     | LagrerFørerkortKlasseB ValidertFørerkortSkjema LagreStatus
@@ -112,13 +111,9 @@ type Msg
     | FørerkortLagret (Result Http.Error (List Førerkort))
     | BrukerVilGåVidereMedValgtFørerkort
     | BrukerHarValgtFørerkortFraDropdown String
-    | BrukerEndrerFraDag String
-    | BrukerEndrerFraMåned String
-    | BrukerEndrerFraÅr String
+    | BrukerEndrerFraDato String
     | BrukerVilGåVidereMedFraDato
-    | BrukerEndrerTilDag String
-    | BrukerEndrerTilMåned String
-    | BrukerEndrerTilÅr String
+    | BrukerEndrerTilDato String
     | BrukerVilGåVidereMedTilDato
     | BrukerVilLagreIOppsummeringen
     | BrukerVilEndreOppsummeringen
@@ -136,16 +131,16 @@ type Msg
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
+    | DatoMisterFokus
+    | TimeoutEtterAtFeltMistetFokus
 
 
 type SkjemaEndring
     = Førerkort String
-    | FraÅr String
-    | FraMåned String
-    | FraDag String
-    | TilÅr String
-    | TilMåned String
-    | TilDag String
+    | FraDato String
+    | TilDato String
+    | FraDatoBlurred
+    | TilDatoBlurred
 
 
 oppdaterSkjema : SkjemaEndring -> FørerkortSkjema -> FørerkortSkjema
@@ -156,27 +151,19 @@ oppdaterSkjema endring skjema =
                 |> FørerkortKode.stringTilMaybeFørerkortKode
                 |> Skjema.oppdaterFørerkort skjema
 
-        FraÅr år ->
-            Skjema.oppdaterFraÅr skjema år
+        FraDato år ->
+            Skjema.oppdaterFraDato skjema år
 
-        FraMåned måned ->
-            måned
-                |> Måned.fraString
-                |> Skjema.oppdaterFraMåned skjema
+        TilDato år ->
+            Skjema.oppdaterTilDato skjema år
 
-        FraDag dag ->
-            Skjema.oppdaterFraDag skjema dag
+        FraDatoBlurred ->
+            Skjema.tillatÅViseFeilmeldingFraDato
+                (Skjema.oppdaterFraDato skjema (Dato.justerDatoFormat (Skjema.fraDatoFraSkjema skjema)))
 
-        TilÅr år ->
-            Skjema.oppdaterTilÅr skjema år
-
-        TilMåned måned ->
-            måned
-                |> Måned.fraString
-                |> Skjema.oppdaterTilMåned skjema
-
-        TilDag dag ->
-            Skjema.oppdaterTilDag skjema dag
+        TilDatoBlurred ->
+            Skjema.tillatÅViseFeilmeldingTilDato
+                (Skjema.oppdaterTilDato skjema (Dato.justerDatoFormat (Skjema.tilDatoFraSkjema skjema)))
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -348,9 +335,7 @@ update msg (Model model) =
                         Just førerkortKode ->
                             if FørerkortKode.spørOmDatoInfo førerkortKode then
                                 ( { valgtFørerkort = førerkortKode
-                                  , dag = ""
-                                  , måned = Nothing
-                                  , år = ""
+                                  , dato = ""
                                   , visFeilmelding = False
                                   }
                                     |> RegistrereFraDato
@@ -393,36 +378,10 @@ update msg (Model model) =
                 , Cmd.none
                 )
 
-        BrukerEndrerFraDag dag ->
+        BrukerEndrerFraDato dato ->
             case model.aktivSamtale of
                 RegistrereFraDato info ->
-                    ( { info | dag = dag }
-                        |> RegistrereFraDato
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        BrukerEndrerFraÅr år ->
-            case model.aktivSamtale of
-                RegistrereFraDato info ->
-                    ( { info | år = år }
-                        |> RegistrereFraDato
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        BrukerEndrerFraMåned måned ->
-            case model.aktivSamtale of
-                RegistrereFraDato info ->
-                    ( { info | måned = Måned.fraString måned }
+                    ( { info | dato = dato }
                         |> RegistrereFraDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
@@ -438,26 +397,22 @@ update msg (Model model) =
         BrukerVilGåVidereMedFraDato ->
             case model.aktivSamtale of
                 RegistrereFraDato info ->
-                    case Dato.validerDato { dag = info.dag, måned = info.måned, år = info.år } of
-                        DatoValiderer dato ->
+                    case Dato.validerDato info.dato of
+                        GyldigDato dato ->
                             ( { valgtFørerkort = info.valgtFørerkort
                               , fraDato = Just dato
-                              , dag = ""
-                              , måned = Nothing
-                              , år = ""
+                              , tilDato = ""
                               , visFeilmelding = False
                               }
                                 |> RegistrereTilDato
-                                |> oppdaterSamtale model (ManueltSvar (Melding.svar [ Dato.toString dato ]))
+                                |> oppdaterSamtale model (ManueltSvar (Melding.svar [ dato ]))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
-                        DatoValideringsfeil ->
+                        DatoValideringsfeil _ ->
                             ( { valgtFørerkort = info.valgtFørerkort
-                              , dag = info.dag
-                              , måned = info.måned
-                              , år = info.år
+                              , dato = info.dato
                               , visFeilmelding = True
                               }
                                 |> RegistrereFraDato
@@ -469,9 +424,7 @@ update msg (Model model) =
                         DatoIkkeSkrevetInn ->
                             ( { valgtFørerkort = info.valgtFørerkort
                               , fraDato = Nothing
-                              , dag = ""
-                              , måned = Nothing
-                              , år = ""
+                              , tilDato = ""
                               , visFeilmelding = False
                               }
                                 |> RegistrereTilDato
@@ -483,36 +436,10 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        BrukerEndrerTilDag dag ->
+        BrukerEndrerTilDato dato ->
             case model.aktivSamtale of
                 RegistrereTilDato info ->
-                    ( { info | dag = dag }
-                        |> RegistrereTilDato
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        BrukerEndrerTilMåned måned ->
-            case model.aktivSamtale of
-                RegistrereTilDato info ->
-                    ( { info | måned = Måned.fraString måned }
-                        |> RegistrereTilDato
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        BrukerEndrerTilÅr år ->
-            case model.aktivSamtale of
-                RegistrereTilDato info ->
-                    ( { info | år = år }
+                    ( { info | tilDato = dato }
                         |> RegistrereTilDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
@@ -525,25 +452,23 @@ update msg (Model model) =
         BrukerVilGåVidereMedTilDato ->
             case model.aktivSamtale of
                 RegistrereTilDato info ->
-                    case Dato.validerDato { dag = info.dag, måned = info.måned, år = info.år } of
-                        DatoValiderer tilDato ->
+                    case Dato.validerDato info.tilDato of
+                        GyldigDato tilDato ->
                             ( { førerkort = info.valgtFørerkort
                               , fraDato = info.fraDato
                               , tilDato = Just tilDato
                               }
                                 |> Skjema.initValidert
                                 |> Oppsummering FørsteGang
-                                |> oppdaterSamtale model (ManueltSvar (Melding.svar [ Dato.toString tilDato ]))
+                                |> oppdaterSamtale model (ManueltSvar (Melding.svar [ tilDato ]))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
-                        DatoValideringsfeil ->
+                        DatoValideringsfeil _ ->
                             ( { valgtFørerkort = info.valgtFørerkort
                               , fraDato = info.fraDato
-                              , dag = info.dag
-                              , måned = info.måned
-                              , år = info.år
+                              , tilDato = info.tilDato
                               , visFeilmelding = True
                               }
                                 |> RegistrereTilDato
@@ -578,9 +503,8 @@ update msg (Model model) =
         BrukerVilEndreOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering _ skjema ->
-                    ( { skjema = Skjema.uvalidertSkjemaFraValidertSkjema skjema
-                      , visFeilmelding = False
-                      }
+                    ( skjema
+                        |> Skjema.uvalidertSkjemaFraValidertSkjema
                         |> EndreSkjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -629,7 +553,7 @@ update msg (Model model) =
         VilLagreEndretSkjema ->
             case model.aktivSamtale of
                 EndreSkjema skjema ->
-                    case Skjema.valider skjema.skjema of
+                    case Skjema.valider skjema of
                         Just validertSkjema ->
                             ( validertSkjema
                                 |> Oppsummering EtterEndring
@@ -639,9 +563,8 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         Nothing ->
-                            ( { skjema = skjema.skjema
-                              , visFeilmelding = True
-                              }
+                            ( skjema
+                                |> Skjema.tillatÅViseAlleFeilmeldinger
                                 |> EndreSkjema
                                 |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
@@ -654,9 +577,8 @@ update msg (Model model) =
         SkjemaEndret skjemaEndring ->
             case model.aktivSamtale of
                 EndreSkjema skjema ->
-                    ( { skjema = oppdaterSkjema skjemaEndring skjema.skjema
-                      , visFeilmelding = False
-                      }
+                    ( skjema
+                        |> oppdaterSkjema skjemaEndring
                         |> EndreSkjema
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
@@ -779,6 +701,48 @@ update msg (Model model) =
 
         FokusSatt _ ->
             IkkeFerdig ( Model model, Cmd.none )
+
+        DatoMisterFokus ->
+            case model.aktivSamtale of
+                RegistrereFraDato fraDatoInfo ->
+                    ( { fraDatoInfo | dato = Dato.justerDatoFormat fraDatoInfo.dato }
+                        |> RegistrereFraDato
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , mistetFokusCmd
+                    )
+                        |> IkkeFerdig
+
+                RegistrereTilDato tilDatoInfo ->
+                    ( { tilDatoInfo | tilDato = Dato.justerDatoFormat tilDatoInfo.tilDato }
+                        |> RegistrereTilDato
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , mistetFokusCmd
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, mistetFokusCmd )
+
+        TimeoutEtterAtFeltMistetFokus ->
+            case model.aktivSamtale of
+                RegistrereFraDato fraDatoInfo ->
+                    ( { fraDatoInfo | visFeilmelding = True }
+                        |> RegistrereFraDato
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                RegistrereTilDato tilDatoInfo ->
+                    ( { tilDatoInfo | visFeilmelding = True }
+                        |> RegistrereTilDato
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
 
 avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
@@ -962,10 +926,10 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
             []
 
         RegistrereFraDato _ ->
-            [ Melding.spørsmål [ "Når fikk du førerkortet?" ] ]
+            [ Melding.spørsmål [ "Når fikk du denne?" ] ]
 
         RegistrereTilDato _ ->
-            [ Melding.spørsmål [ "Har førerkortet en utløpsdato?" ] ]
+            [ Melding.spørsmål [ "Når utløper førerkortet ditt?" ] ]
 
         Oppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
@@ -1015,52 +979,58 @@ klasseToString : Klasse -> String
 klasseToString klasse =
     case klasse of
         Personbil ->
-            "Personbil"
-
-        Lastebil ->
-            "Lastebil"
-
-        LettLastebil ->
-            "Lett lastebil"
-
-        LettLastebilMedTilhenger ->
-            "Lett lastebil med tilhenger"
-
-        LastebilMedTilhenger ->
-            "Lastebil med tilhenger"
-
-        Minibuss ->
-            "Minibuss"
-
-        MinibussMedTilhenger ->
-            "Minibuss med tilhenger"
-
-        Buss ->
-            "Buss"
-
-        BussMedTilhenger ->
-            "Buss med tilhenger"
-
-        Moped ->
-            "Moped"
-
-        LettMotorsykkel ->
-            "Lett motorsykkel"
-
-        MellomtungMotorsykkel ->
-            "Mellomtung motorsykkel"
-
-        TungMotorsykkel ->
-            "Tung motorsykkel"
+            "B - Personbil"
 
         PersonbilMedTilhenger ->
-            "Personbil med tilhenger"
+            "BE - Personbil med tilhenger"
+
+        LettLastebil ->
+            "C1 - Lett lastebil"
+
+        LettLastebilMedTilhenger ->
+            "C1E - Lett lastebil med tilhenger"
+
+        Lastebil ->
+            "C - Lastebil"
+
+        LastebilMedTilhenger ->
+            "CE - Lastebil med tilhenger"
+
+        Minibuss ->
+            "D1 - Minibuss"
+
+        MinibussMedTilhenger ->
+            "D1E - Minibuss med tilhenger"
+
+        Buss ->
+            "D - Buss"
+
+        BussMedTilhenger ->
+            "DE - Buss med tilhenger"
+
+        Moped ->
+            "AM - Moped"
+
+        LettMotorsykkel ->
+            "A1 - Lett motorsykkel"
+
+        MellomtungMotorsykkel ->
+            "A2 - Mellomtung motorsykkel"
+
+        TungMotorsykkel ->
+            "A - Tung motorsykkel"
 
         Traktor ->
-            "Traktor"
+            "T - Traktor"
 
         Snøscooter ->
-            "Snøscooter"
+            "S - Snøscooter"
+
+
+mistetFokusCmd : Cmd Msg
+mistetFokusCmd =
+    Process.sleep 100
+        |> Task.perform (\_ -> TimeoutEtterAtFeltMistetFokus)
 
 
 svarFraBrukerInput : ModelInfo -> Msg -> Melding
@@ -1153,7 +1123,7 @@ modelTilBrukerInput model =
                         (( "Velg førerkort", "Velg førerkort" )
                             :: List.map
                                 (\el ->
-                                    ( FørerkortKode.kode el, FørerkortKode.term el )
+                                    ( FørerkortKode.kode el, FørerkortKode.kode el ++ " - " ++ FørerkortKode.term el )
                                 )
                                 model.førerkortKoder
                         )
@@ -1170,19 +1140,17 @@ modelTilBrukerInput model =
 
             RegistrereFraDato info ->
                 BrukerInput.datoInputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedFraDato }
-                    ({ label = "Gyldig fra dato"
-                     , onDagChange = BrukerEndrerFraDag
-                     , dag = info.dag
-                     , år = info.år
-                     , onÅrChange = BrukerEndrerFraÅr
-                     , måned = info.måned
-                     , onMånedChange = BrukerEndrerFraMåned
+                    ({ label = "Førerrett fra (dd.mm.åååå)"
+                     , dato = info.dato
+                     , onDatoChange = BrukerEndrerFraDato
                      }
-                        |> DatoInputMedDag.datoInputMedDag
-                        |> DatoInputMedDag.withId (inputIdTilString FraDatoId)
-                        |> DatoInputMedDag.withFeilmelding
+                        |> DatoInputEttFelt.datoInputEttFelt
+                        |> DatoInputEttFelt.withId (inputIdTilString FraDatoId)
+                        |> DatoInputEttFelt.withWrapperClass "datoInputEttFelt-samtalewrapper"
+                        |> DatoInputEttFelt.withOnBlur DatoMisterFokus
+                        |> DatoInputEttFelt.withFeilmelding
                             (if info.visFeilmelding then
-                                Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år }
+                                Dato.feilmeldingForDato info.dato
 
                              else
                                 Nothing
@@ -1191,19 +1159,17 @@ modelTilBrukerInput model =
 
             RegistrereTilDato info ->
                 BrukerInput.datoInputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedTilDato }
-                    ({ label = "Utløper dato"
-                     , onDagChange = BrukerEndrerTilDag
-                     , dag = info.dag
-                     , år = info.år
-                     , onÅrChange = BrukerEndrerTilÅr
-                     , måned = info.måned
-                     , onMånedChange = BrukerEndrerTilMåned
+                    ({ label = "Utløpsdato (dd.mm.åååå)"
+                     , dato = info.tilDato
+                     , onDatoChange = BrukerEndrerTilDato
                      }
-                        |> DatoInputMedDag.datoInputMedDag
-                        |> DatoInputMedDag.withId (inputIdTilString TilDatoId)
-                        |> DatoInputMedDag.withFeilmelding
+                        |> DatoInputEttFelt.datoInputEttFelt
+                        |> DatoInputEttFelt.withId (inputIdTilString TilDatoId)
+                        |> DatoInputEttFelt.withWrapperClass "datoInputEttFelt-samtalewrapper"
+                        |> DatoInputEttFelt.withOnBlur DatoMisterFokus
+                        |> DatoInputEttFelt.withFeilmelding
                             (if info.visFeilmelding then
-                                Dato.feilmeldingForDato { dag = info.dag, måned = info.måned, år = info.år }
+                                Dato.feilmeldingForDato info.tilDato
 
                              else
                                 Nothing
@@ -1223,34 +1189,27 @@ modelTilBrukerInput model =
                             )
                             model.førerkortKoder
                         )
-                        |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema.skjema))
+                        |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema))
                         |> Select.withErObligatorisk
                         |> Select.toHtml
-                    , div [] [ text "Førerrett til" ]
-                    , div [ class "ForerkortSeksjon-dato" ]
-                        [ { label = "Gyldig til dato"
-                          , onDagChange = TilDag >> SkjemaEndret
-                          , dag = Skjema.tilDagFraSkjema skjema.skjema
-                          , år = Skjema.tilÅrFraSkjema skjema.skjema
-                          , onÅrChange = TilÅr >> SkjemaEndret
-                          , måned = Skjema.tilMånedFraSkjema skjema.skjema
-                          , onMånedChange = TilMåned >> SkjemaEndret
+                    , div [ class "forerkortSkjema-datoWrapper" ]
+                        [ { label = "Førerrett fra (dd.mm.åååå)"
+                          , dato = Skjema.fraDatoFraSkjema skjema
+                          , onDatoChange = FraDato >> SkjemaEndret
                           }
-                            |> DatoInputMedDag.datoInputMedDag
-                            |> DatoInputMedDag.withFeilmelding (Dato.feilmeldingForDato { dag = Skjema.tilDagFraSkjema skjema.skjema, måned = Skjema.tilMånedFraSkjema skjema.skjema, år = Skjema.tilÅrFraSkjema skjema.skjema })
-                            |> DatoInputMedDag.toHtml
-                        , div [] [ text "Førerrett fra" ]
-                        , { label = "Gyldig fra dato"
-                          , onDagChange = FraDag >> SkjemaEndret
-                          , dag = Skjema.fraDagFraSkjema skjema.skjema
-                          , år = Skjema.fraÅrFraSkjema skjema.skjema
-                          , onÅrChange = FraÅr >> SkjemaEndret
-                          , måned = Skjema.fraMånedFraSkjema skjema.skjema
-                          , onMånedChange = FraMåned >> SkjemaEndret
+                            |> DatoInputEttFelt.datoInputEttFelt
+                            |> DatoInputEttFelt.withOnBlur (SkjemaEndret FraDatoBlurred)
+                            |> DatoInputEttFelt.withFeilmelding (Skjema.feilmeldingFraDato skjema)
+                            |> DatoInputEttFelt.toHtml
+                        , { label = "Utløpsdato (dd.mmm.åååå)"
+                          , dato = Skjema.tilDatoFraSkjema skjema
+                          , onDatoChange = TilDato >> SkjemaEndret
                           }
-                            |> DatoInputMedDag.datoInputMedDag
-                            |> DatoInputMedDag.withFeilmelding (Dato.feilmeldingForDato { dag = Skjema.fraDagFraSkjema skjema.skjema, måned = Skjema.fraMånedFraSkjema skjema.skjema, år = Skjema.fraÅrFraSkjema skjema.skjema })
-                            |> DatoInputMedDag.toHtml
+                            |> DatoInputEttFelt.datoInputEttFelt
+                            |> DatoInputEttFelt.withWrapperClass ""
+                            |> DatoInputEttFelt.withOnBlur (SkjemaEndret TilDatoBlurred)
+                            |> DatoInputEttFelt.withFeilmelding (Skjema.feilmeldingTilDato skjema)
+                            |> DatoInputEttFelt.toHtml
                         ]
                     ]
 

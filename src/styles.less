@@ -604,29 +604,23 @@ html {
   }
 }
 
-.ForerkortSeksjon-datolinje {
-  display: flex;
-  align-items: flex-end;
-
-  .DatoInputMedDag-dag-wrapper {
-    margin-right: 1rem;
-  }
-
-  .DatoInputMedDag-mnd-wrapper {
-    margin-right: 1rem;
-    width: 12rem;
-  }
 
 
-}
-
-.ForerkortSeksjon-dato {
-
+.forerkortSkjema-datoWrapper {
   margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 
-  .skjemaelement__feilmelding  {
-    margin-top: 0;
+  .skjemaelement__feilmelding {
+    overflow: auto;
   }
+
+  .skjemaelement__input{
+    display: flex;
+    flex: 0 0 auto;
+  }
+
 }
 
 .typeahead-skjema-height-wrapper {
@@ -653,6 +647,12 @@ a.avslutt-knapp.Knapp {
 
 .skjemaelement--checkbox-label {
   user-select: none;
+}
+
+.datoInputEttFelt-samtalewrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .DatoInput-fra-til-rad {
