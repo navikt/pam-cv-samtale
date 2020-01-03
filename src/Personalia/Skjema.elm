@@ -27,6 +27,7 @@ module Personalia.Skjema exposing
 
 import Json.Encode
 import Personalia.Personalia as Personalia exposing (Personalia)
+import Personalia.PersonaliaId as PersonaliaId exposing (PersonaliaId)
 import Personalia.Poststed as Poststed exposing (Poststed)
 
 
@@ -35,7 +36,8 @@ type PersonaliaSkjema
 
 
 type alias SkjemaInfo =
-    { fornavn : String
+    { id : PersonaliaId
+    , fornavn : String
     , etternavn : String
     , fodselsdato : String
     , epost : String
@@ -58,7 +60,8 @@ type alias SkjemaInfo =
 init : Personalia -> PersonaliaSkjema
 init personalia =
     PersonaliaSkjema
-        { fornavn = Personalia.fornavn personalia |> Maybe.withDefault ""
+        { id = Personalia.id personalia
+        , fornavn = Personalia.fornavn personalia |> Maybe.withDefault ""
         , etternavn = Personalia.etternavn personalia |> Maybe.withDefault ""
         , fodselsdato = Personalia.fodselsdato personalia |> Maybe.withDefault ""
         , epost = Personalia.epost personalia |> Maybe.withDefault ""
@@ -77,7 +80,8 @@ init personalia =
 tilUvalidertSkjema : ValidertPersonaliaSkjema -> PersonaliaSkjema
 tilUvalidertSkjema (ValidertPersonaliaSkjema info) =
     PersonaliaSkjema
-        { fornavn = info.fornavn
+        { id = info.id
+        , fornavn = info.fornavn
         , etternavn = info.etternavn
         , fodselsdato = info.fodselsdato
         , epost = info.epost
@@ -300,8 +304,8 @@ validerPostnummer postnummer_ =
         Nothing
 
 
-gjørFeilmeldingSynligForFelt : PersonaliaSkjema -> Felt -> PersonaliaSkjema
-gjørFeilmeldingSynligForFelt (PersonaliaSkjema info) felt =
+gjørFeilmeldingSynligForFelt : Felt -> PersonaliaSkjema -> PersonaliaSkjema
+gjørFeilmeldingSynligForFelt felt (PersonaliaSkjema info) =
     case felt of
         Fornavn ->
             PersonaliaSkjema { info | visFeilmeldingFornavn = True }
@@ -343,7 +347,8 @@ type ValidertPersonaliaSkjema
 
 
 type alias ValidertSkjemaInfo =
-    { fornavn : String
+    { id : PersonaliaId
+    , fornavn : String
     , etternavn : String
     , fodselsdato : String
     , epost : String
@@ -374,7 +379,8 @@ validerSkjema (PersonaliaSkjema info) =
     else
         Just
             (ValidertPersonaliaSkjema
-                { fornavn = info.fornavn
+                { id = info.id
+                , fornavn = info.fornavn
                 , etternavn = info.etternavn
                 , fodselsdato = info.fodselsdato
                 , epost = info.epost
@@ -400,10 +406,10 @@ validerSkjema (PersonaliaSkjema info) =
 --- ENCODING ---
 
 
-encode : ValidertPersonaliaSkjema -> String -> Json.Encode.Value
-encode (ValidertPersonaliaSkjema info) id =
+encode : ValidertPersonaliaSkjema -> Json.Encode.Value
+encode (ValidertPersonaliaSkjema info) =
     Json.Encode.object
-        [ ( "id", Json.Encode.string id )
+        [ ( "id", PersonaliaId.encode info.id )
         , ( "fornavn", Json.Encode.string info.fornavn )
         , ( "etternavn", Json.Encode.string info.etternavn )
         , ( "fodselsdato", Json.Encode.string info.fodselsdato )

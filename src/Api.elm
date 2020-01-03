@@ -120,12 +120,14 @@ postPersonalia msgConstructor =
         }
 
 
-putPersonalia : (Result Error Personalia -> msg) -> Personalia.Skjema.ValidertPersonaliaSkjema -> String -> Cmd msg
-putPersonalia msgConstructor skjema id =
+putPersonalia : (Result Error Personalia -> msg) -> Personalia.Skjema.ValidertPersonaliaSkjema -> Cmd msg
+putPersonalia msgConstructor skjema =
     put
         { url = "/cv-samtale/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
-        , body = Personalia.Skjema.encode skjema id |> jsonBody
+        , body =
+            Personalia.Skjema.encode skjema
+                |> jsonBody
         }
 
 
