@@ -704,7 +704,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                                 |> Skjema.tilUvalidertSkjema
                                 |> personaliaSkjemaOppsummering
                             , [ Melding.tomLinje
-                              , "Er kontaktinformasjonen riktig?"
+                              , "Er kontaktinformasjonen riktig nå?"
                               ]
                             ]
                         )
@@ -716,7 +716,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                     [ Melding.spørsmål [ "Ok! Skriv inn riktig informasjon i feltene under." ] ]
 
                 EndrerPgaValideringsfeil ->
-                    [ Melding.spørsmål [ "Nå klarte jeg ikke lagre kontaktinformasjonen, fordi det var noen feilmeldinger i skjemaet 😕 Rett opp feilmeldingene for å lagre kontaktinformasjonen din." ] ]
+                    [ Melding.spørsmål [ "Jeg fant en feil i kontaktinformasjonen 😕 Rett feilen og lagre på nytt." ] ]
 
         LeggerTilEpost _ ->
             [ Melding.spørsmål [ "Jeg ser at vi mangler e-postadressen din. Kan du fylle inn den?" ] ]
