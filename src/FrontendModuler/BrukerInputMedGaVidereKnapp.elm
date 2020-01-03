@@ -12,7 +12,7 @@ module FrontendModuler.BrukerInputMedGaVidereKnapp exposing
     , withVisEksempelKnapp
     )
 
-import FrontendModuler.DatoInputMedDag as DatoInputMedDag exposing (DatoInputMedDag)
+import FrontendModuler.DatoInputEttFelt as DatoInputEttFelt exposing (DatoInputEttFelt)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Type(..))
 import FrontendModuler.Select as Select exposing (Select)
@@ -40,7 +40,7 @@ type InputElement msg
     | TextareaElement (Textarea msg)
     | TypeaheadElement (Typeahead msg)
     | SelectElement (Select msg)
-    | DatoInputMedDagElement (DatoInputMedDag msg)
+    | DatoInputEttFeltElement (DatoInputEttFelt msg)
 
 
 input : msg -> Input msg -> BrukerInputMedGåVidereKnapp msg
@@ -67,9 +67,9 @@ select gåVidereMsg selectElement =
         |> init gåVidereMsg
 
 
-datoInput : msg -> DatoInputMedDag msg -> BrukerInputMedGåVidereKnapp msg
-datoInput gåVidereMsg datoInputMedDagElement =
-    DatoInputMedDagElement datoInputMedDagElement
+datoInput : msg -> DatoInputEttFelt msg -> BrukerInputMedGåVidereKnapp msg
+datoInput gåVidereMsg datoInputEttFeltElement =
+    DatoInputEttFeltElement datoInputEttFeltElement
         |> init gåVidereMsg
 
 
@@ -127,9 +127,9 @@ toHtml (BrukerInputMedGåVidereKnapp options) =
                     ]
                 )
 
-        DatoInputMedDagElement datoInputElement ->
+        DatoInputEttFeltElement datoInputElement ->
             datoInputElement
-                |> DatoInputMedDag.toHtml
+                |> DatoInputEttFelt.toHtml
                 |> gåVidereHtml options
 
         TextareaElement textareaElement ->
@@ -257,6 +257,6 @@ inputElementInnhold inputElement_ =
             --- TODO: Fiks dette
             ""
 
-        DatoInputMedDagElement datoInputMedDag ->
+        DatoInputEttFeltElement datoInputEttFelt ->
             --- TODO: Fiks dette
             ""

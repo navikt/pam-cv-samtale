@@ -19,9 +19,10 @@ type alias ForerkortInfo =
 
 type Klasse
     = Personbil
-    | Lastebil
+    | PersonbilMedTilhenger
     | LettLastebil
     | LettLastebilMedTilhenger
+    | Lastebil
     | LastebilMedTilhenger
     | Minibuss
     | MinibussMedTilhenger
@@ -31,7 +32,6 @@ type Klasse
     | LettMotorsykkel
     | MellomtungMotorsykkel
     | TungMotorsykkel
-    | PersonbilMedTilhenger
     | Traktor
     | Snøscooter
 
