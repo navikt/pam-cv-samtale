@@ -716,7 +716,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                     [ Melding.spørsmål [ "Ok! Skriv inn riktig informasjon i feltene under." ] ]
 
                 EndrerPgaValideringsfeil ->
-                    [ Melding.spørsmål [ "Jeg fant en feil i kontaktinformasjonen 😕 Rett feilen og lagre på nytt." ] ]
+                    [ Melding.spørsmål [ "Det skjedde en feil 😕 Du må rette feilen og lagre på nytt." ] ]
 
         LeggerTilEpost _ ->
             [ Melding.spørsmål [ "Jeg ser at vi mangler e-postadressen din. Kan du fylle inn den?" ] ]
