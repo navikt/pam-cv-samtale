@@ -974,8 +974,8 @@ oppsummeringsSpørsmål skjema =
         [ "Du har lagt inn dette:"
         , Melding.tomLinje
         , "Førerkort: " ++ Skjema.førerkortFraValidertSkjema skjema
-        , "Førerrett til: " ++ Skjema.tilDatoFraValidertSkjema skjema
-        , "Førerrett fra " ++ Skjema.fraDatoFraValidertSkjema skjema
+        , "Førerrett fra: " ++ Skjema.fraDatoFraValidertSkjema skjema
+        , "Utløpsdato: " ++ Skjema.tilDatoFraValidertSkjema skjema
         , Melding.tomLinje
         , "Er informasjonen riktig?"
         ]
