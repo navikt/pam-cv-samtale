@@ -5,7 +5,7 @@ module Dato.Dato exposing
     , År
     , datoTilString
     , decodeMonthYear
-    , encodeMaybeDato
+    , encodeDato
     , encodeMonthYear
     , feilmeldingForDato
     , feilmeldingValgfriMåned
@@ -46,12 +46,19 @@ feilmeldingForDato dato =
             Nothing
 
 
+datoStringToList : String -> List String
+datoStringToList dato =
+    dato
+        |> String.trim
+        |> String.replace "," "."
+        |> String.split "."
+
+
 validerDato : String -> DatoValidering
 validerDato dato =
     let
         elementList =
-            String.replace "," "." dato
-                |> String.split "."
+            datoStringToList dato
     in
     if String.isEmpty dato then
         DatoIkkeSkrevetInn
@@ -82,12 +89,9 @@ justerDatoFormat : String -> String
 justerDatoFormat input =
     case validerDato input of
         GyldigDato _ ->
-            -- bytt ut komma med punktum, padd med 0 foran dag og måned hvis kun et tall.
             let
                 elementList =
-                    String.trim input
-                        |> String.replace "," "."
-                        |> String.split "."
+                    datoStringToList input
             in
             case elementList of
                 dag :: måned :: år :: [] ->
@@ -120,14 +124,9 @@ månedErGyldig måned =
             False
 
 
-encodeMaybeDato : Maybe String -> Json.Encode.Value
-encodeMaybeDato dato =
-    case dato of
-        Just dato_ ->
-            Json.Encode.string (toValidertDatoFormat dato_)
-
-        Nothing ->
-            Json.Encode.null
+encodeDato : String -> Json.Encode.Value
+encodeDato dato =
+    Json.Encode.string (toValidertDatoFormat dato)
 
 
 

@@ -158,12 +158,18 @@ oppdaterSkjema endring skjema =
             Skjema.oppdaterTilDato skjema år
 
         FraDatoBlurred ->
-            Skjema.tillatÅViseFeilmeldingFraDato
-                (Skjema.oppdaterFraDato skjema (Dato.justerDatoFormat (Skjema.fraDatoFraSkjema skjema)))
+            skjema
+                |> Skjema.fraDatoFraSkjema
+                |> Dato.justerDatoFormat
+                |> Skjema.oppdaterFraDato skjema
+                |> Skjema.tillatÅViseFeilmeldingFraDato
 
         TilDatoBlurred ->
-            Skjema.tillatÅViseFeilmeldingTilDato
-                (Skjema.oppdaterTilDato skjema (Dato.justerDatoFormat (Skjema.tilDatoFraSkjema skjema)))
+            skjema
+                |> Skjema.tilDatoFraSkjema
+                |> Dato.justerDatoFormat
+                |> Skjema.oppdaterTilDato skjema
+                |> Skjema.tillatÅViseFeilmeldingTilDato
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -926,10 +932,10 @@ samtaleTilMeldingsLogg model førerkortSeksjon =
             []
 
         RegistrereFraDato _ ->
-            [ Melding.spørsmål [ "Når fikk du denne?" ] ]
+            [ Melding.spørsmål [ "Når fikk du dette førerkortet?" ] ]
 
         RegistrereTilDato _ ->
-            [ Melding.spørsmål [ "Når utløper førerkortet ditt?" ] ]
+            [ Melding.spørsmål [ "Når utløper førerkortet?" ] ]
 
         Oppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of

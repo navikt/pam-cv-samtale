@@ -237,6 +237,14 @@ encode : ValidertFørerkortSkjema -> Json.Encode.Value
 encode (ValidertFørerkortSkjema info) =
     Json.Encode.object
         [ ( "klasse", FørerkortKode.encode info.førerkort )
-        , ( "fraDato", Dato.encodeMaybeDato info.fraDato )
-        , ( "utloperDato", Dato.encodeMaybeDato info.tilDato )
+        , ( "fraDato"
+          , info.fraDato
+                |> Maybe.map Dato.encodeDato
+                |> Maybe.withDefault Json.Encode.null
+          )
+        , ( "utloperDato"
+          , info.tilDato
+                |> Maybe.map Dato.encodeDato
+                |> Maybe.withDefault Json.Encode.null
+          )
         ]
