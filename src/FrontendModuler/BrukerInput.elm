@@ -18,7 +18,7 @@ module FrontendModuler.BrukerInput exposing
 
 import Dato.Maned as Måned exposing (Måned)
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
-import FrontendModuler.DatoInputMedDag exposing (DatoInputMedDag)
+import FrontendModuler.DatoInputEttFelt exposing (DatoInputEttFelt)
 import FrontendModuler.Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Knapp)
 import FrontendModuler.Lenke as Lenke exposing (Lenke)
@@ -93,7 +93,7 @@ selectMedGåVidereKnapp { onGåVidere, onAvbryt } selectElement =
         |> brukerInputMedGåVidereKnapp
 
 
-datoInputMedGåVidereKnapp : { onGåVidere : msg, onAvbryt : msg } -> DatoInputMedDag msg -> BrukerInput msg
+datoInputMedGåVidereKnapp : { onGåVidere : msg, onAvbryt : msg } -> DatoInputEttFelt msg -> BrukerInput msg
 datoInputMedGåVidereKnapp { onGåVidere, onAvbryt } datoInputElement =
     BrukerInputMedGåVidereKnapp.datoInput onGåVidere datoInputElement
         |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp onAvbryt

@@ -97,6 +97,16 @@ liste =
         , spørOmDatoInfo = True
         }
     , FørerkortKode
+        { kode = "D"
+        , term = "Buss"
+        , spørOmDatoInfo = True
+        }
+    , FørerkortKode
+        { kode = "DE"
+        , term = "Buss med tilhenger"
+        , spørOmDatoInfo = True
+        }
+    , FørerkortKode
         { kode = "AM"
         , term = "Moped"
         , spørOmDatoInfo = False

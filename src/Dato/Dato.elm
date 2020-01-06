@@ -1,24 +1,19 @@
 module Dato.Dato exposing
-    ( Dato
-    , DatoFeilmelding
-    , DatoPeriode(..)
+    ( DatoPeriode(..)
     , DatoValidering(..)
     , TilDato(..)
     , År
     , datoTilString
     , decodeMonthYear
-    , encodeMaybeDato
+    , encodeDato
     , encodeMonthYear
     , feilmeldingForDato
     , feilmeldingValgfriMåned
     , feilmeldingÅr
-    , formaterDag
-    , getDatoDag
-    , getDatoMåned
-    , getDatoÅr
+    , justerDatoFormat
     , periodeTilString
     , stringTilÅr
-    , toString
+    , toValidertDatoFormat
     , validerDato
     , årTilString
     )
@@ -28,129 +23,89 @@ import Json.Decode exposing (Decoder)
 import Json.Encode
 
 
-type alias DatoInfo =
-    { dag : String
-    , måned : Måned
-    , år : År
-    }
-
-
-type Dato
-    = Dato DatoInfo
-
-
-toString : Dato -> String
-toString dato =
-    case dato of
-        Dato dato_ ->
-            dato_.dag ++ "-" ++ Måned.tilNummer dato_.måned ++ "-" ++ årTilString dato_.år
-
-
-getDatoÅr : Dato -> String
-getDatoÅr (Dato datoInfo) =
-    årTilString datoInfo.år
-
-
-getDatoMåned : Dato -> Måned
-getDatoMåned (Dato info) =
-    info.måned
-
-
-getDatoDag : Dato -> String
-getDatoDag (Dato info) =
-    info.dag
+toValidertDatoFormat : String -> String
+toValidertDatoFormat dato =
+    String.split "." dato
+        |> List.reverse
+        |> String.join "-"
 
 
 type DatoValidering
-    = DatoValiderer Dato
-    | DatoValideringsfeil
+    = GyldigDato String
+    | DatoValideringsfeil String
     | DatoIkkeSkrevetInn
 
 
-validerDato : { dag : String, måned : Maybe Måned, år : String } -> DatoValidering
-validerDato { dag, måned, år } =
-    case måned of
-        Just måned_ ->
-            case ( stringTilÅr år, validerDag dag ) of
-                ( Just år_, True ) ->
-                    DatoValiderer
-                        (Dato
-                            { dag = formaterDag dag
-                            , måned = måned_
-                            , år = år_
-                            }
-                        )
+feilmeldingForDato : String -> Maybe String
+feilmeldingForDato dato =
+    case validerDato dato of
+        DatoValideringsfeil feilmelding ->
+            Just feilmelding
 
-                _ ->
-                    DatoValideringsfeil
-
-        Nothing ->
-            if String.isEmpty dag && String.isEmpty år then
-                DatoIkkeSkrevetInn
-
-            else
-                DatoValideringsfeil
+        _ ->
+            Nothing
 
 
-type alias DatoFeilmelding =
-    { feilmelding : String
-    , feilPåDag : Bool
-    , feilPåMåned : Bool
-    , feilPåÅr : Bool
-    }
+datoStringToList : String -> List String
+datoStringToList dato =
+    dato
+        |> String.trim
+        |> String.replace "," "."
+        |> String.split "."
 
 
-feilmeldingForDato : { dag : String, måned : Maybe Måned, år : String } -> Maybe DatoFeilmelding
-feilmeldingForDato { dag, måned, år } =
-    case måned of
-        Just måned_ ->
-            if stringTilÅr år == Nothing then
-                Just
-                    { feilmelding = "År kan kun ha fire siffer"
-                    , feilPåDag = False
-                    , feilPåMåned = False
-                    , feilPåÅr = True
-                    }
-
-            else if not (validerDag dag) then
-                Just
-                    { feilmelding = "Dag må være et tall mellom 1 og 31"
-                    , feilPåDag = True
-                    , feilPåMåned = False
-                    , feilPåÅr = False
-                    }
-
-            else
-                Nothing
-
-        Nothing ->
-            if String.isEmpty dag && String.isEmpty år then
-                Nothing
-
-            else
-                Just
-                    { feilmelding = "Du må velge måned"
-                    , feilPåDag = False
-                    , feilPåMåned = True
-                    , feilPåÅr = False
-                    }
-
-
-formaterDag : String -> String
-formaterDag utrimmetDag =
+validerDato : String -> DatoValidering
+validerDato dato =
     let
-        dag =
-            String.trim utrimmetDag
+        elementList =
+            datoStringToList dato
     in
-    if String.length dag == 1 then
-        "0" ++ dag
+    if String.isEmpty dato then
+        DatoIkkeSkrevetInn
+
+    else if List.length elementList /= 3 then
+        DatoValideringsfeil "Dato må skrives dd.mm.åååå"
 
     else
-        dag
+        case elementList of
+            dag :: måned :: år :: [] ->
+                if not (dagErGyldig dag) then
+                    DatoValideringsfeil "Dag må være et tall mellom 1–31"
+
+                else if not (månedErGyldig måned) then
+                    DatoValideringsfeil "Måned må være et tall mellom 1–12"
+
+                else if stringTilÅr år == Nothing then
+                    DatoValideringsfeil "År må være 4 siffer"
+
+                else
+                    GyldigDato dato
+
+            _ ->
+                DatoValideringsfeil "Dato må skrives dd.mm.åååå"
 
 
-validerDag : String -> Bool
-validerDag dag =
+justerDatoFormat : String -> String
+justerDatoFormat input =
+    case validerDato input of
+        GyldigDato _ ->
+            let
+                elementList =
+                    datoStringToList input
+            in
+            case elementList of
+                dag :: måned :: år :: [] ->
+                    String.padLeft 2 '0' dag ++ "." ++ String.padLeft 2 '0' måned ++ "." ++ år
+
+                _ ->
+                    input
+
+        _ ->
+            input
+
+
+dagErGyldig : String -> Bool
+dagErGyldig dag =
     case (String.trim >> String.toInt) dag of
         Just dagSomInt ->
             dagSomInt > 0 && dagSomInt <= 31
@@ -159,14 +114,19 @@ validerDag dag =
             False
 
 
-encodeMaybeDato : Maybe Dato -> Json.Encode.Value
-encodeMaybeDato dato =
-    case dato of
-        Just (Dato dato_) ->
-            Json.Encode.string (årTilString dato_.år ++ "-" ++ Måned.tilNummer dato_.måned ++ "-" ++ dato_.dag)
+månedErGyldig : String -> Bool
+månedErGyldig måned =
+    case (String.trim >> String.toInt) måned of
+        Just månedSomInt ->
+            månedSomInt > 0 && månedSomInt <= 12
 
         Nothing ->
-            Json.Encode.null
+            False
+
+
+encodeDato : String -> Json.Encode.Value
+encodeDato dato =
+    Json.Encode.string (toValidertDatoFormat dato)
 
 
 
