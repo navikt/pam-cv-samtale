@@ -7,8 +7,7 @@ import Browser
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Browser.Navigation as Navigation
-import Cv.Cv as Cv exposing (Cv)
-import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
+import Cv exposing (Cv)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Seksjon
@@ -39,6 +38,7 @@ import Metrikker
 import Person exposing (Person)
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Seksjon
+import Sammendrag exposing (Sammendrag)
 import Sertifikat.Seksjon
 import Sprak.Seksjon
 import Task

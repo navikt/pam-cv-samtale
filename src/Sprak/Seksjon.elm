@@ -11,7 +11,6 @@ module Sprak.Seksjon exposing
 
 import Api
 import Browser.Events exposing (Visibility(..))
-import Cv.Spraakferdighet as Spraakferdighet exposing (Spraakferdighet)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
@@ -28,6 +27,7 @@ import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLog
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Sprak.Skjema as Skjema exposing (Ferdighet(..), SpråkSkjema)
+import Sprak.Sprak as Språk exposing (Språk)
 import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
 import String.Extra as String
 
@@ -43,14 +43,14 @@ type Model
 type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
-    , språk : List Spraakferdighet
+    , språk : List Språk
     , språkKoder : RemoteDataSpråkKoder
     , debugStatus : DebugStatus
     }
 
 
 type Samtale
-    = IntroLeggTilNorsk (List Spraakferdighet)
+    = IntroLeggTilNorsk (List Språk)
     | LeggTilNorskMuntlig
     | LeggTilNorskSkriftlig Ferdighet
     | LagrerNorsk SpråkSkjema LagreStatus
@@ -108,7 +108,7 @@ type Msg
     | BrukerKanFlereSpråk
     | BrukerHarValgtSpråkFraDropdown String
     | BrukerVilGåVidereMedValgtSpråk
-    | BackendSvarerPåLagreRequest (Result Http.Error (List Spraakferdighet))
+    | BackendSvarerPåLagreRequest (Result Http.Error (List Språk))
     | SendSkjemaPåNytt
     | SpråkKoderHentet (Result Http.Error (List SpråkKode))
     | BrukerVilHenteSpråkKoderPåNytt
@@ -533,7 +533,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
                 , Melding.spørsmål
                     [ "Jeg ser at du har lagt inn disse språkene allerede:"
                     , språkListe
-                        |> List.filterMap Spraakferdighet.sprak
+                        |> List.filterMap Språk.sprak
                         |> List.map String.toLower
                         |> listeTilSetning
                         |> String.toSentenceCase
@@ -578,7 +578,7 @@ samtaleTilMeldingsLogg model språkSeksjon =
                     [ Melding.spørsmål
                         [ "Bra! Nå har du lagt til "
                             ++ (model.språk
-                                    |> List.filterMap Spraakferdighet.sprak
+                                    |> List.filterMap Språk.sprak
                                     |> List.map String.toLower
                                     |> listeTilSetning
                                )
@@ -635,7 +635,7 @@ oppdaterSamtale model meldingsoppdatering samtale =
         }
 
 
-lagringLykkes : ModelInfo -> List Spraakferdighet -> LagreStatus -> Samtale -> SamtaleStatus
+lagringLykkes : ModelInfo -> List Språk -> LagreStatus -> Samtale -> SamtaleStatus
 lagringLykkes model språk lagreStatus nyAktivSamtale =
     ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
         nyAktivSamtale
@@ -871,7 +871,7 @@ skriftligKnapp språkKode ferdighet =
 --- INIT ---
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Spraakferdighet -> ( Model, Cmd Msg )
+init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Språk -> ( Model, Cmd Msg )
 init debugStatus gammelMeldingsLogg språkFerdighet =
     let
         aktivSamtale =

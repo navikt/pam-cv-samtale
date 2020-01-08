@@ -1,4 +1,13 @@
-module Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..), beskrivelse, decode, fagdokumentasjonType, id, konseptId, tittel)
+module Fagdokumentasjon.Fagdokumentasjon exposing
+    ( Fagdokumentasjon
+    , FagdokumentasjonType(..)
+    , beskrivelse
+    , decode
+    , fagdokumentasjonType
+    , id
+    , konseptId
+    , tittel
+    )
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)

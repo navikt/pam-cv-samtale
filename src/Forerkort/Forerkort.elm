@@ -1,4 +1,4 @@
-module Cv.Forerkort exposing (Førerkort, Klasse(..), decode, id, klasse)
+module Forerkort.Forerkort exposing (Førerkort, Klasse(..), decode, id, klasse)
 
 import Date exposing (Date)
 import Json.Decode exposing (..)

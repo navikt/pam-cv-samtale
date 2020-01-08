@@ -12,10 +12,10 @@ module Forerkort.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Forerkort as Forerkort exposing (Førerkort, Klasse(..))
 import Dato.Dato as Dato exposing (DatoValidering(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
+import Forerkort.Forerkort as Forerkort exposing (Førerkort, Klasse(..))
 import Forerkort.ForerkortKode as FørerkortKode exposing (FørerkortKode)
 import Forerkort.Skjema as Skjema exposing (FørerkortSkjema, ValidertFørerkortSkjema)
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))

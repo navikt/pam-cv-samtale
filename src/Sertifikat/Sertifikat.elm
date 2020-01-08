@@ -1,4 +1,4 @@
-module Cv.Sertifikat exposing
+module Sertifikat.Sertifikat exposing
     ( Sertifikat
     , decode
     , fraDato

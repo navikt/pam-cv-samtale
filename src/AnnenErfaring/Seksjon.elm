@@ -9,11 +9,11 @@ module AnnenErfaring.Seksjon exposing
     , viewBrukerInput
     )
 
+import AnnenErfaring.AnnenErfaring exposing (AnnenErfaring)
 import AnnenErfaring.Skjema as Skjema exposing (AnnenErfaringSkjema, Felt(..), ValidertAnnenErfaringSkjema)
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.AnnenErfaring exposing (AnnenErfaring)
 import Dato.Dato as Dato exposing (DatoPeriode(..), TilDato(..), År)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)

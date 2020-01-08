@@ -1,4 +1,4 @@
-module Cv.Arbeidserfaring exposing
+module Arbeidserfaring.Arbeidserfaring exposing
     ( Arbeidserfaring
     , arbeidsgiver
     , beskrivelse

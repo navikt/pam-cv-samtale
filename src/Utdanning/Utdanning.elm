@@ -1,4 +1,4 @@
-module Cv.Utdanning exposing
+module Utdanning.Utdanning exposing
     ( Nivå(..)
     , Utdanning
     , beskrivelse

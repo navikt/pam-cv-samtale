@@ -1,4 +1,4 @@
-module Cv.Sammendrag exposing (Sammendrag, decode, toString)
+module Sammendrag exposing (Sammendrag, decode, toString)
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)

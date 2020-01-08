@@ -1,4 +1,4 @@
-module Cv.Cv exposing
+module Cv exposing
     ( Cv
     , annenErfaring
     , arbeidserfaring
@@ -13,18 +13,17 @@ module Cv.Cv exposing
     , utdanning
     )
 
-import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
-import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
-import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
-import Cv.Forerkort as Forerkort exposing (Førerkort)
-import Cv.KompetanseKladd as KompetanseKladd exposing (KompetanseKladd)
-import Cv.Kurs as Kurs exposing (Kurs)
-import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
-import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
-import Cv.Spraakferdighet as Spraakferdighet exposing (Spraakferdighet)
-import Cv.Utdanning as Utdanning exposing (Utdanning)
+import AnnenErfaring.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
+import Arbeidserfaring.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
+import Fagdokumentasjon.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
+import Forerkort.Forerkort as Forerkort exposing (Førerkort)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Kurs.Kurs as Kurs exposing (Kurs)
+import Sammendrag exposing (Sammendrag)
+import Sertifikat.Sertifikat as Sertifikat exposing (Sertifikat)
+import Sprak.Sprak as Språk exposing (Språk)
+import Utdanning.Utdanning as Utdanning exposing (Utdanning)
 
 
 type Cv
@@ -42,9 +41,8 @@ type alias CvInfo =
     , førerkort : List Førerkort
     , annenErfaring : List AnnenErfaring
     , kurs : List Kurs
-    , spraakferdighet : List Spraakferdighet
+    , spraakferdighet : List Språk
     , fagdokumentasjoner : List Fagdokumentasjon
-    , kompetanseKladdListe : List KompetanseKladd
     , sammendrag : Maybe Sammendrag
     }
 
@@ -98,7 +96,7 @@ kurs (Cv info) =
     info.kurs
 
 
-spraakferdighet : Cv -> List Spraakferdighet
+spraakferdighet : Cv -> List Språk
 spraakferdighet (Cv info) =
     info.spraakferdighet
 
@@ -106,11 +104,6 @@ spraakferdighet (Cv info) =
 fagdokumentasjoner : Cv -> List Fagdokumentasjon
 fagdokumentasjoner (Cv info) =
     info.fagdokumentasjoner
-
-
-kompetanseKladdListe : Cv -> List KompetanseKladd
-kompetanseKladdListe (Cv info) =
-    info.kompetanseKladdListe
 
 
 sammendrag : Cv -> Maybe Sammendrag
@@ -150,7 +143,6 @@ decodeBackendData =
         |> required "forerkort" (list Forerkort.decode)
         |> required "annenErfaring" (list AnnenErfaring.decode)
         |> required "kurs" (list Kurs.decode)
-        |> required "spraakferdighet" (list Spraakferdighet.decode)
+        |> required "spraakferdighet" (list Språk.decode)
         |> required "fagdokumentasjoner" (list Fagdokumentasjon.decode)
-        |> required "kompetanseKladdListe" (list KompetanseKladd.decode)
         |> required "sammendrag" (nullable Sammendrag.decode)

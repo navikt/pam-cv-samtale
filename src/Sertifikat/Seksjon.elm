@@ -12,7 +12,6 @@ module Sertifikat.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Sertifikat exposing (Sertifikat)
 import Dato.Dato as Dato exposing (År, datoTilString)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
@@ -35,6 +34,7 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Result.Extra as Result
+import Sertifikat.Sertifikat exposing (Sertifikat)
 import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import Task

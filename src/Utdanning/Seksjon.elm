@@ -12,7 +12,6 @@ module Utdanning.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Dato.Dato as Dato exposing (TilDato(..), År)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
@@ -37,6 +36,7 @@ import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
+import Utdanning.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Validering
 
 

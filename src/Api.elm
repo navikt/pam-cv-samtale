@@ -35,38 +35,38 @@ module Api exposing
     )
 
 import AndreSider.HeaderInfo as HeaderInfo exposing (HeaderInfo)
+import AnnenErfaring.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import AnnenErfaring.Skjema
+import Arbeidserfaring.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Arbeidserfaring.Skjema
 import Arbeidserfaring.Yrke as YrkeTypeahead exposing (Yrke)
-import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
-import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
-import Cv.Cv as Cv exposing (Cv)
-import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
-import Cv.Forerkort exposing (Førerkort)
-import Cv.Kurs exposing (Kurs)
-import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
-import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
-import Cv.Spraakferdighet exposing (Spraakferdighet)
-import Cv.Utdanning exposing (Utdanning)
+import Cv exposing (Cv)
+import Fagdokumentasjon.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
 import Fagdokumentasjon.Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema
 import Feilmelding exposing (Feilmelding)
+import Forerkort.Forerkort as Førerkort exposing (Førerkort)
 import Forerkort.Skjema
 import Http exposing (..)
 import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
+import Kurs.Kurs as Kurs exposing (Kurs)
 import Kurs.Skjema
 import Person exposing (Person)
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Poststed exposing (Poststed)
 import Personalia.Skjema
+import Sammendrag exposing (Sammendrag)
+import Sertifikat.Sertifikat as Sertifikat exposing (Sertifikat)
 import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema
 import Sprak.Skjema
+import Sprak.Sprak as Språk exposing (Språk)
 import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
 import Typeahead.Typeahead as Typeahead
 import Url.Builder
 import Utdanning.Skjema
+import Utdanning.Utdanning as Utdanning exposing (Utdanning)
 
 
 getPerson : (Result Error Person -> msg) -> Cmd msg
@@ -135,16 +135,16 @@ postFørerkort : (Result Error (List Førerkort) -> msg) -> Forerkort.Skjema.Val
 postFørerkort msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/forerkort"
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Forerkort.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Førerkort.decode)
         , body = Forerkort.Skjema.encode skjema |> jsonBody
         }
 
 
-postSpråk : (Result Error (List Spraakferdighet) -> msg) -> Sprak.Skjema.SpråkSkjema -> Cmd msg
+postSpråk : (Result Error (List Språk) -> msg) -> Sprak.Skjema.SpråkSkjema -> Cmd msg
 postSpråk msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/sprak"
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Spraakferdighet.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Språk.decode)
         , body = Sprak.Skjema.encode skjema |> jsonBody
         }
 
@@ -255,7 +255,7 @@ postKurs : (Result Error (List Kurs) -> msg) -> Kurs.Skjema.ValidertKursSkjema -
 postKurs msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/kurs"
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Kurs.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Kurs.decode)
         , body = Kurs.Skjema.encode skjema |> jsonBody
         }
 
@@ -294,7 +294,7 @@ postUtdanning : (Result Error (List Utdanning) -> msg) -> Utdanning.Skjema.Valid
 postUtdanning msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/utdanning"
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Utdanning.decode)
         , body = Utdanning.Skjema.encode skjema |> jsonBody
         }
 
@@ -305,7 +305,7 @@ putUtdanning msgConstructor skjema id =
         { method = "PUT"
         , headers = []
         , url = "/cv-samtale/api/rest/cv/utdanning/" ++ id
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Utdanning.decode)
         , body =
             skjema
                 |> Utdanning.Skjema.encode
