@@ -39,6 +39,7 @@ import Metrikker
 import Person exposing (Person)
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Seksjon
+import Process
 import Sertifikat.Seksjon
 import Sprak.Seksjon
 import Task
@@ -103,7 +104,6 @@ type Msg
     | UrlRequestChanged Browser.UrlRequest
     | ÅpneTilbakemeldingModal
     | ModalMsg TilbakemeldingModal.Msg
-    | FokusSatt (Result Dom.Error ())
 
 
 update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
@@ -183,9 +183,6 @@ update msg extendedModel =
 
                         TilbakemeldingModal.Closed ->
                             ( { extendedModel | modalStatus = ModalLukket }, Cmd.none )
-
-        FokusSatt _ ->
-            ( extendedModel, Cmd.none )
 
 
 mapTilExtendedModel : ExtendedModel -> ( Model, Cmd Msg ) -> ( ExtendedModel, Cmd Msg )
@@ -475,6 +472,7 @@ type SuccessMsg
     | FørerkortMsg Forerkort.Seksjon.Msg
     | KursMsg Kurs.Seksjon.Msg
     | AndreSamtaleStegMsg AndreSamtaleStegMsg
+    | FokusSatt (Result Dom.Error ())
 
 
 updateSuccess : SuccessMsg -> SuccessModel -> ( SuccessModel, Cmd SuccessMsg )
@@ -640,6 +638,9 @@ updateSuccess successMsg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        FokusSatt _ ->
+            ( model, Cmd.none )
 
 
 oppdaterSamtaleSeksjon : SuccessModel -> SamtaleSeksjon -> SuccessModel
@@ -923,6 +924,34 @@ type ValgtSeksjon
     | AnnenErfaringValgt
     | KursValgt
     | FørerkortValgt
+
+
+type InputId
+    = KlarTilÅBegynneId
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        KlarTilÅBegynneId ->
+            "klar-til-å-begynne-id"
+
+
+settFokus : Samtale -> Cmd SuccessMsg
+settFokus samtale =
+    case samtale of
+        Introduksjon _ ->
+            settFokusCmd KlarTilÅBegynneId
+
+        _ ->
+            Cmd.none
+
+
+settFokusCmd : InputId -> Cmd SuccessMsg
+settFokusCmd inputId =
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
+        |> Task.attempt FokusSatt
 
 
 updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
@@ -1305,8 +1334,16 @@ updateAndreSamtaleSteg model msg info =
             ( { info | meldingsLogg = nyMeldingslogg }
                 |> AndreSamtaleSteg
                 |> oppdaterSamtaleSeksjon model
-            , cmd
-                |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
+            , Cmd.batch
+                [ cmd
+                    |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
+                , case MeldingsLogg.ferdigAnimert nyMeldingslogg of
+                    FerdigAnimert ferdigAnimertSamtale ->
+                        settFokus info.aktivSamtale
+
+                    MeldingerGjenstår ->
+                        Cmd.none
+                ]
             )
 
         ErrorLogget ->
@@ -2037,6 +2074,7 @@ andreSamtaleStegTilBrukerInput info =
             Introduksjon _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerSierHeiIIntroduksjonen "Ja!"
+                        |> Knapp.withId (inputIdTilString KlarTilÅBegynneId)
                     ]
 
             BekreftSammendrag _ bekreftSammendragState ->

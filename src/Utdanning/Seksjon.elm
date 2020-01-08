@@ -947,6 +947,12 @@ oppdaterSkjema skjemaEndring skjema =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
+        Intro _ ->
+            settFokusCmd HarUtdanningId
+
+        RegistrerNivå ->
+            settFokusCmd VelgNivåInput
+
         RegistrerSkole _ ->
             settFokusCmd RegistrerSkoleInput
 
@@ -956,14 +962,41 @@ settFokus samtale =
         RegistrerBeskrivelse _ _ ->
             settFokusCmd RegistrerBeskrivelseInput
 
+        RegistrereFraMåned _ ->
+            settFokusCmd FraMånedId
+
         RegistrereFraÅr _ ->
             settFokusCmd RegistrereFraÅrInput
+
+        RegistrereNåværende _ ->
+            settFokusCmd NåværendeId
+
+        RegistrereTilMåned _ ->
+            settFokusCmd TilMånedId
 
         RegistrereTilÅr _ ->
             settFokusCmd RegistrereTilÅrInput
 
         EndrerOppsummering _ ->
-            settFokusCmd EndrerOppsummeringInput
+            settFokusCmd VelgNivåISkjemaId
+
+        Oppsummering _ _ ->
+            settFokusCmd BekreftOppsummeringId
+
+        LeggTilFlereUtdanninger _ _ ->
+            settFokusCmd LeggTilUtdanningId
+
+        VelgEnUtdanningÅRedigere ->
+            settFokusCmd RedigerUtdanningId
+
+        LagringFeilet _ _ ->
+            settFokusCmd LagringFeiletActionId
+
+        BekreftSlettingAvPåbegynt _ ->
+            settFokusCmd SlettePåbegyntId
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            settFokusCmd AvbrytSlettingId
 
         _ ->
             Cmd.none
@@ -1338,12 +1371,14 @@ modelTilBrukerInput model =
                 if List.isEmpty model.utdanningListe then
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdanning"
+                            |> Knapp.withId (inputIdTilString HarUtdanningId)
                         , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg har ikke utdanning"
                         ]
 
                 else
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
+                            |> Knapp.withId (inputIdTilString HarUtdanningId)
                         , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg er ferdig"
                         , Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn"
                         ]
@@ -1355,6 +1390,7 @@ modelTilBrukerInput model =
             RegistrerNivå ->
                 BrukerInput.knapper Kolonne
                     [ velgNivåKnapp Grunnskole
+                        |> Knapp.withId (inputIdTilString VelgNivåInput)
                     , velgNivåKnapp VideregåendeYrkesskole
                     , velgNivåKnapp Fagskole
                     , velgNivåKnapp Folkehøyskole
@@ -1392,7 +1428,11 @@ modelTilBrukerInput model =
                     |> BrukerInput.brukerInputMedGåVidereKnapp
 
             RegistrereFraMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = BrukerVilAvbryteRegistreringen, onMånedValg = BrukerTrykketFraMånedKnapp }
+                BrukerInput.månedKnapper
+                    { onAvbryt = BrukerVilAvbryteRegistreringen
+                    , onMånedValg = BrukerTrykketFraMånedKnapp
+                    , fokusId = inputIdTilString FraMånedId
+                    }
 
             RegistrereFraÅr fraDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåVidereMedFraÅr }
@@ -1409,11 +1449,16 @@ modelTilBrukerInput model =
             RegistrereNåværende _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerSvarerJaTilNaavarende "Ja, jeg holder fortsatt på"
+                        |> Knapp.withId (inputIdTilString NåværendeId)
                     , Knapp.knapp BrukerSvarerNeiTilNaavarende "Nei, jeg er ferdig"
                     ]
 
             RegistrereTilMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = BrukerVilAvbryteRegistreringen, onMånedValg = BrukerTrykketTilMånedKnapp }
+                BrukerInput.månedKnapper
+                    { onAvbryt = BrukerVilAvbryteRegistreringen
+                    , onMånedValg = BrukerTrykketTilMånedKnapp
+                    , fokusId = inputIdTilString TilMånedId
+                    }
 
             RegistrereTilÅr tilDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilGåTilOppsummering }
@@ -1447,6 +1492,7 @@ modelTilBrukerInput model =
             LeggTilFlereUtdanninger utdanninger avsluttetGrunn ->
                 BrukerInput.knapper Flytende
                     ([ [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
+                            |> Knapp.withId (inputIdTilString LeggTilUtdanningId)
                        , Knapp.knapp (GåTilArbeidserfaring avsluttetGrunn) "Nei, jeg er ferdig"
                        ]
                      , if List.length utdanninger > 0 then
@@ -1495,17 +1541,37 @@ modelTilBrukerInput model =
 
 
 type InputId
-    = RegistrerSkoleInput
+    = HarUtdanningId
+    | RedigerUtdanningId
+    | VelgNivåInput
+    | RegistrerSkoleInput
     | RegistrerRetningInput
     | RegistrerBeskrivelseInput
+    | FraMånedId
     | RegistrereFraÅrInput
+    | TilMånedId
     | RegistrereTilÅrInput
-    | EndrerOppsummeringInput
+    | NåværendeId
+    | VelgNivåISkjemaId
+    | BekreftOppsummeringId
+    | LeggTilUtdanningId
+    | SlettePåbegyntId
+    | LagringFeiletActionId
+    | AvbrytSlettingId
 
 
 inputIdTilString : InputId -> String
 inputIdTilString inputId =
     case inputId of
+        HarUtdanningId ->
+            "har-utdanning"
+
+        RedigerUtdanningId ->
+            "utdanning-rediger"
+
+        VelgNivåInput ->
+            "utdanning-velg-nivå"
+
         RegistrerSkoleInput ->
             "utdanning-registrer-skole"
 
@@ -1521,8 +1587,32 @@ inputIdTilString inputId =
         RegistrereTilÅrInput ->
             "utdanning-registrere-til-år"
 
-        EndrerOppsummeringInput ->
-            "utdanning-endrer-oppsummering"
+        FraMånedId ->
+            "utdanning-fra-måned-id"
+
+        TilMånedId ->
+            "utdanning-til-måned-id"
+
+        NåværendeId ->
+            "utdanning-nåværende-id"
+
+        VelgNivåISkjemaId ->
+            "utdanning-velg-nivå-skjema-id"
+
+        BekreftOppsummeringId ->
+            "utdanning-bekreft-oppsummering-id"
+
+        LeggTilUtdanningId ->
+            "utdanning-legg-til-id"
+
+        SlettePåbegyntId ->
+            "utdanning-slett-påbegynt-id"
+
+        LagringFeiletActionId ->
+            "utdanning-lagring-feilet-id"
+
+        AvbrytSlettingId ->
+            "utdanning-avbrytt-slett-id"
 
 
 velgNivåKnapp : Nivå -> Knapp Msg
@@ -1547,6 +1637,7 @@ viewSkjema utdanningsskjema =
         [ Select.select "Utdanningsnivå" (Nivå >> OppsummeringEndret) selectNivåListe
             |> Select.withSelected (utdanningsskjema |> Skjema.nivå |> tilNivåKey)
             |> Select.withErObligatorisk
+            |> Select.withId (inputIdTilString VelgNivåISkjemaId)
             |> Select.toHtml
         , utdanningsskjema
             |> Skjema.innholdTekstFelt Studiested
@@ -1600,6 +1691,7 @@ viewBekreftOppsummering skalViseSlett =
     if skalViseSlett then
         BrukerInput.knapper Kolonne
             [ Knapp.knapp OppsummeringBekreftet "Ja, det er riktig"
+                |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
             , Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
             , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
             ]
@@ -1607,6 +1699,7 @@ viewBekreftOppsummering skalViseSlett =
     else
         BrukerInput.knapper Flytende
             [ Knapp.knapp OppsummeringBekreftet "Ja, det er riktig"
+                |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
             , Knapp.knapp BrukerVilEndreOppsummering "Nei, jeg vil endre"
             ]
 
@@ -1614,8 +1707,8 @@ viewBekreftOppsummering skalViseSlett =
 lagUtdanningKnapper : List Utdanning -> List (Knapp Msg)
 lagUtdanningKnapper utdanninger =
     utdanninger
-        |> List.map
-            (\utdanning ->
+        |> List.indexedMap
+            (\index utdanning ->
                 let
                     text =
                         case Utdanning.utdanningsretning utdanning of
@@ -1629,7 +1722,12 @@ lagUtdanningKnapper utdanninger =
                             Nothing ->
                                 utdanning |> Utdanning.nivå |> nivåToString
                 in
-                Knapp.knapp (BrukerHarValgtUtdanningÅRedigere utdanning) text
+                if index == 0 then
+                    Knapp.knapp (BrukerHarValgtUtdanningÅRedigere utdanning) text
+                        |> Knapp.withId (inputIdTilString RedigerUtdanningId)
+
+                else
+                    Knapp.knapp (BrukerHarValgtUtdanningÅRedigere utdanning) text
             )
 
 

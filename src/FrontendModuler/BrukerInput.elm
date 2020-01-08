@@ -35,7 +35,7 @@ import Meldinger.Melding as Melding exposing (Melding)
 type BrukerInput msg
     = Knapper KnapperLayout (List (Knapp msg))
     | BrukerInputMedGåVidereKnapp (BrukerInputMedGåVidereKnapp msg)
-    | MånedKnapper { onMånedValg : Måned -> msg, onAvbryt : msg }
+    | MånedKnapper { onMånedValg : Måned -> msg, onAvbryt : msg, fokusId : String }
     | Skjema { lagreMsg : msg, lagreKnappTekst : String } (List (Html msg))
     | Lenke (Lenke msg)
     | UtenInnhold
@@ -56,7 +56,7 @@ knapper =
     Knapper
 
 
-månedKnapper : { onMånedValg : Måned -> msg, onAvbryt : msg } -> BrukerInput msg
+månedKnapper : { onMånedValg : Måned -> msg, onAvbryt : msg, fokusId : String } -> BrukerInput msg
 månedKnapper =
     MånedKnapper
 
@@ -164,8 +164,8 @@ toHtml brukerInput =
                     ]
                 ]
 
-        MånedKnapper { onMånedValg, onAvbryt } ->
-            MånedKnapper.månedKnapper { onMånedValg = onMånedValg, onAvbryt = onAvbryt }
+        MånedKnapper { onMånedValg, onAvbryt, fokusId } ->
+            MånedKnapper.månedKnapper { onMånedValg = onMånedValg, onAvbryt = onAvbryt, fokusId = fokusId }
 
         UtenInnhold ->
             text ""

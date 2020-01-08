@@ -7,6 +7,7 @@ module Typeahead.Typeahead exposing
     , TypeaheadInitInfo
     , TypeaheadInitWithSelectedInfo
     , getSuggestionsStatus
+    , hideSuggestions
     , init
     , initWithSelected
     , inputStatus
@@ -425,3 +426,8 @@ initWithSelected input =
         |> TypeaheadState.query
         |> Query
     )
+
+
+hideSuggestions : Model a -> Model a
+hideSuggestions (Model model) =
+    Model { model | typeaheadState = TypeaheadState.hideSuggestions model.typeaheadState }

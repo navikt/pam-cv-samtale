@@ -982,6 +982,7 @@ settFokusCmd inputId =
 type InputId
     = KursnavnId
     | KursholderId
+    | FullførtMånedId
     | FullførtÅrId
     | VarighetId
 
@@ -994,6 +995,9 @@ inputIdTilString inputId =
 
         KursholderId ->
             "kurs-kursholder-id"
+
+        FullførtMånedId ->
+            "kurs-fullførtMåned-id"
 
         FullførtÅrId ->
             "kurs-fullførtÅr-id"
@@ -1044,7 +1048,11 @@ modelTilBrukerInput model =
                     ]
 
             RegistrerFullførtMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = FullførtMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = FullførtMånedValgt
+                    , fokusId = inputIdTilString FullførtMånedId
+                    }
 
             RegistrerFullførtÅr fullførtDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFullførtÅr }

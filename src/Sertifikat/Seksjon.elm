@@ -1202,7 +1202,9 @@ settFokusCmd inputId =
 type InputId
     = SertifikatTypeaheadId
     | UtstederId
+    | FullførtMånedId
     | FullførtÅrId
+    | UtløperMånedId
     | UtløperÅrId
 
 
@@ -1220,6 +1222,12 @@ inputIdTilString inputId =
 
         UtløperÅrId ->
             "sertifikat-utløperår-id"
+
+        FullførtMånedId ->
+            "sertifikat-fullførtmåned-id"
+
+        UtløperMånedId ->
+            "sertifikat-utløpermåned-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -1251,7 +1259,11 @@ modelTilBrukerInput model =
                     )
 
             RegistrerFullførtMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = FullførtMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = FullførtMånedValgt
+                    , fokusId = inputIdTilString FullførtMånedId
+                    }
 
             RegistrerFullførtÅr fullførtDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFullførtÅr }
@@ -1277,7 +1289,11 @@ modelTilBrukerInput model =
                     ]
 
             RegistrerUtløperMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = UtløperMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = UtløperMånedValgt
+                    , fokusId = inputIdTilString UtløperMånedId
+                    }
 
             RegistrerUtløperÅr utløpsdatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereUtløperÅr }

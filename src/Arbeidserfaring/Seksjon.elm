@@ -1026,7 +1026,16 @@ update msg (Model model) =
                     IkkeFerdig ( Model model, Cmd.none )
 
         FokusSatt _ ->
-            IkkeFerdig ( Model model, Cmd.none )
+            case model.aktivSamtale of
+                RedigerOppsummering typeaheadModel skjema ->
+                    IkkeFerdig
+                        ( RedigerOppsummering (Typeahead.hideSuggestions typeaheadModel) skjema
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
 
 avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
@@ -1202,8 +1211,14 @@ updateEtterLagreKnappTrykket model msg skjema =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
+        Intro ->
+            settFokusCmd HarArbeidserfaringId
+
         RegistrerYrke _ _ _ ->
             settFokusCmd YrkeTypeaheadId
+
+        SpørOmBrukerVilEndreJobbtittel _ ->
+            settFokusCmd EndreJobbtittelId
 
         EndreJobbtittel _ ->
             settFokusCmd JobbtittelInput
@@ -1217,11 +1232,41 @@ settFokus samtale =
         RegistrereArbeidsoppgaver _ _ ->
             settFokusCmd ArbeidsoppgaverInput
 
+        RegistrereFraMåned _ ->
+            settFokusCmd FraMånedId
+
         RegistrereFraÅr _ ->
             settFokusCmd FraÅrInput
 
+        RegistrereNåværende _ ->
+            settFokusCmd NåværendeId
+
+        RegistrereTilMåned _ ->
+            settFokusCmd TilMånedId
+
         RegistrereTilÅr _ ->
             settFokusCmd TilÅrInput
+
+        RedigerOppsummering _ _ ->
+            settFokusCmd YrkeTypeaheadId
+
+        VisOppsummering _ _ ->
+            settFokusCmd BekreftOppsummeringId
+
+        SpørOmBrukerVilLeggeInnMer _ _ ->
+            settFokusCmd LeggTilArbeidserfaringId
+
+        VelgEnArbeidserfaringÅRedigere ->
+            settFokusCmd RedigerArbeidserfaringId
+
+        LagringFeilet _ _ ->
+            settFokusCmd LagringFeiletActionId
+
+        BekreftSlettingAvPåbegynt _ ->
+            settFokusCmd SlettePåbegyntId
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            settFokusCmd AvbrytSlettingId
 
         _ ->
             Cmd.none
@@ -1514,19 +1559,21 @@ modelTilBrukerInput model =
                 if List.isEmpty model.arbeidserfaringListe then
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerVilLeggeTilNyArbeidserfaring "Ja, jeg har arbeidserfaring"
+                            |> Knapp.withId (inputIdTilString HarArbeidserfaringId)
                         , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har ikke arbeidserfaring"
                         ]
 
                 else
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerVilLeggeTilNyArbeidserfaring "Ja, jeg vil legge til mer"
+                            |> Knapp.withId (inputIdTilString HarArbeidserfaringId)
                         , Knapp.knapp BrukerHopperOverArbeidserfaring "Nei, jeg er ferdig"
                         , Knapp.knapp BrukerVilRedigereArbeidserfaring "Nei, jeg vil endre det jeg har lagt inn"
                         ]
 
             VelgEnArbeidserfaringÅRedigere ->
                 BrukerInput.knapper Kolonne
-                    (List.map lagArbeidserfaringKnapp model.arbeidserfaringListe)
+                    (lagArbeidserfaringKnapper model.arbeidserfaringListe)
 
             RegistrerYrke _ visFeilmelding typeaheadModel ->
                 viewRegistrerYrke visFeilmelding typeaheadModel
@@ -1534,6 +1581,7 @@ modelTilBrukerInput model =
             SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerVilIkkeEndreJobbtittel "Nei, jeg vil ikke kalle det noe annet"
+                        |> Knapp.withId (inputIdTilString EndreJobbtittelId)
                     , Knapp.knapp (BrukerVilEndreJobbtittel jobbtittelInfo) "Ja, jeg vil kalle det noe annet"
                     ]
 
@@ -1572,7 +1620,11 @@ modelTilBrukerInput model =
                     |> BrukerInput.brukerInputMedGåVidereKnapp
 
             RegistrereFraMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = BrukerVilAvbryteRegistreringen, onMånedValg = BrukerTrykketFraMånedKnapp }
+                BrukerInput.månedKnapper
+                    { onAvbryt = BrukerVilAvbryteRegistreringen
+                    , onMånedValg = BrukerTrykketFraMånedKnapp
+                    , fokusId = inputIdTilString FraMånedId
+                    }
 
             RegistrereFraÅr fraDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereFraÅr }
@@ -1590,11 +1642,16 @@ modelTilBrukerInput model =
             RegistrereNåværende _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerSvarerJaTilNåværende "Ja"
+                        |> Knapp.withId (inputIdTilString NåværendeId)
                     , Knapp.knapp BrukerSvarerNeiTilNåværende "Nei"
                     ]
 
             RegistrereTilMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = BrukerVilAvbryteRegistreringen, onMånedValg = BrukerTrykketTilMånedKnapp }
+                BrukerInput.månedKnapper
+                    { onAvbryt = BrukerVilAvbryteRegistreringen
+                    , onMånedValg = BrukerTrykketTilMånedKnapp
+                    , fokusId = inputIdTilString TilMånedId
+                    }
 
             RegistrereTilÅr tilDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereTilÅr }
@@ -1680,6 +1737,7 @@ modelTilBrukerInput model =
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.withId (inputIdTilString SlettePåbegyntId)
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
@@ -1695,11 +1753,13 @@ modelTilBrukerInput model =
                     GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
                     PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv igjen"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
                             ]
 
@@ -1709,6 +1769,7 @@ modelTilBrukerInput model =
             SpørOmBrukerVilLeggeInnMer arbeidserfaringer _ ->
                 BrukerInput.knapper Flytende
                     ([ [ Knapp.knapp NyArbeidserfaring "Ja, legg til en arbeidserfaring"
+                            |> Knapp.withId (inputIdTilString LeggTilArbeidserfaringId)
                        , Knapp.knapp FerdigMedArbeidserfaring "Nei, jeg har lagt inn alle"
                        ]
                      , if List.length arbeidserfaringer > 0 then
@@ -1726,6 +1787,7 @@ modelTilBrukerInput model =
             BekreftAvbrytingAvRegistreringen _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerBekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                        |> Knapp.withId (inputIdTilString AvbrytSlettingId)
                     , Knapp.knapp BrukerVilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
                     ]
 
@@ -1743,23 +1805,43 @@ maybeHvisTrue bool maybe =
 
 
 type InputId
-    = YrkeTypeaheadId
+    = HarArbeidserfaringId
+    | RedigerArbeidserfaringId
+    | YrkeTypeaheadId
+    | EndreJobbtittelId
     | JobbtittelInput
     | BedriftsnavnInput
     | StedInput
     | ArbeidsoppgaverInput
     | FraÅrInput
+    | FraMånedId
     | TilÅrInput
+    | TilMånedId
+    | NåværendeId
+    | BekreftOppsummeringId
+    | LeggTilArbeidserfaringId
+    | SlettePåbegyntId
+    | LagringFeiletActionId
+    | AvbrytSlettingId
 
 
 inputIdTilString : InputId -> String
 inputIdTilString inputId =
     case inputId of
+        HarArbeidserfaringId ->
+            "har-arbeidserfaring-id"
+
+        RedigerArbeidserfaringId ->
+            "arbeidserfaring-rediger-id"
+
         YrkeTypeaheadId ->
             "arbeidserfaring-registrer-yrke-typeahead"
 
         JobbtittelInput ->
             "arbeidserfaring-registrer-jobbtittel"
+
+        EndreJobbtittelId ->
+            "arbeidserfaring-endre-jobbtittel"
 
         BedriftsnavnInput ->
             "arbeidserfaring-registrer-bedriftsnavn"
@@ -1770,11 +1852,35 @@ inputIdTilString inputId =
         ArbeidsoppgaverInput ->
             "arbeidserfaring-registrer-arbeidsoppgaver"
 
+        FraMånedId ->
+            "arbeidserfaring-fra-måned-id"
+
         FraÅrInput ->
             "arbeidserfaring-registrer-fra-år"
 
+        TilMånedId ->
+            "arbeidserfaring-til-måned-id"
+
         TilÅrInput ->
             "arbeidserfaring-registrer-til-år"
+
+        NåværendeId ->
+            "arbeidserfaring-nåværende-id"
+
+        BekreftOppsummeringId ->
+            "arbeidserfaring-bekreft-oppsummering-id"
+
+        LeggTilArbeidserfaringId ->
+            "arbeidserfaring-legg-til-id"
+
+        SlettePåbegyntId ->
+            "arbeidserfaring-slett-påbegynt-id"
+
+        LagringFeiletActionId ->
+            "arbeidserfaring-lagring-feilet-id"
+
+        AvbrytSlettingId ->
+            "arbeidserfaring-avbrytt-slett-id"
 
 
 viewRegistrerYrke : { visFeilmelding : Bool } -> Typeahead.Model Yrke -> BrukerInput Msg
@@ -1793,6 +1899,7 @@ viewBekreftOppsummering skalViseSlett =
     if skalViseSlett then
         BrukerInput.knapper Kolonne
             [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, det er riktig"
+                |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
             , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
             , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
             ]
@@ -1800,19 +1907,29 @@ viewBekreftOppsummering skalViseSlett =
     else
         BrukerInput.knapper Flytende
             [ Knapp.knapp BrukerVilLagreArbeidserfaringIOppsummering "Ja, det er riktig"
+                |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
             , Knapp.knapp BrukerVilRedigereOppsummering "Nei, jeg vil endre"
             ]
 
 
-lagArbeidserfaringKnapp : Arbeidserfaring -> Knapp Msg
-lagArbeidserfaringKnapp arbeidserfaring =
-    let
-        tekst =
-            Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
-                ++ ", "
-                ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
-    in
-    Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring) tekst
+lagArbeidserfaringKnapper : List Arbeidserfaring -> List (Knapp Msg)
+lagArbeidserfaringKnapper arbeidserfaringer =
+    arbeidserfaringer
+        |> List.indexedMap
+            (\index arbeidserfaring ->
+                let
+                    tekst =
+                        Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
+                            ++ ", "
+                            ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
+                in
+                if index == 0 then
+                    Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring) tekst
+                        |> Knapp.withId (inputIdTilString RedigerArbeidserfaringId)
+
+                else
+                    Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring) tekst
+            )
 
 
 postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ValidertArbeidserfaringSkjema -> Cmd msg

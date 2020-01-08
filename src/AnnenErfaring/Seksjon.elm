@@ -1071,7 +1071,9 @@ eksemplerPåAnnenErfaring =
 type InputId
     = RolleId
     | BeskrivelseId
+    | FraMånedId
     | FraÅrId
+    | TilMånedId
     | TilÅrId
 
 
@@ -1089,6 +1091,12 @@ inputIdTilString inputId =
 
         TilÅrId ->
             "annenErfaring-tilÅr-id"
+
+        FraMånedId ->
+            "annenErfaring-fraMåned-id"
+
+        TilMånedId ->
+            "annenErfaring-tilMåned-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -1134,7 +1142,11 @@ modelTilBrukerInput model =
                     ]
 
             RegistrerFraMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = FraMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = FraMånedValgt
+                    , fokusId = inputIdTilString FraMånedId
+                    }
 
             RegistrerFraÅr fraDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFraÅr }
@@ -1160,7 +1172,11 @@ modelTilBrukerInput model =
                     ]
 
             RegistrerTilMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = TilMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = TilMånedValgt
+                    , fokusId = inputIdTilString TilMånedId
+                    }
 
             RegistrerTilÅr tilDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereTilÅr }
