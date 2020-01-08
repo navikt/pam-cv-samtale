@@ -553,7 +553,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , Api.postKurs KursLagret skjema
+                    , Api.opprettKurs KursLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -588,7 +588,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postKurs KursLagret skjema
+                                    , Api.opprettKurs KursLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -689,7 +689,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postKurs KursLagret skjema
+                                    , Api.opprettKurs KursLagret skjema
                                     )
 
                             else
@@ -793,7 +793,7 @@ updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , Api.postKurs KursLagret skjema
+    , Api.opprettKurs KursLagret skjema
     )
         |> IkkeFerdig
 

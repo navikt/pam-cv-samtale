@@ -511,7 +511,7 @@ logFeilmelding error operasjon =
 
 leggTilSpråkAPI : SpråkSkjema -> Cmd Msg
 leggTilSpråkAPI skjema =
-    Api.postSpråk BackendSvarerPåLagreRequest skjema
+    Api.opprettSpråk BackendSvarerPåLagreRequest skjema
 
 
 hentSpråkkoder : Cmd Msg

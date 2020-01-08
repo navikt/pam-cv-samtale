@@ -664,7 +664,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                    , Api.opprettAnnenErfaring AnnenErfaringLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -699,7 +699,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                                    , Api.opprettAnnenErfaring AnnenErfaringLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -761,7 +761,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                                    , Api.opprettAnnenErfaring AnnenErfaringLagret skjema
                                     )
 
                             else
@@ -871,7 +871,7 @@ updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+    , Api.opprettAnnenErfaring AnnenErfaringLagret skjema
     )
         |> IkkeFerdig
 

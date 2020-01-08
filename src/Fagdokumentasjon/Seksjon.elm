@@ -400,7 +400,7 @@ update msg (Model model) =
                             ( skjema
                                 |> Lagrer (LagrerPåNyttEtterError error)
                                 |> oppdaterSamtale model UtenSvar
-                            , Api.postFagdokumentasjon FagbrevSendtTilApi skjema
+                            , Api.opprettFagdokumentasjon FagbrevSendtTilApi skjema
                             )
                                 |> IkkeFerdig
 
@@ -655,7 +655,7 @@ updateEtterLagreKnappTrykket model msg skjema lagreStatus =
             |> Lagrer lagreStatus
             |> oppdaterSamtale model (SvarFraMsg msg)
         , Cmd.batch
-            [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
+            [ Api.opprettFagdokumentasjon FagbrevSendtTilApi skjema
             , lagtTilSpørsmålCmd model.debugStatus
             ]
         )

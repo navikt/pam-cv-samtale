@@ -1,7 +1,8 @@
-module Sammendrag exposing (Sammendrag, decode, toString)
+module Sammendrag exposing (Sammendrag, decode, encodeSammendrag, toString)
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Json.Encode
 
 
 type Sammendrag
@@ -11,6 +12,15 @@ type Sammendrag
 toString : Sammendrag -> String
 toString (Sammendrag sammendrag_) =
     sammendrag_
+
+
+
+--- ENCODE ---
+
+
+encodeSammendrag : String -> Json.Encode.Value
+encodeSammendrag sammendrag =
+    Json.Encode.object [ ( "sammendrag", Json.Encode.string sammendrag ) ]
 
 
 

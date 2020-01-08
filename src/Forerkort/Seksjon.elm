@@ -245,7 +245,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerFørerkort skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postFørerkort FørerkortLagret skjema
+                                    , Api.opprettFørerkort FørerkortLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -304,7 +304,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerFørerkortKlasseB skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postFørerkort FørerkortLagret skjema
+                                    , Api.opprettFørerkort FørerkortLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -614,7 +614,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerFørerkort skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , Api.postFørerkort FørerkortLagret skjema
+                    , Api.opprettFørerkort FørerkortLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -689,7 +689,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerFørerkort skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postFørerkort FørerkortLagret skjema
+                                    , Api.opprettFørerkort FørerkortLagret skjema
                                     )
 
                             else
@@ -805,7 +805,7 @@ updateEtterLagreKnappTrykket model msg skjema =
 
 leggTilFørerkortAPI : ValidertFørerkortSkjema -> Cmd Msg
 leggTilFørerkortAPI skjema =
-    Api.postFørerkort FørerkortLagret skjema
+    Api.opprettFørerkort FørerkortLagret skjema
 
 
 updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus

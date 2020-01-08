@@ -867,7 +867,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerArbeidserfaring skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                                    , lagreArbeidserfaring ArbeidserfaringLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -904,7 +904,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerArbeidserfaring skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                    , lagreArbeidserfaring ArbeidserfaringLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -982,7 +982,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerArbeidserfaring skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                                    , lagreArbeidserfaring ArbeidserfaringLagret skjema
                                     )
 
                             else
@@ -1194,7 +1194,7 @@ updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerArbeidserfaring skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+    , lagreArbeidserfaring ArbeidserfaringLagret skjema
     )
         |> IkkeFerdig
 
@@ -1815,14 +1815,14 @@ lagArbeidserfaringKnapp arbeidserfaring =
     Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring) tekst
 
 
-postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ValidertArbeidserfaringSkjema -> Cmd msg
-postEllerPutArbeidserfaring msgConstructor skjema =
+lagreArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ValidertArbeidserfaringSkjema -> Cmd msg
+lagreArbeidserfaring msgConstructor skjema =
     case Skjema.id skjema of
         Just id ->
-            Api.putArbeidserfaring msgConstructor skjema id
+            Api.endreArbeidserfaring msgConstructor skjema id
 
         Nothing ->
-            Api.postArbeidserfaring msgConstructor skjema
+            Api.opprettArbeidserfaring msgConstructor skjema
 
 
 arbeidserfaringerTilTekstområder : List Arbeidserfaring -> List Tekstområde
