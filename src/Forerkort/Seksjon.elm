@@ -88,11 +88,6 @@ type SamtaleStatus
     | Ferdig (List Førerkort) FerdigAnimertMeldingsLogg
 
 
-type InputId
-    = FraDatoId
-    | TilDatoId
-
-
 meldingsLogg : Model -> MeldingsLogg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
@@ -835,11 +830,38 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
+        IntroLeggTilKlasseB _ ->
+            settFokusCmd LeggTilFørerkortIntroId
+
+        SvarteNeiPåKlasseB ->
+            settFokusCmd LeggTilForerkortId
+
+        LeggTilFlereFørerkort _ ->
+            settFokusCmd LeggTilForerkortId
+
+        VelgNyttFørerkort _ ->
+            settFokusCmd VelgForerkortId
+
         RegistrereFraDato _ ->
             settFokusCmd FraDatoId
 
         RegistrereTilDato _ ->
             settFokusCmd TilDatoId
+
+        Oppsummering _ _ ->
+            settFokusCmd BekreftOppsummeringId
+
+        EndreSkjema _ ->
+            settFokusCmd VelgForerkortId
+
+        BekreftSlettingAvPåbegynt _ ->
+            settFokusCmd SlettePåbegyntId
+
+        LagringFeilet _ _ ->
+            settFokusCmd LagringFeiletActionId
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            settFokusCmd AvbrytSlettingId
 
         _ ->
             Cmd.none
@@ -850,16 +872,6 @@ settFokusCmd inputId =
     Process.sleep 200
         |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
         |> Task.attempt FokusSatt
-
-
-inputIdTilString : InputId -> String
-inputIdTilString inputId =
-    case inputId of
-        FraDatoId ->
-            "førerkort-fradato-id"
-
-        TilDatoId ->
-            "førerkort-tildato-id"
 
 
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
@@ -1089,6 +1101,49 @@ listeTilSetning list =
 --- VIEW ---
 
 
+type InputId
+    = LeggTilFørerkortIntroId
+    | LeggTilForerkortId
+    | VelgForerkortId
+    | FraDatoId
+    | TilDatoId
+    | BekreftOppsummeringId
+    | SlettePåbegyntId
+    | LagringFeiletActionId
+    | AvbrytSlettingId
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        LeggTilFørerkortIntroId ->
+            "førerkort-legg-til-intro-id"
+
+        LeggTilForerkortId ->
+            "førerkort-legg-til-id"
+
+        VelgForerkortId ->
+            "førerkort-velg-id"
+
+        FraDatoId ->
+            "førerkort-fradato-id"
+
+        TilDatoId ->
+            "førerkort-tildato-id"
+
+        BekreftOppsummeringId ->
+            "førerkort-bekreft-oppsummering-id"
+
+        SlettePåbegyntId ->
+            "førerkort-slett-påbegynt-id"
+
+        LagringFeiletActionId ->
+            "førerkort-lagring-feilet-id"
+
+        AvbrytSlettingId ->
+            "førerkort-avbrytt-slett-id"
+
+
 viewBrukerInput : Model -> Html Msg
 viewBrukerInput (Model model) =
     model
@@ -1104,12 +1159,14 @@ modelTilBrukerInput model =
                 if List.isEmpty førerkortliste then
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp HarKlasseB "Ja, jeg har førerkort klasse B"
+                            |> Knapp.withId (inputIdTilString LeggTilFørerkortIntroId)
                         , Knapp.knapp HarIkkeKlasseB "Nei, det har jeg ikke"
                         ]
 
                 else
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
+                            |> Knapp.withId (inputIdTilString LeggTilFørerkortIntroId)
                         , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
                         ]
 
@@ -1119,6 +1176,7 @@ modelTilBrukerInput model =
             LeggTilFlereFørerkort _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
+                        |> Knapp.withId (inputIdTilString LeggTilForerkortId)
                     , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
                     ]
 
@@ -1136,6 +1194,7 @@ modelTilBrukerInput model =
                         |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode velgNyttFørerkortInfo.valgtFørerkort)
                         |> Select.withFeilmelding velgNyttFørerkortInfo.feilmelding
                         |> Select.withErObligatorisk
+                        |> Select.withId (inputIdTilString VelgForerkortId)
                     )
 
             LagrerFørerkort _ _ ->
@@ -1197,6 +1256,7 @@ modelTilBrukerInput model =
                         )
                         |> Select.withMaybeSelected (Maybe.map FørerkortKode.kode (Skjema.førerkortKodeFraSkjema skjema))
                         |> Select.withErObligatorisk
+                        |> Select.withId (inputIdTilString VelgForerkortId)
                         |> Select.toHtml
                     , div [ class "forerkortSkjema-datoWrapper" ]
                         [ { label = "Førerrett fra (dd.mm.åååå)"
@@ -1222,12 +1282,14 @@ modelTilBrukerInput model =
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.withId (inputIdTilString SlettePåbegyntId)
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
             BekreftAvbrytingAvRegistreringen _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerBekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                        |> Knapp.withId (inputIdTilString AvbrytSlettingId)
                     , Knapp.knapp BrukerVilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
                     ]
 
@@ -1236,11 +1298,13 @@ modelTilBrukerInput model =
                     ErrorHåndtering.GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedFørerkort "Gå videre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
                     ErrorHåndtering.PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp SendSkjemaPåNytt "Prøv igjen"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp FerdigMedFørerkort "Gå videre"
                             ]
 
@@ -1250,6 +1314,7 @@ modelTilBrukerInput model =
             SvarteNeiPåKlasseB ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerHarFlereFørerkort "Ja, legg til førerkort"
+                        |> Knapp.withId (inputIdTilString LeggTilForerkortId)
                     , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
                     ]
 
@@ -1261,6 +1326,7 @@ viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
     BrukerInput.knapper Kolonne
         [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, det er riktig"
+            |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
         , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]

@@ -816,14 +816,16 @@ modelTilBrukerInput model =
 
             LeggTilNorskMuntlig ->
                 BrukerInput.knapper Kolonne
-                    [ muntligKnappMedId SpråkKode.norsk Nybegynner (inputIdTilString VelgNorskMuntligId)
+                    [ muntligKnapp SpråkKode.norsk Nybegynner
+                        |> Knapp.withId (inputIdTilString VelgNorskMuntligId)
                     , muntligKnapp SpråkKode.norsk Godt
                     , muntligKnapp SpråkKode.norsk VeldigGodt
                     ]
 
             LeggTilNorskSkriftlig _ ->
                 BrukerInput.knapper Kolonne
-                    [ skriftligKnappMedId SpråkKode.norsk Nybegynner (inputIdTilString VelgNorskSkriftligId)
+                    [ skriftligKnapp SpråkKode.norsk Nybegynner
+                        |> Knapp.withId (inputIdTilString VelgNorskSkriftligId)
                     , skriftligKnapp SpråkKode.norsk Godt
                     , skriftligKnapp SpråkKode.norsk VeldigGodt
                     ]
@@ -860,7 +862,8 @@ modelTilBrukerInput model =
 
             LeggTilMuntlig språkKode ->
                 BrukerInput.knapper Kolonne
-                    [ muntligKnappMedId språkKode Nybegynner (inputIdTilString VelgNivåMuntligId)
+                    [ muntligKnapp språkKode Nybegynner
+                        |> Knapp.withId (inputIdTilString VelgNivåMuntligId)
                     , muntligKnapp språkKode Godt
                     , muntligKnapp språkKode VeldigGodt
                     , muntligKnapp språkKode Førstespråk
@@ -870,7 +873,8 @@ modelTilBrukerInput model =
 
             LeggTilSkriftlig språkKode ->
                 BrukerInput.knapper Kolonne
-                    [ skriftligKnappMedId språkKode.språk Nybegynner (inputIdTilString VelgNivåSkriftligId)
+                    [ skriftligKnapp språkKode.språk Nybegynner
+                        |> Knapp.withId (inputIdTilString VelgNivåMuntligId)
                     , skriftligKnapp språkKode.språk Godt
                     , skriftligKnapp språkKode.språk VeldigGodt
                     , skriftligKnapp språkKode.språk Førstespråk
@@ -953,22 +957,10 @@ muntligKnapp språkKode ferdighet =
         |> Knapp.knapp (BrukerVelgerMuntligNivå ferdighet)
 
 
-muntligKnappMedId : SpråkKode -> Ferdighet -> String -> Knapp Msg
-muntligKnappMedId språkKode ferdighet id =
-    muntligKnapp språkKode ferdighet
-        |> Knapp.withId id
-
-
 skriftligKnapp : SpråkKode -> Ferdighet -> Knapp Msg
 skriftligKnapp språkKode ferdighet =
     skriftligNivåTilKnappeTekst språkKode ferdighet
         |> Knapp.knapp (BrukerVelgerSkriftligNivå ferdighet)
-
-
-skriftligKnappMedId : SpråkKode -> Ferdighet -> String -> Knapp Msg
-skriftligKnappMedId språkKode ferdighet id =
-    skriftligKnapp språkKode ferdighet
-        |> Knapp.withId id
 
 
 

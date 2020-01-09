@@ -1573,7 +1573,16 @@ modelTilBrukerInput model =
 
             VelgEnArbeidserfaringÅRedigere ->
                 BrukerInput.knapper Kolonne
-                    (lagArbeidserfaringKnapper model.arbeidserfaringListe)
+                    (case model.arbeidserfaringListe of
+                        first :: rest ->
+                            (arbeidserfaringKnapp first
+                                |> Knapp.withId (inputIdTilString RedigerArbeidserfaringId)
+                            )
+                                :: List.map arbeidserfaringKnapp rest
+
+                        _ ->
+                            []
+                    )
 
             RegistrerYrke _ visFeilmelding typeaheadModel ->
                 viewRegistrerYrke visFeilmelding typeaheadModel
@@ -1912,24 +1921,15 @@ viewBekreftOppsummering skalViseSlett =
             ]
 
 
-lagArbeidserfaringKnapper : List Arbeidserfaring -> List (Knapp Msg)
-lagArbeidserfaringKnapper arbeidserfaringer =
-    arbeidserfaringer
-        |> List.indexedMap
-            (\index arbeidserfaring ->
-                let
-                    tekst =
-                        Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
-                            ++ ", "
-                            ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
-                in
-                if index == 0 then
-                    Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring) tekst
-                        |> Knapp.withId (inputIdTilString RedigerArbeidserfaringId)
-
-                else
-                    Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring) tekst
-            )
+arbeidserfaringKnapp : Arbeidserfaring -> Knapp Msg
+arbeidserfaringKnapp arbeidserfaring =
+    let
+        tekst =
+            Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
+                ++ ", "
+                ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
+    in
+    Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring) tekst
 
 
 postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ValidertArbeidserfaringSkjema -> Cmd msg

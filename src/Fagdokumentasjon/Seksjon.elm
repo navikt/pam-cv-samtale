@@ -479,7 +479,16 @@ update msg (Model model) =
                 |> updateEtterFullførtMelding model
 
         FokusSatt _ ->
-            IkkeFerdig ( Model model, Cmd.none )
+            case model.aktivSamtale of
+                EndrerOppsummering typeaheadModel skjema ->
+                    IkkeFerdig
+                        ( EndrerOppsummering (Typeahead.hideSuggestions typeaheadModel) skjema
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         ErrorLogget _ ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -923,6 +932,21 @@ settFokus samtale =
         RegistrerBeskrivelse _ _ ->
             settFokusCmd RegistrerBeskrivelseInput
 
+        Oppsummering _ _ ->
+            settFokusCmd BekreftOppsummeringId
+
+        EndrerOppsummering _ _ ->
+            settFokusCmd RegistrerKonseptInput
+
+        LagringFeilet _ _ ->
+            settFokusCmd LagringFeiletActionId
+
+        BekreftSlettingAvPåbegynt _ ->
+            settFokusCmd SlettePåbegyntId
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            settFokusCmd AvbrytSlettingId
+
         _ ->
             Cmd.none
 
@@ -966,6 +990,37 @@ eksemplerPåFagdokumentasjon fagdokumentasjonType =
 
 
 --- VIEW ---
+
+
+type InputId
+    = RegistrerKonseptInput
+    | RegistrerBeskrivelseInput
+    | BekreftOppsummeringId
+    | SlettePåbegyntId
+    | LagringFeiletActionId
+    | AvbrytSlettingId
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        RegistrerKonseptInput ->
+            "fagdokumentasjon-registrer-konsept"
+
+        RegistrerBeskrivelseInput ->
+            "fagdokumentasjon-registrer-beskrivelse"
+
+        BekreftOppsummeringId ->
+            "fagdokumentasjon-bekreft-oppsummering-id"
+
+        SlettePåbegyntId ->
+            "fagdokumentasjon-slett-påbegynt-id"
+
+        LagringFeiletActionId ->
+            "fagdokumentasjon-lagring-feilet-id"
+
+        AvbrytSlettingId ->
+            "fagdokumentasjon-avbrytt-slett-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -1017,6 +1072,7 @@ modelTilBrukerInput model =
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.withId (inputIdTilString SlettePåbegyntId)
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
@@ -1028,11 +1084,13 @@ modelTilBrukerInput model =
                     GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
                     PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv på nytt"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp BrukerVilIkkePrøveÅLagrePåNytt "Gå videre"
                             ]
 
@@ -1042,6 +1100,7 @@ modelTilBrukerInput model =
             BekreftAvbrytingAvRegistreringen _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerBekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                        |> Knapp.withId (inputIdTilString AvbrytSlettingId)
                     , Knapp.knapp BrukerVilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
                     ]
 
@@ -1056,24 +1115,10 @@ viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
     BrukerInput.knapper Kolonne
         [ Knapp.knapp BrukerVilLagreIOppsummeringen "Ja, det er riktig"
+            |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
         , Knapp.knapp BrukerVilEndreOppsummeringen "Nei, jeg vil endre"
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]
-
-
-type InputId
-    = RegistrerKonseptInput
-    | RegistrerBeskrivelseInput
-
-
-inputIdTilString : InputId -> String
-inputIdTilString inputId =
-    case inputId of
-        RegistrerKonseptInput ->
-            "fagdokumentasjon-registrer-konsept"
-
-        RegistrerBeskrivelseInput ->
-            "fagdokumentasjon-registrer-beskrivelse"
 
 
 feilmeldingTypeahead : FagdokumentasjonType -> Typeahead.Model Konsept -> Maybe String

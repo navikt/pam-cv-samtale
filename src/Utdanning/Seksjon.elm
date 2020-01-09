@@ -1385,7 +1385,16 @@ modelTilBrukerInput model =
 
             VelgEnUtdanningÅRedigere ->
                 BrukerInput.knapper Kolonne
-                    (lagUtdanningKnapper model.utdanningListe)
+                    (case model.utdanningListe of
+                        first :: rest ->
+                            (utdanningKnapp first
+                                |> Knapp.withId (inputIdTilString RedigerUtdanningId)
+                            )
+                                :: List.map utdanningKnapp rest
+
+                        _ ->
+                            []
+                    )
 
             RegistrerNivå ->
                 BrukerInput.knapper Kolonne
@@ -1486,6 +1495,7 @@ modelTilBrukerInput model =
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.withId (inputIdTilString SlettePåbegyntId)
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
@@ -1516,11 +1526,13 @@ modelTilBrukerInput model =
                     GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
                     PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagrePåNytt "Prøv igjen"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp BrukerVilAvbryteLagringen "Gå videre"
                             ]
 
@@ -1530,6 +1542,7 @@ modelTilBrukerInput model =
             BekreftAvbrytingAvRegistreringen _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerBekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                        |> Knapp.withId (inputIdTilString AvbrytSlettingId)
                     , Knapp.knapp BrukerVilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
                     ]
 
@@ -1704,31 +1717,22 @@ viewBekreftOppsummering skalViseSlett =
             ]
 
 
-lagUtdanningKnapper : List Utdanning -> List (Knapp Msg)
-lagUtdanningKnapper utdanninger =
-    utdanninger
-        |> List.indexedMap
-            (\index utdanning ->
-                let
-                    text =
-                        case Utdanning.utdanningsretning utdanning of
-                            Just value ->
-                                if value == "" then
-                                    utdanning |> Utdanning.nivå |> nivåToString
+utdanningKnapp : Utdanning -> Knapp Msg
+utdanningKnapp utdanning =
+    let
+        text =
+            case Utdanning.utdanningsretning utdanning of
+                Just value ->
+                    if value == "" then
+                        utdanning |> Utdanning.nivå |> nivåToString
 
-                                else
-                                    value
+                    else
+                        value
 
-                            Nothing ->
-                                utdanning |> Utdanning.nivå |> nivåToString
-                in
-                if index == 0 then
-                    Knapp.knapp (BrukerHarValgtUtdanningÅRedigere utdanning) text
-                        |> Knapp.withId (inputIdTilString RedigerUtdanningId)
-
-                else
-                    Knapp.knapp (BrukerHarValgtUtdanningÅRedigere utdanning) text
-            )
+                Nothing ->
+                    utdanning |> Utdanning.nivå |> nivåToString
+    in
+    Knapp.knapp (BrukerHarValgtUtdanningÅRedigere utdanning) text
 
 
 selectNivåListe : List ( String, String )
