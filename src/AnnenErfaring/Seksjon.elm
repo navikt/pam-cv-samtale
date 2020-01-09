@@ -9,11 +9,11 @@ module AnnenErfaring.Seksjon exposing
     , viewBrukerInput
     )
 
+import AnnenErfaring.AnnenErfaring exposing (AnnenErfaring)
 import AnnenErfaring.Skjema as Skjema exposing (AnnenErfaringSkjema, Felt(..), ValidertAnnenErfaringSkjema)
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.AnnenErfaring exposing (AnnenErfaring)
 import Dato.Dato as Dato exposing (DatoPeriode(..), TilDato(..), År)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
@@ -664,7 +664,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                    , Api.opprettAnnenErfaring AnnenErfaringLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -699,7 +699,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                                    , Api.opprettAnnenErfaring AnnenErfaringLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -761,7 +761,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+                                    , Api.opprettAnnenErfaring AnnenErfaringLagret skjema
                                     )
 
                             else
@@ -871,7 +871,7 @@ updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , Api.postAnnenErfaring AnnenErfaringLagret skjema
+    , Api.opprettAnnenErfaring AnnenErfaringLagret skjema
     )
         |> IkkeFerdig
 

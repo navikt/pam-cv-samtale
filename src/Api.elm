@@ -1,5 +1,11 @@
 module Api exposing
-    ( encodeSammendrag
+    ( endreAnnenErfaring
+    , endreArbeidserfaring
+    , endrePersonalia
+    , endreSammendrag
+    , endreSertifikat
+    , endreSynlighet
+    , endreUtdanning
     , getAAreg
     , getAutorisasjonTypeahead
     , getCv
@@ -14,59 +20,52 @@ module Api exposing
     , hentPoststed
     , logError
     , logErrorWithRequestBody
-    , postAnnenErfaring
-    , postArbeidserfaring
-    , postCv
-    , postFagdokumentasjon
-    , postFørerkort
-    , postKurs
-    , postPerson
-    , postPersonalia
-    , postSertifikat
-    , postSpråk
-    , postSynlighet
-    , postUtdanning
-    , putAnnenErfaring
-    , putArbeidserfaring
-    , putPersonalia
-    , putSammendrag
-    , putSertifikat
-    , putUtdanning
+    , opprettAnnenErfaring
+    , opprettArbeidserfaring
+    , opprettCv
+    , opprettFagdokumentasjon
+    , opprettFørerkort
+    , opprettKurs
+    , opprettPerson
+    , opprettPersonalia
+    , opprettSertifikat
+    , opprettSpråk
+    , opprettUtdanning
     )
 
 import AndreSider.HeaderInfo as HeaderInfo exposing (HeaderInfo)
+import AnnenErfaring.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import AnnenErfaring.Skjema
+import Arbeidserfaring.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Arbeidserfaring.Skjema
 import Arbeidserfaring.Yrke as YrkeTypeahead exposing (Yrke)
-import Cv.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
-import Cv.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
-import Cv.Cv as Cv exposing (Cv)
-import Cv.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
-import Cv.Forerkort exposing (Førerkort)
-import Cv.Kurs exposing (Kurs)
-import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
-import Cv.Sertifikat as Sertifikat exposing (Sertifikat)
-import Cv.Spraakferdighet exposing (Spraakferdighet)
-import Cv.Utdanning exposing (Utdanning)
+import Cv exposing (Cv)
+import Fagdokumentasjon.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
 import Fagdokumentasjon.Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema
 import Feilmelding exposing (Feilmelding)
+import Forerkort.Forerkort as Førerkort exposing (Førerkort)
 import Forerkort.Skjema
 import Http exposing (..)
 import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
+import Kurs.Kurs as Kurs exposing (Kurs)
 import Kurs.Skjema
 import Person exposing (Person)
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Poststed exposing (Poststed)
 import Personalia.Skjema
+import Sammendrag exposing (Sammendrag)
+import Sertifikat.Sertifikat as Sertifikat exposing (Sertifikat)
 import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema
 import Sprak.Skjema
+import Sprak.Sprak as Språk exposing (Språk)
 import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
 import Typeahead.Typeahead as Typeahead
 import Url.Builder
 import Utdanning.Skjema
+import Utdanning.Utdanning as Utdanning exposing (Utdanning)
 
 
 getPerson : (Result Error Person -> msg) -> Cmd msg
@@ -77,8 +76,8 @@ getPerson msgConstructor =
         }
 
 
-postPerson : (Result Error Person -> msg) -> Cmd msg
-postPerson msgConstructor =
+opprettPerson : (Result Error Person -> msg) -> Cmd msg
+opprettPerson msgConstructor =
     Http.post
         { url = "/cv-samtale/api/rest/person"
         , expect = expectJson msgConstructor Person.decode
@@ -94,8 +93,8 @@ getHeaderInfo msgConstructor =
         }
 
 
-postSynlighet : (Result Error Bool -> msg) -> Bool -> Cmd msg
-postSynlighet msgConstructor synlighet =
+endreSynlighet : (Result Error Bool -> msg) -> Bool -> Cmd msg
+endreSynlighet msgConstructor synlighet =
     Http.post
         { url = "/cv-samtale/api/rest/person/synlighet"
         , expect = expectJson msgConstructor (field "synligForArbeidsgiver" bool)
@@ -111,8 +110,8 @@ getPersonalia msgConstructor =
         }
 
 
-postPersonalia : (Result Error Personalia -> msg) -> Cmd msg
-postPersonalia msgConstructor =
+opprettPersonalia : (Result Error Personalia -> msg) -> Cmd msg
+opprettPersonalia msgConstructor =
     Http.post
         { url = "/cv-samtale/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
@@ -120,8 +119,8 @@ postPersonalia msgConstructor =
         }
 
 
-putPersonalia : (Result Error Personalia -> msg) -> Personalia.Skjema.ValidertPersonaliaSkjema -> Cmd msg
-putPersonalia msgConstructor skjema =
+endrePersonalia : (Result Error Personalia -> msg) -> Personalia.Skjema.ValidertPersonaliaSkjema -> Cmd msg
+endrePersonalia msgConstructor skjema =
     put
         { url = "/cv-samtale/api/rest/person/personalia"
         , expect = expectJson msgConstructor Personalia.decode
@@ -131,20 +130,20 @@ putPersonalia msgConstructor skjema =
         }
 
 
-postFørerkort : (Result Error (List Førerkort) -> msg) -> Forerkort.Skjema.ValidertFørerkortSkjema -> Cmd msg
-postFørerkort msgConstructor skjema =
+opprettFørerkort : (Result Error (List Førerkort) -> msg) -> Forerkort.Skjema.ValidertFørerkortSkjema -> Cmd msg
+opprettFørerkort msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/forerkort"
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Forerkort.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Førerkort.decode)
         , body = Forerkort.Skjema.encode skjema |> jsonBody
         }
 
 
-postSpråk : (Result Error (List Spraakferdighet) -> msg) -> Sprak.Skjema.SpråkSkjema -> Cmd msg
-postSpråk msgConstructor skjema =
+opprettSpråk : (Result Error (List Språk) -> msg) -> Sprak.Skjema.SpråkSkjema -> Cmd msg
+opprettSpråk msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/sprak"
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Spraakferdighet.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Språk.decode)
         , body = Sprak.Skjema.encode skjema |> jsonBody
         }
 
@@ -165,21 +164,16 @@ hentPoststed msgConstructor postnummer =
         }
 
 
-putSammendrag : (Result Error Sammendrag -> msg) -> String -> Cmd msg
-putSammendrag msgConstructor sammendrag =
+endreSammendrag : (Result Error Sammendrag -> msg) -> String -> Cmd msg
+endreSammendrag msgConstructor sammendrag =
     put
         { url = "/cv-samtale/api/rest/cv/sammendrag"
         , expect = expectJson msgConstructor Sammendrag.decode
         , body =
             sammendrag
-                |> encodeSammendrag
+                |> Sammendrag.encodeSammendrag
                 |> jsonBody
         }
-
-
-encodeSammendrag : String -> Json.Encode.Value
-encodeSammendrag sammendrag =
-    Json.Encode.object [ ( "sammendrag", Json.Encode.string sammendrag ) ]
 
 
 getCv : (Result Error Cv -> msg) -> Cmd msg
@@ -190,8 +184,8 @@ getCv msgConstructor =
         }
 
 
-postCv : (Result Error Cv -> msg) -> Cmd msg
-postCv msgConstructor =
+opprettCv : (Result Error Cv -> msg) -> Cmd msg
+opprettCv msgConstructor =
     Http.post
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
@@ -207,8 +201,8 @@ getAAreg msgConstructor =
         }
 
 
-postAnnenErfaring : (Result Error (List AnnenErfaring) -> msg) -> AnnenErfaring.Skjema.ValidertAnnenErfaringSkjema -> Cmd msg
-postAnnenErfaring msgConstructor skjema =
+opprettAnnenErfaring : (Result Error (List AnnenErfaring) -> msg) -> AnnenErfaring.Skjema.ValidertAnnenErfaringSkjema -> Cmd msg
+opprettAnnenErfaring msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/annenerfaring"
         , expect = expectJson msgConstructor (Json.Decode.list AnnenErfaring.decode)
@@ -216,21 +210,17 @@ postAnnenErfaring msgConstructor skjema =
         }
 
 
-putAnnenErfaring : (Result Error (List AnnenErfaring) -> msg) -> AnnenErfaring.Skjema.ValidertAnnenErfaringSkjema -> String -> Cmd msg
-putAnnenErfaring msgConstructor skjema id =
-    Http.request
-        { method = "PUT"
-        , headers = []
-        , url = "/cv-samtale/api/rest/cv/annenerfaring/" ++ id
+endreAnnenErfaring : (Result Error (List AnnenErfaring) -> msg) -> AnnenErfaring.Skjema.ValidertAnnenErfaringSkjema -> String -> Cmd msg
+endreAnnenErfaring msgConstructor skjema id =
+    put
+        { url = "/cv-samtale/api/rest/cv/annenerfaring/" ++ id
         , expect = expectJson msgConstructor (Json.Decode.list AnnenErfaring.decode)
         , body = AnnenErfaring.Skjema.encode skjema |> jsonBody
-        , timeout = Nothing
-        , tracker = Nothing
         }
 
 
-postArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Arbeidserfaring.Skjema.ValidertArbeidserfaringSkjema -> Cmd msg
-postArbeidserfaring msgConstructor skjema =
+opprettArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Arbeidserfaring.Skjema.ValidertArbeidserfaringSkjema -> Cmd msg
+opprettArbeidserfaring msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring"
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
@@ -238,30 +228,26 @@ postArbeidserfaring msgConstructor skjema =
         }
 
 
-putArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Arbeidserfaring.Skjema.ValidertArbeidserfaringSkjema -> String -> Cmd msg
-putArbeidserfaring msgConstructor skjema id =
-    Http.request
-        { method = "PUT"
-        , headers = []
-        , url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring/" ++ id
+endreArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Arbeidserfaring.Skjema.ValidertArbeidserfaringSkjema -> String -> Cmd msg
+endreArbeidserfaring msgConstructor skjema id =
+    put
+        { url = "/cv-samtale/api/rest/cv/v2/arbeidserfaring/" ++ id
         , expect = expectJson msgConstructor (Json.Decode.list Arbeidserfaring.decode)
         , body = Arbeidserfaring.Skjema.encode skjema |> jsonBody
-        , timeout = Nothing
-        , tracker = Nothing
         }
 
 
-postKurs : (Result Error (List Kurs) -> msg) -> Kurs.Skjema.ValidertKursSkjema -> Cmd msg
-postKurs msgConstructor skjema =
+opprettKurs : (Result Error (List Kurs) -> msg) -> Kurs.Skjema.ValidertKursSkjema -> Cmd msg
+opprettKurs msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/kurs"
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Kurs.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Kurs.decode)
         , body = Kurs.Skjema.encode skjema |> jsonBody
         }
 
 
-postSertifikat : (Result Error (List Sertifikat) -> msg) -> Sertifikat.Skjema.ValidertSertifikatSkjema -> Cmd msg
-postSertifikat msgConstructor skjema =
+opprettSertifikat : (Result Error (List Sertifikat) -> msg) -> Sertifikat.Skjema.ValidertSertifikatSkjema -> Cmd msg
+opprettSertifikat msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/sertifikat"
         , expect = expectJson msgConstructor (Json.Decode.list Sertifikat.decode)
@@ -269,16 +255,12 @@ postSertifikat msgConstructor skjema =
         }
 
 
-putSertifikat : (Result Error (List Sertifikat) -> msg) -> Sertifikat.Skjema.ValidertSertifikatSkjema -> String -> Cmd msg
-putSertifikat msgConstructor skjema id =
-    Http.request
-        { method = "PUT"
-        , headers = []
-        , url = "/cv-samtale/api/rest/cv/sertifikat/" ++ id
+endreSertifikat : (Result Error (List Sertifikat) -> msg) -> Sertifikat.Skjema.ValidertSertifikatSkjema -> String -> Cmd msg
+endreSertifikat msgConstructor skjema id =
+    put
+        { url = "/cv-samtale/api/rest/cv/sertifikat/" ++ id
         , expect = expectJson msgConstructor (Json.Decode.list Sertifikat.decode)
         , body = Sertifikat.Skjema.encode skjema |> jsonBody
-        , timeout = Nothing
-        , tracker = Nothing
         }
 
 
@@ -290,22 +272,22 @@ getYrkeTypeahead msgConstructor query =
         }
 
 
-postUtdanning : (Result Error (List Utdanning) -> msg) -> Utdanning.Skjema.ValidertUtdanningSkjema -> Cmd msg
-postUtdanning msgConstructor skjema =
+opprettUtdanning : (Result Error (List Utdanning) -> msg) -> Utdanning.Skjema.ValidertUtdanningSkjema -> Cmd msg
+opprettUtdanning msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/utdanning"
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Utdanning.decode)
         , body = Utdanning.Skjema.encode skjema |> jsonBody
         }
 
 
-putUtdanning : (Result Error (List Utdanning) -> msg) -> Utdanning.Skjema.ValidertUtdanningSkjema -> String -> Cmd msg
-putUtdanning msgConstructor skjema id =
+endreUtdanning : (Result Error (List Utdanning) -> msg) -> Utdanning.Skjema.ValidertUtdanningSkjema -> String -> Cmd msg
+endreUtdanning msgConstructor skjema id =
     Http.request
         { method = "PUT"
         , headers = []
         , url = "/cv-samtale/api/rest/cv/utdanning/" ++ id
-        , expect = expectJson msgConstructor (Json.Decode.list Cv.Utdanning.decode)
+        , expect = expectJson msgConstructor (Json.Decode.list Utdanning.decode)
         , body =
             skjema
                 |> Utdanning.Skjema.encode
@@ -315,8 +297,8 @@ putUtdanning msgConstructor skjema id =
         }
 
 
-postFagdokumentasjon : (Result Error (List Fagdokumentasjon) -> msg) -> Fagdokumentasjon.Skjema.ValidertFagdokumentasjonSkjema -> Cmd msg
-postFagdokumentasjon msgConstructor skjema =
+opprettFagdokumentasjon : (Result Error (List Fagdokumentasjon) -> msg) -> Fagdokumentasjon.Skjema.ValidertFagdokumentasjonSkjema -> Cmd msg
+opprettFagdokumentasjon msgConstructor skjema =
     Http.post
         { url = "/cv-samtale/api/rest/cv/fagdokumentasjon"
         , expect = expectJson msgConstructor (Json.Decode.list Fagdokumentasjon.decode)

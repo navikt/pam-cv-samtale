@@ -10,11 +10,11 @@ module Arbeidserfaring.Seksjon exposing
     )
 
 import Api
+import Arbeidserfaring.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Arbeidserfaring.Skjema as Skjema exposing (ArbeidserfaringSkjema, Felt(..), ValidertArbeidserfaringSkjema)
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Arbeidserfaring exposing (Arbeidserfaring)
 import Dato.Dato as Dato exposing (TilDato(..), År)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
@@ -867,7 +867,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerArbeidserfaring skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                                    , lagreArbeidserfaring ArbeidserfaringLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -904,7 +904,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerArbeidserfaring skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                    , lagreArbeidserfaring ArbeidserfaringLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -982,7 +982,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerArbeidserfaring skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+                                    , lagreArbeidserfaring ArbeidserfaringLagret skjema
                                     )
 
                             else
@@ -1099,7 +1099,7 @@ initSamtaleTypeahead =
 initSkjemaTypeaheadFraArbeidserfaring : Arbeidserfaring -> ( Typeahead.Model Yrke, Typeahead.Query )
 initSkjemaTypeaheadFraArbeidserfaring arbeidserfaring =
     arbeidserfaring
-        |> Cv.Arbeidserfaring.yrke
+        |> Arbeidserfaring.yrke
         |> Maybe.map initSkjemaTypeaheadFraYrke
         |> Maybe.withDefault
             (Typeahead.init
@@ -1194,7 +1194,7 @@ updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerArbeidserfaring skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , postEllerPutArbeidserfaring ArbeidserfaringLagret skjema
+    , lagreArbeidserfaring ArbeidserfaringLagret skjema
     )
         |> IkkeFerdig
 
@@ -1808,21 +1808,21 @@ lagArbeidserfaringKnapp : Arbeidserfaring -> Knapp Msg
 lagArbeidserfaringKnapp arbeidserfaring =
     let
         tekst =
-            Maybe.withDefault "" (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
+            Maybe.withDefault "" (Arbeidserfaring.yrkeString arbeidserfaring)
                 ++ ", "
-                ++ Maybe.withDefault "" (Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring)
+                ++ Maybe.withDefault "" (Arbeidserfaring.arbeidsgiver arbeidserfaring)
     in
     Knapp.knapp (BrukerHarValgtArbeidserfaringÅRedigere arbeidserfaring) tekst
 
 
-postEllerPutArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ValidertArbeidserfaringSkjema -> Cmd msg
-postEllerPutArbeidserfaring msgConstructor skjema =
+lagreArbeidserfaring : (Result Error (List Arbeidserfaring) -> msg) -> Skjema.ValidertArbeidserfaringSkjema -> Cmd msg
+lagreArbeidserfaring msgConstructor skjema =
     case Skjema.id skjema of
         Just id ->
-            Api.putArbeidserfaring msgConstructor skjema id
+            Api.endreArbeidserfaring msgConstructor skjema id
 
         Nothing ->
-            Api.postArbeidserfaring msgConstructor skjema
+            Api.opprettArbeidserfaring msgConstructor skjema
 
 
 arbeidserfaringerTilTekstområder : List Arbeidserfaring -> List Tekstområde
@@ -1835,7 +1835,7 @@ arbeidserfaringerTilTekstområder arbeidserfaringer =
 arbeidserfaringTilTekstområde : Arbeidserfaring -> Tekstområde
 arbeidserfaringTilTekstområde arbeidserfaring =
     Seksjon (beskrivArbeidserfaring arbeidserfaring)
-        [ Dato.periodeTilString (Cv.Arbeidserfaring.fraMåned arbeidserfaring) (Cv.Arbeidserfaring.fraÅr arbeidserfaring) (Cv.Arbeidserfaring.tilDato arbeidserfaring)
+        [ Dato.periodeTilString (Arbeidserfaring.fraMåned arbeidserfaring) (Arbeidserfaring.fraÅr arbeidserfaring) (Arbeidserfaring.tilDato arbeidserfaring)
         , beskrivArbeidserfaring arbeidserfaring
         ]
 
@@ -1846,11 +1846,11 @@ beskrivArbeidserfaring arbeidserfaring =
         maybeYrkeTekst : Maybe String
         maybeYrkeTekst =
             Maybe.or
-                (Cv.Arbeidserfaring.yrkeFritekst arbeidserfaring)
-                (Cv.Arbeidserfaring.yrkeString arbeidserfaring)
+                (Arbeidserfaring.yrkeFritekst arbeidserfaring)
+                (Arbeidserfaring.yrkeString arbeidserfaring)
     in
     [ maybeYrkeTekst
-    , Cv.Arbeidserfaring.arbeidsgiver arbeidserfaring
+    , Arbeidserfaring.arbeidsgiver arbeidserfaring
     ]
         |> Maybe.values
         |> List.intersperse "hos"

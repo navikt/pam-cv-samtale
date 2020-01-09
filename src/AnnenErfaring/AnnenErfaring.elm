@@ -1,4 +1,4 @@
-module Cv.AnnenErfaring exposing (AnnenErfaring, beskrivelse, decode, fradato, id, naavaerende, rolle, tildato)
+module AnnenErfaring.AnnenErfaring exposing (AnnenErfaring, beskrivelse, decode, fradato, id, naavaerende, rolle, tildato)
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)

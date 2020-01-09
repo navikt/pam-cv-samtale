@@ -12,7 +12,6 @@ module Sertifikat.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Sertifikat exposing (Sertifikat)
 import Dato.Dato as Dato exposing (År, datoTilString)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
@@ -35,6 +34,7 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Result.Extra as Result
+import Sertifikat.Sertifikat exposing (Sertifikat)
 import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import Task
@@ -586,7 +586,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , postEllerPutSertifikat SertifikatLagret skjema
+                    , lagreSertifikat SertifikatLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -621,7 +621,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , postEllerPutSertifikat SertifikatLagret skjema
+                                    , lagreSertifikat SertifikatLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -724,7 +724,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , postEllerPutSertifikat SertifikatLagret skjema
+                                    , lagreSertifikat SertifikatLagret skjema
                                     )
 
                             else
@@ -1002,7 +1002,7 @@ updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , postEllerPutSertifikat SertifikatLagret skjema
+    , lagreSertifikat SertifikatLagret skjema
     )
         |> IkkeFerdig
 
@@ -1398,14 +1398,14 @@ maybeHvisTrue bool maybe =
         Nothing
 
 
-postEllerPutSertifikat : (Result Error (List Sertifikat) -> msg) -> Skjema.ValidertSertifikatSkjema -> Cmd msg
-postEllerPutSertifikat msgConstructor skjema =
+lagreSertifikat : (Result Error (List Sertifikat) -> msg) -> Skjema.ValidertSertifikatSkjema -> Cmd msg
+lagreSertifikat msgConstructor skjema =
     case Skjema.id skjema of
         Just id ->
-            Api.putSertifikat msgConstructor skjema id
+            Api.endreSertifikat msgConstructor skjema id
 
         Nothing ->
-            Api.postSertifikat msgConstructor skjema
+            Api.opprettSertifikat msgConstructor skjema
 
 
 
