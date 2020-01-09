@@ -17,7 +17,7 @@ module Fagdokumentasjon.Skjema exposing
     , validertSkjema
     )
 
-import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
+import Fagdokumentasjon.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Json.Encode
 

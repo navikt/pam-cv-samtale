@@ -403,7 +403,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerPersonalia skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.putPersonalia PersonaliaOppdatert skjema
+                                    , Api.endrePersonalia PersonaliaOppdatert skjema
                                     )
                                         |> IkkeFerdig
 
@@ -443,7 +443,7 @@ update msg (Model model) =
                         |> LagrerPersonalia feiletPersonalia
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , Cmd.batch
-                        [ Api.putPersonalia PersonaliaOppdatert feiletPersonalia
+                        [ Api.endrePersonalia PersonaliaOppdatert feiletPersonalia
                         , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
@@ -493,7 +493,7 @@ update msg (Model model) =
                         |> LagrerPersonalia skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , Cmd.batch
-                        [ Api.putPersonalia PersonaliaOppdatert skjema
+                        [ Api.endrePersonalia PersonaliaOppdatert skjema
                         , lagtTilSpørsmålCmd model.debugStatus
                         ]
                     )
@@ -517,7 +517,7 @@ update msg (Model model) =
                                 |> LagreStatus.fraError
                                 |> LagrerPersonalia skjema
                                 |> oppdaterSamtale model IngenNyeMeldinger
-                            , Api.putPersonalia PersonaliaOppdatert skjema
+                            , Api.endrePersonalia PersonaliaOppdatert skjema
                             )
                                 |> IkkeFerdig
 
@@ -562,7 +562,7 @@ lagreSkjema model msg validertSkjema =
         |> LagrerPersonalia validertSkjema
         |> oppdaterSamtale model (SvarFraMsg msg)
     , Cmd.batch
-        [ Api.putPersonalia PersonaliaOppdatert validertSkjema
+        [ Api.endrePersonalia PersonaliaOppdatert validertSkjema
         , lagtTilSpørsmålCmd model.debugStatus
         ]
     )

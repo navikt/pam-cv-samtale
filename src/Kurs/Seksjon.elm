@@ -12,7 +12,6 @@ module Kurs.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Kurs exposing (Kurs)
 import Dato.Dato as Dato exposing (År)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
@@ -26,6 +25,7 @@ import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
+import Kurs.Kurs exposing (Kurs)
 import Kurs.Skjema as Skjema exposing (Felt(..), FullførtDato(..), KursSkjema, ValidertKursSkjema, VarighetEnhet(..))
 import LagreStatus exposing (LagreStatus)
 import Meldinger.Melding as Melding exposing (Melding(..))
@@ -553,7 +553,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , Api.postKurs KursLagret skjema
+                    , Api.opprettKurs KursLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -588,7 +588,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postKurs KursLagret skjema
+                                    , Api.opprettKurs KursLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -689,7 +689,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postKurs KursLagret skjema
+                                    , Api.opprettKurs KursLagret skjema
                                     )
 
                             else
@@ -793,7 +793,7 @@ updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , Api.postKurs KursLagret skjema
+    , Api.opprettKurs KursLagret skjema
     )
         |> IkkeFerdig
 

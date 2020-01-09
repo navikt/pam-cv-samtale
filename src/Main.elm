@@ -7,8 +7,7 @@ import Browser
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import Browser.Navigation as Navigation
-import Cv.Cv as Cv exposing (Cv)
-import Cv.Sammendrag as Sammendrag exposing (Sammendrag)
+import Cv exposing (Cv)
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Seksjon
@@ -40,6 +39,7 @@ import Person exposing (Person)
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Seksjon
 import Process
+import Sammendrag exposing (Sammendrag)
 import Sertifikat.Seksjon
 import Sprak.Seksjon
 import Task
@@ -254,7 +254,7 @@ updateLoading debugStatus msg model =
                 Err error ->
                     case error of
                         Http.BadStatus 404 ->
-                            ( model, Api.postPerson (PersonOpprettet >> LoadingMsg) )
+                            ( model, Api.opprettPerson (PersonOpprettet >> LoadingMsg) )
 
                         _ ->
                             uhåndtertErrorUnderLoading model error "Hent Person"
@@ -277,7 +277,7 @@ updateLoading debugStatus msg model =
                         Err error ->
                             case error of
                                 Http.BadStatus 404 ->
-                                    ( model, Api.postPersonalia (PersonaliaOpprettet >> LoadingMsg) )
+                                    ( model, Api.opprettPersonalia (PersonaliaOpprettet >> LoadingMsg) )
 
                                 _ ->
                                     uhåndtertErrorUnderLoading model error "Hent Personalia"
@@ -308,7 +308,7 @@ updateLoading debugStatus msg model =
                         Err error ->
                             case error of
                                 Http.BadStatus 404 ->
-                                    ( model, Api.postCv (CvOpprettet >> LoadingMsg) )
+                                    ( model, Api.opprettCv (CvOpprettet >> LoadingMsg) )
 
                                 _ ->
                                     uhåndtertErrorUnderLoading model error "Hent CV"
@@ -1152,7 +1152,7 @@ updateAndreSamtaleSteg model msg info =
                         |> LagreStatus.fraError
                         |> LagrerSammendrag feiletSammendrag
                         |> oppdaterSamtale model info (SvarFraMsg msg)
-                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
+                    , Api.endreSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
                     )
 
                 BekreftSammendrag _ bekreftSammendragState ->
@@ -1169,14 +1169,14 @@ updateAndreSamtaleSteg model msg info =
                             ( LagreStatus.init
                                 |> LagrerSammendrag sammendrag
                                 |> oppdaterSamtale model info (SvarFraMsg msg)
-                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                            , Api.endreSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                             )
 
                         EndretSammendrag sammendrag ->
                             ( LagreStatus.init
                                 |> LagrerSammendrag sammendrag
                                 |> oppdaterSamtale model info (SvarFraMsg msg)
-                            , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                            , Api.endreSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                             )
 
                 _ ->
@@ -1214,7 +1214,7 @@ updateAndreSamtaleSteg model msg info =
                                     ( LagreStatus.fraError error
                                         |> LagrerSammendrag sammendrag
                                         |> oppdaterSamtale model info IngenNyeMeldinger
-                                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
+                                    , Api.endreSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) sammendrag
                                     )
 
                                 else
@@ -1222,7 +1222,7 @@ updateAndreSamtaleSteg model msg info =
                                         |> LagringAvSammendragFeilet error
                                         |> oppdaterSamtale model info IngenNyeMeldinger
                                     , sammendrag
-                                        |> Api.encodeSammendrag
+                                        |> Sammendrag.encodeSammendrag
                                         |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget) "Lagre sammendrag" error
                                     )
 
@@ -1233,7 +1233,7 @@ updateAndreSamtaleSteg model msg info =
                                 , Cmd.batch
                                     [ lagtTilSpørsmålCmd model.debugStatus
                                     , sammendrag
-                                        |> Api.encodeSammendrag
+                                        |> Sammendrag.encodeSammendrag
                                         |> Api.logErrorWithRequestBody (AndreSamtaleStegMsg ErrorLogget) "Lagre sammendrag" error
                                     ]
                                 )
@@ -1247,7 +1247,7 @@ updateAndreSamtaleSteg model msg info =
                 |> oppdaterSamtale model info (SvarFraMsg msg)
             , Cmd.batch
                 [ lagtTilSpørsmålCmd model.debugStatus
-                , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) True
+                , Api.endreSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) True
                 ]
             )
 
@@ -1257,7 +1257,7 @@ updateAndreSamtaleSteg model msg info =
                 |> oppdaterSamtale model info (SvarFraMsg msg)
             , Cmd.batch
                 [ lagtTilSpørsmålCmd model.debugStatus
-                , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) False
+                , Api.endreSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) False
                 ]
             )
 
@@ -1295,7 +1295,7 @@ updateAndreSamtaleSteg model msg info =
                                         |> LagreStatus.fraError
                                         |> LagrerSynlighet skalVæreSynlig
                                         |> oppdaterSamtale model info IngenNyeMeldinger
-                                    , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
+                                    , Api.endreSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
                                     )
 
                                 else
@@ -1331,7 +1331,7 @@ updateAndreSamtaleSteg model msg info =
                         |> LagreStatus.fraError
                         |> LagrerSynlighet skalVæreSynlig
                         |> oppdaterSamtale model info IngenNyeMeldinger
-                    , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
+                    , Api.endreSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
                     )
 
                 _ ->
@@ -1354,7 +1354,7 @@ updateAndreSamtaleSteg model msg info =
                                         |> LagreStatus.fraError
                                         |> LagrerSammendrag feiletSammendrag
                                         |> oppdaterSamtale model info IngenNyeMeldinger
-                                    , Api.putSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
+                                    , Api.endreSammendrag (SammendragOppdatert >> AndreSamtaleStegMsg) feiletSammendrag
                                     )
 
                                 _ ->
@@ -1375,7 +1375,7 @@ updateAndreSamtaleSteg model msg info =
                                         |> LagreStatus.fraError
                                         |> LagrerSynlighet skalVæreSynlig
                                         |> oppdaterSamtale model info IngenNyeMeldinger
-                                    , Api.postSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
+                                    , Api.endreSynlighet (SynlighetPostet >> AndreSamtaleStegMsg) skalVæreSynlig
                                     )
 
                                 _ ->

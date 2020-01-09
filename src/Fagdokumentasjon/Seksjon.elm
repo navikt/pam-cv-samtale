@@ -14,9 +14,9 @@ module Fagdokumentasjon.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
+import Fagdokumentasjon.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
@@ -400,7 +400,7 @@ update msg (Model model) =
                             ( skjema
                                 |> Lagrer (LagrerPåNyttEtterError error)
                                 |> oppdaterSamtale model UtenSvar
-                            , Api.postFagdokumentasjon FagbrevSendtTilApi skjema
+                            , Api.opprettFagdokumentasjon FagbrevSendtTilApi skjema
                             )
                                 |> IkkeFerdig
 
@@ -664,7 +664,7 @@ updateEtterLagreKnappTrykket model msg skjema lagreStatus =
             |> Lagrer lagreStatus
             |> oppdaterSamtale model (SvarFraMsg msg)
         , Cmd.batch
-            [ Api.postFagdokumentasjon FagbrevSendtTilApi skjema
+            [ Api.opprettFagdokumentasjon FagbrevSendtTilApi skjema
             , lagtTilSpørsmålCmd model.debugStatus
             ]
         )

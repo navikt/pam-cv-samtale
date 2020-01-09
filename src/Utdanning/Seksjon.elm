@@ -12,7 +12,6 @@ module Utdanning.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Dato.Dato as Dato exposing (TilDato(..), År)
 import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
@@ -37,6 +36,7 @@ import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
+import Utdanning.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Validering
 
 
@@ -630,7 +630,7 @@ update msg (Model model) =
                             |> LagrerSkjema feiletskjema
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , Cmd.batch
-                            [ postEllerPutUtdanning UtdanningSendtTilApi feiletskjema
+                            [ lagreUtdanning UtdanningSendtTilApi feiletskjema
                             , lagtTilSpørsmålCmd model.debugStatus
                             ]
                         )
@@ -671,7 +671,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , postEllerPutUtdanning UtdanningSendtTilApi skjema
+                                    , lagreUtdanning UtdanningSendtTilApi skjema
                                     )
                                         |> IkkeFerdig
 
@@ -738,7 +738,7 @@ update msg (Model model) =
                             |> LagrerSkjema validertSkjema
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , Cmd.batch
-                            [ postEllerPutUtdanning UtdanningSendtTilApi validertSkjema
+                            [ lagreUtdanning UtdanningSendtTilApi validertSkjema
                             , lagtTilSpørsmålCmd model.debugStatus
                             ]
                         )
@@ -807,7 +807,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema validertSkjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , postEllerPutUtdanning UtdanningSendtTilApi validertSkjema
+                                    , lagreUtdanning UtdanningSendtTilApi validertSkjema
                                     )
 
                             else
@@ -1042,7 +1042,7 @@ updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , postEllerPutUtdanning UtdanningSendtTilApi skjema
+    , lagreUtdanning UtdanningSendtTilApi skjema
     )
         |> IkkeFerdig
 
@@ -1772,14 +1772,14 @@ tilNivåKey nivå =
             "Doktorgrad"
 
 
-postEllerPutUtdanning : (Result Error (List Utdanning) -> msg) -> ValidertUtdanningSkjema -> Cmd msg
-postEllerPutUtdanning msgConstructor skjema =
+lagreUtdanning : (Result Error (List Utdanning) -> msg) -> ValidertUtdanningSkjema -> Cmd msg
+lagreUtdanning msgConstructor skjema =
     case (Skjema.tilUvalidertSkjema >> Skjema.id) skjema of
         Just id ->
-            Api.putUtdanning msgConstructor skjema id
+            Api.endreUtdanning msgConstructor skjema id
 
         Nothing ->
-            Api.postUtdanning msgConstructor skjema
+            Api.opprettUtdanning msgConstructor skjema
 
 
 init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Utdanning -> ( Model, Cmd Msg )

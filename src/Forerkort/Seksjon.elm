@@ -12,10 +12,10 @@ module Forerkort.Seksjon exposing
 import Api
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
-import Cv.Forerkort as Forerkort exposing (Førerkort, Klasse(..))
 import Dato.Dato as Dato exposing (DatoValidering(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
+import Forerkort.Forerkort as Forerkort exposing (Førerkort, Klasse(..))
 import Forerkort.ForerkortKode as FørerkortKode exposing (FørerkortKode)
 import Forerkort.Skjema as Skjema exposing (FørerkortSkjema, ValidertFørerkortSkjema)
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
@@ -240,7 +240,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerFørerkort skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postFørerkort FørerkortLagret skjema
+                                    , Api.opprettFørerkort FørerkortLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -299,7 +299,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerFørerkortKlasseB skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postFørerkort FørerkortLagret skjema
+                                    , Api.opprettFørerkort FørerkortLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -609,7 +609,7 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerFørerkort skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , Api.postFørerkort FørerkortLagret skjema
+                    , Api.opprettFørerkort FørerkortLagret skjema
                     )
                         |> IkkeFerdig
 
@@ -684,7 +684,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerFørerkort skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.postFørerkort FørerkortLagret skjema
+                                    , Api.opprettFørerkort FørerkortLagret skjema
                                     )
 
                             else
@@ -800,7 +800,7 @@ updateEtterLagreKnappTrykket model msg skjema =
 
 leggTilFørerkortAPI : ValidertFørerkortSkjema -> Cmd Msg
 leggTilFørerkortAPI skjema =
-    Api.postFørerkort FørerkortLagret skjema
+    Api.opprettFørerkort FørerkortLagret skjema
 
 
 updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
