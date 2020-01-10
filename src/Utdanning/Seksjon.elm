@@ -964,6 +964,9 @@ settFokus samtale =
         Intro _ ->
             settFokusCmd HarUtdanningId
 
+        BekreftHarIkkeUtdanning ->
+            settFokusCmd BekreftHarIkkeUtdanningId
+
         RegistrerNivå _ ->
             settFokusCmd VelgNivåInput
 
@@ -1412,6 +1415,7 @@ modelTilBrukerInput model =
             BekreftHarIkkeUtdanning ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp (BrukerVilRegistrereUtdanning GrunnskoleVideregående) "Ja, det vil jeg"
+                        |> Knapp.withId (inputIdTilString BekreftHarIkkeUtdanningId)
                     , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, det vil jeg ikke"
                     ]
 
@@ -1597,6 +1601,7 @@ modelTilBrukerInput model =
 
 type InputId
     = HarUtdanningId
+    | BekreftHarIkkeUtdanningId
     | RedigerUtdanningId
     | VelgNivåInput
     | RegistrerSkoleInput
@@ -1620,6 +1625,9 @@ inputIdTilString inputId =
     case inputId of
         HarUtdanningId ->
             "har-utdanning"
+
+        BekreftHarIkkeUtdanningId ->
+            "bekreft-har-ikke-utdanning-id"
 
         RedigerUtdanningId ->
             "utdanning-rediger"
