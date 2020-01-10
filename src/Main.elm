@@ -38,6 +38,7 @@ import Metrikker
 import Person exposing (Person)
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Seksjon
+import Process
 import Sammendrag exposing (Sammendrag)
 import Sertifikat.Seksjon
 import Sprak.Seksjon
@@ -103,7 +104,6 @@ type Msg
     | UrlRequestChanged Browser.UrlRequest
     | ÅpneTilbakemeldingModal
     | ModalMsg TilbakemeldingModal.Msg
-    | FokusSatt (Result Dom.Error ())
 
 
 update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
@@ -183,9 +183,6 @@ update msg extendedModel =
 
                         TilbakemeldingModal.Closed ->
                             ( { extendedModel | modalStatus = ModalLukket }, Cmd.none )
-
-        FokusSatt _ ->
-            ( extendedModel, Cmd.none )
 
 
 mapTilExtendedModel : ExtendedModel -> ( Model, Cmd Msg ) -> ( ExtendedModel, Cmd Msg )
@@ -475,6 +472,7 @@ type SuccessMsg
     | FørerkortMsg Forerkort.Seksjon.Msg
     | KursMsg Kurs.Seksjon.Msg
     | AndreSamtaleStegMsg AndreSamtaleStegMsg
+    | FokusSatt (Result Dom.Error ())
 
 
 updateSuccess : SuccessMsg -> SuccessModel -> ( SuccessModel, Cmd SuccessMsg )
@@ -640,6 +638,9 @@ updateSuccess successMsg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        FokusSatt _ ->
+            ( model, Cmd.none )
 
 
 oppdaterSamtaleSeksjon : SuccessModel -> SamtaleSeksjon -> SuccessModel
@@ -923,6 +924,109 @@ type ValgtSeksjon
     | AnnenErfaringValgt
     | KursValgt
     | FørerkortValgt
+
+
+type InputId
+    = KlarTilÅBegynneId
+    | LeggTilAutorisasjonerId
+    | LeggTilAnnetId
+    | BekreftSammendragId
+    | SammendragId
+    | DelMedArbeidsgiverId
+    | GiTilbakemeldingId
+    | TilbakemeldingLenkeId
+    | LagringFeiletActionId
+    | AvsluttId
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        KlarTilÅBegynneId ->
+            "klar-til-å-begynne-id"
+
+        LeggTilAutorisasjonerId ->
+            "legg-til-autorisasjoner-id"
+
+        LeggTilAnnetId ->
+            "legg-til-annet-id"
+
+        BekreftSammendragId ->
+            "bekreft-sammendrag-id"
+
+        SammendragId ->
+            "sammendrag-input"
+
+        LagringFeiletActionId ->
+            "sammendrag-lagring-feilet-id"
+
+        DelMedArbeidsgiverId ->
+            "del-med-arbeidsgiver-id"
+
+        GiTilbakemeldingId ->
+            "gi-tilbakemelding-id"
+
+        TilbakemeldingLenkeId ->
+            "tilbakemelding-lenke-id"
+
+        AvsluttId ->
+            "avslutt-id"
+
+
+settFokus : Samtale -> Cmd SuccessMsg
+settFokus samtale =
+    case samtale of
+        Introduksjon _ ->
+            settFokusCmd KlarTilÅBegynneId
+
+        LeggTilAutorisasjoner ->
+            settFokusCmd LeggTilAutorisasjonerId
+
+        LeggTilFlereAutorisasjoner ->
+            settFokusCmd LeggTilAutorisasjonerId
+
+        LeggTilAnnet ->
+            settFokusCmd LeggTilAnnetId
+
+        LeggTilFlereAnnet ->
+            settFokusCmd LeggTilAnnetId
+
+        BekreftSammendrag _ _ ->
+            settFokusCmd BekreftSammendragId
+
+        EndrerSammendrag _ _ ->
+            settFokusCmd SammendragId
+
+        SkriverSammendrag _ _ ->
+            settFokusCmd SammendragId
+
+        LagringAvSammendragFeilet _ _ ->
+            settFokusCmd LagringFeiletActionId
+
+        DelMedArbeidsgiver _ ->
+            settFokusCmd DelMedArbeidsgiverId
+
+        SpørOmTilbakemeldingIkkeUnderOppfølging ->
+            settFokusCmd GiTilbakemeldingId
+
+        SpørOmTilbakemeldingUnderOppfølging ->
+            settFokusCmd GiTilbakemeldingId
+
+        GiTilbakemelding ->
+            settFokusCmd TilbakemeldingLenkeId
+
+        Avslutt _ ->
+            settFokusCmd AvsluttId
+
+        _ ->
+            Cmd.none
+
+
+settFokusCmd : InputId -> Cmd SuccessMsg
+settFokusCmd inputId =
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
+        |> Task.attempt FokusSatt
 
 
 updateAndreSamtaleSteg : SuccessModel -> AndreSamtaleStegMsg -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
@@ -1305,8 +1409,16 @@ updateAndreSamtaleSteg model msg info =
             ( { info | meldingsLogg = nyMeldingslogg }
                 |> AndreSamtaleSteg
                 |> oppdaterSamtaleSeksjon model
-            , cmd
-                |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
+            , Cmd.batch
+                [ cmd
+                    |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
+                , case MeldingsLogg.ferdigAnimert nyMeldingslogg of
+                    FerdigAnimert ferdigAnimertSamtale ->
+                        settFokus info.aktivSamtale
+
+                    MeldingerGjenstår ->
+                        Cmd.none
+                ]
             )
 
         ErrorLogget ->
@@ -2037,6 +2149,7 @@ andreSamtaleStegTilBrukerInput info =
             Introduksjon _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerSierHeiIIntroduksjonen "Ja!"
+                        |> Knapp.withId (inputIdTilString KlarTilÅBegynneId)
                     ]
 
             BekreftSammendrag _ bekreftSammendragState ->
@@ -2075,11 +2188,13 @@ andreSamtaleStegTilBrukerInput info =
                     GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp VilIkkeLagreSammendrag "Gå videre uten å lagre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
                     PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreBekreftetSammendrag "Prøv på nytt"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp VilIkkeLagreSammendrag "Gå videre uten å lagre"
                             ]
 
@@ -2101,6 +2216,7 @@ andreSamtaleStegTilBrukerInput info =
             DelMedArbeidsgiver _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
+                        |> Knapp.withId (inputIdTilString DelMedArbeidsgiverId)
                     , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en skal bare være synlig for meg"
                     ]
 
@@ -2114,6 +2230,7 @@ andreSamtaleStegTilBrukerInput info =
                 BrukerInput.lenke
                     (Lenke.lenke { tekst = "Gi tilbakemelding", url = "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585" }
                         |> Lenke.withTargetBlank
+                        |> Lenke.withId (inputIdTilString TilbakemeldingLenkeId)
                     )
 
             Avslutt _ ->
@@ -2122,7 +2239,9 @@ andreSamtaleStegTilBrukerInput info =
                         { tekst = "Avslutt og vis CV-en min"
                         , url = "/cv-samtale/goto/forhandsvis?utgang=ferdig&seksjon=" ++ Metrikker.seksjonTilString Metrikker.Slutten
                         }
-                        |> Lenke.withClass "Knapp avslutt-knapp"
+                        |> Lenke.withClass "avslutt-knapp"
+                        |> Lenke.withButtonStyle
+                        |> Lenke.withId (inputIdTilString AvsluttId)
                     )
 
             LagrerSynlighet _ lagreStatus ->
@@ -2136,11 +2255,14 @@ andreSamtaleStegTilBrukerInput info =
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp BrukerGirOppÅLagre "Gå videre" ]
+                            [ Knapp.knapp BrukerGirOppÅLagre "Gå videre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
+                            ]
 
                     PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagreSynlighetPåNytt "Prøv på nytt"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp BrukerGirOppÅLagre "Gå videre"
                             ]
 
@@ -2151,15 +2273,11 @@ andreSamtaleStegTilBrukerInput info =
         BrukerInput.utenInnhold
 
 
-sammendragId : String
-sammendragId =
-    "sammendrag-input"
-
-
 viewLeggTilAutorisasjoner : BrukerInput AndreSamtaleStegMsg
 viewLeggTilAutorisasjoner =
     BrukerInput.knapper Kolonne
         [ seksjonsvalgKnapp FagbrevSvennebrevValgt
+            |> Knapp.withId (inputIdTilString LeggTilAutorisasjonerId)
         , seksjonsvalgKnapp MesterbrevValgt
         , seksjonsvalgKnapp AutorisasjonValgt
         , Knapp.knapp IngenAvAutorisasjonSeksjoneneValgt "Nei, gå videre"
@@ -2170,6 +2288,7 @@ viewLeggTilAnnet : BrukerInput AndreSamtaleStegMsg
 viewLeggTilAnnet =
     BrukerInput.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
+            |> Knapp.withId (inputIdTilString LeggTilAnnetId)
         , seksjonsvalgKnapp KursValgt
         , seksjonsvalgKnapp SertifiseringValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
@@ -2180,6 +2299,7 @@ viewSpørOmTilbakemelding : BrukerInput AndreSamtaleStegMsg
 viewSpørOmTilbakemelding =
     BrukerInput.knapper Flytende
         [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
+            |> Knapp.withId (inputIdTilString GiTilbakemeldingId)
         , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
         ]
 
@@ -2189,13 +2309,14 @@ viewSammendragInput sammendrag =
     Textarea.textarea { label = "Sammendrag", msg = SammendragEndret } sammendrag
         |> Textarea.withTextAreaClass "textarea_stor"
         |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn sammendrag 4000)
-        |> Textarea.withId sammendragId
+        |> Textarea.withId (inputIdTilString SammendragId)
 
 
 viewBekreftSammendrag : BrukerInput AndreSamtaleStegMsg
 viewBekreftSammendrag =
     BrukerInput.knapper Flytende
         [ Knapp.knapp VilLagreBekreftetSammendrag "Ja, jeg er fornøyd"
+            |> Knapp.withId (inputIdTilString BekreftSammendragId)
         , Knapp.knapp BrukerVilEndreSammendrag "Nei, jeg vil endre"
         ]
 

@@ -10,6 +10,7 @@ module Sprak.Seksjon exposing
     )
 
 import Api
+import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
@@ -26,10 +27,12 @@ import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
+import Process
 import Sprak.Skjema as Skjema exposing (Ferdighet(..), SpråkSkjema)
 import Sprak.Sprak as Språk exposing (Språk)
 import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
 import String.Extra as String
+import Task
 
 
 
@@ -117,6 +120,7 @@ type Msg
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | ErrorLogget
+    | FokusSatt (Result Dom.Error ())
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -421,6 +425,9 @@ update msg (Model model) =
         ErrorLogget ->
             ( Model model, Cmd.none ) |> IkkeFerdig
 
+        FokusSatt _ ->
+            IkkeFerdig ( Model model, Cmd.none )
+
 
 updateEtterAtBrukerHarValgtSpråkFraDropdown : Samtale -> RemoteDataSpråkKoder -> String -> Samtale
 updateEtterAtBrukerHarValgtSpråkFraDropdown aktivSamtale remoteSpråkKoder valgtSpråk =
@@ -485,7 +492,10 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
-                    , Cmd.map SamtaleAnimasjonMsg cmd
+                    , Cmd.batch
+                        [ Cmd.map SamtaleAnimasjonMsg cmd
+                        , settFokus model.aktivSamtale
+                        ]
                     )
                         |> IkkeFerdig
 
@@ -697,8 +707,85 @@ listeTilSetning list =
             (List.reverse resten |> String.join ", ") ++ " og " ++ siste
 
 
+settFokus : Samtale -> Cmd Msg
+settFokus samtale =
+    case samtale of
+        IntroLeggTilNorsk _ ->
+            settFokusCmd LeggTilSpråkIntroId
+
+        LeggTilNorskMuntlig ->
+            settFokusCmd VelgNorskMuntligId
+
+        LeggTilNorskSkriftlig _ ->
+            settFokusCmd VelgNorskSkriftligId
+
+        LeggTilEngelsk ->
+            settFokusCmd LeggTilEngelskId
+
+        LeggTilFlereSpråk _ ->
+            settFokusCmd LeggTilSpråkId
+
+        VelgNyttSpråk _ ->
+            settFokusCmd VelgSpråkId
+
+        LeggTilSkriftlig _ ->
+            settFokusCmd VelgNivåSkriftligId
+
+        LeggTilMuntlig _ ->
+            settFokusCmd VelgNivåMuntligId
+
+        _ ->
+            Cmd.none
+
+
+settFokusCmd : InputId -> Cmd Msg
+settFokusCmd inputId =
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
+        |> Task.attempt FokusSatt
+
+
 
 --- VIEW ---
+
+
+type InputId
+    = LeggTilSpråkIntroId
+    | VelgNorskMuntligId
+    | VelgNorskSkriftligId
+    | LeggTilEngelskId
+    | LeggTilSpråkId
+    | VelgSpråkId
+    | VelgNivåSkriftligId
+    | VelgNivåMuntligId
+
+
+inputIdTilString : InputId -> String
+inputIdTilString inputId =
+    case inputId of
+        LeggTilSpråkIntroId ->
+            "språk-legg-til-intro-id"
+
+        VelgNorskSkriftligId ->
+            "språk-velg-norsk-skriftlig-id"
+
+        VelgNorskMuntligId ->
+            "språk-velg-norsk-muntlig-id"
+
+        LeggTilEngelskId ->
+            "språk-legg-til-engelsk-id"
+
+        LeggTilSpråkId ->
+            "språk-legg-til-id"
+
+        VelgSpråkId ->
+            "språk-velg-id"
+
+        VelgNivåSkriftligId ->
+            "språk-velg-skriftlig-id"
+
+        VelgNivåMuntligId ->
+            "språk-velg-muntlig-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -716,18 +803,21 @@ modelTilBrukerInput model =
                 if List.isEmpty språkListe then
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp NorskErFørstespråk "Ja"
+                            |> Knapp.withId (inputIdTilString LeggTilSpråkIntroId)
                         , Knapp.knapp NorskErIkkeFørstespråk "Nei"
                         ]
 
                 else
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                            |> Knapp.withId (inputIdTilString LeggTilSpråkIntroId)
                         , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, jeg har lagt inn språkene jeg kan"
                         ]
 
             LeggTilNorskMuntlig ->
                 BrukerInput.knapper Kolonne
                     [ muntligKnapp SpråkKode.norsk Nybegynner
+                        |> Knapp.withId (inputIdTilString VelgNorskMuntligId)
                     , muntligKnapp SpråkKode.norsk Godt
                     , muntligKnapp SpråkKode.norsk VeldigGodt
                     ]
@@ -735,6 +825,7 @@ modelTilBrukerInput model =
             LeggTilNorskSkriftlig _ ->
                 BrukerInput.knapper Kolonne
                     [ skriftligKnapp SpråkKode.norsk Nybegynner
+                        |> Knapp.withId (inputIdTilString VelgNorskSkriftligId)
                     , skriftligKnapp SpråkKode.norsk Godt
                     , skriftligKnapp SpråkKode.norsk VeldigGodt
                     ]
@@ -765,12 +856,14 @@ modelTilBrukerInput model =
             LeggTilEngelsk ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerKanEngelsk "Ja"
+                        |> Knapp.withId (inputIdTilString LeggTilEngelskId)
                     , Knapp.knapp BrukerKanIkkeEngelsk "Nei"
                     ]
 
             LeggTilMuntlig språkKode ->
                 BrukerInput.knapper Kolonne
                     [ muntligKnapp språkKode Nybegynner
+                        |> Knapp.withId (inputIdTilString VelgNivåMuntligId)
                     , muntligKnapp språkKode Godt
                     , muntligKnapp språkKode VeldigGodt
                     , muntligKnapp språkKode Førstespråk
@@ -781,6 +874,7 @@ modelTilBrukerInput model =
             LeggTilSkriftlig språkKode ->
                 BrukerInput.knapper Kolonne
                     [ skriftligKnapp språkKode.språk Nybegynner
+                        |> Knapp.withId (inputIdTilString VelgNivåMuntligId)
                     , skriftligKnapp språkKode.språk Godt
                     , skriftligKnapp språkKode.språk VeldigGodt
                     , skriftligKnapp språkKode.språk Førstespråk
@@ -804,6 +898,7 @@ modelTilBrukerInput model =
                                 |> Select.withMaybeSelected (Maybe.map SpråkKode.kode velgNyttSpråkInfo.valgtSpråk)
                                 |> Select.withFeilmelding velgNyttSpråkInfo.feilmelding
                                 |> Select.withErObligatorisk
+                                |> Select.withId (inputIdTilString VelgSpråkId)
                             )
 
                     Loading ->
@@ -839,6 +934,7 @@ modelTilBrukerInput model =
             LeggTilFlereSpråk _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerKanFlereSpråk "Ja, legg til språk"
+                        |> Knapp.withId (inputIdTilString LeggTilSpråkId)
                     , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, jeg har lagt inn språkene jeg kan"
                     ]
 

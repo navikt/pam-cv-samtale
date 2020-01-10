@@ -1039,11 +1039,38 @@ settFokus samtale =
         RegistrerBeskrivelse _ _ ->
             settFokusCmd BeskrivelseId
 
+        SpørOmBrukerVilLeggeInnTidsperiode _ ->
+            settFokusCmd LeggTilPeriodeId
+
+        RegistrerFraMåned _ ->
+            settFokusCmd FraMånedId
+
         RegistrerFraÅr _ ->
             settFokusCmd FraÅrId
 
+        RegistrerNåværende _ ->
+            settFokusCmd NåværendeId
+
+        RegistrerTilMåned _ ->
+            settFokusCmd TilMånedId
+
         RegistrerTilÅr _ ->
             settFokusCmd TilÅrId
+
+        EndreOpplysninger _ ->
+            settFokusCmd RolleId
+
+        VisOppsummering _ _ ->
+            settFokusCmd BekreftOppsummeringId
+
+        LagringFeilet _ _ ->
+            settFokusCmd LagringFeiletActionId
+
+        BekreftSlettingAvPåbegynt _ ->
+            settFokusCmd SlettePåbegyntId
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            settFokusCmd AvbrytSlettingId
 
         _ ->
             Cmd.none
@@ -1071,8 +1098,16 @@ eksemplerPåAnnenErfaring =
 type InputId
     = RolleId
     | BeskrivelseId
+    | LeggTilPeriodeId
+    | FraMånedId
     | FraÅrId
+    | NåværendeId
+    | TilMånedId
     | TilÅrId
+    | BekreftOppsummeringId
+    | SlettePåbegyntId
+    | LagringFeiletActionId
+    | AvbrytSlettingId
 
 
 inputIdTilString : InputId -> String
@@ -1084,11 +1119,35 @@ inputIdTilString inputId =
         BeskrivelseId ->
             "annenErfaring-beskrivelse-id"
 
+        LeggTilPeriodeId ->
+            "annenErfaring-periode-id"
+
+        FraMånedId ->
+            "annenErfaring-fraMåned-id"
+
         FraÅrId ->
             "annenErfaring-fraÅr-id"
 
+        NåværendeId ->
+            "annenErfaring-nåværende-id"
+
+        TilMånedId ->
+            "annenErfaring-tilMåned-id"
+
         TilÅrId ->
             "annenErfaring-tilÅr-id"
+
+        BekreftOppsummeringId ->
+            "annenErfaring-bekreft-oppsummering-id"
+
+        SlettePåbegyntId ->
+            "annenErfaring-slett-påbegynt-id"
+
+        LagringFeiletActionId ->
+            "annenErfaring-lagring-feilet-id"
+
+        AvbrytSlettingId ->
+            "annenErfaring-avbrytt-slett-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -1130,11 +1189,16 @@ modelTilBrukerInput model =
             SpørOmBrukerVilLeggeInnTidsperiode _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp SvarerJaTilTidsperiode "Ja, det vil jeg"
+                        |> Knapp.withId (inputIdTilString LeggTilPeriodeId)
                     , Knapp.knapp SvarerNeiTilTidsperiode "Nei, det vil jeg ikke"
                     ]
 
             RegistrerFraMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = FraMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = FraMånedValgt
+                    , fokusId = inputIdTilString FraMånedId
+                    }
 
             RegistrerFraÅr fraDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFraÅr }
@@ -1156,11 +1220,16 @@ modelTilBrukerInput model =
             RegistrerNåværende _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp SvarerJaTilNåværende "Ja"
+                        |> Knapp.withId (inputIdTilString NåværendeId)
                     , Knapp.knapp SvarerNeiTilNåværende "Nei"
                     ]
 
             RegistrerTilMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = TilMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = TilMånedValgt
+                    , fokusId = inputIdTilString TilMånedId
+                    }
 
             RegistrerTilÅr tilDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereTilÅr }
@@ -1186,6 +1255,7 @@ modelTilBrukerInput model =
                         |> Input.withFeilmelding (Skjema.feilmeldingRolleHvisSynlig skjema)
                         |> Input.withOnBlur (SkjemaEndret RolleBlurred)
                         |> Input.withErObligatorisk
+                        |> Input.withId (inputIdTilString RolleId)
                         |> Input.toHtml
                     , skjema
                         |> Skjema.innholdTekstFelt Beskrivelse
@@ -1206,6 +1276,7 @@ modelTilBrukerInput model =
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.withId (inputIdTilString SlettePåbegyntId)
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
@@ -1221,11 +1292,13 @@ modelTilBrukerInput model =
                     ErrorHåndtering.GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
                     ErrorHåndtering.PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreAnnenErfaring "Prøv igjen"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp FerdigMedAnnenErfaring "Gå videre"
                             ]
 
@@ -1235,6 +1308,7 @@ modelTilBrukerInput model =
             BekreftAvbrytingAvRegistreringen _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                        |> Knapp.withId (inputIdTilString AvbrytSlettingId)
                     , Knapp.knapp VilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
                     ]
 
@@ -1249,6 +1323,7 @@ viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
     BrukerInput.knapper Kolonne
         [ Knapp.knapp VilLagreAnnenErfaring "Ja, det er riktig"
+            |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]

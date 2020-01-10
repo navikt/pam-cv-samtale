@@ -958,11 +958,35 @@ settFokus samtale =
         RegistrerKursholder _ ->
             settFokusCmd KursholderId
 
+        SpørOmBrukerVilLeggeInnFullførtDato _ ->
+            settFokusCmd LeggTilFullførtId
+
+        RegistrerFullførtMåned _ ->
+            settFokusCmd FullførtMånedId
+
         RegistrerFullførtÅr _ ->
             settFokusCmd FullførtÅrId
 
+        RegistrerVarighetEnhet _ ->
+            settFokusCmd VarighetEnhetId
+
         RegistrerVarighet _ ->
             settFokusCmd VarighetId
+
+        VisOppsummering _ _ ->
+            settFokusCmd BekreftOppsummeringId
+
+        EndreOpplysninger _ ->
+            settFokusCmd KursnavnId
+
+        LagringFeilet _ _ ->
+            settFokusCmd LagringFeiletActionId
+
+        BekreftSlettingAvPåbegynt _ ->
+            settFokusCmd SlettePåbegyntId
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            settFokusCmd AvbrytSlettingId
 
         _ ->
             Cmd.none
@@ -982,8 +1006,16 @@ settFokusCmd inputId =
 type InputId
     = KursnavnId
     | KursholderId
+    | FullførtMånedId
     | FullførtÅrId
+    | LeggTilFullførtId
     | VarighetId
+    | VarighetEnhetId
+    | VarighetEnhetISkjemaId
+    | BekreftOppsummeringId
+    | SlettePåbegyntId
+    | LagringFeiletActionId
+    | AvbrytSlettingId
 
 
 inputIdTilString : InputId -> String
@@ -995,11 +1027,35 @@ inputIdTilString inputId =
         KursholderId ->
             "kurs-kursholder-id"
 
+        FullførtMånedId ->
+            "kurs-fullførtMåned-id"
+
         FullførtÅrId ->
             "kurs-fullførtÅr-id"
 
+        LeggTilFullførtId ->
+            "kurs-kursholder-id"
+
         VarighetId ->
             "kurs-varighet-id"
+
+        VarighetEnhetId ->
+            "kurs-varighet-enhet-id"
+
+        BekreftOppsummeringId ->
+            "kurs-bekreft-oppsummering-id"
+
+        VarighetEnhetISkjemaId ->
+            "kurs-varighet-enhet-skjema-id"
+
+        SlettePåbegyntId ->
+            "kurs-slett-påbegynt-id"
+
+        LagringFeiletActionId ->
+            "kurs-lagring-feilet-id"
+
+        AvbrytSlettingId ->
+            "kurs-avbrytt-slett-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -1040,11 +1096,16 @@ modelTilBrukerInput model =
             SpørOmBrukerVilLeggeInnFullførtDato _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp SvarerJaTilFullførtDato "Ja, det vil jeg"
+                        |> Knapp.withId (inputIdTilString LeggTilFullførtId)
                     , Knapp.knapp SvarerNeiTilFullførtDato "Nei, det vil jeg ikke"
                     ]
 
             RegistrerFullførtMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = FullførtMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = FullførtMånedValgt
+                    , fokusId = inputIdTilString FullførtMånedId
+                    }
 
             RegistrerFullførtÅr fullførtDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFullførtÅr }
@@ -1092,6 +1153,7 @@ modelTilBrukerInput model =
                         |> Input.withFeilmelding (Skjema.feilmeldingKursnavnHvisSynlig skjema)
                         |> Input.withOnBlur (SkjemaEndret KursnavnBlurred)
                         |> Input.withErObligatorisk
+                        |> Input.withId (inputIdTilString KursnavnId)
                         |> Input.toHtml
                     , skjema
                         |> Skjema.innholdTekstFelt Kursholder
@@ -1117,6 +1179,7 @@ modelTilBrukerInput model =
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.withId (inputIdTilString SlettePåbegyntId)
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
@@ -1131,11 +1194,14 @@ modelTilBrukerInput model =
                 case ErrorHåndtering.operasjonEtterError error of
                     ErrorHåndtering.GiOpp ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp FerdigMedKurs "Gå videre" ]
+                            [ Knapp.knapp FerdigMedKurs "Gå videre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
+                            ]
 
                     ErrorHåndtering.PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreKurs "Prøv igjen"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp FerdigMedKurs "Gå videre"
                             ]
 
@@ -1145,6 +1211,7 @@ modelTilBrukerInput model =
             BekreftAvbrytingAvRegistreringen _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                        |> Knapp.withId (inputIdTilString AvbrytSlettingId)
                     , Knapp.knapp VilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
                     ]
 
@@ -1158,12 +1225,10 @@ modelTilBrukerInput model =
 varighetEnhetKnapper : BrukerInput Msg
 varighetEnhetKnapper =
     BrukerInput.knapper VarighetGrid
-        (List.map varighetEnhetKnapp
-            [ Time
-            , Dag
-            , Uke
-            , Måned
-            ]
+        ((varighetEnhetKnapp Time
+            |> Knapp.withId (inputIdTilString VarighetEnhetId)
+         )
+            :: List.map varighetEnhetKnapp [ Dag, Uke, Måned ]
         )
 
 
@@ -1178,6 +1243,7 @@ viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
     BrukerInput.knapper Kolonne
         [ Knapp.knapp VilLagreKurs "Ja, det er riktig"
+            |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]

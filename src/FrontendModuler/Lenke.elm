@@ -1,4 +1,4 @@
-module FrontendModuler.Lenke exposing (Lenke, lenke, tekst_, toHtml, withClass, withId, withOnFocus, withTargetBlank)
+module FrontendModuler.Lenke exposing (Lenke, lenke, tekst_, toHtml, withButtonStyle, withClass, withId, withOnFocus, withTargetBlank)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -13,6 +13,7 @@ type Lenke msg
         , id : Maybe String
         , class : Maybe String
         , onFocus : Maybe msg
+        , styleAsButton : Bool
         }
 
 
@@ -25,6 +26,7 @@ lenke { tekst, url } =
         , id = Nothing
         , class = Nothing
         , onFocus = Nothing
+        , styleAsButton = False
         }
 
 
@@ -46,6 +48,11 @@ withClass class (Lenke options) =
 withOnFocus : msg -> Lenke msg -> Lenke msg
 withOnFocus onFocus (Lenke options) =
     Lenke { options | onFocus = Just onFocus }
+
+
+withButtonStyle : Lenke msg -> Lenke msg
+withButtonStyle (Lenke options) =
+    Lenke { options | styleAsButton = True }
 
 
 toHtml : Lenke msg -> Html msg
@@ -76,7 +83,11 @@ toHtml (Lenke options) =
     else
         a
             [ href options.url
-            , class "lenke"
+            , if options.styleAsButton then
+                class "Knapp"
+
+              else
+                class "lenke"
             , options.id
                 |> Maybe.map id
                 |> Maybe.withDefault noAttribute

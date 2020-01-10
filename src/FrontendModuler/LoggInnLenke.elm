@@ -9,6 +9,7 @@ viewLoggInnLenke =
     BrukerInput.lenke
         (Lenke.lenke { tekst = loggInnLenkeTekst, url = "/cv-samtale/login?redirect=/logget-inn" }
             |> Lenke.withTargetBlank
+            |> Lenke.withId "logg-inn-lenke-id"
         )
 
 
