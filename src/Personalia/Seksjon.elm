@@ -624,6 +624,12 @@ settFokus samtale =
         LeggerTilTelefonnummer _ _ ->
             settFokusCmd TelefonnummerId
 
+        BekreftPersonalia _ ->
+            settFokusCmd BekreftPersonaliaId
+
+        EndrerPersonalia _ _ ->
+            settFokusCmd FornavnId
+
         _ ->
             Cmd.none
 
@@ -780,6 +786,8 @@ viewDatoString datoString =
 type InputId
     = EpostId
     | TelefonnummerId
+    | BekreftPersonaliaId
+    | FornavnId
 
 
 inputIdTilString : InputId -> String
@@ -790,6 +798,12 @@ inputIdTilString inputId =
 
         TelefonnummerId ->
             "personalia-telefonnummer"
+
+        BekreftPersonaliaId ->
+            "personalia-bekreft-id"
+
+        FornavnId ->
+            "personalia-fornavn-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -806,6 +820,7 @@ modelTilBrukerInput { aktivSamtale, seksjonsMeldingsLogg } =
             BekreftPersonalia _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilLagreBekreftetPersonalia "Ja, det er riktig"
+                        |> Knapp.withId (inputIdTilString BekreftPersonaliaId)
                     , Knapp.knapp BrukerVilEndrePersonalia "Nei, jeg vil endre"
                     ]
 
@@ -817,6 +832,7 @@ modelTilBrukerInput { aktivSamtale, seksjonsMeldingsLogg } =
                         |> Input.withFeilmelding (Skjema.fornavnFeilmelding personaliaSkjema)
                         |> Input.withOnBlur (PersonaliaSkjemaFeltMistetFokus Skjema.Fornavn)
                         |> Input.withErObligatorisk
+                        |> Input.withId (inputIdTilString FornavnId)
                         |> Input.toHtml
                     , personaliaSkjema
                         |> Skjema.etternavn

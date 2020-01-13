@@ -84,6 +84,9 @@ toHtml (DatoInputEttFelt options) =
                 , options.onDatoBlur
                     |> Maybe.map onBlur
                     |> Maybe.withDefault noAttribute
+                , options.id
+                    |> Maybe.map id
+                    |> Maybe.withDefault noAttribute
                 ]
                 []
             ]

@@ -5,6 +5,7 @@ module FrontendModuler.Select exposing
     , withClass
     , withErObligatorisk
     , withFeilmelding
+    , withId
     , withMaybeSelected
     , withSelected
     )
@@ -31,6 +32,7 @@ type Select msg
         , feilmelding : Maybe String
         , class : Maybe String
         , obligatorisk : Bool
+        , id : Maybe String
         }
 
 
@@ -44,7 +46,13 @@ select label msg listOfOptions =
         , feilmelding = Nothing
         , class = Nothing
         , obligatorisk = False
+        , id = Nothing
         }
+
+
+withId : String -> Select msg -> Select msg
+withId id (Select options) =
+    Select { options | id = Just id }
 
 
 withSelected : String -> Select msg -> Select msg
@@ -114,6 +122,9 @@ htmlSelect (Select options) labelId =
                     |> Maybe.withDefault noAttribute
                 , labelId
                     |> Maybe.map ariaLabelledby
+                    |> Maybe.withDefault noAttribute
+                , options.id
+                    |> Maybe.map id
                     |> Maybe.withDefault noAttribute
                 ]
         ]

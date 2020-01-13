@@ -741,7 +741,16 @@ update msg (Model model) =
                 |> updateEtterFullførtMelding model
 
         FokusSatt _ ->
-            IkkeFerdig ( Model model, Cmd.none )
+            case model.aktivSamtale of
+                EndreOpplysninger typeaheadModel skjema ->
+                    IkkeFerdig
+                        ( EndreOpplysninger (Typeahead.hideSuggestions typeaheadModel) skjema
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -1178,11 +1187,35 @@ settFokus samtale =
         RegistrerUtsteder _ ->
             settFokusCmd UtstederId
 
+        RegistrerFullførtMåned _ ->
+            settFokusCmd FullførtMånedId
+
         RegistrerFullførtÅr _ ->
             settFokusCmd FullførtÅrId
 
+        SpørOmUtløpsdatoFinnes _ ->
+            settFokusCmd LeggTilUtløperId
+
+        RegistrerUtløperMåned _ ->
+            settFokusCmd UtløperMånedId
+
         RegistrerUtløperÅr _ ->
             settFokusCmd UtløperÅrId
+
+        VisOppsummering _ _ ->
+            settFokusCmd BekreftOppsummeringId
+
+        EndreOpplysninger _ _ ->
+            settFokusCmd SertifikatTypeaheadId
+
+        LagringFeilet _ _ ->
+            settFokusCmd LagringFeiletActionId
+
+        BekreftSlettingAvPåbegynt _ ->
+            settFokusCmd SlettePåbegyntId
+
+        BekreftAvbrytingAvRegistreringen _ ->
+            settFokusCmd AvbrytSlettingId
 
         _ ->
             Cmd.none
@@ -1202,8 +1235,15 @@ settFokusCmd inputId =
 type InputId
     = SertifikatTypeaheadId
     | UtstederId
+    | FullførtMånedId
     | FullførtÅrId
+    | LeggTilUtløperId
+    | UtløperMånedId
     | UtløperÅrId
+    | BekreftOppsummeringId
+    | SlettePåbegyntId
+    | LagringFeiletActionId
+    | AvbrytSlettingId
 
 
 inputIdTilString : InputId -> String
@@ -1212,14 +1252,35 @@ inputIdTilString inputId =
         UtstederId ->
             "sertifikat-utsteder-id"
 
-        FullførtÅrId ->
-            "sertifikat-fullførtår-id"
-
         SertifikatTypeaheadId ->
             "sertifikat-typeahead-id"
 
+        FullførtMånedId ->
+            "sertifikat-fullførtmåned-id"
+
+        FullførtÅrId ->
+            "sertifikat-fullførtår-id"
+
+        LeggTilUtløperId ->
+            "sertifikat-legg-til-utløper-id"
+
+        UtløperMånedId ->
+            "sertifikat-utløpermåned-id"
+
         UtløperÅrId ->
             "sertifikat-utløperår-id"
+
+        BekreftOppsummeringId ->
+            "sertifikat-bekreft-oppsummering-id"
+
+        SlettePåbegyntId ->
+            "sertifikat-slett-påbegynt-id"
+
+        LagringFeiletActionId ->
+            "sertifikat-lagring-feilet-id"
+
+        AvbrytSlettingId ->
+            "sertifikat-avbrytt-slett-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -1251,7 +1312,11 @@ modelTilBrukerInput model =
                     )
 
             RegistrerFullførtMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = FullførtMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = FullførtMånedValgt
+                    , fokusId = inputIdTilString FullførtMånedId
+                    }
 
             RegistrerFullførtÅr fullførtDatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFullførtÅr }
@@ -1273,11 +1338,16 @@ modelTilBrukerInput model =
             SpørOmUtløpsdatoFinnes _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilRegistrereUtløperMåned "Ja, sertifiseringen utløper"
+                        |> Knapp.withId (inputIdTilString LeggTilUtløperId)
                     , Knapp.knapp VilIkkeRegistrereUtløpesdato "Nei, sertifiseringen utløper ikke"
                     ]
 
             RegistrerUtløperMåned _ ->
-                BrukerInput.månedKnapper { onAvbryt = VilAvbryteRegistreringen, onMånedValg = UtløperMånedValgt }
+                BrukerInput.månedKnapper
+                    { onAvbryt = VilAvbryteRegistreringen
+                    , onMånedValg = UtløperMånedValgt
+                    , fokusId = inputIdTilString UtløperMånedId
+                    }
 
             RegistrerUtløperÅr utløpsdatoInfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereUtløperÅr }
@@ -1341,6 +1411,7 @@ modelTilBrukerInput model =
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterSlettPåbegynt "Ja, jeg vil slette"
+                        |> Knapp.withId (inputIdTilString SlettePåbegyntId)
                     , Knapp.knapp AngrerSlettPåbegynt "Nei, jeg vil ikke slette"
                     ]
 
@@ -1356,11 +1427,13 @@ modelTilBrukerInput model =
                     GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedSertifikat "Gå videre"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
                     PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreSertifikat "Prøv igjen"
+                                |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             , Knapp.knapp FerdigMedSertifikat "Gå videre"
                             ]
 
@@ -1370,6 +1443,7 @@ modelTilBrukerInput model =
             BekreftAvbrytingAvRegistreringen _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BekrefterAvbrytingAvRegistrering "Ja, jeg vil avbryte"
+                        |> Knapp.withId (inputIdTilString AvbrytSlettingId)
                     , Knapp.knapp VilIkkeAvbryteRegistreringen "Nei, jeg vil fortsette"
                     ]
 
@@ -1384,6 +1458,7 @@ viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
     BrukerInput.knapper Kolonne
         [ Knapp.knapp VilLagreSertifikat "Ja, det er riktig"
+            |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
         ]
