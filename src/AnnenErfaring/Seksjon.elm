@@ -81,11 +81,11 @@ type Samtale
     = RegistrerRolle RolleInfo
     | RegistrerBeskrivelse Bool BeskrivelseInfo
     | SpørOmBrukerVilLeggeInnTidsperiode BeskrivelseInfo
+    | RegistrerFraÅr FraÅrInfo
     | RegistrerFraMåned FraDatoInfo
-    | RegistrerFraÅr FraDatoInfo
-    | RegistrerNåværende ValidertFraDatoInfo
+    | RegistrerNåværende FraDatoInfo
+    | RegistrerTilÅr TilÅrInfo
     | RegistrerTilMåned TilDatoInfo
-    | RegistrerTilÅr TilDatoInfo
     | VisOppsummering OppsummeringsType ValidertAnnenErfaringSkjema
     | EndreOpplysninger AnnenErfaringSkjema
     | BekreftSlettingAvPåbegynt ValidertAnnenErfaringSkjema
@@ -107,20 +107,29 @@ type alias BeskrivelseInfo =
     }
 
 
-type alias FraDatoInfo =
+type alias FraÅrInfo =
     { rolle : String
     , beskrivelse : String
-    , fraMåned : Måned
     , fraÅr : String
     , tillatÅViseFeilmeldingÅr : Bool
     }
 
 
-type alias ValidertFraDatoInfo =
+type alias FraDatoInfo =
     { rolle : String
     , beskrivelse : String
     , fraMåned : Måned
     , fraÅr : År
+    }
+
+
+type alias TilÅrInfo =
+    { rolle : String
+    , beskrivelse : String
+    , fraMåned : Måned
+    , fraÅr : År
+    , tilÅr : String
+    , tillatÅViseFeilmeldingÅr : Bool
     }
 
 
@@ -130,8 +139,7 @@ type alias TilDatoInfo =
     , fraMåned : Måned
     , fraÅr : År
     , tilMåned : Måned
-    , tilÅr : String
-    , tillatÅViseFeilmeldingÅr : Bool
+    , tilÅr : År
     }
 
 
@@ -146,23 +154,21 @@ rolleTilBeskrivelse rolle =
     }
 
 
-beskrivelseTilFraDato : BeskrivelseInfo -> FraDatoInfo
-beskrivelseTilFraDato input =
+beskrivelseTilFraÅr : BeskrivelseInfo -> FraÅrInfo
+beskrivelseTilFraÅr input =
     { rolle = input.rolle
     , beskrivelse = input.beskrivelse
-    , fraMåned = Januar
     , fraÅr = ""
     , tillatÅViseFeilmeldingÅr = False
     }
 
 
-fraDatoTilTilDato : ValidertFraDatoInfo -> TilDatoInfo
-fraDatoTilTilDato input =
+fraDatoTilTilÅr : FraDatoInfo -> TilÅrInfo
+fraDatoTilTilÅr input =
     { rolle = input.rolle
     , beskrivelse = input.beskrivelse
     , fraMåned = input.fraMåned
     , fraÅr = input.fraÅr
-    , tilMåned = Januar
     , tilÅr = ""
     , tillatÅViseFeilmeldingÅr = False
     }
@@ -177,7 +183,7 @@ beskrivelseTilSkjema info =
         }
 
 
-fraDatoTilSkjema : ValidertFraDatoInfo -> ValidertAnnenErfaringSkjema
+fraDatoTilSkjema : FraDatoInfo -> ValidertAnnenErfaringSkjema
 fraDatoTilSkjema info =
     Skjema.initValidertSkjema
         { rolle = info.rolle
@@ -189,14 +195,14 @@ fraDatoTilSkjema info =
         }
 
 
-tilDatoTilSkjema : TilDatoInfo -> År -> ValidertAnnenErfaringSkjema
-tilDatoTilSkjema info tilÅr =
+tilDatoTilSkjema : TilDatoInfo -> ValidertAnnenErfaringSkjema
+tilDatoTilSkjema info =
     Skjema.initValidertSkjema
         { rolle = info.rolle
         , beskrivelse = info.beskrivelse
         , fraMåned = info.fraMåned
         , fraÅr = info.fraÅr
-        , tilDato = Avsluttet info.tilMåned tilÅr
+        , tilDato = Avsluttet info.tilMåned info.tilÅr
         , id = Nothing
         }
 
@@ -346,8 +352,8 @@ update msg (Model model) =
             case model.aktivSamtale of
                 SpørOmBrukerVilLeggeInnTidsperiode info ->
                     ( info
-                        |> beskrivelseTilFraDato
-                        |> RegistrerFraMåned
+                        |> beskrivelseTilFraÅr
+                        |> RegistrerFraÅr
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -370,14 +376,13 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        FraMånedValgt måned ->
+        OppdatererFraÅr string ->
             case model.aktivSamtale of
-                RegistrerFraMåned fraDatoInfo ->
-                    ( måned
-                        |> setFraMåned fraDatoInfo
+                RegistrerFraÅr fraDatoInfo ->
+                    ( { fraDatoInfo | fraÅr = string }
                         |> RegistrerFraÅr
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -391,10 +396,10 @@ update msg (Model model) =
                         Just fraÅr ->
                             ( { rolle = fraDatoInfo.rolle
                               , beskrivelse = fraDatoInfo.beskrivelse
-                              , fraMåned = fraDatoInfo.fraMåned
+                              , fraMåned = Januar
                               , fraÅr = fraÅr
                               }
-                                |> RegistrerNåværende
+                                |> RegistrerFraMåned
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -411,13 +416,14 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdatererFraÅr string ->
+        FraMånedValgt måned ->
             case model.aktivSamtale of
-                RegistrerFraÅr fraDatoInfo ->
-                    ( { fraDatoInfo | fraÅr = string }
-                        |> RegistrerFraÅr
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
+                RegistrerFraMåned fraDatoInfo ->
+                    ( måned
+                        |> setFraMåned fraDatoInfo
+                        |> RegistrerNåværende
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -442,48 +448,12 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerNåværende fraDatoInfo ->
                     ( fraDatoInfo
-                        |> fraDatoTilTilDato
-                        |> RegistrerTilMåned
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        TilMånedValgt måned ->
-            case model.aktivSamtale of
-                RegistrerTilMåned tilDatoInfo ->
-                    ( { tilDatoInfo | tilMåned = måned }
+                        |> fraDatoTilTilÅr
                         |> RegistrerTilÅr
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        VilRegistrereTilÅr ->
-            case model.aktivSamtale of
-                RegistrerTilÅr tilDatoInfo ->
-                    case Dato.stringTilÅr tilDatoInfo.tilÅr of
-                        Just tilÅr ->
-                            ( tilDatoTilSkjema tilDatoInfo tilÅr
-                                |> VisOppsummering FørsteGang
-                                |> oppdaterSamtale model (SvarFraMsg msg)
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
-                        Nothing ->
-                            ( { tilDatoInfo | tillatÅViseFeilmeldingÅr = True }
-                                |> RegistrerTilÅr
-                                |> oppdaterSamtale model IngenNyeMeldinger
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -495,6 +465,49 @@ update msg (Model model) =
                         |> RegistrerTilÅr
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilRegistrereTilÅr ->
+            case model.aktivSamtale of
+                RegistrerTilÅr tilÅrInfo ->
+                    case Dato.stringTilÅr tilÅrInfo.tilÅr of
+                        Just tilÅr ->
+                            ( { rolle = tilÅrInfo.rolle
+                              , beskrivelse = tilÅrInfo.beskrivelse
+                              , fraMåned = tilÅrInfo.fraMåned
+                              , fraÅr = tilÅrInfo.fraÅr
+                              , tilMåned = Januar
+                              , tilÅr = tilÅr
+                              }
+                                |> RegistrerTilMåned
+                                |> oppdaterSamtale model (SvarFraMsg msg)
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            ( { tilÅrInfo | tillatÅViseFeilmeldingÅr = True }
+                                |> RegistrerTilÅr
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        TilMånedValgt måned ->
+            case model.aktivSamtale of
+                RegistrerTilMåned tilDatoInfo ->
+                    ( { tilDatoInfo | tilMåned = måned }
+                        |> tilDatoTilSkjema
+                        |> VisOppsummering FørsteGang
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 

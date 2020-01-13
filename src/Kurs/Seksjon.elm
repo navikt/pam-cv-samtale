@@ -78,8 +78,8 @@ type Samtale
     = RegistrerKursnavn KursnavnInfo
     | RegistrerKursholder KursholderInfo
     | SpørOmBrukerVilLeggeInnFullførtDato KursholderInfo
+    | RegistrerFullførtÅr FullførtÅrInfo
     | RegistrerFullførtMåned FullførtDatoInfo
-    | RegistrerFullførtÅr FullførtDatoInfo
     | RegistrerVarighetEnhet VarighetInfo
     | RegistrerVarighet VarighetInfo
     | VisOppsummering OppsummeringsType ValidertKursSkjema
@@ -103,19 +103,19 @@ type alias KursholderInfo =
     }
 
 
-type alias FullførtDatoInfo =
+type alias FullførtÅrInfo =
     { kursnavn : String
     , kursholder : String
-    , fullførtMåned : Måned
     , fullførtÅr : String
     , tillatÅViseFeilmeldingÅr : Bool
     }
 
 
-type alias ValidertFullførtDatoInfo =
+type alias FullførtDatoInfo =
     { kursnavn : String
     , kursholder : String
-    , fullførtDato : FullførtDato
+    , fullførtMåned : Måned
+    , fullførtÅr : År
     }
 
 
@@ -136,11 +136,10 @@ kursnavnTilKursholder kursnavn =
     }
 
 
-kursholderTilFullførtDato : KursholderInfo -> FullførtDatoInfo
-kursholderTilFullførtDato input =
+kursholderTilFullførtÅr : KursholderInfo -> FullførtÅrInfo
+kursholderTilFullførtÅr input =
     { kursnavn = input.kursnavn
     , kursholder = input.kursholder
-    , fullførtMåned = Januar
     , fullførtÅr = ""
     , tillatÅViseFeilmeldingÅr = False
     }
@@ -157,11 +156,11 @@ kursholderTilVarighet input =
     }
 
 
-fullførtDatoTilVarighet : ValidertFullførtDatoInfo -> VarighetInfo
+fullførtDatoTilVarighet : FullførtDatoInfo -> VarighetInfo
 fullførtDatoTilVarighet input =
     { kursnavn = input.kursnavn
     , kursholder = input.kursholder
-    , fullførtDato = input.fullførtDato
+    , fullførtDato = Oppgitt input.fullførtMåned input.fullførtÅr
     , varighet = ""
     , varighetEnhet = Time
     , tillatÅViseFeilmeldingVarighet = False
@@ -301,8 +300,8 @@ update msg (Model model) =
             case model.aktivSamtale of
                 SpørOmBrukerVilLeggeInnFullførtDato info ->
                     ( info
-                        |> kursholderTilFullførtDato
-                        |> RegistrerFullførtMåned
+                        |> kursholderTilFullførtÅr
+                        |> RegistrerFullførtÅr
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -325,14 +324,13 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        FullførtMånedValgt måned ->
+        OppdatererFullførtÅr string ->
             case model.aktivSamtale of
-                RegistrerFullførtMåned fullførtDatoInfo ->
-                    ( måned
-                        |> setFullførtMåned fullførtDatoInfo
+                RegistrerFullførtÅr fullførtDatoInfo ->
+                    ( { fullførtDatoInfo | fullførtÅr = string }
                         |> RegistrerFullførtÅr
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -346,10 +344,10 @@ update msg (Model model) =
                         Just fullførtÅr ->
                             ( { kursnavn = fullførtDatoInfo.kursnavn
                               , kursholder = fullførtDatoInfo.kursholder
-                              , fullførtDato = Oppgitt fullførtDatoInfo.fullførtMåned fullførtÅr
+                              , fullførtMåned = Januar
+                              , fullførtÅr = fullførtÅr
                               }
-                                |> fullførtDatoTilVarighet
-                                |> RegistrerVarighetEnhet
+                                |> RegistrerFullførtMåned
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -366,13 +364,14 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdatererFullførtÅr string ->
+        FullførtMånedValgt måned ->
             case model.aktivSamtale of
-                RegistrerFullførtÅr fullførtDatoInfo ->
-                    ( { fullførtDatoInfo | fullførtÅr = string }
-                        |> RegistrerFullførtÅr
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
+                RegistrerFullførtMåned fullførtDatoInfo ->
+                    ( { fullførtDatoInfo | fullførtMåned = måned }
+                        |> fullførtDatoTilVarighet
+                        |> RegistrerVarighetEnhet
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
