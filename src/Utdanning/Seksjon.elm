@@ -212,7 +212,7 @@ nåværendeInfoTilUtdanningsSkjema nåværendeInfo =
 
 
 type Msg
-    = BrukerVilRegistrereUtdanning NivåValg
+    = BrukerVilRegistrereUtdanning
     | SvarerNeiTilUtdanning
     | BrukerVilRedigereUtdanning
     | BrukerHarValgtUtdanningÅRedigere Utdanning
@@ -267,12 +267,21 @@ type SkjemaEndring
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        BrukerVilRegistrereUtdanning nivåValg ->
-            IkkeFerdig
-                ( RegistrerNivå nivåValg
-                    |> oppdaterSamtale model (SvarFraMsg msg)
-                , lagtTilSpørsmålCmd model.debugStatus
-                )
+        BrukerVilRegistrereUtdanning ->
+            case model.aktivSamtale of
+                BekreftHarIkkeUtdanning ->
+                    IkkeFerdig
+                        ( RegistrerNivå GrunnskoleVideregående
+                            |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+                _ ->
+                    IkkeFerdig
+                        ( RegistrerNivå AlleNivåer
+                            |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
 
         SvarerNeiTilUtdanning ->
             IkkeFerdig
@@ -1399,14 +1408,14 @@ modelTilBrukerInput model =
             Intro _ ->
                 if List.isEmpty model.utdanningListe then
                     BrukerInput.knapper Flytende
-                        [ Knapp.knapp (BrukerVilRegistrereUtdanning AlleNivåer) "Ja, jeg har utdanning"
+                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdanning"
                             |> Knapp.withId (inputIdTilString HarUtdanningId)
                         , Knapp.knapp SvarerNeiTilUtdanning "Nei, jeg har ikke utdanning"
                         ]
 
                 else
                     BrukerInput.knapper Flytende
-                        [ Knapp.knapp (BrukerVilRegistrereUtdanning AlleNivåer) "Ja, legg til en utdanning"
+                        [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                             |> Knapp.withId (inputIdTilString HarUtdanningId)
                         , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg er ferdig"
                         , Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn"
@@ -1414,7 +1423,7 @@ modelTilBrukerInput model =
 
             BekreftHarIkkeUtdanning ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp (BrukerVilRegistrereUtdanning GrunnskoleVideregående) "Ja, det vil jeg"
+                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, det vil jeg"
                         |> Knapp.withId (inputIdTilString BekreftHarIkkeUtdanningId)
                     , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, det vil jeg ikke"
                     ]
@@ -1434,26 +1443,27 @@ modelTilBrukerInput model =
 
             RegistrerNivå nivåValg ->
                 BrukerInput.knapper Kolonne
-                    ([ [ velgNivåKnapp Grunnskole
-                            |> Knapp.withId (inputIdTilString VelgNivåInput)
-                       , velgNivåKnapp VideregåendeYrkesskole
-                       ]
-                     , case nivåValg of
+                    (case nivåValg of
                         AlleNivåer ->
-                            [ velgNivåKnapp Fagskole
+                            [ velgNivåKnapp Grunnskole
+                                |> Knapp.withId (inputIdTilString VelgNivåInput)
+                            , velgNivåKnapp VideregåendeYrkesskole
+                            , velgNivåKnapp Fagskole
                             , velgNivåKnapp Folkehøyskole
                             , velgNivåKnapp HøyereUtdanning1til4
                             , velgNivåKnapp HøyereUtdanning4pluss
                             , velgNivåKnapp Doktorgrad
+                            , Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
+                                |> Knapp.withType Flat
                             ]
 
                         GrunnskoleVideregående ->
-                            []
-                     , [ Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
-                            |> Knapp.withType Flat
-                       ]
-                     ]
-                        |> List.concat
+                            [ velgNivåKnapp Grunnskole
+                                |> Knapp.withId (inputIdTilString VelgNivåInput)
+                            , velgNivåKnapp VideregåendeYrkesskole
+                            , Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
+                                |> Knapp.withType Flat
+                            ]
                     )
 
             RegistrerSkole skoleinfo ->
@@ -1547,7 +1557,7 @@ modelTilBrukerInput model =
 
             LeggTilFlereUtdanninger utdanninger avsluttetGrunn ->
                 BrukerInput.knapper Flytende
-                    ([ [ Knapp.knapp (BrukerVilRegistrereUtdanning AlleNivåer) "Ja, legg til en utdanning"
+                    ([ [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                             |> Knapp.withId (inputIdTilString LeggTilUtdanningId)
                        , Knapp.knapp (GåTilArbeidserfaring avsluttetGrunn) "Nei, jeg er ferdig"
                        ]
