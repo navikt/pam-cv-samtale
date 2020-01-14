@@ -874,7 +874,7 @@ modelTilBrukerInput model =
             LeggTilSkriftlig språkKode ->
                 BrukerInput.knapper Kolonne
                     [ skriftligKnapp språkKode.språk Nybegynner
-                        |> Knapp.withId (inputIdTilString VelgNivåMuntligId)
+                        |> Knapp.withId (inputIdTilString VelgNivåSkriftligId)
                     , skriftligKnapp språkKode.språk Godt
                     , skriftligKnapp språkKode.språk VeldigGodt
                     , skriftligKnapp språkKode.språk Førstespråk
