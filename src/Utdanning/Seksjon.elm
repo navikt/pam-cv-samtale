@@ -69,10 +69,16 @@ type OppsummeringsType
     | AvbrøtSletting
 
 
+type NivåValg
+    = AlleNivåer
+    | GrunnskoleVideregående
+
+
 type Samtale
     = Intro (List Utdanning)
+    | BekreftHarIkkeUtdanning
     | VelgEnUtdanningÅRedigere
-    | RegistrerNivå
+    | RegistrerNivå NivåValg
     | RegistrerSkole SkoleInfo
     | RegistrerRetning RetningInfo
     | RegistrerBeskrivelse Bool BeskrivelseInfo
@@ -207,6 +213,7 @@ nåværendeInfoTilUtdanningsSkjema nåværendeInfo =
 
 type Msg
     = BrukerVilRegistrereUtdanning
+    | SvarerNeiTilUtdanning
     | BrukerVilRedigereUtdanning
     | BrukerHarValgtUtdanningÅRedigere Utdanning
     | GåTilArbeidserfaring AvsluttetGrunn
@@ -261,8 +268,24 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         BrukerVilRegistrereUtdanning ->
+            case model.aktivSamtale of
+                BekreftHarIkkeUtdanning ->
+                    IkkeFerdig
+                        ( RegistrerNivå GrunnskoleVideregående
+                            |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+                _ ->
+                    IkkeFerdig
+                        ( RegistrerNivå AlleNivåer
+                            |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+
+        SvarerNeiTilUtdanning ->
             IkkeFerdig
-                ( RegistrerNivå
+                ( BekreftHarIkkeUtdanning
                     |> oppdaterSamtale model (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
@@ -756,7 +779,7 @@ update msg (Model model) =
 
         BrukerVilAvbryteRegistreringen ->
             case model.aktivSamtale of
-                RegistrerNivå ->
+                RegistrerNivå _ ->
                     avbrytRegistrering model msg
 
                 RegistrerSkole _ ->
@@ -950,7 +973,10 @@ settFokus samtale =
         Intro _ ->
             settFokusCmd HarUtdanningId
 
-        RegistrerNivå ->
+        BekreftHarIkkeUtdanning ->
+            settFokusCmd BekreftHarIkkeUtdanningId
+
+        RegistrerNivå _ ->
             settFokusCmd VelgNivåInput
 
         RegistrerSkole _ ->
@@ -1159,14 +1185,26 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 , Melding.spørsmål [ "Vil du legge inn flere utdanninger? " ]
                 ]
 
+        BekreftHarIkkeUtdanning ->
+            [ Melding.spørsmål [ "Er du sikker på at du ikke har utdanning? Du kan også legge inn grunnskole og videregående. Vil du legge inn det?" ]
+            ]
+
         VelgEnUtdanningÅRedigere ->
             [ Melding.spørsmål [ "Hvilken registrerte utdanning ønsker du å redigere?" ] ]
 
-        RegistrerNivå ->
-            [ Melding.spørsmål [ "Legg inn én utdanning av gangen." ]
-            , Melding.spørsmål [ "Hvis du har en bachelorgrad, velg høyere utdanning 1-4 år. Har du en mastergrad, velg høyere utdanning mer enn 4 år." ]
-            , Melding.spørsmål [ "Hvilket nivå har utdanningen du skal legge inn?" ]
+        RegistrerNivå nivåValg ->
+            [ case nivåValg of
+                AlleNivåer ->
+                    [ Melding.spørsmål [ "Legg inn én utdanning av gangen." ]
+                    , Melding.spørsmål [ "Hvis du har en bachelorgrad, velg høyere utdanning 1-4 år. Har du en mastergrad, velg høyere utdanning mer enn 4 år." ]
+                    ]
+
+                GrunnskoleVideregående ->
+                    []
+            , [ Melding.spørsmål [ "Hvilket nivå har utdanningen du skal legge inn?" ]
+              ]
             ]
+                |> List.concat
 
         RegistrerSkole skoleinfo ->
             case skoleinfo.forrige of
@@ -1278,7 +1316,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                     [ Melding.spørsmål [ "Da går vi videre til arbeidserfaring." ] ]
 
                 else
-                    [ Melding.spørsmål [ "Siden du ikke har utdanning, går vi videre til arbeidserfaring." ] ]
+                    [ Melding.spørsmål [ "Ok 😊 Da går vi videre til arbeidserfaring." ] ]
 
             else
                 [ Melding.spørsmål [ "Bra jobba! Da går vi videre." ] ]
@@ -1372,7 +1410,7 @@ modelTilBrukerInput model =
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, jeg har utdanning"
                             |> Knapp.withId (inputIdTilString HarUtdanningId)
-                        , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg har ikke utdanning"
+                        , Knapp.knapp SvarerNeiTilUtdanning "Nei, jeg har ikke utdanning"
                         ]
 
                 else
@@ -1382,6 +1420,13 @@ modelTilBrukerInput model =
                         , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg er ferdig"
                         , Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn"
                         ]
+
+            BekreftHarIkkeUtdanning ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, det vil jeg"
+                        |> Knapp.withId (inputIdTilString BekreftHarIkkeUtdanningId)
+                    , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, det vil jeg ikke"
+                    ]
 
             VelgEnUtdanningÅRedigere ->
                 BrukerInput.knapper Kolonne
@@ -1396,19 +1441,30 @@ modelTilBrukerInput model =
                             []
                     )
 
-            RegistrerNivå ->
+            RegistrerNivå nivåValg ->
                 BrukerInput.knapper Kolonne
-                    [ velgNivåKnapp Grunnskole
-                        |> Knapp.withId (inputIdTilString VelgNivåInput)
-                    , velgNivåKnapp VideregåendeYrkesskole
-                    , velgNivåKnapp Fagskole
-                    , velgNivåKnapp Folkehøyskole
-                    , velgNivåKnapp HøyereUtdanning1til4
-                    , velgNivåKnapp HøyereUtdanning4pluss
-                    , velgNivåKnapp Doktorgrad
-                    , Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
-                        |> Knapp.withType Flat
-                    ]
+                    (case nivåValg of
+                        AlleNivåer ->
+                            [ velgNivåKnapp Grunnskole
+                                |> Knapp.withId (inputIdTilString VelgNivåInput)
+                            , velgNivåKnapp VideregåendeYrkesskole
+                            , velgNivåKnapp Fagskole
+                            , velgNivåKnapp Folkehøyskole
+                            , velgNivåKnapp HøyereUtdanning1til4
+                            , velgNivåKnapp HøyereUtdanning4pluss
+                            , velgNivåKnapp Doktorgrad
+                            , Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
+                                |> Knapp.withType Flat
+                            ]
+
+                        GrunnskoleVideregående ->
+                            [ velgNivåKnapp Grunnskole
+                                |> Knapp.withId (inputIdTilString VelgNivåInput)
+                            , velgNivåKnapp VideregåendeYrkesskole
+                            , Knapp.knapp BrukerVilAvbryteRegistreringen "Avbryt"
+                                |> Knapp.withType Flat
+                            ]
+                    )
 
             RegistrerSkole skoleinfo ->
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereSkole }
@@ -1555,6 +1611,7 @@ modelTilBrukerInput model =
 
 type InputId
     = HarUtdanningId
+    | BekreftHarIkkeUtdanningId
     | RedigerUtdanningId
     | VelgNivåInput
     | RegistrerSkoleInput
@@ -1578,6 +1635,9 @@ inputIdTilString inputId =
     case inputId of
         HarUtdanningId ->
             "har-utdanning"
+
+        BekreftHarIkkeUtdanningId ->
+            "bekreft-har-ikke-utdanning-id"
 
         RedigerUtdanningId ->
             "utdanning-rediger"
