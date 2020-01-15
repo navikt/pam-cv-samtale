@@ -83,10 +83,10 @@ type Samtale
     = RegistrerSertifikatFelt Bool (Typeahead.Model SertifikatTypeahead)
     | RegistrerUtsteder UtstederInfo
     | RegistrerFullførtÅr FullførtÅrInfo
-    | RegistrerFullførtMåned FullførtDatoInfo
-    | SpørOmUtløpsdatoFinnes FullførtDatoInfo
-    | RegistrerUtløperÅr UtløpsårInfo
-    | RegistrerUtløperMåned UtløpsdatoInfo
+    | RegistrerFullførtMåned FullførtMånedInfo
+    | SpørOmUtløpsdatoFinnes SpørOmUtløpsdatoInfo
+    | RegistrerUtløperÅr UtløperÅrInfo
+    | RegistrerUtløperMåned UtløperMånedInfo
     | VisOppsummering OppsummeringsType ValidertSertifikatSkjema
     | EndreOpplysninger (Typeahead.Model SertifikatTypeahead) SertifikatSkjema
     | BekreftSlettingAvPåbegynt ValidertSertifikatSkjema
@@ -97,7 +97,7 @@ type Samtale
 
 
 type alias UtstederInfo =
-    { sertifikatFelt : SertifikatFelt
+    { sertifikat : SertifikatFelt
     , utsteder : String
     }
 
@@ -110,7 +110,14 @@ type alias FullførtÅrInfo =
     }
 
 
-type alias FullførtDatoInfo =
+type alias FullførtMånedInfo =
+    { sertifikat : SertifikatFelt
+    , utsteder : String
+    , fullførtÅr : År
+    }
+
+
+type alias SpørOmUtløpsdatoInfo =
     { sertifikat : SertifikatFelt
     , utsteder : String
     , fullførtMåned : Måned
@@ -118,46 +125,63 @@ type alias FullførtDatoInfo =
     }
 
 
-type alias UtløpsårInfo =
-    { forrigeFeltInfo : FullførtDatoInfo
+type alias UtløperÅrInfo =
+    { sertifikat : SertifikatFelt
+    , utsteder : String
+    , fullførtMåned : Måned
+    , fullførtÅr : År
     , utløperÅr : String
     , visFeilmeldingUtløperÅr : Bool
     }
 
 
-type alias UtløpsdatoInfo =
-    { forrigeFeltInfo : FullførtDatoInfo
-    , utløperMåned : Måned
+type alias UtløperMånedInfo =
+    { sertifikat : SertifikatFelt
+    , utsteder : String
+    , fullførtMåned : Måned
+    , fullførtÅr : År
     , utløperÅr : År
     }
 
 
 sertifikatFeltTilUtsteder : SertifikatFelt -> UtstederInfo
 sertifikatFeltTilUtsteder sertifikatFelt =
-    { sertifikatFelt = sertifikatFelt
+    { sertifikat = sertifikatFelt
     , utsteder = ""
     }
 
 
 utstederTilFullførtÅr : UtstederInfo -> FullførtÅrInfo
 utstederTilFullførtÅr input =
-    { sertifikat = input.sertifikatFelt
+    { sertifikat = input.sertifikat
     , utsteder = input.utsteder
     , fullførtÅr = ""
     , visFeilmeldingFullførtÅr = False
     }
 
 
-fullførtDatoTilUtløpsår : FullførtDatoInfo -> UtløpsårInfo
-fullførtDatoTilUtløpsår input =
-    { forrigeFeltInfo = input
+fullførtMånedTilSpørOmUtløpsdato : FullførtMånedInfo -> Måned -> SpørOmUtløpsdatoInfo
+fullførtMånedTilSpørOmUtløpsdato input måned =
+    { sertifikat = input.sertifikat
+    , utsteder = input.utsteder
+    , fullførtÅr = input.fullførtÅr
+    , fullførtMåned = måned
+    }
+
+
+spørOmUtløpsdatoInfoTilUtløpsår : SpørOmUtløpsdatoInfo -> UtløperÅrInfo
+spørOmUtløpsdatoInfoTilUtløpsår input =
+    { sertifikat = input.sertifikat
+    , utsteder = input.utsteder
+    , fullførtÅr = input.fullførtÅr
+    , fullførtMåned = input.fullførtMåned
     , utløperÅr = ""
     , visFeilmeldingUtløperÅr = False
     }
 
 
-fullførtDatoTilSkjema : FullførtDatoInfo -> ValidertSertifikatSkjema
-fullførtDatoTilSkjema input =
+spørOmUtløpsdatoInfoTilSkjema : SpørOmUtløpsdatoInfo -> ValidertSertifikatSkjema
+spørOmUtløpsdatoInfoTilSkjema input =
     Skjema.initValidertSkjema
         { sertifikatFelt = input.sertifikat
         , utsteder = input.utsteder
@@ -168,14 +192,14 @@ fullførtDatoTilSkjema input =
         }
 
 
-utløpsdatoTilSkjema : UtløpsdatoInfo -> ValidertSertifikatSkjema
-utløpsdatoTilSkjema info =
+utløperMånedInfoTilSkjema : UtløperMånedInfo -> Måned -> ValidertSertifikatSkjema
+utløperMånedInfoTilSkjema info utløperMåned =
     Skjema.initValidertSkjema
-        { sertifikatFelt = info.forrigeFeltInfo.sertifikat
-        , utsteder = info.forrigeFeltInfo.utsteder
-        , fullførtMåned = info.forrigeFeltInfo.fullførtMåned
-        , fullførtÅr = info.forrigeFeltInfo.fullførtÅr
-        , utløpsdato = Oppgitt info.utløperMåned info.utløperÅr
+        { sertifikatFelt = info.sertifikat
+        , utsteder = info.utsteder
+        , fullførtMåned = info.fullførtMåned
+        , fullførtÅr = info.fullførtÅr
+        , utløpsdato = Oppgitt utløperMåned info.utløperÅr
         , id = Nothing
         }
 
@@ -352,7 +376,6 @@ update msg (Model model) =
                         Just fullførtÅr ->
                             ( { sertifikat = fullførtÅrInfo.sertifikat
                               , utsteder = fullførtÅrInfo.utsteder
-                              , fullførtMåned = Januar
                               , fullførtÅr = fullførtÅr
                               }
                                 |> RegistrerFullførtMåned
@@ -374,9 +397,9 @@ update msg (Model model) =
 
         FullførtMånedValgt måned ->
             case model.aktivSamtale of
-                RegistrerFullførtMåned fullførtDatoInfo ->
+                RegistrerFullførtMåned info ->
                     ( måned
-                        |> setFullførtMåned fullførtDatoInfo
+                        |> fullførtMånedTilSpørOmUtløpsdato info
                         |> SpørOmUtløpsdatoFinnes
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -391,7 +414,7 @@ update msg (Model model) =
             case model.aktivSamtale of
                 SpørOmUtløpsdatoFinnes fullførtDatoInfo ->
                     ( fullførtDatoInfo
-                        |> fullførtDatoTilSkjema
+                        |> spørOmUtløpsdatoInfoTilSkjema
                         |> VisOppsummering FørsteGang
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -406,7 +429,7 @@ update msg (Model model) =
             case model.aktivSamtale of
                 SpørOmUtløpsdatoFinnes fullførtDatoInfo ->
                     ( fullførtDatoInfo
-                        |> fullførtDatoTilUtløpsår
+                        |> spørOmUtløpsdatoInfoTilUtløpsår
                         |> RegistrerUtløperÅr
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -436,8 +459,10 @@ update msg (Model model) =
                 RegistrerUtløperÅr utløpsårInfo ->
                     case Dato.stringTilÅr utløpsårInfo.utløperÅr of
                         Just utløperÅr ->
-                            ( { forrigeFeltInfo = utløpsårInfo.forrigeFeltInfo
-                              , utløperMåned = Januar
+                            ( { sertifikat = utløpsårInfo.sertifikat
+                              , utsteder = utløpsårInfo.utsteder
+                              , fullførtMåned = utløpsårInfo.fullførtMåned
+                              , fullførtÅr = utløpsårInfo.fullførtÅr
                               , utløperÅr = utløperÅr
                               }
                                 |> RegistrerUtløperMåned
@@ -459,9 +484,9 @@ update msg (Model model) =
 
         UtløperMånedValgt måned ->
             case model.aktivSamtale of
-                RegistrerUtløperMåned utløpsdatoInfo ->
-                    ( { utløpsdatoInfo | utløperMåned = måned }
-                        |> utløpsdatoTilSkjema
+                RegistrerUtløperMåned utløperMånedInfo ->
+                    ( måned
+                        |> utløperMånedInfoTilSkjema utløperMånedInfo
                         |> VisOppsummering FørsteGang
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -911,11 +936,6 @@ feilmeldingTypeahead typeaheadModel =
 
         Nothing ->
             Just "Velg eller skriv inn sertifisering eller sertifikat"
-
-
-setFullførtMåned : FullførtDatoInfo -> Måned -> FullførtDatoInfo
-setFullførtMåned fullførtDatoInfo måned =
-    { fullførtDatoInfo | fullførtMåned = måned }
 
 
 oppdaterSkjema : SkjemaEndring -> SertifikatSkjema -> SertifikatSkjema

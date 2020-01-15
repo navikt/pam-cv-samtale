@@ -79,7 +79,7 @@ type Samtale
     | RegistrerKursholder KursholderInfo
     | SpørOmBrukerVilLeggeInnFullførtDato KursholderInfo
     | RegistrerFullførtÅr FullførtÅrInfo
-    | RegistrerFullførtMåned FullførtDatoInfo
+    | RegistrerFullførtMåned FullførtMånedInfo
     | RegistrerVarighetEnhet VarighetInfo
     | RegistrerVarighet VarighetInfo
     | VisOppsummering OppsummeringsType ValidertKursSkjema
@@ -111,10 +111,9 @@ type alias FullførtÅrInfo =
     }
 
 
-type alias FullførtDatoInfo =
+type alias FullførtMånedInfo =
     { kursnavn : String
     , kursholder : String
-    , fullførtMåned : Måned
     , fullførtÅr : År
     }
 
@@ -156,11 +155,11 @@ kursholderTilVarighet input =
     }
 
 
-fullførtDatoTilVarighet : FullførtDatoInfo -> VarighetInfo
-fullførtDatoTilVarighet input =
+fullførtMånedTilVarighet : FullførtMånedInfo -> Måned -> VarighetInfo
+fullførtMånedTilVarighet input måned =
     { kursnavn = input.kursnavn
     , kursholder = input.kursholder
-    , fullførtDato = Oppgitt input.fullførtMåned input.fullførtÅr
+    , fullførtDato = Oppgitt måned input.fullførtÅr
     , varighet = ""
     , varighetEnhet = Time
     , tillatÅViseFeilmeldingVarighet = False
@@ -344,7 +343,6 @@ update msg (Model model) =
                         Just fullførtÅr ->
                             ( { kursnavn = fullførtDatoInfo.kursnavn
                               , kursholder = fullførtDatoInfo.kursholder
-                              , fullførtMåned = Januar
                               , fullførtÅr = fullførtÅr
                               }
                                 |> RegistrerFullførtMåned
@@ -367,8 +365,8 @@ update msg (Model model) =
         FullførtMånedValgt måned ->
             case model.aktivSamtale of
                 RegistrerFullførtMåned fullførtDatoInfo ->
-                    ( { fullførtDatoInfo | fullførtMåned = måned }
-                        |> fullførtDatoTilVarighet
+                    ( måned
+                        |> fullførtMånedTilVarighet fullførtDatoInfo
                         |> RegistrerVarighetEnhet
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -719,11 +717,6 @@ avbrytRegistrering model msg =
     , lagtTilSpørsmålCmd model.debugStatus
     )
         |> IkkeFerdig
-
-
-setFullførtMåned : FullførtDatoInfo -> Måned -> FullførtDatoInfo
-setFullførtMåned fullførtDatoInfo måned =
-    { fullførtDatoInfo | fullførtMåned = måned }
 
 
 oppdaterSkjema : SkjemaEndring -> KursSkjema -> KursSkjema
