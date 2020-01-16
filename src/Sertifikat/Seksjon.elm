@@ -82,11 +82,11 @@ type OppsummeringsType
 type Samtale
     = RegistrerSertifikatFelt Bool (Typeahead.Model SertifikatTypeahead)
     | RegistrerUtsteder UtstederInfo
-    | RegistrerFullførtMåned FullførtDatoInfo
-    | RegistrerFullførtÅr FullførtDatoInfo
-    | SpørOmUtløpsdatoFinnes ValidertFullførtDatoInfo
-    | RegistrerUtløperMåned UtløpsdatoInfo
-    | RegistrerUtløperÅr UtløpsdatoInfo
+    | RegistrerFullførtÅr FullførtÅrInfo
+    | RegistrerFullførtMåned FullførtMånedInfo
+    | SpørOmUtløpsdatoFinnes SpørOmUtløpsdatoInfo
+    | RegistrerUtløperÅr UtløperÅrInfo
+    | RegistrerUtløperMåned UtløperMånedInfo
     | VisOppsummering OppsummeringsType ValidertSertifikatSkjema
     | EndreOpplysninger (Typeahead.Model SertifikatTypeahead) SertifikatSkjema
     | BekreftSlettingAvPåbegynt ValidertSertifikatSkjema
@@ -97,21 +97,27 @@ type Samtale
 
 
 type alias UtstederInfo =
-    { sertifikatFelt : SertifikatFelt
+    { sertifikat : SertifikatFelt
     , utsteder : String
     }
 
 
-type alias FullførtDatoInfo =
+type alias FullførtÅrInfo =
     { sertifikat : SertifikatFelt
     , utsteder : String
-    , fullførtMåned : Måned
     , fullførtÅr : String
     , visFeilmeldingFullførtÅr : Bool
     }
 
 
-type alias ValidertFullførtDatoInfo =
+type alias FullførtMånedInfo =
+    { sertifikat : SertifikatFelt
+    , utsteder : String
+    , fullførtÅr : År
+    }
+
+
+type alias SpørOmUtløpsdatoInfo =
     { sertifikat : SertifikatFelt
     , utsteder : String
     , fullførtMåned : Måned
@@ -119,42 +125,63 @@ type alias ValidertFullførtDatoInfo =
     }
 
 
-type alias UtløpsdatoInfo =
-    { forrigeFeltInfo : ValidertFullførtDatoInfo
-    , utløperMåned : Måned
+type alias UtløperÅrInfo =
+    { sertifikat : SertifikatFelt
+    , utsteder : String
+    , fullførtMåned : Måned
+    , fullførtÅr : År
     , utløperÅr : String
     , visFeilmeldingUtløperÅr : Bool
     }
 
 
+type alias UtløperMånedInfo =
+    { sertifikat : SertifikatFelt
+    , utsteder : String
+    , fullførtMåned : Måned
+    , fullførtÅr : År
+    , utløperÅr : År
+    }
+
+
 sertifikatFeltTilUtsteder : SertifikatFelt -> UtstederInfo
 sertifikatFeltTilUtsteder sertifikatFelt =
-    { sertifikatFelt = sertifikatFelt
+    { sertifikat = sertifikatFelt
     , utsteder = ""
     }
 
 
-utstederTilFullførtDato : UtstederInfo -> FullførtDatoInfo
-utstederTilFullførtDato input =
-    { sertifikat = input.sertifikatFelt
+utstederTilFullførtÅr : UtstederInfo -> FullførtÅrInfo
+utstederTilFullførtÅr input =
+    { sertifikat = input.sertifikat
     , utsteder = input.utsteder
-    , fullførtMåned = Januar
     , fullførtÅr = ""
     , visFeilmeldingFullførtÅr = False
     }
 
 
-validertFullførtDatoTilUtløpsdato : ValidertFullførtDatoInfo -> UtløpsdatoInfo
-validertFullførtDatoTilUtløpsdato input =
-    { forrigeFeltInfo = input
-    , utløperMåned = Januar
+fullførtMånedTilSpørOmUtløpsdato : FullførtMånedInfo -> Måned -> SpørOmUtløpsdatoInfo
+fullførtMånedTilSpørOmUtløpsdato input måned =
+    { sertifikat = input.sertifikat
+    , utsteder = input.utsteder
+    , fullførtÅr = input.fullførtÅr
+    , fullførtMåned = måned
+    }
+
+
+spørOmUtløpsdatoInfoTilUtløpsår : SpørOmUtløpsdatoInfo -> UtløperÅrInfo
+spørOmUtløpsdatoInfoTilUtløpsår input =
+    { sertifikat = input.sertifikat
+    , utsteder = input.utsteder
+    , fullførtÅr = input.fullførtÅr
+    , fullførtMåned = input.fullførtMåned
     , utløperÅr = ""
     , visFeilmeldingUtløperÅr = False
     }
 
 
-validertFullførtDatoTilSkjema : ValidertFullførtDatoInfo -> ValidertSertifikatSkjema
-validertFullførtDatoTilSkjema input =
+spørOmUtløpsdatoInfoTilSkjema : SpørOmUtløpsdatoInfo -> ValidertSertifikatSkjema
+spørOmUtløpsdatoInfoTilSkjema input =
     Skjema.initValidertSkjema
         { sertifikatFelt = input.sertifikat
         , utsteder = input.utsteder
@@ -165,14 +192,14 @@ validertFullførtDatoTilSkjema input =
         }
 
 
-utløpsdatoTilSkjema : UtløpsdatoInfo -> År -> ValidertSertifikatSkjema
-utløpsdatoTilSkjema info år =
+utløperMånedInfoTilSkjema : UtløperMånedInfo -> Måned -> ValidertSertifikatSkjema
+utløperMånedInfoTilSkjema info utløperMåned =
     Skjema.initValidertSkjema
-        { sertifikatFelt = info.forrigeFeltInfo.sertifikat
-        , utsteder = info.forrigeFeltInfo.utsteder
-        , fullførtMåned = info.forrigeFeltInfo.fullførtMåned
-        , fullførtÅr = info.forrigeFeltInfo.fullførtÅr
-        , utløpsdato = Oppgitt info.utløperMåned år
+        { sertifikatFelt = info.sertifikat
+        , utsteder = info.utsteder
+        , fullførtMåned = info.fullførtMåned
+        , fullførtÅr = info.fullførtÅr
+        , utløpsdato = Oppgitt utløperMåned info.utløperÅr
         , id = Nothing
         }
 
@@ -190,8 +217,8 @@ type Msg
     | FullførtMånedValgt Måned
     | VilRegistrereFullførtÅr
     | OppdatererFullførtÅr String
-    | VilRegistrereUtløperMåned
-    | VilIkkeRegistrereUtløpesdato
+    | VilRegistrereUtløpsdato
+    | VilIkkeRegistrereUtløpsdato
     | UtløperMånedValgt Måned
     | VilRegistrereUtløperÅr
     | OppdatererUtløperÅr String
@@ -303,8 +330,8 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerUtsteder input ->
                     ( input
-                        |> utstederTilFullførtDato
-                        |> RegistrerFullførtMåned
+                        |> utstederTilFullførtÅr
+                        |> RegistrerFullførtÅr
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -328,48 +355,6 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        FullførtMånedValgt måned ->
-            case model.aktivSamtale of
-                RegistrerFullførtMåned fullførtDatoInfo ->
-                    ( måned
-                        |> setFullførtMåned fullførtDatoInfo
-                        |> RegistrerFullførtÅr
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                _ ->
-                    ( Model model, Cmd.none )
-                        |> IkkeFerdig
-
-        VilRegistrereFullførtÅr ->
-            case model.aktivSamtale of
-                RegistrerFullførtÅr fullførtDatoInfo ->
-                    case Dato.stringTilÅr fullførtDatoInfo.fullførtÅr of
-                        Just fullførtÅr ->
-                            ( { sertifikat = fullførtDatoInfo.sertifikat
-                              , utsteder = fullførtDatoInfo.utsteder
-                              , fullførtMåned = fullførtDatoInfo.fullførtMåned
-                              , fullførtÅr = fullførtÅr
-                              }
-                                |> SpørOmUtløpsdatoFinnes
-                                |> oppdaterSamtale model (SvarFraMsg msg)
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
-                        Nothing ->
-                            ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
-                                |> RegistrerFullførtÅr
-                                |> oppdaterSamtale model IngenNyeMeldinger
-                            , Cmd.none
-                            )
-                                |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
         OppdatererFullførtÅr string ->
             case model.aktivSamtale of
                 RegistrerFullførtÅr fullførtDatoInfo ->
@@ -384,11 +369,52 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        VilIkkeRegistrereUtløpesdato ->
+        VilRegistrereFullførtÅr ->
+            case model.aktivSamtale of
+                RegistrerFullførtÅr fullførtÅrInfo ->
+                    case Dato.stringTilÅr fullførtÅrInfo.fullførtÅr of
+                        Just fullførtÅr ->
+                            ( { sertifikat = fullførtÅrInfo.sertifikat
+                              , utsteder = fullførtÅrInfo.utsteder
+                              , fullførtÅr = fullførtÅr
+                              }
+                                |> RegistrerFullførtMåned
+                                |> oppdaterSamtale model (SvarFraMsg msg)
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            ( { fullførtÅrInfo | visFeilmeldingFullførtÅr = True }
+                                |> RegistrerFullførtÅr
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        FullførtMånedValgt måned ->
+            case model.aktivSamtale of
+                RegistrerFullførtMåned info ->
+                    ( måned
+                        |> fullførtMånedTilSpørOmUtløpsdato info
+                        |> SpørOmUtløpsdatoFinnes
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+        VilIkkeRegistrereUtløpsdato ->
             case model.aktivSamtale of
                 SpørOmUtløpsdatoFinnes fullførtDatoInfo ->
                     ( fullførtDatoInfo
-                        |> validertFullførtDatoTilSkjema
+                        |> spørOmUtløpsdatoInfoTilSkjema
                         |> VisOppsummering FørsteGang
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -399,12 +425,12 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        VilRegistrereUtløperMåned ->
+        VilRegistrereUtløpsdato ->
             case model.aktivSamtale of
                 SpørOmUtløpsdatoFinnes fullførtDatoInfo ->
                     ( fullførtDatoInfo
-                        |> validertFullførtDatoTilUtløpsdato
-                        |> RegistrerUtløperMåned
+                        |> spørOmUtløpsdatoInfoTilUtløpsår
+                        |> RegistrerUtløperÅr
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -414,13 +440,13 @@ update msg (Model model) =
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
-        UtløperMånedValgt måned ->
+        OppdatererUtløperÅr string ->
             case model.aktivSamtale of
-                RegistrerUtløperMåned utløpsdatoInfo ->
-                    ( { utløpsdatoInfo | utløperMåned = måned }
+                RegistrerUtløperÅr utløpsdatoInfo ->
+                    ( { utløpsdatoInfo | utløperÅr = string }
                         |> RegistrerUtløperÅr
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -430,18 +456,23 @@ update msg (Model model) =
 
         VilRegistrereUtløperÅr ->
             case model.aktivSamtale of
-                RegistrerUtløperÅr utløpsdatoInfo ->
-                    case Dato.stringTilÅr utløpsdatoInfo.utløperÅr of
+                RegistrerUtløperÅr utløpsårInfo ->
+                    case Dato.stringTilÅr utløpsårInfo.utløperÅr of
                         Just utløperÅr ->
-                            ( utløpsdatoTilSkjema utløpsdatoInfo utløperÅr
-                                |> VisOppsummering FørsteGang
+                            ( { sertifikat = utløpsårInfo.sertifikat
+                              , utsteder = utløpsårInfo.utsteder
+                              , fullførtMåned = utløpsårInfo.fullførtMåned
+                              , fullførtÅr = utløpsårInfo.fullførtÅr
+                              , utløperÅr = utløperÅr
+                              }
+                                |> RegistrerUtløperMåned
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
                         Nothing ->
-                            ( { utløpsdatoInfo | visFeilmeldingUtløperÅr = True }
+                            ( { utløpsårInfo | visFeilmeldingUtløperÅr = True }
                                 |> RegistrerUtløperÅr
                                 |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
@@ -451,13 +482,14 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdatererUtløperÅr string ->
+        UtløperMånedValgt måned ->
             case model.aktivSamtale of
-                RegistrerUtløperÅr utløpsdatoInfo ->
-                    ( { utløpsdatoInfo | utløperÅr = string }
-                        |> RegistrerUtløperÅr
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
+                RegistrerUtløperMåned utløperMånedInfo ->
+                    ( måned
+                        |> utløperMånedInfoTilSkjema utløperMånedInfo
+                        |> VisOppsummering FørsteGang
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
@@ -906,11 +938,6 @@ feilmeldingTypeahead typeaheadModel =
             Just "Velg eller skriv inn sertifisering eller sertifikat"
 
 
-setFullførtMåned : FullførtDatoInfo -> Måned -> FullførtDatoInfo
-setFullførtMåned fullførtDatoInfo måned =
-    { fullførtDatoInfo | fullførtMåned = måned }
-
-
 oppdaterSkjema : SkjemaEndring -> SertifikatSkjema -> SertifikatSkjema
 oppdaterSkjema endring skjema =
     case endring of
@@ -1337,9 +1364,9 @@ modelTilBrukerInput model =
 
             SpørOmUtløpsdatoFinnes _ ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp VilRegistrereUtløperMåned "Ja, sertifiseringen utløper"
+                    [ Knapp.knapp VilRegistrereUtløpsdato "Ja, sertifiseringen utløper"
                         |> Knapp.withId (inputIdTilString LeggTilUtløperId)
-                    , Knapp.knapp VilIkkeRegistrereUtløpesdato "Nei, sertifiseringen utløper ikke"
+                    , Knapp.knapp VilIkkeRegistrereUtløpsdato "Nei, sertifiseringen utløper ikke"
                     ]
 
             RegistrerUtløperMåned _ ->
