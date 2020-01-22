@@ -4,6 +4,7 @@ module Sertifikat.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -34,10 +35,12 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Result.Extra as Result
-import Sertifikat.Sertifikat exposing (Sertifikat)
+import Sertifikat.Sertifikat as Sertifikat exposing (Sertifikat)
 import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
 import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import Task
+import Tid exposing (nyesteSistLagretVerdi)
+import Time exposing (Posix)
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 
 
@@ -54,6 +57,7 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , sertifikatListe : List Sertifikat
     , debugStatus : DebugStatus
+    , sistLagretFraForrigeSeksjon : Posix
     }
 
 
@@ -62,9 +66,18 @@ meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
 
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    let
+        sistLagretListe =
+            List.map (\x -> Time.posixToMillis (Sertifikat.sistEndretDato x)) model.sertifikatListe
+    in
+    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
+
+
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Sertifikat) FerdigAnimertMeldingsLogg
+    | Ferdig Posix (List Sertifikat) FerdigAnimertMeldingsLogg
 
 
 type AvsluttetGrunn
@@ -642,7 +655,7 @@ update msg (Model model) =
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen lagret 👍" ] ]
                             in
                             ( VenterPåAnimasjonFørFullføring sertifikater AnnenAvslutning
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg, sertifikatListe = sertifikater } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -976,7 +989,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring sertifikatListe _ ->
-                    Ferdig sertifikatListe ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model model)) sertifikatListe ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -1514,8 +1527,8 @@ lagreSertifikat msgConstructor skjema =
 --- INIT ---
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Sertifikat -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg sertifikatListe =
+init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Sertifikat -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg sertifikatListe =
     let
         aktivSamtale =
             initSamtaleTypeahead
@@ -1530,6 +1543,7 @@ init debugStatus gammelMeldingsLogg sertifikatListe =
         , aktivSamtale = aktivSamtale
         , sertifikatListe = sertifikatListe
         , debugStatus = debugStatus
+        , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
         }
     , lagtTilSpørsmålCmd debugStatus
     )

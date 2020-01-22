@@ -4,6 +4,7 @@ module Kurs.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -25,7 +26,7 @@ import FrontendModuler.ValgfriDatoInput as ValgfriDatoInput
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
-import Kurs.Kurs exposing (Kurs)
+import Kurs.Kurs as Kurs exposing (Kurs)
 import Kurs.Skjema as Skjema exposing (Felt(..), FullførtDato(..), KursSkjema, ValidertKursSkjema, VarighetEnhet(..))
 import LagreStatus exposing (LagreStatus)
 import Meldinger.Melding as Melding exposing (Melding(..))
@@ -34,6 +35,8 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
+import Tid exposing (nyesteSistLagretVerdi)
+import Time exposing (Posix)
 
 
 
@@ -49,6 +52,7 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , kursListe : List Kurs
     , debugStatus : DebugStatus
+    , sistLagretFraForrigeSeksjon : Posix
     }
 
 
@@ -57,9 +61,18 @@ meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
 
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    let
+        sistLagretListe =
+            List.map (\x -> Time.posixToMillis (Kurs.sistEndretDato x)) model.kursListe
+    in
+    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
+
+
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Kurs) FerdigAnimertMeldingsLogg
+    | Ferdig Posix (List Kurs) FerdigAnimertMeldingsLogg
 
 
 type AvsluttetGrunn
@@ -574,7 +587,7 @@ update msg (Model model) =
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til et kurs 👍" ] ]
                             in
                             ( VenterPåAnimasjonFørFullføring kurs AnnenAvslutning
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg, kursListe = kurs } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -751,7 +764,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring kursListe _ ->
-                    Ferdig kursListe ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model model)) kursListe ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -1282,8 +1295,8 @@ maybeHvisTrue bool maybe =
 --- INIT ---
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Kurs -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg kursListe =
+init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Kurs -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg kursListe =
     let
         aktivSamtale =
             RegistrerKursnavn { kursnavn = "", tillatÅViseFeilmeldingKursnavn = False }
@@ -1296,6 +1309,7 @@ init debugStatus gammelMeldingsLogg kursListe =
         , aktivSamtale = aktivSamtale
         , kursListe = kursListe
         , debugStatus = debugStatus
+        , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
         }
     , lagtTilSpørsmålCmd debugStatus
     )

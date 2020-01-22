@@ -425,4 +425,5 @@ encode (ValidertPersonaliaSkjema info) =
                 |> Maybe.withDefault ""
                 |> Json.Encode.string
           )
+        , ( "sistEndretDato", Json.Encode.string "" )
         ]

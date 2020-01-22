@@ -6,6 +6,7 @@ module Arbeidserfaring.Arbeidserfaring exposing
     , fraMåned
     , fraÅr
     , id
+    , sistEndretDato
     , sted
     , tilDato
     , yrke
@@ -16,8 +17,10 @@ module Arbeidserfaring.Arbeidserfaring exposing
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Dato.Dato as Dato exposing (TilDato(..), År)
 import Dato.Maned exposing (Måned)
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type Arbeidserfaring
@@ -38,6 +41,7 @@ type alias ArbeidserfaringInfo =
     , tilDato : TilDato
     , yrkeFritekst : Maybe String
     , beskrivelse : Maybe String
+    , sistEndretDato : Posix
     }
 
 
@@ -91,6 +95,11 @@ beskrivelse (Arbeidserfaring info) =
     info.beskrivelse
 
 
+sistEndretDato : Arbeidserfaring -> Posix
+sistEndretDato (Arbeidserfaring info) =
+    info.sistEndretDato
+
+
 
 {--
 Arbeidserfaringdto:
@@ -141,6 +150,7 @@ lagArbeidserfaring backendData ( fraMåned_, fraÅr_ ) tilDato_ =
                 backendData.yrke
                 backendData.styrkkode
                 backendData.konseptid
+        , sistEndretDato = backendData.sistEndretDato
         }
 
 
@@ -172,6 +182,7 @@ type alias BackendData =
     , yrkeFritekst : Maybe String
     , konseptid : Maybe String
     , beskrivelse : Maybe String
+    , sistEndretDato : Posix
     }
 
 
@@ -189,3 +200,4 @@ decodeBackendData =
         |> required "yrkeFritekst" (nullable string)
         |> required "konseptid" (nullable string)
         |> required "beskrivelse" (nullable string)
+        |> required "sistEndretDato" Iso8601.decoder

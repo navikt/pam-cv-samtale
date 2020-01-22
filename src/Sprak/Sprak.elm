@@ -1,7 +1,9 @@
-module Sprak.Sprak exposing (Språk, decode, id, muntlig, skriftlig, sprak)
+module Sprak.Sprak exposing (Språk, decode, id, muntlig, sistEndretDato, skriftlig, sprak)
 
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type Språk
@@ -13,6 +15,7 @@ type alias SpråkInfo =
     , sprak : Maybe String
     , muntlig : Maybe String
     , skriftlig : Maybe String
+    , sistEndretDato : Posix
     }
 
 
@@ -36,6 +39,11 @@ skriftlig (Språk info) =
     info.skriftlig
 
 
+sistEndretDato : Språk -> Posix
+sistEndretDato (Språk info) =
+    info.sistEndretDato
+
+
 
 ---- Decoder ----
 
@@ -53,3 +61,4 @@ decodeBackendData =
         |> required "sprak" (nullable string)
         |> required "muntlig" (nullable string)
         |> required "skriftlig" (nullable string)
+        |> required "sistEndretDato" Iso8601.decoder

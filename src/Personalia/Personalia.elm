@@ -9,12 +9,15 @@ module Personalia.Personalia exposing
     , id
     , postnummer
     , poststed
+    , sistEndretDato
     , telefon
     )
 
+import Iso8601
 import Json.Decode exposing (Decoder, nullable, string, succeed)
 import Json.Decode.Pipeline exposing (required)
 import Personalia.PersonaliaId as PersonaliaId exposing (PersonaliaId)
+import Time exposing (Posix)
 
 
 type Personalia
@@ -31,6 +34,7 @@ type alias PersonaliaInfo =
     , gateadresse : Maybe String
     , postnummer : Maybe String
     , poststed : Maybe String
+    , sistEndretDato : Posix
     }
 
 
@@ -79,6 +83,11 @@ poststed (Personalia info) =
     info.poststed
 
 
+sistEndretDato : Personalia -> Posix
+sistEndretDato (Personalia info) =
+    info.sistEndretDato
+
+
 
 --- DECODER ---
 
@@ -101,3 +110,4 @@ decodeBackendData =
         |> required "gateadresse" (nullable string)
         |> required "postnummer" (nullable string)
         |> required "poststed" (nullable string)
+        |> required "sistEndretDato" Iso8601.decoder

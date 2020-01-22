@@ -6,11 +6,14 @@ module Fagdokumentasjon.Fagdokumentasjon exposing
     , fagdokumentasjonType
     , id
     , konseptId
+    , sistEndretDato
     , tittel
     )
 
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type Fagdokumentasjon
@@ -23,6 +26,7 @@ type alias FagdokumentasjonInfo =
     , beskrivelse : Maybe String
     , konseptId : Maybe String
     , fagdokumentasjonType : FagdokumentasjonType
+    , sistEndretDato : Posix
     }
 
 
@@ -57,6 +61,11 @@ fagdokumentasjonType (Fagdokumentasjon info) =
     info.fagdokumentasjonType
 
 
+sistEndretDato : Fagdokumentasjon -> Posix
+sistEndretDato (Fagdokumentasjon info) =
+    info.sistEndretDato
+
+
 
 ---- Decoder ----
 
@@ -76,6 +85,7 @@ decodeBackendData =
         |> required "beskrivelse" (nullable string)
         |> required "konseptId" (nullable string)
         |> required "type" string
+        |> required "sistEndretDato" Iso8601.decoder
 
 
 tilFagdokumentasjonInfo : BackendData -> Decoder FagdokumentasjonInfo
@@ -91,6 +101,7 @@ lagFagdokumentasjonInfo backendData fd =
     , konseptId = backendData.konseptId
     , beskrivelse = backendData.beskrivelse
     , fagdokumentasjonType = fd
+    , sistEndretDato = backendData.sistEndretDato
     }
 
 
@@ -115,4 +126,5 @@ type alias BackendData =
     , konseptId : Maybe String
     , beskrivelse : Maybe String
     , type_ : String
+    , sistEndretDato : Posix
     }

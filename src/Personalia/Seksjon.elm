@@ -4,6 +4,7 @@ module Personalia.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -36,6 +37,8 @@ import Personalia.Poststed exposing (Poststed)
 import Personalia.Skjema as Skjema exposing (PersonaliaSkjema, ValidertPersonaliaSkjema)
 import Process
 import Task
+import Tid exposing (nyestePosix)
+import Time exposing (Posix)
 
 
 
@@ -51,6 +54,7 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , personalia : Personalia
     , debugStatus : DebugStatus
+    , sistLagretFraCV : Posix
     }
 
 
@@ -83,12 +87,17 @@ type FullføringStatus
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig Personalia FerdigAnimertMeldingsLogg
+    | Ferdig Posix Personalia FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
+
+
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    nyestePosix (Personalia.sistEndretDato model.personalia) model.sistLagretFraCV
 
 
 
@@ -586,7 +595,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring personalia _ ->
-                    Ferdig personalia ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model { model | personalia = personalia })) personalia ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -608,7 +617,7 @@ fullførSeksjonHvisMeldingsloggErFerdig : Personalia -> Model -> SamtaleStatus
 fullførSeksjonHvisMeldingsloggErFerdig personalia (Model model) =
     case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
         FerdigAnimert ferdigAnimertMeldingsLogg ->
-            Ferdig personalia ferdigAnimertMeldingsLogg
+            Ferdig (sistLagret (Model { model | personalia = personalia })) personalia ferdigAnimertMeldingsLogg
 
         MeldingerGjenstår ->
             ( Model model, lagtTilSpørsmålCmd model.debugStatus )
@@ -959,8 +968,8 @@ viewTelefonISkjema personaliaSkjema =
 --- INIT ---
 
 
-init : DebugStatus -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
-init debugStatus personalia gammelMeldingsLogg =
+init : DebugStatus -> Posix -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraCV personalia gammelMeldingsLogg =
     let
         aktivSamtale =
             BekreftPersonalia (OpprinneligPersonalia personalia)
@@ -973,6 +982,7 @@ init debugStatus personalia gammelMeldingsLogg =
         , aktivSamtale = aktivSamtale
         , personalia = personalia
         , debugStatus = debugStatus
+        , sistLagretFraCV = sistLagretFraCV
         }
     , lagtTilSpørsmålCmd debugStatus
     )

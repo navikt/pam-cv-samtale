@@ -4,6 +4,7 @@ module Utdanning.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -35,6 +36,8 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
+import Tid exposing (nyestePosix)
+import Time exposing (Posix)
 import Utdanning.Skjema as Skjema exposing (Felt(..), UtdanningSkjema, ValidertUtdanningSkjema)
 import Utdanning.Utdanning as Utdanning exposing (Nivå(..), Utdanning)
 import Validering
@@ -53,6 +56,7 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , utdanningListe : List Utdanning
     , debugStatus : DebugStatus
+    , sistLagretFraForrigeSeksjon : Posix
     }
 
 
@@ -99,12 +103,27 @@ type Samtale
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Utdanning) FerdigAnimertMeldingsLogg
+    | Ferdig Posix (List Utdanning) FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
+
+
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    let
+        sistLagretListe =
+            List.map (\x -> Time.posixToMillis (Utdanning.sistEndretDato x)) model.utdanningListe
+    in
+    case List.maximum sistLagretListe of
+        Just value ->
+            model.sistLagretFraForrigeSeksjon
+                |> nyestePosix (Time.millisToPosix value)
+
+        Nothing ->
+            model.sistLagretFraForrigeSeksjon
 
 
 type alias SkoleInfo =
@@ -1050,7 +1069,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring utdanningsListe _ ->
-                    Ferdig utdanningsListe ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model model)) utdanningsListe ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -1858,8 +1877,8 @@ lagreUtdanning msgConstructor skjema =
             Api.opprettUtdanning msgConstructor skjema
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Utdanning -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg utdanningListe =
+init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Utdanning -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg utdanningListe =
     let
         aktivSamtale =
             Intro utdanningListe
@@ -1872,6 +1891,7 @@ init debugStatus gammelMeldingsLogg utdanningListe =
         , aktivSamtale = aktivSamtale
         , utdanningListe = utdanningListe
         , debugStatus = debugStatus
+        , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
         }
     , lagtTilSpørsmålCmd debugStatus
     )

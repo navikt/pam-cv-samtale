@@ -4,6 +4,7 @@ module Sprak.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -33,6 +34,8 @@ import Sprak.Sprak as Språk exposing (Språk)
 import Sprak.SprakKode as SpråkKode exposing (SpråkKode)
 import String.Extra as String
 import Task
+import Tid exposing (nyesteSistLagretVerdi)
+import Time exposing (Posix)
 
 
 
@@ -49,7 +52,17 @@ type alias ModelInfo =
     , språk : List Språk
     , språkKoder : RemoteDataSpråkKoder
     , debugStatus : DebugStatus
+    , sistLagretFraForrigeSeksjon : Posix
     }
+
+
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    let
+        sistLagretListe =
+            List.map (\x -> Time.posixToMillis (Språk.sistEndretDato x)) model.språk
+    in
+    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
 
 
 type Samtale
@@ -77,7 +90,7 @@ type AvsluttetGrunn
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig FerdigAnimertMeldingsLogg
+    | Ferdig Posix FerdigAnimertMeldingsLogg
 
 
 type RemoteDataSpråkKoder
@@ -488,7 +501,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring ->
-                    Ferdig ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model model)) ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -841,13 +854,13 @@ modelTilBrukerInput model =
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                            [ Knapp.knapp BrukerVilAvslutteSeksjonen "Gå videre"
                             ]
 
                     PrøvPåNytt ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp SendSkjemaPåNytt "Ja, prøv på nytt"
-                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Nei, gå videre"
+                            [ Knapp.knapp SendSkjemaPåNytt "Prøv på nytt"
+                            , Knapp.knapp BrukerVilAvslutteSeksjonen "Gå videre"
                             ]
 
                     LoggInn ->
@@ -967,8 +980,8 @@ skriftligKnapp språkKode ferdighet =
 --- INIT ---
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Språk -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg språkFerdighet =
+init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Språk -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg språkFerdighet =
     let
         aktivSamtale =
             IntroLeggTilNorsk språkFerdighet
@@ -979,6 +992,7 @@ init debugStatus gammelMeldingsLogg språkFerdighet =
             , språk = språkFerdighet
             , språkKoder = Loading
             , debugStatus = debugStatus
+            , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
             }
     in
     ( Model

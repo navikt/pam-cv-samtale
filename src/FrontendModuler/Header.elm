@@ -7,6 +7,7 @@ import Html.Events exposing (onClick)
 import Metrikker
 import Svg exposing (path, svg)
 import Svg.Attributes exposing (d, fill, viewBox)
+import Time exposing (Posix, utc)
 
 
 type Header msg
@@ -17,12 +18,33 @@ type alias HeaderInput msg =
     { windowWidth : Int
     , onAvsluttClick : msg
     , aktivSeksjon : Metrikker.Seksjon
+    , sistLagret : Maybe String
     }
 
 
 header : HeaderInput msg -> Header msg
 header input =
     Header input
+
+
+buttonFullScreen : msg -> Html msg
+buttonFullScreen onAvsluttClick =
+    button
+        [ class "Knapp Knapp--flat avslutt-knapp-med-ikon"
+        , onClick onAvsluttClick
+        ]
+        [ text "Avslutt CV-registreringen"
+        , i [ class "avslutt-ikon" ] []
+        ]
+
+
+sistLagretToHtml : String -> Html msg
+sistLagretToHtml sistLagret =
+    if String.contains ":" sistLagret then
+        span [] [ text "Sist lagret: ", time [ datetime "00:00" ] [ text sistLagret ] ]
+
+    else
+        span [] [ text ("Sist lagret: " ++ sistLagret) ]
 
 
 toHtml : Header msg -> Html msg
@@ -33,13 +55,15 @@ toHtml (Header options) =
                 [ arbeidsplassenLogo ]
             ]
         , if options.windowWidth > 460 then
-            button
-                [ class "Knapp Knapp--flat avslutt-knapp-med-ikon"
-                , onClick options.onAvsluttClick
-                ]
-                [ text "Avslutt CV-registreringen"
-                , i [ class "avslutt-ikon" ] []
-                ]
+            case options.sistLagret of
+                Just time ->
+                    div [ class "header__rightSection" ]
+                        [ sistLagretToHtml time
+                        , buttonFullScreen options.onAvsluttClick
+                        ]
+
+                Nothing ->
+                    buttonFullScreen options.onAvsluttClick
 
           else
             button

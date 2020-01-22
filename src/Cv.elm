@@ -9,6 +9,7 @@ module Cv exposing
     , oppdaterFørerkort
     , sammendrag
     , sertifikater
+    , sistEndretDato
     , spraakferdighet
     , utdanning
     )
@@ -17,12 +18,14 @@ import AnnenErfaring.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Arbeidserfaring.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Fagdokumentasjon.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
 import Forerkort.Forerkort as Forerkort exposing (Førerkort)
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 import Kurs.Kurs as Kurs exposing (Kurs)
 import Sammendrag exposing (Sammendrag)
 import Sertifikat.Sertifikat as Sertifikat exposing (Sertifikat)
 import Sprak.Sprak as Språk exposing (Språk)
+import Time exposing (Posix)
 import Utdanning.Utdanning as Utdanning exposing (Utdanning)
 
 
@@ -33,7 +36,7 @@ type Cv
 type alias CvInfo =
     { cvid : Int
     , disponererBil : Bool
-    , sistEndretDato : String
+    , sistEndretDato : Posix
     , sistEndretAvNav : Bool
     , arbeidserfaring : List Arbeidserfaring
     , utdanningListe : List Utdanning
@@ -56,7 +59,7 @@ disponererBil (Cv info) =
     info.disponererBil
 
 
-sistEndretDato : Cv -> String
+sistEndretDato : Cv -> Posix
 sistEndretDato (Cv info) =
     info.sistEndretDato
 
@@ -135,7 +138,7 @@ decodeBackendData =
     succeed CvInfo
         |> required "cvid" int
         |> required "disponererBil" bool
-        |> required "sistEndretDato" string
+        |> required "sistEndretDato" Iso8601.decoder
         |> required "sistEndretAvNav" bool
         |> required "arbeidsErfaring" (list Arbeidserfaring.decode)
         |> required "utdanninger" (list Utdanning.decode)

@@ -1,7 +1,9 @@
-module AnnenErfaring.AnnenErfaring exposing (AnnenErfaring, beskrivelse, decode, fradato, id, naavaerende, rolle, tildato)
+module AnnenErfaring.AnnenErfaring exposing (AnnenErfaring, beskrivelse, decode, fradato, id, naavaerende, rolle, sistEndretDato, tildato)
 
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type AnnenErfaring
@@ -15,6 +17,7 @@ type alias AnnenErfaringInfo =
     , naavaerende : Maybe Bool
     , beskrivelse : Maybe String
     , rolle : Maybe String
+    , sistEndretDato : Posix
     }
 
 
@@ -48,6 +51,11 @@ tildato (AnnenErfaring info) =
     info.tildato
 
 
+sistEndretDato : AnnenErfaring -> Posix
+sistEndretDato (AnnenErfaring info) =
+    info.sistEndretDato
+
+
 
 ---- Decoder ----
 
@@ -67,3 +75,4 @@ decodeBackendData =
         |> required "naavaerende" (nullable bool)
         |> required "beskrivelse" (nullable string)
         |> required "rolle" (nullable string)
+        |> required "sistEndretDato" Iso8601.decoder

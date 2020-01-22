@@ -6,6 +6,7 @@ module Fagdokumentasjon.Seksjon exposing
     , initFagbrev
     , initMesterbrev
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -16,7 +17,7 @@ import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
-import Fagdokumentasjon.Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
+import Fagdokumentasjon.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon, FagdokumentasjonType(..))
 import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
@@ -35,6 +36,8 @@ import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Result.Extra as Result
 import Task
+import Tid exposing (nyesteSistLagretVerdi)
+import Time exposing (Posix)
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 
 
@@ -52,6 +55,7 @@ type alias ModelInfo =
     , fagdokumentasjonListe : List Fagdokumentasjon
     , fagdokumentasjonType : FagdokumentasjonType
     , debugStatus : DebugStatus
+    , sistLagretFraForrigeSeksjon : Posix
     }
 
 
@@ -87,12 +91,21 @@ type LagreStatus
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Fagdokumentasjon) FerdigAnimertMeldingsLogg
+    | Ferdig Posix (List Fagdokumentasjon) FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
+
+
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    let
+        sistLagretListe =
+            List.map (\x -> Time.posixToMillis (Fagdokumentasjon.sistEndretDato x)) model.fagdokumentasjonListe
+    in
+    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
 
 
 type alias BeskrivelseInfo =
@@ -373,7 +386,7 @@ update msg (Model model) =
                                                 [ meldingForLagringSuccess skjema ]
                             in
                             ( VenterPåAnimasjonFørFullføring fagdokumentasjoner AnnenAvslutning
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg, fagdokumentasjonListe = fagdokumentasjoner } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -708,7 +721,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring fagdokumentasjonListe _ ->
-                    Ferdig fagdokumentasjonListe ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model model)) fagdokumentasjonListe ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -1171,8 +1184,8 @@ typeaheadLabel fagdokumentasjonType =
 --- INIT ---
 
 
-init : FagdokumentasjonType -> DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-init fagdokumentasjonType debugStatus gammelMeldingsLogg fagdokumentasjonListe =
+init : FagdokumentasjonType -> DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+init fagdokumentasjonType debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg fagdokumentasjonListe =
     let
         aktivSamtale =
             initSamtaleTypeahead fagdokumentasjonType
@@ -1188,22 +1201,23 @@ init fagdokumentasjonType debugStatus gammelMeldingsLogg fagdokumentasjonListe =
         , fagdokumentasjonListe = fagdokumentasjonListe
         , fagdokumentasjonType = fagdokumentasjonType
         , debugStatus = debugStatus
+        , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
         }
     , lagtTilSpørsmålCmd debugStatus
     )
 
 
-initFagbrev : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initFagbrev : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
 initFagbrev =
     init SvennebrevFagbrev
 
 
-initMesterbrev : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initMesterbrev : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
 initMesterbrev =
     init Mesterbrev
 
 
-initAutorisasjon : DebugStatus -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
+initAutorisasjon : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
 initAutorisasjon =
     init Autorisasjon
 

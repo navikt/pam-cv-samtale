@@ -4,6 +4,7 @@ module Forerkort.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -35,6 +36,8 @@ import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import String.Extra as String
 import Task
+import Tid exposing (nyesteSistLagretVerdi)
+import Time exposing (Posix)
 
 
 
@@ -51,7 +54,17 @@ type alias ModelInfo =
     , førerkort : List Førerkort
     , førerkortKoder : List FørerkortKode
     , debugStatus : DebugStatus
+    , sistLagretFraForrigeSeksjon : Posix
     }
+
+
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    let
+        sistLagretListe =
+            List.map (\x -> Time.posixToMillis (Forerkort.sistEndretDato x)) model.førerkort
+    in
+    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
 
 
 type AvsluttetGrunn
@@ -85,7 +98,7 @@ type Samtale
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List Førerkort) FerdigAnimertMeldingsLogg
+    | Ferdig Posix (List Førerkort) FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -809,7 +822,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring førerkortListe ->
-                    Ferdig førerkortListe ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model model)) førerkortListe ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -1336,8 +1349,8 @@ viewBekreftOppsummering =
 --- INIT ---
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Førerkort -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg førerkort =
+init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Førerkort -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg førerkort =
     let
         aktivSamtale =
             IntroLeggTilKlasseB førerkort
@@ -1348,6 +1361,7 @@ init debugStatus gammelMeldingsLogg førerkort =
             , førerkort = førerkort
             , førerkortKoder = FørerkortKode.liste
             , debugStatus = debugStatus
+            , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
             }
     in
     ( Model
