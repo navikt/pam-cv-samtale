@@ -60,11 +60,9 @@ type alias ModelInfo =
 
 sistLagret : Model -> Posix
 sistLagret (Model model) =
-    let
-        sistLagretListe =
-            List.map (\x -> Time.posixToMillis (Forerkort.sistEndretDato x)) model.førerkort
-    in
-    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
+    model.førerkort
+        |> List.map Forerkort.sistEndretDato
+        |> nyesteSistLagretVerdi model.sistLagretFraForrigeSeksjon
 
 
 type AvsluttetGrunn

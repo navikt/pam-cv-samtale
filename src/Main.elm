@@ -2513,10 +2513,10 @@ init _ url navigationKey =
 
 
 subscriptions : ExtendedModel -> Sub Msg
-subscriptions { model, modalStatus } =
+subscriptions { model, debugStatus, modalStatus } =
     Sub.batch
         [ Browser.Events.onResize WindowResized
-        , Time.every 1000 Tick
+        , Time.every (DebugStatus.tickInterval debugStatus) Tick
         , seksjonSubscriptions model
         , case modalStatus of
             ModalLukket ->

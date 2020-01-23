@@ -101,11 +101,9 @@ meldingsLogg (Model model) =
 
 sistLagret : Model -> Posix
 sistLagret (Model model) =
-    let
-        sistLagretListe =
-            List.map (\x -> Time.posixToMillis (Fagdokumentasjon.sistEndretDato x)) model.fagdokumentasjonListe
-    in
-    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
+    model.fagdokumentasjonListe
+        |> List.map Fagdokumentasjon.sistEndretDato
+        |> nyesteSistLagretVerdi model.sistLagretFraForrigeSeksjon
 
 
 type alias BeskrivelseInfo =

@@ -45,9 +45,15 @@ tilKlokkeSlett zone posix =
     hour ++ ":" ++ minutes
 
 
-nyesteSistLagretVerdi : List Int -> Posix -> Posix
-nyesteSistLagretVerdi sistLagretListe sistLagretFraForrigeSeksjon =
-    case List.maximum sistLagretListe of
+nyesteSistLagretVerdi : Posix -> List Posix -> Posix
+nyesteSistLagretVerdi sistLagretFraForrigeSeksjon sistLagretListe =
+    let
+        sistLagretFraListe =
+            sistLagretListe
+                |> List.map Time.posixToMillis
+                |> List.maximum
+    in
+    case sistLagretFraListe of
         Just value ->
             sistLagretFraForrigeSeksjon
                 |> nyestePosix (Time.millisToPosix value)

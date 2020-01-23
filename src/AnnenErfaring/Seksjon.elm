@@ -66,11 +66,9 @@ meldingsLogg (Model model) =
 
 sistLagret : Model -> Posix
 sistLagret (Model model) =
-    let
-        sistLagretListe =
-            List.map (\x -> Time.posixToMillis (AnnenErfaring.sistEndretDato x)) model.annenErfaringListe
-    in
-    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
+    model.annenErfaringListe
+        |> List.map AnnenErfaring.sistEndretDato
+        |> nyesteSistLagretVerdi model.sistLagretFraForrigeSeksjon
 
 
 type SamtaleStatus

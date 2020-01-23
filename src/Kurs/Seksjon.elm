@@ -63,11 +63,9 @@ meldingsLogg (Model model) =
 
 sistLagret : Model -> Posix
 sistLagret (Model model) =
-    let
-        sistLagretListe =
-            List.map (\x -> Time.posixToMillis (Kurs.sistEndretDato x)) model.kursListe
-    in
-    nyesteSistLagretVerdi sistLagretListe model.sistLagretFraForrigeSeksjon
+    model.kursListe
+        |> List.map Kurs.sistEndretDato
+        |> nyesteSistLagretVerdi model.sistLagretFraForrigeSeksjon
 
 
 type SamtaleStatus
