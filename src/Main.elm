@@ -1,4 +1,4 @@
-module Main exposing (main, viewMeldingsLogg)
+module Main exposing (main)
 
 import AnnenErfaring.Seksjon
 import Api
@@ -34,6 +34,7 @@ import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLog
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Meldinger.SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
+import Meldinger.View as View
 import Metrikker
 import Person exposing (Person)
 import Personalia.Personalia as Personalia exposing (Personalia)
@@ -858,7 +859,7 @@ successModelTilMetrikkSeksjon { aktivSeksjon } =
 
 type alias AndreSamtaleStegInfo =
     { aktivSamtale : Samtale
-    , meldingsLogg : MeldingsLogg
+    , meldingsLogg : MeldingsLogg AndreSamtaleStegMsg
     }
 
 
@@ -1036,16 +1037,26 @@ updateAndreSamtaleSteg model msg info =
             case info.aktivSamtale of
                 Introduksjon _ ->
                     let
-                        ( personaliaModel, personaliaCmd ) =
+                        meldingslogg =
                             info.meldingsLogg
                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
-                                |> Personalia.Seksjon.init model.debugStatus model.personalia
                     in
-                    ( personaliaModel
-                        |> PersonaliaSeksjon
-                        |> oppdaterSamtaleSeksjon model
-                    , Cmd.map PersonaliaMsg personaliaCmd
-                    )
+                    case MeldingsLogg.ferdigAnimert meldingslogg of
+                        --TODO: Fiks dette
+                        FerdigAnimert ferdiganimert ->
+                            let
+                                ( personaliaModel, personaliaCmd ) =
+                                    ferdiganimert
+                                        |> Personalia.Seksjon.init model.debugStatus model.personalia
+                            in
+                            ( personaliaModel
+                                |> PersonaliaSeksjon
+                                |> oppdaterSamtaleSeksjon model
+                            , Cmd.map PersonaliaMsg personaliaCmd
+                            )
+
+                        MeldingerGjenstår ->
+                            ( model, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -1795,7 +1806,7 @@ view { model, windowWidth, modalStatus } =
                     viewLoading
 
                 Success successModel ->
-                    viewSuccess successModel
+                    viewSuccess successModel.aktivSeksjon
 
                 Failure error ->
                     div [ class "failure-wrapper" ]
@@ -1819,267 +1830,339 @@ viewLoading =
         ]
 
 
-meldingsLoggFraSeksjon : SamtaleSeksjon -> MeldingsLogg
-meldingsLoggFraSeksjon aktivSeksjon =
+viewSuccess : SamtaleSeksjon -> Html Msg
+viewSuccess aktivSeksjon =
     case aktivSeksjon of
-        PersonaliaSeksjon model ->
-            Personalia.Seksjon.meldingsLogg model
+        PersonaliaSeksjon personaliaSeksjon ->
+            personaliaSeksjon
+                |> Personalia.Seksjon.view
+                |> Html.map (PersonaliaMsg >> SuccessMsg)
 
-        UtdanningSeksjon model ->
-            Utdanning.Seksjon.meldingsLogg model
+        UtdanningSeksjon utdanningSeksjon ->
+            utdanningSeksjon
+                |> Utdanning.Seksjon.viewBrukerInput
+                |> Html.map (UtdanningsMsg >> SuccessMsg)
 
-        ArbeidsErfaringSeksjon model ->
-            Arbeidserfaring.Seksjon.meldingsLogg model
+        SpråkSeksjon språkSeksjon ->
+            språkSeksjon
+                |> Sprak.Seksjon.viewBrukerInput
+                |> Html.map (SpråkMsg >> SuccessMsg)
 
-        SpråkSeksjon model ->
-            Sprak.Seksjon.meldingsLogg model
+        ArbeidsErfaringSeksjon arbeidserfaringSeksjon ->
+            arbeidserfaringSeksjon
+                |> Arbeidserfaring.Seksjon.viewBrukerInput
+                |> Html.map (ArbeidserfaringsMsg >> SuccessMsg)
 
-        FagdokumentasjonSeksjon model ->
-            Fagdokumentasjon.Seksjon.meldingsLogg model
+        FagdokumentasjonSeksjon fagbrevSeksjon ->
+            fagbrevSeksjon
+                |> Fagdokumentasjon.Seksjon.viewBrukerInput
+                |> Html.map (FagdokumentasjonMsg >> SuccessMsg)
 
-        SertifikatSeksjon model ->
-            Sertifikat.Seksjon.meldingsLogg model
+        SertifikatSeksjon sertifikatSeksjon ->
+            sertifikatSeksjon
+                |> Sertifikat.Seksjon.viewBrukerInput
+                |> Html.map (SertifikatMsg >> SuccessMsg)
 
-        AnnenErfaringSeksjon model ->
-            AnnenErfaring.Seksjon.meldingsLogg model
+        AnnenErfaringSeksjon annenErfaringSeksjon ->
+            annenErfaringSeksjon
+                |> AnnenErfaring.Seksjon.viewBrukerInput
+                |> Html.map (AnnenErfaringMsg >> SuccessMsg)
 
-        FørerkortSeksjon model ->
-            Forerkort.Seksjon.meldingsLogg model
+        FørerkortSeksjon førerkortSeksjon ->
+            førerkortSeksjon
+                |> Forerkort.Seksjon.viewBrukerInput
+                |> Html.map (FørerkortMsg >> SuccessMsg)
 
-        KursSeksjon model ->
-            Kurs.Seksjon.meldingsLogg model
+        KursSeksjon kursSeksjon ->
+            kursSeksjon
+                |> Kurs.Seksjon.viewBrukerInput
+                |> Html.map (KursMsg >> SuccessMsg)
 
         AndreSamtaleSteg andreSamtaleStegInfo ->
-            andreSamtaleStegInfo.meldingsLogg
+            viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
+                |> View.viewSuccess andreSamtaleStegInfo.meldingsLogg
+                |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
 
 
-viewSuccess : SuccessModel -> Html Msg
-viewSuccess successModel =
-    div [ class "cv-samtale", id "samtale" ]
-        [ div [ id "samtale-innhold" ]
-            [ div [ class "samtale-header" ]
-                [ i [ class "Robotlogo-header" ] []
-                , h1 [] [ text "Få hjelp til å lage CV-en" ]
-                , p [] [ text "Her starter samtalen din med roboten" ]
-                ]
-            , div [ class "samtale-wrapper" ]
-                [ div [ class "samtale" ]
-                    [ successModel.aktivSeksjon
-                        |> meldingsLoggFraSeksjon
-                        |> viewMeldingsLogg
-                    , viewBrukerInput successModel.aktivSeksjon
-                    , div [ class "samtale-padding" ] []
-                    ]
-                ]
-            ]
-        ]
 
-
-viewMeldingsLogg : MeldingsLogg -> Html msg
-viewMeldingsLogg meldingsLogg =
-    meldingsLogg
-        |> MeldingsLogg.mapMeldingsGruppe viewMeldingsgruppe
-        |> div []
-
-
-viewMeldingsgruppe : MeldingsGruppeViewState -> Html msg
-viewMeldingsgruppe meldingsGruppe =
-    case meldingsGruppe of
-        SpørsmålGruppe spørsmålGruppe ->
-            spørsmålGruppe
-                |> MeldingsLogg.mapSpørsmålsgruppe viewSpørsmål
-                |> div [ class "meldingsgruppe", ariaLabel "Roboten" ]
-
-        SvarGruppe melding ->
-            viewSvar melding
-
-
-viewSpørsmål : SpørsmålViewState -> Html msg
-viewSpørsmål spørsmål =
-    let
-        spørsmålClass =
-            case SpørsmålViewState.meldingsType spørsmål of
-                Spørsmål ->
-                    "melding "
-
-                SpørsmålMedEksempel ->
-                    "melding eksempel "
-
-                Svar ->
-                    ""
-    in
-    div [ class "meldingsrad sporsmal" ]
-        [ div [ class "robot", robotAttribute spørsmål ]
-            [ i [ class "Robotlogo" ] [] ]
-        , case SpørsmålViewState.spørsmålStyle spørsmål of
-            FørSkriveindikator ->
-                div
-                    [ class (spørsmålClass ++ "skjult")
-                    , ariaLive "off"
-                    , id (SpørsmålViewState.id spørsmål)
-                    ]
-                    [ div [ class "skriver-melding" ] [] ]
-
-            Skriveindikator ->
-                div
-                    [ class (spørsmålClass ++ "skriveindikator")
-                    , ariaLive "off"
-                    , id (SpørsmålViewState.id spørsmål)
-                    ]
-                    [ viewSkriveStatus ]
-
-            StørrelseKalkuleres ->
-                article
-                    [ class (spørsmålClass ++ "kalkulerer")
-                    , ariaLive "polite"
-                    , id (SpørsmålViewState.id spørsmål)
-                    ]
-                    [ div [ class "meldinginnhold-overflow-hidden" ]
-                        [ div [ class "meldinginnhold-wrapper", id "test" ]
-                            (spørsmål
-                                |> SpørsmålViewState.tekst
-                                |> List.map viewTekstområde
-                            )
-                        ]
-                    ]
-
-            MeldingAnimeres { height, width } ->
-                let
-                    padding =
-                        16
-
-                    snakkebobleHeight =
-                        Konstanter.meldingHøyde height
-
-                    snakkebobleWidth =
-                        width + (2 * padding) + 1
-                in
-                article
-                    [ class (spørsmålClass ++ "ferdiganimert")
-                    , ariaLive "polite"
-                    , style "height" (String.fromInt snakkebobleHeight ++ "px")
-                    , style "width" (String.fromInt snakkebobleWidth ++ "px")
-                    , id (SpørsmålViewState.id spørsmål)
-                    ]
-                    [ div [ class "meldinginnhold-overflow-hidden" ]
-                        [ div [ class "meldinginnhold-wrapper" ]
-                            (spørsmål
-                                |> SpørsmålViewState.tekst
-                                |> List.map viewTekstområde
-                            )
-                        ]
-                    ]
-
-            MeldingFerdigAnimert ->
-                article
-                    [ class spørsmålClass
-                    , classList [ ( "ikke-siste", ikkeSisteMelding spørsmål ) ]
-                    , ariaLive "polite"
-                    , id (SpørsmålViewState.id spørsmål)
-                    ]
-                    (spørsmål
-                        |> SpørsmålViewState.tekst
-                        |> List.map viewTekstområde
-                    )
-        ]
-
-
-ikkeSisteMelding : SpørsmålViewState -> Bool
-ikkeSisteMelding spørsmål =
-    case SpørsmålViewState.ikonStatus spørsmål of
-        SkjultIkon ->
-            True
-
-        MidtstiltIkonForFørsteSpørsmål ->
-            True
-
-        MidtstiltIkon ->
-            False
-
-        IkonForNesteMelding _ ->
-            True
-
-
-robotAttribute : SpørsmålViewState -> Html.Attribute msg
-robotAttribute spørsmål =
-    case SpørsmålViewState.ikonStatus spørsmål of
-        SkjultIkon ->
-            class "skjult-robot-ikon"
-
-        MidtstiltIkonForFørsteSpørsmål ->
-            class "forste-melding"
-
-        MidtstiltIkon ->
-            classList []
-
-        IkonForNesteMelding height ->
-            transformForRobot height
-
-
-transformForRobot : { height : Int } -> Html.Attribute msg
-transformForRobot { height } =
-    let
-        avstand =
-            (toFloat (Konstanter.meldingHøyde height + Konstanter.skriveIndikatorHøyde) / 2) + toFloat Konstanter.meldingMarginTop
-    in
-    style "transform" ("translateY(" ++ String.fromFloat avstand ++ "px)")
-
-
-viewSvar : Melding -> Html msg
-viewSvar melding =
-    div [ class "meldingsgruppe", ariaLabel "Deg" ]
-        [ div [ class "meldingsrad svar" ]
-            [ article
-                [ class "melding"
-                ]
-                (melding
-                    |> Melding.innhold
-                    |> List.map viewTekstområde
-                )
-            ]
-        ]
-
-
-viewTekstområde : Tekstområde -> Html msg
-viewTekstområde tekstområde =
-    case tekstområde of
-        Avsnitt tekst ->
-            viewAvsnitt tekst
-
-        Seksjon labelTekst tekster ->
-            section [ ariaLabel labelTekst ]
-                (List.map viewAvsnitt tekster)
-
-        Overskrift tekst ->
-            span [ class "eksempel-tittel" ] [ text tekst ]
-
-
-viewAvsnitt : String -> Html msg
-viewAvsnitt string =
-    p [] [ text string ]
-
-
-viewSkriveStatus : Html msg
-viewSkriveStatus =
-    div [ class "skriver-melding" ]
-        [ div [ class "bounce bounce1" ] []
-        , div [ class "bounce bounce2" ] []
-        , div [ class "bounce bounce3" ] []
-        ]
-
-
-viewBrukerInput : SamtaleSeksjon -> Html Msg
-viewBrukerInput aktivSeksjon =
-    div [ classList [ ( "brukerInput-padding", brukerInputVises aktivSeksjon ) ] ]
-        [ viewBrukerInputForSeksjon aktivSeksjon
-        ]
-
-
-brukerInputVises : SamtaleSeksjon -> Bool
-brukerInputVises aktivSeksjon =
-    aktivSeksjon
-        |> meldingsLoggFraSeksjon
-        |> MeldingsLogg.visBrukerInput
+--
+--meldingsLoggFraSeksjon : SamtaleSeksjon -> List (MeldingsGruppeViewState msg)
+--meldingsLoggFraSeksjon aktivSeksjon =
+--    case aktivSeksjon of
+--        PersonaliaSeksjon model ->
+--            model
+--                |> Personalia.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        UtdanningSeksjon model ->
+--            model
+--                |> Utdanning.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        ArbeidsErfaringSeksjon model ->
+--            model
+--                |> Arbeidserfaring.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        SpråkSeksjon model ->
+--            model
+--                |> Sprak.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        FagdokumentasjonSeksjon model ->
+--            model
+--                |> Fagdokumentasjon.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        SertifikatSeksjon model ->
+--            model
+--                |> Sertifikat.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        AnnenErfaringSeksjon model ->
+--            model
+--                |> AnnenErfaring.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        FørerkortSeksjon model ->
+--            model
+--                |> Forerkort.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        KursSeksjon model ->
+--            model
+--                |> Kurs.Seksjon.meldingsLogg
+--                |> MeldingsLogg.meldingsgrupper
+--
+--        AndreSamtaleSteg andreSamtaleStegInfo ->
+--            MeldingsLogg.meldingsgrupper andreSamtaleStegInfo.meldingsLogg
+--
+--viewSuccess : SuccessModel -> Html Msg
+--viewSuccess successModel =
+--    div [ class "cv-samtale", id "samtale" ]
+--        [ div [ id "samtale-innhold" ]
+--            [ div [ class "samtale-header" ]
+--                [ i [ class "Robotlogo-header" ] []
+--                , h1 [] [ text "Få hjelp til å lage CV-en" ]
+--                , p [] [ text "Her starter samtalen din med roboten" ]
+--                ]
+--            , div [ class "samtale-wrapper" ]
+--                [ div [ class "samtale" ]
+--                    [ successModel.aktivSeksjon
+--                        |> meldingsLoggFraSeksjon
+--                        |> viewMeldingsLogg
+--                    , viewBrukerInput successModel.aktivSeksjon
+--                    , div [ class "samtale-padding" ] []
+--                    ]
+--                ]
+--            ]
+--        ]
+--
+--
+--viewMeldingsLogg : List MeldingsGruppeViewState -> Html msg
+--viewMeldingsLogg meldingsLogg =
+--    div []
+--        (List.map viewMeldingsgruppe meldingsLogg)
+--
+--
+--viewMeldingsgruppe : MeldingsGruppeViewState -> Html msg
+--viewMeldingsgruppe meldingsGruppe =
+--    case meldingsGruppe of
+--        SpørsmålGruppe spørsmålGruppe ->
+--            spørsmålGruppe
+--                |> MeldingsLogg.mapSpørsmålsgruppe viewSpørsmål
+--                |> div [ class "meldingsgruppe", ariaLabel "Roboten" ]
+--
+--        SvarGruppe melding ->
+--            viewSvar melding
+--
+--
+--viewSpørsmål : SpørsmålViewState -> Html msg
+--viewSpørsmål spørsmål =
+--    let
+--        spørsmålClass =
+--            case SpørsmålViewState.meldingsType spørsmål of
+--                Spørsmål ->
+--                    "melding "
+--
+--                SpørsmålMedEksempel ->
+--                    "melding eksempel "
+--
+--                Svar ->
+--                    ""
+--    in
+--    div [ class "meldingsrad sporsmal" ]
+--        [ div [ class "robot", robotAttribute spørsmål ]
+--            [ i [ class "Robotlogo" ] [] ]
+--        , case SpørsmålViewState.spørsmålStyle spørsmål of
+--            FørSkriveindikator ->
+--                div
+--                    [ class (spørsmålClass ++ "skjult")
+--                    , ariaLive "off"
+--                    , id (SpørsmålViewState.id spørsmål)
+--                    ]
+--                    [ div [ class "skriver-melding" ] [] ]
+--
+--            Skriveindikator ->
+--                div
+--                    [ class (spørsmålClass ++ "skriveindikator")
+--                    , ariaLive "off"
+--                    , id (SpørsmålViewState.id spørsmål)
+--                    ]
+--                    [ viewSkriveStatus ]
+--
+--            StørrelseKalkuleres ->
+--                article
+--                    [ class (spørsmålClass ++ "kalkulerer")
+--                    , ariaLive "polite"
+--                    , id (SpørsmålViewState.id spørsmål)
+--                    ]
+--                    [ div [ class "meldinginnhold-overflow-hidden" ]
+--                        [ div [ class "meldinginnhold-wrapper", id "test" ]
+--                            (spørsmål
+--                                |> SpørsmålViewState.tekst
+--                                |> List.map viewTekstområde
+--                            )
+--                        ]
+--                    ]
+--
+--            MeldingAnimeres { height, width } ->
+--                let
+--                    padding =
+--                        16
+--
+--                    snakkebobleHeight =
+--                        Konstanter.meldingHøyde height
+--
+--                    snakkebobleWidth =
+--                        width + (2 * padding) + 1
+--                in
+--                article
+--                    [ class (spørsmålClass ++ "ferdiganimert")
+--                    , ariaLive "polite"
+--                    , style "height" (String.fromInt snakkebobleHeight ++ "px")
+--                    , style "width" (String.fromInt snakkebobleWidth ++ "px")
+--                    , id (SpørsmålViewState.id spørsmål)
+--                    ]
+--                    [ div [ class "meldinginnhold-overflow-hidden" ]
+--                        [ div [ class "meldinginnhold-wrapper" ]
+--                            (spørsmål
+--                                |> SpørsmålViewState.tekst
+--                                |> List.map viewTekstområde
+--                            )
+--                        ]
+--                    ]
+--
+--            MeldingFerdigAnimert ->
+--                article
+--                    [ class spørsmålClass
+--                    , classList [ ( "ikke-siste", ikkeSisteMelding spørsmål ) ]
+--                    , ariaLive "polite"
+--                    , id (SpørsmålViewState.id spørsmål)
+--                    ]
+--                    (spørsmål
+--                        |> SpørsmålViewState.tekst
+--                        |> List.map viewTekstområde
+--                    )
+--        ]
+--
+--
+--ikkeSisteMelding : SpørsmålViewState -> Bool
+--ikkeSisteMelding spørsmål =
+--    case SpørsmålViewState.ikonStatus spørsmål of
+--        SkjultIkon ->
+--            True
+--
+--        MidtstiltIkonForFørsteSpørsmål ->
+--            True
+--
+--        MidtstiltIkon ->
+--            False
+--
+--        IkonForNesteMelding _ ->
+--            True
+--
+--
+--robotAttribute : SpørsmålViewState -> Html.Attribute msg
+--robotAttribute spørsmål =
+--    case SpørsmålViewState.ikonStatus spørsmål of
+--        SkjultIkon ->
+--            class "skjult-robot-ikon"
+--
+--        MidtstiltIkonForFørsteSpørsmål ->
+--            class "forste-melding"
+--
+--        MidtstiltIkon ->
+--            classList []
+--
+--        IkonForNesteMelding height ->
+--            transformForRobot height
+--
+--
+--transformForRobot : { height : Int } -> Html.Attribute msg
+--transformForRobot { height } =
+--    let
+--        avstand =
+--            (toFloat (Konstanter.meldingHøyde height + Konstanter.skriveIndikatorHøyde) / 2) + toFloat Konstanter.meldingMarginTop
+--    in
+--    style "transform" ("translateY(" ++ String.fromFloat avstand ++ "px)")
+--
+--
+--viewSvar : Melding -> Html msg
+--viewSvar melding =
+--    div [ class "meldingsgruppe", ariaLabel "Deg" ]
+--        [ div [ class "meldingsrad svar" ]
+--            [ article
+--                [ class "melding"
+--                ]
+--                (melding
+--                    |> Melding.innhold
+--                    |> List.map viewTekstområde
+--                )
+--            ]
+--        ]
+--
+--
+--viewTekstområde : Tekstområde -> Html msg
+--viewTekstområde tekstområde =
+--    case tekstområde of
+--        Avsnitt tekst ->
+--            viewAvsnitt tekst
+--
+--        Seksjon labelTekst tekster ->
+--            section [ ariaLabel labelTekst ]
+--                (List.map viewAvsnitt tekster)
+--
+--        Overskrift tekst ->
+--            span [ class "eksempel-tittel" ] [ text tekst ]
+--
+--
+--viewAvsnitt : String -> Html msg
+--viewAvsnitt string =
+--    p [] [ text string ]
+--
+--
+--viewSkriveStatus : Html msg
+--viewSkriveStatus =
+--    div [ class "skriver-melding" ]
+--        [ div [ class "bounce bounce1" ] []
+--        , div [ class "bounce bounce2" ] []
+--        , div [ class "bounce bounce3" ] []
+--        ]
+--
+--
+--viewBrukerInput : SamtaleSeksjon -> Html Msg
+--viewBrukerInput aktivSeksjon =
+--    div [ classList [ ( "brukerInput-padding", True ) ] ]
+--        -- TODO: Fjern hardkodingen av True
+--        [ viewBrukerInputForSeksjon aktivSeksjon
+--        ]
+--
+--brukerInputVises : SamtaleSeksjon -> Bool
+--brukerInputVises aktivSeksjon =
+--    aktivSeksjon
+--        |> meldingsLoggFraSeksjon
+--        |> MeldingsLogg.visBrukerInput
 
 
 viewBrukerInputForSeksjon : SamtaleSeksjon -> Html Msg

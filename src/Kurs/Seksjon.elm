@@ -45,14 +45,14 @@ type Model
 
 
 type alias ModelInfo =
-    { seksjonsMeldingsLogg : MeldingsLogg
+    { seksjonsMeldingsLogg : MeldingsLogg Msg
     , aktivSamtale : Samtale
     , kursListe : List Kurs
     , debugStatus : DebugStatus
     }
 
 
-meldingsLogg : Model -> MeldingsLogg
+meldingsLogg : Model -> MeldingsLogg Msg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
@@ -753,7 +753,7 @@ oppdaterSkjema endring skjema =
             Skjema.tillatÅViseFeilmeldingVarighet skjema
 
 
-updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg Msg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
 updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->

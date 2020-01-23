@@ -296,6 +296,31 @@ html {
   }
 }
 
+.Knapp {
+  transition-property: transform, border-radius, border-width, background-color, border-color, color, font-weight, letter-spacing, padding, line-height, opacity;
+  transition-duration: 1s;
+  transition-timing-function: ease-in-out;
+}
+
+//Transform knapp til melding
+.Knapp.knapp-til-svar {
+  transform: translateX(215px);
+  border-radius: 12px;
+  border-width: 0;
+  background-color: #062140;
+  border-color: #062140;
+  color: white;
+  font-weight: 400;
+  letter-spacing: normal;
+  padding: 1rem;
+  line-height: 22.8571px;
+}
+
+.Knapp.knapp-ikke-valgt {
+  transform: translate(100px, 50px);
+  opacity: 0;
+}
+
 .svar {
   justify-content: flex-end;
 

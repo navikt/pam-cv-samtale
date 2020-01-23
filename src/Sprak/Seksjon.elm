@@ -44,7 +44,7 @@ type Model
 
 
 type alias ModelInfo =
-    { seksjonsMeldingsLogg : MeldingsLogg
+    { seksjonsMeldingsLogg : MeldingsLogg Msg
     , aktivSamtale : Samtale
     , språk : List Språk
     , språkKoder : RemoteDataSpråkKoder
@@ -92,7 +92,7 @@ type alias SpråkMedMuntlig =
     }
 
 
-meldingsLogg : Model -> MeldingsLogg
+meldingsLogg : Model -> MeldingsLogg Msg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
@@ -482,7 +482,7 @@ skriftligNivåTilKnappeTekst språkKode skriftligNivå =
             SpråkKode.term språkKode ++ " er førstespråket (morsmålet) mitt"
 
 
-updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg Msg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
 updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->

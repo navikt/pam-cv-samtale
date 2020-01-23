@@ -39,7 +39,7 @@ startAnimasjon debugStatus =
         |> Task.attempt StartÅSkrive
 
 
-update : DebugStatus -> Msg -> MeldingsLogg -> ( MeldingsLogg, Cmd Msg )
+update : DebugStatus -> Msg -> MeldingsLogg msg -> ( MeldingsLogg msg, Cmd Msg )
 update debugStatus msg meldingsLogg =
     case msg of
         StartÅSkrive result ->
@@ -167,7 +167,7 @@ update debugStatus msg meldingsLogg =
                     scrollInnBrukerInput meldingsLogg record posix
 
 
-lengdePåSkriveindikatorIMillisekunder : MeldingsLogg -> Float
+lengdePåSkriveindikatorIMillisekunder : MeldingsLogg msg -> Float
 lengdePåSkriveindikatorIMillisekunder meldingsLogg =
     case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
         AlleMeldingerAnimert ->
@@ -185,7 +185,7 @@ lengdePåSkriveindikatorIMillisekunder meldingsLogg =
             gjennomsnitteligAntallOrd * 100
 
 
-ventetidFørBrukerinputScrollesInn : MeldingsLogg -> Float
+ventetidFørBrukerinputScrollesInn : MeldingsLogg msg -> Float
 ventetidFørBrukerinputScrollesInn meldingsLogg =
     case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
         AlleMeldingerAnimert ->
@@ -251,7 +251,7 @@ getTimeViewportAndElement =
 --- SCROLLING ---
 
 
-scrollTilSkriveIndikator : MeldingsLogg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
+scrollTilSkriveIndikator : MeldingsLogg msg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg msg, Cmd Msg )
 scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewport, samtaleElement } tidNå =
     let
         sluttPosisjon =
@@ -274,7 +274,7 @@ scrollTilSkriveIndikator meldingsLogg { startTidForScrolling, opprinneligViewpor
         )
 
 
-scrollTilMelding : MeldingsLogg -> { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
+scrollTilMelding : MeldingsLogg msg -> { height : Int, startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, samtaleElement : Element } -> Time.Posix -> ( MeldingsLogg msg, Cmd Msg )
 scrollTilMelding meldingsLogg { height, startTidForScrolling, opprinneligViewport, samtaleElement } tidNå =
     let
         forskjellMeldingstørrelse =
@@ -349,7 +349,7 @@ scrollPosition { easingFunction } { animasjonstidMs, opprinneligViewport, sluttP
     yNå
 
 
-scrollInnBrukerInput : MeldingsLogg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, sisteSpørsmålHeight : Maybe Int } -> Time.Posix -> ( MeldingsLogg, Cmd Msg )
+scrollInnBrukerInput : MeldingsLogg msg -> { startTidForScrolling : Time.Posix, opprinneligViewport : Viewport, sisteSpørsmålHeight : Maybe Int } -> Time.Posix -> ( MeldingsLogg msg, Cmd Msg )
 scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, sisteSpørsmålHeight } tidNå =
     let
         spørsmålHeight =
@@ -408,7 +408,7 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
 --- DEBUG MODUS ---
 
 
-hoppOverMeldingsanimasjon : MeldingsLogg -> ( MeldingsLogg, Cmd Msg )
+hoppOverMeldingsanimasjon : MeldingsLogg msg -> ( MeldingsLogg msg, Cmd Msg )
 hoppOverMeldingsanimasjon meldingsLogg =
     ( MeldingsLogg.debugFullførAlleMeldinger meldingsLogg, scrollTilBunn ScrolletViewport )
 
@@ -424,7 +424,7 @@ scrollTilBunn msgKonstruktør =
 --- SUBSCRIPTIONS ---
 
 
-subscriptions : MeldingsLogg -> Sub Msg
+subscriptions : MeldingsLogg msg -> Sub Msg
 subscriptions meldingsLogg =
     case MeldingsLogg.scrollAnimasjonStatus meldingsLogg of
         IngenScrollAnimasjon ->

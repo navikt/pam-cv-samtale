@@ -7,6 +7,7 @@ module FrontendModuler.Knapp exposing
     , msg
     , toHtml
     , withAttribute
+    , withClass
     , withEnabled
     , withId
     , withMouseDown
@@ -26,6 +27,7 @@ type alias Options msg =
     { msg : msg
     , innhold : String
     , enabled : Enabled
+    , classes : List String
     , knappeType : Type
     , onMouseDown : Maybe msg
     , extraAttributes : List (Html.Attribute msg)
@@ -50,6 +52,7 @@ knapp msg_ innhold_ =
         { msg = msg_
         , innhold = innhold_
         , enabled = Enabled
+        , classes = []
         , knappeType = Normal
         , onMouseDown = Nothing
         , extraAttributes = []
@@ -60,6 +63,11 @@ knapp msg_ innhold_ =
 withId : String -> Knapp msg -> Knapp msg
 withId id (Knapp options) =
     Knapp { options | id = Just id }
+
+
+withClass : String -> Knapp msg -> Knapp msg
+withClass class (Knapp options) =
+    Knapp { options | classes = class :: options.classes }
 
 
 withEnabled : Enabled -> Knapp msg -> Knapp msg
@@ -94,6 +102,7 @@ toHtml (Knapp options) =
                             , ( "Knapp--hoved", options.knappeType == Hoved )
                             , ( "Knapp--flat", options.knappeType == Flat )
                             ]
+                      , classList (List.map (\class -> ( class, True )) options.classes)
                       , onClick options.msg
                       , options.onMouseDown
                             |> Maybe.map onMouseDown

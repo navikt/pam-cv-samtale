@@ -46,7 +46,7 @@ type Model
 
 
 type alias ModelInfo =
-    { seksjonsMeldingsLogg : MeldingsLogg
+    { seksjonsMeldingsLogg : MeldingsLogg Msg
     , aktivSamtale : Samtale
     , førerkort : List Førerkort
     , førerkortKoder : List FørerkortKode
@@ -88,7 +88,7 @@ type SamtaleStatus
     | Ferdig (List Førerkort) FerdigAnimertMeldingsLogg
 
 
-meldingsLogg : Model -> MeldingsLogg
+meldingsLogg : Model -> MeldingsLogg Msg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
@@ -803,7 +803,7 @@ leggTilFørerkortAPI skjema =
     Api.opprettFørerkort FørerkortLagret skjema
 
 
-updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg Msg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
 updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->

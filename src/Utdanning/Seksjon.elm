@@ -49,7 +49,7 @@ type Model
 
 
 type alias ModelInfo =
-    { seksjonsMeldingsLogg : MeldingsLogg
+    { seksjonsMeldingsLogg : MeldingsLogg Msg
     , aktivSamtale : Samtale
     , utdanningListe : List Utdanning
     , debugStatus : DebugStatus
@@ -96,7 +96,7 @@ type SamtaleStatus
     | Ferdig (List Utdanning) FerdigAnimertMeldingsLogg
 
 
-meldingsLogg : Model -> MeldingsLogg
+meldingsLogg : Model -> MeldingsLogg Msg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
@@ -1002,7 +1002,7 @@ settFokus samtale =
             Cmd.none
 
 
-updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg Msg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
 updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->

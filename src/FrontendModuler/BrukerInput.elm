@@ -1,6 +1,9 @@
 module FrontendModuler.BrukerInput exposing
     ( BrukerInput
+    , BrukerInputKnapper
+    , BrukerInputType(..)
     , KnapperLayout(..)
+    , animerKnapper
     , brukerInputMedGåVidereKnapp
     , datoInputMedGåVidereKnapp
     , inputMedGåVidereKnapp
@@ -14,6 +17,7 @@ module FrontendModuler.BrukerInput exposing
     , toHtml
     , typeaheadMedGåVidereKnapp
     , utenInnhold
+    , viewType
     )
 
 import Dato.Maned as Måned exposing (Måned)
@@ -215,3 +219,63 @@ tilString msg brukerInput =
                     |> List.find (\måned -> onMånedValg måned == msg)
                     |> Maybe.map Måned.tilString
                     |> Maybe.withDefault ""
+
+
+
+---
+
+
+type BrukerInputType msg
+    = KnapperBrukerInput (BrukerInputKnapper msg)
+    | Annet
+
+
+type BrukerInputKnapper msg
+    = BrukerInputKnapper KnapperLayout (List (Knapp msg))
+
+
+viewType : BrukerInput msg -> BrukerInputType msg
+viewType brukerInput =
+    case brukerInput of
+        Knapper layout knappeElementer ->
+            KnapperBrukerInput (BrukerInputKnapper layout knappeElementer)
+
+        _ ->
+            Annet
+
+
+animerKnapper : BrukerInputKnapper msg -> { valgtKnappClass : String, andreKnapperClass : String, msg : msg } -> Html msg
+animerKnapper (BrukerInputKnapper layout knappeElementer) viewInfo =
+    case layout of
+        Flytende ->
+            div [ class "knapperad" ]
+                [ div [ class "knapper--flytende" ]
+                    (List.map (animerteKnapperTilHtml viewInfo) knappeElementer)
+                ]
+
+        Kolonne ->
+            div [ class "knapperad" ]
+                [ div [ class "knapper--kolonne" ]
+                    (List.map (animerteKnapperTilHtml viewInfo) knappeElementer)
+                ]
+
+        VarighetGrid ->
+            div [ class "knapperad" ]
+                [ div [ class "knapper--varighet" ]
+                    (List.map (animerteKnapperTilHtml viewInfo) knappeElementer)
+                ]
+
+
+animerteKnapperTilHtml : { valgtKnappClass : String, andreKnapperClass : String, msg : msg } -> Knapp msg -> Html msg
+animerteKnapperTilHtml { valgtKnappClass, andreKnapperClass, msg } knapp =
+    if Knapp.msg knapp == msg then
+        knapp
+            |> Knapp.withClass valgtKnappClass
+            |> Knapp.toHtml
+
+    else
+        div []
+            [ knapp
+                |> Knapp.withClass andreKnapperClass
+                |> Knapp.toHtml
+            ]

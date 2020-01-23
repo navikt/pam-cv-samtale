@@ -6,6 +6,7 @@ module Personalia.Seksjon exposing
     , meldingsLogg
     , subscriptions
     , update
+    , view
     , viewBrukerInput
     )
 
@@ -29,13 +30,21 @@ import LagreStatus exposing (LagreStatus)
 import Meldinger.Melding as Melding exposing (Melding(..))
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
-import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
+import Meldinger.View as View
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.PersonaliaId as PersonaliaId
 import Personalia.Poststed exposing (Poststed)
 import Personalia.Skjema as Skjema exposing (PersonaliaSkjema, ValidertPersonaliaSkjema)
 import Process
 import Task
+
+
+type SamtaleOppdatering msg
+    = IngenNyeMeldinger
+    | SvarFraMsg msg
+    | BrukerInputFraMsg msg
+    | ManueltSvar Melding
+    | UtenSvar
 
 
 
@@ -47,7 +56,7 @@ type Model
 
 
 type alias ModelInfo =
-    { seksjonsMeldingsLogg : MeldingsLogg
+    { seksjonsMeldingsLogg : MeldingsLogg Msg
     , aktivSamtale : Samtale
     , personalia : Personalia
     , debugStatus : DebugStatus
@@ -86,7 +95,7 @@ type SamtaleStatus
     | Ferdig Personalia FerdigAnimertMeldingsLogg
 
 
-meldingsLogg : Model -> MeldingsLogg
+meldingsLogg : Model -> MeldingsLogg Msg
 meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
@@ -473,7 +482,7 @@ update msg (Model model) =
                             else
                                 LagringLyktesFørsteGang
                                     |> VenterPåAnimasjonFørFullføring model.personalia
-                                    |> oppdaterSamtale model (SvarFraMsg msg)
+                                    |> oppdaterSamtale model (BrukerInputFraMsg msg)
                                     |> fullførSeksjonHvisMeldingsloggErFerdig model.personalia
 
                         EndretPersonalia validertSkjema ->
@@ -580,7 +589,7 @@ gåTilEndreSkjemaEtterValideringsFeil model msg skjema =
         |> IkkeFerdig
 
 
-updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
+updateEtterFullførtMelding : ModelInfo -> ( MeldingsLogg Msg, Cmd SamtaleAnimasjon.Msg ) -> SamtaleStatus
 updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
@@ -677,6 +686,11 @@ oppdaterSamtale model meldingsoppdatering samtale =
                     UtenSvar ->
                         model.seksjonsMeldingsLogg
                             |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
+
+                    BrukerInputFraMsg msg ->
+                        model
+                            |> modelTilBrukerInput
+                            |> MeldingsLogg.leggTilBrukerInputSvar model.seksjonsMeldingsLogg msg
         }
 
 
@@ -804,6 +818,13 @@ inputIdTilString inputId =
 
         FornavnId ->
             "personalia-fornavn-id"
+
+
+view : Model -> Html Msg
+view ((Model modelInfo) as model) =
+    model
+        |> viewBrukerInput
+        |> View.viewSuccess modelInfo.seksjonsMeldingsLogg
 
 
 viewBrukerInput : Model -> Html Msg
@@ -959,7 +980,7 @@ viewTelefonISkjema personaliaSkjema =
 --- INIT ---
 
 
-init : DebugStatus -> Personalia -> MeldingsLogg -> ( Model, Cmd Msg )
+init : DebugStatus -> Personalia -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 init debugStatus personalia gammelMeldingsLogg =
     let
         aktivSamtale =
@@ -967,9 +988,9 @@ init debugStatus personalia gammelMeldingsLogg =
     in
     ( Model
         { seksjonsMeldingsLogg =
-            MeldingsLogg.leggTilSpørsmål
-                (samtaleTilMeldingsLogg aktivSamtale)
-                gammelMeldingsLogg
+            gammelMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
         , personalia = personalia
         , debugStatus = debugStatus
