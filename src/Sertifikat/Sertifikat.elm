@@ -6,12 +6,15 @@ module Sertifikat.Sertifikat exposing
     , konseptId
     , sertifikatNavn
     , sertifikatNavnFritekst
+    , sistEndretDato
     , tilDato
     , utsteder
     )
 
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type Sertifikat
@@ -26,6 +29,7 @@ type alias SertifikatInfo =
     , utsteder : Maybe String
     , fradato : Maybe String
     , tildato : Maybe String
+    , sistEndretDato : Posix
     }
 
 
@@ -64,6 +68,11 @@ utsteder (Sertifikat info) =
     info.utsteder
 
 
+sistEndretDato : Sertifikat -> Posix
+sistEndretDato (Sertifikat info) =
+    info.sistEndretDato
+
+
 
 ---- Decoder ----
 
@@ -84,3 +93,4 @@ decodeBackendData =
         |> required "utsteder" (nullable string)
         |> required "fradato" (nullable string)
         |> required "tildato" (nullable string)
+        |> required "sistEndretDato" Iso8601.decoder

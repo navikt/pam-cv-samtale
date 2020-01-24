@@ -1,7 +1,9 @@
-module Kurs.Kurs exposing (Kurs, decode, id, tidspunkt, tittel, utsteder, varighet, varighetEnhet)
+module Kurs.Kurs exposing (Kurs, decode, id, sistEndretDato, tidspunkt, tittel, utsteder, varighet, varighetEnhet)
 
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type Kurs
@@ -15,6 +17,7 @@ type alias KursInfo =
     , tidspunkt : Maybe String
     , varighet : Maybe Int
     , varighetEnhet : Maybe String
+    , sistEndretDato : Posix
     }
 
 
@@ -48,6 +51,11 @@ utsteder (Kurs info) =
     info.utsteder
 
 
+sistEndretDato : Kurs -> Posix
+sistEndretDato (Kurs info) =
+    info.sistEndretDato
+
+
 
 ---- Decoder ----
 
@@ -67,3 +75,4 @@ decodeBackendData =
         |> required "tidspunkt" (nullable string)
         |> required "varighet" (nullable int)
         |> required "varighetEnhet" (nullable string)
+        |> required "sistEndretDato" Iso8601.decoder

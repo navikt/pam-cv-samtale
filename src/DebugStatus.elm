@@ -1,4 +1,4 @@
-module DebugStatus exposing (DebugStatus, fromUrl, hoppOverMeldingsanimasjon, meldingsTimeout, regular)
+module DebugStatus exposing (DebugStatus, fromUrl, hoppOverMeldingsanimasjon, meldingsTimeout, regular, tickInterval)
 
 import Url exposing (Url)
 
@@ -11,6 +11,17 @@ type DebugStatus
 regular : DebugStatus
 regular =
     Regular
+
+
+tickInterval : DebugStatus -> Float
+tickInterval debugStatus =
+    case debugStatus of
+        Debug ->
+            -- mål tid hvert minutt
+            1000 * 60
+
+        Regular ->
+            1000
 
 
 fromUrl : Url -> DebugStatus

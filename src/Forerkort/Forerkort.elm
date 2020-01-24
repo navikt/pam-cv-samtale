@@ -1,8 +1,10 @@
-module Forerkort.Forerkort exposing (Førerkort, Klasse(..), decode, id, klasse)
+module Forerkort.Forerkort exposing (Førerkort, Klasse(..), decode, id, klasse, sistEndretDato)
 
 import Date exposing (Date)
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type Førerkort
@@ -14,6 +16,7 @@ type alias ForerkortInfo =
     , klasse : Klasse
     , fraDato : Maybe Date
     , utløperDato : Maybe Date
+    , sistEndretDato : Posix
     }
 
 
@@ -44,6 +47,11 @@ id (Førerkort info) =
 klasse : Førerkort -> Klasse
 klasse (Førerkort info) =
     info.klasse
+
+
+sistEndretDato : Førerkort -> Posix
+sistEndretDato (Førerkort info) =
+    info.sistEndretDato
 
 
 
@@ -139,6 +147,7 @@ lagForerkort backendData klasse_ =
         , klasse = klasse_
         , fraDato = decodeDateString backendData.fraDato
         , utløperDato = decodeDateString backendData.utloperDato
+        , sistEndretDato = backendData.sistEndretDato
         }
 
 
@@ -149,6 +158,7 @@ decodeBackendData =
         |> required "klasse" string
         |> required "fraDato" (nullable string)
         |> required "utloperDato" (nullable string)
+        |> required "sistEndretDato" Iso8601.decoder
 
 
 type alias BackendData =
@@ -156,4 +166,5 @@ type alias BackendData =
     , klasse : String
     , fraDato : Maybe String
     , utloperDato : Maybe String
+    , sistEndretDato : Posix
     }

@@ -7,6 +7,7 @@ module Utdanning.Utdanning exposing
     , fraÅr
     , id
     , nivå
+    , sistEndretDato
     , studiested
     , tilDato
     , utdanningsretning
@@ -14,8 +15,10 @@ module Utdanning.Utdanning exposing
 
 import Dato.Dato as Dato exposing (TilDato(..), År)
 import Dato.Maned exposing (Måned)
+import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type Utdanning
@@ -31,6 +34,7 @@ type alias UtdanningInfo =
     , tildato : TilDato
     , beskrivelse : Maybe String
     , nivå : Nivå
+    , sistEndretDato : Posix
     }
 
 
@@ -84,6 +88,11 @@ nivå (Utdanning info) =
     info.nivå
 
 
+sistEndretDato : Utdanning -> Posix
+sistEndretDato (Utdanning info) =
+    info.sistEndretDato
+
+
 
 ---- Decoder ----
 
@@ -105,6 +114,7 @@ decodeBackendData =
         |> required "beskrivelse" (nullable string)
         |> required "navarende" bool
         |> required "nuskode" string
+        |> required "sistEndretDato" Iso8601.decoder
 
 
 tilUtdanningsInfo : BackendData -> Decoder Utdanning
@@ -126,6 +136,7 @@ lagUtdanning backendData nivå_ ( fraMåned_, fraÅr_ ) tilDato_ =
         , tildato = tilDato_
         , beskrivelse = backendData.beskrivelse
         , nivå = nivå_
+        , sistEndretDato = backendData.sistEndretDato
         }
 
 
@@ -182,4 +193,5 @@ type alias BackendData =
     , beskrivelse : Maybe String
     , navarende : Bool
     , nuskode : String
+    , sistEndretDato : Posix
     }

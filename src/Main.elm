@@ -43,7 +43,9 @@ import Sammendrag exposing (Sammendrag)
 import Sertifikat.Seksjon
 import Sprak.Seksjon
 import Task
+import Tid exposing (tilKlokkeSlett, ulikDato)
 import TilbakemeldingModal
+import Time exposing (Posix)
 import Url
 import Utdanning.Seksjon
 import Validering
@@ -76,6 +78,8 @@ type alias ExtendedModel =
     , debugStatus : DebugStatus
     , windowWidth : Int
     , modalStatus : ModalStatus
+    , timeZone : Time.Zone
+    , time : Time.Posix
     }
 
 
@@ -104,6 +108,8 @@ type Msg
     | UrlRequestChanged Browser.UrlRequest
     | ÅpneTilbakemeldingModal
     | ModalMsg TilbakemeldingModal.Msg
+    | Tick Posix
+    | AdjustTimeZone Time.Zone
 
 
 update : Msg -> ExtendedModel -> ( ExtendedModel, Cmd Msg )
@@ -135,6 +141,8 @@ update msg extendedModel =
               , debugStatus = extendedModel.debugStatus
               , modalStatus = extendedModel.modalStatus
               , windowWidth = windowWidth
+              , timeZone = extendedModel.timeZone
+              , time = extendedModel.time
               }
             , Cmd.none
             )
@@ -154,6 +162,8 @@ update msg extendedModel =
               , debugStatus = extendedModel.debugStatus
               , modalStatus = extendedModel.modalStatus
               , windowWidth = round viewport.scene.width
+              , timeZone = extendedModel.timeZone
+              , time = extendedModel.time
               }
             , Cmd.none
             )
@@ -184,6 +194,16 @@ update msg extendedModel =
                         TilbakemeldingModal.Closed ->
                             ( { extendedModel | modalStatus = ModalLukket }, Cmd.none )
 
+        Tick newTime ->
+            ( { extendedModel | time = newTime }
+            , Cmd.none
+            )
+
+        AdjustTimeZone newZone ->
+            ( { extendedModel | timeZone = newZone }
+            , Cmd.none
+            )
+
 
 mapTilExtendedModel : ExtendedModel -> ( Model, Cmd Msg ) -> ( ExtendedModel, Cmd Msg )
 mapTilExtendedModel extendedModel ( model, cmd ) =
@@ -192,6 +212,8 @@ mapTilExtendedModel extendedModel ( model, cmd ) =
       , debugStatus = extendedModel.debugStatus
       , navigationKey = extendedModel.navigationKey
       , modalStatus = extendedModel.modalStatus
+      , timeZone = extendedModel.timeZone
+      , time = extendedModel.time
       }
     , cmd
     )
@@ -385,7 +407,7 @@ modelFraLoadingState debugStatus state =
                 , personalia = state.personalia
                 , person = state.person
                 , registreringsProgresjon = registreringsProgresjon
-                , aktivSeksjon = initialiserSamtale state.personalia
+                , aktivSeksjon = initialiserSamtale (Cv.sistEndretDato cv) state.personalia
                 , debugStatus = debugStatus
                 }
             , lagtTilSpørsmålCmd debugStatus
@@ -396,8 +418,8 @@ modelFraLoadingState debugStatus state =
             ( Loading (VenterPåResten state), Cmd.none )
 
 
-initialiserSamtale : Personalia -> SamtaleSeksjon
-initialiserSamtale personalia =
+initialiserSamtale : Posix -> Personalia -> SamtaleSeksjon
+initialiserSamtale sistLagretFraCv personalia =
     let
         aktivSamtale =
             Introduksjon personalia
@@ -407,6 +429,7 @@ initialiserSamtale personalia =
         , meldingsLogg =
             MeldingsLogg.init
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
+        , sistLagret = sistLagretFraCv
         }
 
 
@@ -489,8 +512,8 @@ updateSuccess successMsg model =
                             , Cmd.map PersonaliaMsg cmd
                             )
 
-                        Personalia.Seksjon.Ferdig personalia personaliaMeldingsLogg ->
-                            gåTilUtdanning model personaliaMeldingsLogg
+                        Personalia.Seksjon.Ferdig sistLagret _ personaliaMeldingsLogg ->
+                            gåTilUtdanning sistLagret model personaliaMeldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -506,8 +529,8 @@ updateSuccess successMsg model =
                             , Cmd.map UtdanningsMsg cmd
                             )
 
-                        Utdanning.Seksjon.Ferdig utdanning meldingsLogg ->
-                            gåTilArbeidserfaring model meldingsLogg
+                        Utdanning.Seksjon.Ferdig sistLagret _ meldingsLogg ->
+                            gåTilArbeidserfaring sistLagret model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -523,8 +546,8 @@ updateSuccess successMsg model =
                             , Cmd.map ArbeidserfaringsMsg cmd
                             )
 
-                        Arbeidserfaring.Seksjon.Ferdig ferdigAnimertMeldingsLogg ->
-                            gåTilSpråk model ferdigAnimertMeldingsLogg
+                        Arbeidserfaring.Seksjon.Ferdig sistLagret ferdigAnimertMeldingsLogg ->
+                            gåTilSpråk sistLagret model ferdigAnimertMeldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -540,8 +563,8 @@ updateSuccess successMsg model =
                             , Cmd.map SpråkMsg cmd
                             )
 
-                        Sprak.Seksjon.Ferdig meldingsLogg ->
-                            gåTilFørerkort model meldingsLogg
+                        Sprak.Seksjon.Ferdig sistLagret meldingsLogg ->
+                            gåTilFørerkort sistLagret model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -557,8 +580,8 @@ updateSuccess successMsg model =
                             , Cmd.map FagdokumentasjonMsg cmd
                             )
 
-                        Fagdokumentasjon.Seksjon.Ferdig fagdokumentasjonListe meldingsLogg ->
-                            gåTilFlereSeksjonsValg model meldingsLogg
+                        Fagdokumentasjon.Seksjon.Ferdig sistLagret fagdokumentasjonListe meldingsLogg ->
+                            gåTilFlereSeksjonsValg sistLagret model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -574,8 +597,8 @@ updateSuccess successMsg model =
                             , Cmd.map SertifikatMsg cmd
                             )
 
-                        Sertifikat.Seksjon.Ferdig sertifikatListe meldingsLogg ->
-                            gåTilFlereAnnetValg model meldingsLogg
+                        Sertifikat.Seksjon.Ferdig sistLagret sertifikatListe meldingsLogg ->
+                            gåTilFlereAnnetValg sistLagret model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -591,8 +614,8 @@ updateSuccess successMsg model =
                             , Cmd.map AnnenErfaringMsg cmd
                             )
 
-                        AnnenErfaring.Seksjon.Ferdig _ meldingsLogg ->
-                            gåTilFlereAnnetValg model meldingsLogg
+                        AnnenErfaring.Seksjon.Ferdig sistLagret _ meldingsLogg ->
+                            gåTilFlereAnnetValg sistLagret model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -608,8 +631,8 @@ updateSuccess successMsg model =
                             , Cmd.map FørerkortMsg cmd
                             )
 
-                        Forerkort.Seksjon.Ferdig førerkort meldingsLogg ->
-                            gåTilSeksjonsValg { model | cv = Cv.oppdaterFørerkort førerkort model.cv } meldingsLogg
+                        Forerkort.Seksjon.Ferdig sistLagret førerkort meldingsLogg ->
+                            gåTilSeksjonsValg sistLagret { model | cv = Cv.oppdaterFørerkort førerkort model.cv } meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -625,8 +648,8 @@ updateSuccess successMsg model =
                             , Cmd.map KursMsg cmd
                             )
 
-                        Kurs.Seksjon.Ferdig _ meldingsLogg ->
-                            gåTilFlereAnnetValg model meldingsLogg
+                        Kurs.Seksjon.Ferdig sistLagret _ meldingsLogg ->
+                            gåTilFlereAnnetValg sistLagret model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -648,22 +671,22 @@ oppdaterSamtaleSeksjon model samtaleSeksjon =
     { model | aktivSeksjon = samtaleSeksjon }
 
 
-gåTilArbeidserfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilArbeidserfaring model ferdigAnimertMeldingsLogg =
+gåTilArbeidserfaring : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilArbeidserfaring sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( arbeidsModell, arbeidsCmd ) =
-            Arbeidserfaring.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.arbeidserfaring model.cv)
+            Arbeidserfaring.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.arbeidserfaring model.cv)
     in
     ( { model | aktivSeksjon = ArbeidsErfaringSeksjon arbeidsModell }
     , Cmd.map ArbeidserfaringsMsg arbeidsCmd
     )
 
 
-gåTilUtdanning : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilUtdanning model ferdigAnimertMeldingsLogg =
+gåTilUtdanning : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilUtdanning sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( utdanningModel, utdanningCmd ) =
-            Utdanning.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
+            Utdanning.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.utdanning model.cv)
     in
     ( { model
         | aktivSeksjon = UtdanningSeksjon utdanningModel
@@ -672,11 +695,11 @@ gåTilUtdanning model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilSpråk : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilSpråk model ferdigAnimertMeldingsLogg =
+gåTilSpråk : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilSpråk sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( språkModel, språkCmd ) =
-            Sprak.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
+            Sprak.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.spraakferdighet model.cv)
     in
     ( { model
         | aktivSeksjon = SpråkSeksjon språkModel
@@ -685,11 +708,11 @@ gåTilSpråk model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilFagbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilFagbrev model ferdigAnimertMeldingsLogg =
+gåTilFagbrev : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilFagbrev sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
-            Fagdokumentasjon.Seksjon.initFagbrev model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+            Fagdokumentasjon.Seksjon.initFagbrev model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
     in
     ( { model
         | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
@@ -698,11 +721,11 @@ gåTilFagbrev model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilMesterbrev : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilMesterbrev model ferdigAnimertMeldingsLogg =
+gåTilMesterbrev : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilMesterbrev sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
-            Fagdokumentasjon.Seksjon.initMesterbrev model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+            Fagdokumentasjon.Seksjon.initMesterbrev model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
     in
     ( { model
         | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
@@ -711,11 +734,11 @@ gåTilMesterbrev model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilAutorisasjon : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
+gåTilAutorisasjon : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilAutorisasjon sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( fagbrevModel, fagbrevCmd ) =
-            Fagdokumentasjon.Seksjon.initAutorisasjon model.debugStatus ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+            Fagdokumentasjon.Seksjon.initAutorisasjon model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
     in
     ( { model
         | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
@@ -724,11 +747,11 @@ gåTilAutorisasjon model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilSertifisering : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilSertifisering model ferdigAnimertMeldingsLogg =
+gåTilSertifisering : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilSertifisering sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( sertifikatModel, sertifikatCmd ) =
-            Sertifikat.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.sertifikater model.cv)
+            Sertifikat.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.sertifikater model.cv)
     in
     ( { model
         | aktivSeksjon = SertifikatSeksjon sertifikatModel
@@ -737,11 +760,11 @@ gåTilSertifisering model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilAnnenErfaring : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilAnnenErfaring model ferdigAnimertMeldingsLogg =
+gåTilAnnenErfaring : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilAnnenErfaring sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( annenErfaringModel, annenErfaringCmd ) =
-            AnnenErfaring.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.annenErfaring model.cv)
+            AnnenErfaring.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.annenErfaring model.cv)
     in
     ( { model
         | aktivSeksjon = AnnenErfaringSeksjon annenErfaringModel
@@ -750,11 +773,11 @@ gåTilAnnenErfaring model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilKurs : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilKurs model ferdigAnimertMeldingsLogg =
+gåTilKurs : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilKurs sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( kursModel, kursCmd ) =
-            Kurs.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.kurs model.cv)
+            Kurs.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.kurs model.cv)
     in
     ( { model
         | aktivSeksjon = KursSeksjon kursModel
@@ -763,11 +786,11 @@ gåTilKurs model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilFørerkort : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilFørerkort model ferdigAnimertMeldingsLogg =
+gåTilFørerkort : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilFørerkort sistLagret model ferdigAnimertMeldingsLogg =
     let
         ( førerkortModel, førerkortCmd ) =
-            Forerkort.Seksjon.init model.debugStatus ferdigAnimertMeldingsLogg (Cv.førerkort model.cv)
+            Forerkort.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.førerkort model.cv)
     in
     ( { model
         | aktivSeksjon = FørerkortSeksjon førerkortModel
@@ -776,13 +799,14 @@ gåTilFørerkort model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
+gåTilSeksjonsValg : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilSeksjonsValg sistLagret model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilAutorisasjoner
       , meldingsLogg =
             ferdigAnimertMeldingsLogg
                 |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilAutorisasjoner)
+      , sistLagret = sistLagret
       }
         |> AndreSamtaleSteg
         |> oppdaterSamtaleSeksjon model
@@ -790,13 +814,14 @@ gåTilSeksjonsValg model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilFlereSeksjonsValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
+gåTilFlereSeksjonsValg : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilFlereSeksjonsValg sistLagret model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilFlereAutorisasjoner
       , meldingsLogg =
             ferdigAnimertMeldingsLogg
                 |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilFlereAutorisasjoner)
+      , sistLagret = sistLagret
       }
         |> AndreSamtaleSteg
         |> oppdaterSamtaleSeksjon model
@@ -804,13 +829,14 @@ gåTilFlereSeksjonsValg model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilFlereAnnetValg : SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilFlereAnnetValg model ferdigAnimertMeldingsLogg =
+gåTilFlereAnnetValg : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilFlereAnnetValg sistLagret model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilFlereAnnet
       , meldingsLogg =
             ferdigAnimertMeldingsLogg
                 |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilFlereAnnet)
+      , sistLagret = sistLagret
       }
         |> AndreSamtaleSteg
         |> oppdaterSamtaleSeksjon model
@@ -859,6 +885,7 @@ successModelTilMetrikkSeksjon { aktivSeksjon } =
 type alias AndreSamtaleStegInfo =
     { aktivSamtale : Samtale
     , meldingsLogg : MeldingsLogg
+    , sistLagret : Posix
     }
 
 
@@ -1039,7 +1066,7 @@ updateAndreSamtaleSteg model msg info =
                         ( personaliaModel, personaliaCmd ) =
                             info.meldingsLogg
                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ "Ja!" ])
-                                |> Personalia.Seksjon.init model.debugStatus model.personalia
+                                |> Personalia.Seksjon.init model.debugStatus (Cv.sistEndretDato model.cv) model.personalia
                     in
                     ( personaliaModel
                         |> PersonaliaSeksjon
@@ -1194,10 +1221,11 @@ updateAndreSamtaleSteg model msg info =
             case info.aktivSamtale of
                 LagrerSammendrag sammendrag lagreStatus ->
                     case result of
-                        Ok _ ->
+                        Ok sammendragInfo ->
                             gåTilAvslutning model
                                 { info
-                                    | meldingsLogg =
+                                    | sistLagret = Sammendrag.sistEndretDato sammendragInfo
+                                    , meldingsLogg =
                                         if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                             info.meldingsLogg
                                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
@@ -1428,6 +1456,9 @@ updateAndreSamtaleSteg model msg info =
 gåTilValgtSeksjon : SuccessModel -> AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> ValgtSeksjon -> ( SuccessModel, Cmd SuccessMsg )
 gåTilValgtSeksjon model info msg valgtSeksjon =
     let
+        sistLagret =
+            info.sistLagret
+
         meldingsLogg =
             info.meldingsLogg
                 |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
@@ -1436,25 +1467,25 @@ gåTilValgtSeksjon model info msg valgtSeksjon =
         FerdigAnimert ferdigAnimertMeldingsLogg ->
             case valgtSeksjon of
                 FagbrevSvennebrevValgt ->
-                    gåTilFagbrev model ferdigAnimertMeldingsLogg
+                    gåTilFagbrev sistLagret model ferdigAnimertMeldingsLogg
 
                 MesterbrevValgt ->
-                    gåTilMesterbrev model ferdigAnimertMeldingsLogg
+                    gåTilMesterbrev sistLagret model ferdigAnimertMeldingsLogg
 
                 AutorisasjonValgt ->
-                    gåTilAutorisasjon model ferdigAnimertMeldingsLogg
+                    gåTilAutorisasjon sistLagret model ferdigAnimertMeldingsLogg
 
                 SertifiseringValgt ->
-                    gåTilSertifisering model ferdigAnimertMeldingsLogg
+                    gåTilSertifisering sistLagret model ferdigAnimertMeldingsLogg
 
                 AnnenErfaringValgt ->
-                    gåTilAnnenErfaring model ferdigAnimertMeldingsLogg
+                    gåTilAnnenErfaring sistLagret model ferdigAnimertMeldingsLogg
 
                 KursValgt ->
-                    gåTilKurs model ferdigAnimertMeldingsLogg
+                    gåTilKurs sistLagret model ferdigAnimertMeldingsLogg
 
                 FørerkortValgt ->
-                    gåTilFørerkort model ferdigAnimertMeldingsLogg
+                    gåTilFørerkort sistLagret model ferdigAnimertMeldingsLogg
 
         MeldingerGjenstår ->
             ( { info | meldingsLogg = meldingsLogg }
@@ -1484,6 +1515,7 @@ gåVidereFraSeksjonsvalg model info =
                 |> MeldingsLogg.leggTilSvar (Melding.svar [ "Nei, gå videre" ])
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg samtale)
       , aktivSamtale = samtale
+      , sistLagret = info.sistLagret
       }
         |> AndreSamtaleSteg
         |> oppdaterSamtaleSeksjon model
@@ -1765,6 +1797,98 @@ andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
 --- VIEW ---
 
 
+getMinutesAgo : Int -> String
+getMinutesAgo difference =
+    ((toFloat difference / (60 * 1000))
+        |> floor
+        |> String.fromInt
+    )
+        ++ " minutter siden"
+
+
+sistLagretToString : ExtendedModel -> Posix -> Maybe String
+sistLagretToString extendedModel sistLagret =
+    let
+        difference =
+            abs (Time.posixToMillis extendedModel.time - Time.posixToMillis sistLagret)
+    in
+    if Time.posixToMillis extendedModel.time == 0 then
+        Nothing
+
+    else if difference < (60 * 1000) then
+        Just "Nå"
+
+    else if difference < (2 * 60 * 1000) then
+        Just "1 minutt siden"
+
+    else if difference < (6 * 60 * 1000) then
+        Just (getMinutesAgo difference)
+
+    else if ulikDato extendedModel.timeZone sistLagret extendedModel.time then
+        Nothing
+
+    else
+        Just (tilKlokkeSlett extendedModel.timeZone sistLagret)
+
+
+getSistLagret : ExtendedModel -> Maybe String
+getSistLagret extendedModel =
+    case extendedModel.model of
+        Success successModel ->
+            case successModel.aktivSeksjon of
+                AndreSamtaleSteg info ->
+                    info.sistLagret
+                        |> sistLagretToString extendedModel
+
+                PersonaliaSeksjon model ->
+                    model
+                        |> Personalia.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+                UtdanningSeksjon model ->
+                    model
+                        |> Utdanning.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+                ArbeidsErfaringSeksjon model ->
+                    model
+                        |> Arbeidserfaring.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+                SpråkSeksjon model ->
+                    model
+                        |> Sprak.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+                FagdokumentasjonSeksjon model ->
+                    model
+                        |> Fagdokumentasjon.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+                SertifikatSeksjon model ->
+                    model
+                        |> Sertifikat.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+                AnnenErfaringSeksjon model ->
+                    model
+                        |> AnnenErfaring.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+                FørerkortSeksjon model ->
+                    model
+                        |> Forerkort.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+                KursSeksjon model ->
+                    model
+                        |> Kurs.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
+        _ ->
+            Nothing
+
+
 viewDocument : ExtendedModel -> Browser.Document Msg
 viewDocument extendedModel =
     { title = "CV-samtale - Arbeidsplassen"
@@ -1773,9 +1897,9 @@ viewDocument extendedModel =
 
 
 view : ExtendedModel -> Html Msg
-view { model, windowWidth, modalStatus } =
+view extendedModel =
     div [ class "app" ]
-        [ case modalStatus of
+        [ case extendedModel.modalStatus of
             TilbakemeldingModalÅpen modalModel ->
                 modalModel
                     |> TilbakemeldingModal.view
@@ -1783,14 +1907,15 @@ view { model, windowWidth, modalStatus } =
 
             ModalLukket ->
                 text ""
-        , div [ ariaHidden (modalStatus /= ModalLukket) ]
-            [ { windowWidth = windowWidth
+        , div [ ariaHidden (extendedModel.modalStatus /= ModalLukket) ]
+            [ { windowWidth = extendedModel.windowWidth
               , onAvsluttClick = ÅpneTilbakemeldingModal
-              , aktivSeksjon = modelTilMetrikkSeksjon model
+              , aktivSeksjon = modelTilMetrikkSeksjon extendedModel.model
+              , sistLagret = getSistLagret extendedModel
               }
                 |> Header.header
                 |> Header.toHtml
-            , case model of
+            , case extendedModel.model of
                 Loading _ ->
                     viewLoading
 
@@ -2375,19 +2500,23 @@ init _ url navigationKey =
       , navigationKey = navigationKey
       , debugStatus = DebugStatus.fromUrl url
       , modalStatus = ModalLukket
+      , timeZone = Time.utc
+      , time = Time.millisToPosix 0
       }
     , Cmd.batch
         [ Api.getPerson (PersonHentet >> LoadingMsg)
         , Dom.getViewport
             |> Task.perform ViewportHentet
+        , Task.perform AdjustTimeZone Time.here
         ]
     )
 
 
 subscriptions : ExtendedModel -> Sub Msg
-subscriptions { model, modalStatus } =
+subscriptions { model, debugStatus, modalStatus } =
     Sub.batch
         [ Browser.Events.onResize WindowResized
+        , Time.every (DebugStatus.tickInterval debugStatus) Tick
         , seksjonSubscriptions model
         , case modalStatus of
             ModalLukket ->

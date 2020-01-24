@@ -4,12 +4,13 @@ module AnnenErfaring.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
     )
 
-import AnnenErfaring.AnnenErfaring exposing (AnnenErfaring)
+import AnnenErfaring.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import AnnenErfaring.Skjema as Skjema exposing (AnnenErfaringSkjema, Felt(..), ValidertAnnenErfaringSkjema)
 import Api
 import Browser.Dom as Dom
@@ -36,6 +37,8 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Task
+import Tid exposing (nyesteSistLagretVerdi)
+import Time exposing (Posix)
 import Validering
 
 
@@ -52,6 +55,7 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , annenErfaringListe : List AnnenErfaring
     , debugStatus : DebugStatus
+    , sistLagretFraForrigeSeksjon : Posix
     }
 
 
@@ -60,9 +64,16 @@ meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
 
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    model.annenErfaringListe
+        |> List.map AnnenErfaring.sistEndretDato
+        |> nyesteSistLagretVerdi model.sistLagretFraForrigeSeksjon
+
+
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig (List AnnenErfaring) FerdigAnimertMeldingsLogg
+    | Ferdig Posix (List AnnenErfaring) FerdigAnimertMeldingsLogg
 
 
 type AvsluttetGrunn
@@ -714,7 +725,7 @@ update msg (Model model) =
                                             |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Bra. Nå har du lagt til denne erfaringen." ] ]
                             in
                             ( VenterPåAnimasjonFørFullføring annenErfaringer AnnenAvslutning
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg, annenErfaringListe = annenErfaringer } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -858,7 +869,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring annenErfaringListe _ ->
-                    Ferdig annenErfaringListe ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model model)) annenErfaringListe ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -1404,8 +1415,8 @@ maybeHvisTrue bool maybe =
 --- INIT ---
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List AnnenErfaring -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg annenErfaringListe =
+init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List AnnenErfaring -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg annenErfaringListe =
     let
         aktivSamtale =
             RegistrerRolle { rolle = "", tillatÅViseFeilmeldingRolle = False }
@@ -1418,6 +1429,7 @@ init debugStatus gammelMeldingsLogg annenErfaringListe =
         , aktivSamtale = aktivSamtale
         , annenErfaringListe = annenErfaringListe
         , debugStatus = debugStatus
+        , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
         }
     , lagtTilSpørsmålCmd debugStatus
     )

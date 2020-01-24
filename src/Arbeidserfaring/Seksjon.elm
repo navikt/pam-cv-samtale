@@ -4,6 +4,7 @@ module Arbeidserfaring.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -41,6 +42,8 @@ import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Result.Extra as Result
 import Task
+import Tid exposing (nyesteSistLagretVerdi)
+import Time exposing (Posix)
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 import Validering
 
@@ -58,6 +61,7 @@ type alias ModelInfo =
     , arbeidserfaringListe : List Arbeidserfaring
     , aktivSamtale : Samtale
     , debugStatus : DebugStatus
+    , sistLagretFraForrigeSeksjon : Posix
     }
 
 
@@ -66,9 +70,16 @@ meldingsLogg (Model model) =
     model.seksjonsMeldingsLogg
 
 
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    model.arbeidserfaringListe
+        |> List.map Arbeidserfaring.sistEndretDato
+        |> nyesteSistLagretVerdi model.sistLagretFraForrigeSeksjon
+
+
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig FerdigAnimertMeldingsLogg
+    | Ferdig Posix FerdigAnimertMeldingsLogg
 
 
 type RegistreringsType
@@ -164,7 +175,6 @@ type Msg
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
-    | GåTilNesteSeksjon
     | ErrorLogget
 
 
@@ -1044,14 +1054,6 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        GåTilNesteSeksjon ->
-            case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
-                FerdigAnimert ferdigAnimertMeldingsLogg ->
-                    Ferdig ferdigAnimertMeldingsLogg
-
-                MeldingerGjenstår ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
         FokusSatt _ ->
             case model.aktivSamtale of
                 RedigerOppsummering typeaheadModel skjema ->
@@ -1189,7 +1191,7 @@ updateEtterFullførtMelding info ( nyMeldingsLogg, cmd ) =
         MeldingsLogg.FerdigAnimert ferdigAnimertSamtale ->
             case info.aktivSamtale of
                 VenterPåAnimasjonFørFullføring _ ->
-                    Ferdig ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model info)) ferdigAnimertSamtale
 
                 _ ->
                     ( Model { info | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -2008,8 +2010,8 @@ logFeilmelding operasjon error =
         |> Maybe.withDefault Cmd.none
 
 
-init : DebugStatus -> FerdigAnimertMeldingsLogg -> List Arbeidserfaring -> ( Model, Cmd Msg )
-init debugStatus gammelMeldingsLogg arbeidserfaringsListe =
+init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Arbeidserfaring -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg arbeidserfaringsListe =
     ( Model
         { seksjonsMeldingsLogg =
             gammelMeldingsLogg
@@ -2032,6 +2034,7 @@ init debugStatus gammelMeldingsLogg arbeidserfaringsListe =
         , arbeidserfaringListe = arbeidserfaringsListe
         , aktivSamtale = Intro
         , debugStatus = debugStatus
+        , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
         }
     , lagtTilSpørsmålCmd debugStatus
     )
