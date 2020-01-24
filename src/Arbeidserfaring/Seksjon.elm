@@ -138,7 +138,7 @@ type Msg
     | FeltMisterFokus
     | TimeoutEtterAtFeltMistetFokus
     | BrukerVilRegistrereYrke
-    | BrukerVilEndreJobbtittel JobbtittelInfo
+    | BrukerVilEndreJobbtittel
     | BrukerVilIkkeEndreJobbtittel
     | BrukerOppdatererJobbtittelFelt String
     | BrukerVilRegistrereJobbtittel
@@ -480,13 +480,18 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        BrukerVilEndreJobbtittel jobbtittelInfo ->
-            ( jobbtittelInfo
-                |> EndreJobbtittel
-                |> oppdaterSamtale model (SvarFraMsg msg)
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
+        BrukerVilEndreJobbtittel ->
+            case model.aktivSamtale of
+                SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
+                    ( jobbtittelInfo
+                        |> EndreJobbtittel
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         BrukerOppdatererJobbtittelFelt string ->
             case model.aktivSamtale of
@@ -1407,7 +1412,7 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                     ]
 
         SpørOmBrukerVilEndreJobbtittel info ->
-            [ Melding.spørsmål [ "Du valgte «" ++ Yrke.label info.tidligereInfo ++ "» . Hvis dette ikke stemmer helt, kan du gi yrket et nytt navn. Det navnet vil vises på CV-en din. Ønsker du å kalle det noe annet? " ]
+            [ Melding.spørsmål [ "Du valgte «" ++ Yrke.label info.tidligereInfo ++ "». Hvis dette ikke stemmer helt, kan du gi yrket et nytt navn. Det navnet vil vises på CV-en din. Vil du gi det et nytt navn?" ]
             ]
 
         EndreJobbtittel _ ->
@@ -1616,11 +1621,11 @@ modelTilBrukerInput model =
             RegistrerYrke _ visFeilmelding typeaheadModel ->
                 viewRegistrerYrke visFeilmelding typeaheadModel
 
-            SpørOmBrukerVilEndreJobbtittel jobbtittelInfo ->
+            SpørOmBrukerVilEndreJobbtittel _ ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp BrukerVilIkkeEndreJobbtittel "Nei, jeg vil ikke kalle det noe annet"
+                    [ Knapp.knapp BrukerVilEndreJobbtittel "Ja, jeg vil gi det et nytt navn"
                         |> Knapp.withId (inputIdTilString EndreJobbtittelId)
-                    , Knapp.knapp (BrukerVilEndreJobbtittel jobbtittelInfo) "Ja, jeg vil kalle det noe annet"
+                    , Knapp.knapp BrukerVilIkkeEndreJobbtittel "Nei, gå videre"
                     ]
 
             EndreJobbtittel jobbtittelInfo ->
