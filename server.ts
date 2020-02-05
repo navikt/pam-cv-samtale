@@ -174,7 +174,7 @@ server.use(
     '/cv-samtale/goto/forhandsvis*',
     (req: express.Request, res: express.Response) => {
         loggMetrikkForCvAvslutning(req.query.utgang, req.query.seksjon);
-        res.redirect(`https://${req.hostname}/cv/forhandsvis`);
+        res.redirect(`https://${req.hostname}/forhandsvis`);
     }
 );
 
