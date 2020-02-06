@@ -26,6 +26,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
 import Http
+import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
 import Meldinger.Konstanter as Konstanter
@@ -263,6 +264,7 @@ type LoadingMsg
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
+    | JobbprofilHentet (Result Http.Error Jobbprofil)
 
 
 updateLoading : DebugStatus -> LoadingMsg -> Model -> ( Model, Cmd Msg )
@@ -359,6 +361,14 @@ updateLoading debugStatus msg model =
                 Err error ->
                     uhåndtertErrorUnderLoading model error "Hent registreringsprogresjon"
 
+        JobbprofilHentet result ->
+            case result of
+                Ok _ ->
+                    ( model, Cmd.none )
+
+                Err error ->
+                    uhåndtertErrorUnderLoading model error "Hent jobbprofil"
+
 
 personHentet : Model -> Person -> ( Model, Cmd Msg )
 personHentet model person =
@@ -449,6 +459,8 @@ initVenterPåResten person personalia =
                     }
             }
         )
+      -- SUPERDUPERTAG JOBBPROFIL
+      --, Api.getJobbprofil (JobbprofilHentet >> LoadingMsg)
     , Api.getCv (CvHentet >> LoadingMsg)
     )
 

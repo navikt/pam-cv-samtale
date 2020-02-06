@@ -11,6 +11,7 @@ module Api exposing
     , getCv
     , getFagbrevTypeahead
     , getHeaderInfo
+    , getJobbprofil
     , getMesterbrevTypeahead
     , getPerson
     , getPersonalia
@@ -47,6 +48,7 @@ import Feilmelding exposing (Feilmelding)
 import Forerkort.Forerkort as Førerkort exposing (Førerkort)
 import Forerkort.Skjema
 import Http exposing (..)
+import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
 import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
 import Kurs.Kurs as Kurs exposing (Kurs)
@@ -190,6 +192,14 @@ opprettCv msgConstructor =
         { url = "/cv-samtale/api/rest/cv"
         , expect = expectJson msgConstructor Cv.decode
         , body = emptyBody
+        }
+
+
+getJobbprofil : (Result Error Jobbprofil -> msg) -> Cmd msg
+getJobbprofil msgConstructor =
+    Http.get
+        { url = "/cv-samtale/api/rest/jobbprofil"
+        , expect = expectJson msgConstructor Jobbprofil.decode
         }
 
 
