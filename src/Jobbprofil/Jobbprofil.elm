@@ -1,5 +1,10 @@
 module Jobbprofil.Jobbprofil exposing
-    ( Jobbprofil
+    ( GeografiInfo
+    , Jobbprofil
+    , JobbprofilInfo
+    , KompetanseInfo
+    , StillingInfo
+    , StillingKladdInfo
     , decode
     )
 
@@ -20,6 +25,7 @@ type alias JobbprofilInfo =
     , geografiliste : List GeografiInfo
     , ansettelsesformliste : List String
     , arbeidstidliste : List String
+    , arbeidsdagerliste : List String
     , arbeidstidsordningliste : List String
     , omfangsliste : List String
     , oppstart : Maybe String
@@ -103,6 +109,7 @@ type alias BackendData =
     , geografiliste : List GeografiInfo
     , ansettelsesformliste : List String
     , arbeidstidliste : List String
+    , arbeidsdagerliste : List String
     , arbeidstidsordningliste : List String
     , omfangsliste : List String
     , oppstart : Maybe String
@@ -120,6 +127,7 @@ decodeBackendData =
         |> required "geografiliste" (list geografiInfoDecoder)
         |> required "ansettelsesformliste" (list string)
         |> required "arbeidstidliste" (list string)
+        |> required "arbeidsdagerliste" (list string)
         |> required "arbeidstidsorningliste" (list string)
         |> required "omfangsliste" (list string)
         |> required "oppstart" (nullable string)
