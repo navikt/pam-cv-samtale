@@ -459,8 +459,6 @@ initVenterPåResten person personalia =
                     }
             }
         )
-      -- SUPERDUPERTAG JOBBPROFIL
-      --, Api.getJobbprofil (JobbprofilHentet >> LoadingMsg)
     , Api.getCv (CvHentet >> LoadingMsg)
     )
 
