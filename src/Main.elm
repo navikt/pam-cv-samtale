@@ -905,6 +905,13 @@ type BekreftSammendragState
     | EndretSammendrag String
 
 
+type SynlighetInfo
+    = IkkeSynligJobbskifter
+    | SynligJobbskifter
+    | IkkeSynligUnderOppfølging
+    | SynligUnderOppfølging
+
+
 type Samtale
     = Introduksjon Personalia
     | LeggTilAutorisasjoner
@@ -916,11 +923,10 @@ type Samtale
     | EndrerSammendrag Bool String
     | LagrerSammendrag String LagreStatus
     | LagringAvSammendragFeilet Http.Error String
-    | DelMedArbeidsgiver Bool
+    | DelMedArbeidsgiver
     | LagrerSynlighet Bool LagreStatus
     | LagringSynlighetFeilet Http.Error Bool
-    | SpørOmTilbakemeldingIkkeUnderOppfølging
-    | SpørOmTilbakemeldingUnderOppfølging
+    | SpørOmTilbakemelding SynlighetInfo
     | GiTilbakemelding
     | Avslutt Bool
 
@@ -944,7 +950,7 @@ type AndreSamtaleStegMsg
     | BrukerGodkjennerSynligCV
     | BrukerGodkjennerIkkeSynligCV
     | BrukerVilPrøveÅLagreSynlighetPåNytt
-    | BrukerGirOppÅLagre
+    | BrukerGirOppÅLagre Bool
     | VilGiTilbakemelding
     | VilIkkeGiTilbakemelding
     | SynlighetPostet (Result Http.Error Bool)
@@ -1040,13 +1046,10 @@ settFokus samtale =
         LagringAvSammendragFeilet _ _ ->
             settFokusCmd LagringFeiletActionId
 
-        DelMedArbeidsgiver _ ->
+        DelMedArbeidsgiver ->
             settFokusCmd DelMedArbeidsgiverId
 
-        SpørOmTilbakemeldingIkkeUnderOppfølging ->
-            settFokusCmd GiTilbakemeldingId
-
-        SpørOmTilbakemeldingUnderOppfølging ->
+        SpørOmTilbakemelding _ ->
             settFokusCmd GiTilbakemeldingId
 
         GiTilbakemelding ->
@@ -1200,7 +1203,7 @@ updateAndreSamtaleSteg model msg info =
                                     info.meldingsLogg
                                         |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
                             }
-                                |> gåTilAvslutning model
+                                |> gåTilJobbprofilSjekk model
 
                         NyttSammendrag sammendrag ->
                             ( LagreStatus.init
@@ -1225,14 +1228,14 @@ updateAndreSamtaleSteg model msg info =
                     info.meldingsLogg
                         |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
             }
-                |> gåTilAvslutning model
+                |> gåTilJobbprofilSjekk model
 
         SammendragOppdatert result ->
             case info.aktivSamtale of
                 LagrerSammendrag sammendrag lagreStatus ->
                     case result of
                         Ok sammendragInfo ->
-                            gåTilAvslutning model
+                            gåTilJobbprofilSjekk model
                                 { info
                                     | sistLagret = Sammendrag.sistEndretDato sammendragInfo
                                     , meldingsLogg =
@@ -1240,6 +1243,7 @@ updateAndreSamtaleSteg model msg info =
                                             info.meldingsLogg
                                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
                                                 |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med det vanskeligste 😊" ] ]
+                                                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med CV-en. Husk at du når som helst kan endre og forbedre den 😊" ] ]
 
                                         else
                                             info.meldingsLogg
@@ -1316,15 +1320,21 @@ updateAndreSamtaleSteg model msg info =
                 LagrerSynlighet skalVæreSynlig lagreStatus ->
                     case result of
                         Ok _ ->
-                            ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                SpørOmTilbakemeldingIkkeUnderOppfølging
-                                    |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
+                            if skalVæreSynlig then
+                                ( model, Cmd.none )
+                                --todo gå til jobbprofil
 
-                              else
-                                SpørOmTilbakemeldingIkkeUnderOppfølging
-                                    |> oppdaterSamtale model info UtenSvar
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
+                            else
+                                -- Kun jobbskiftere får valget om å velge synlighet, hvis de svarer nei, sender vi de til tilbakemelding
+                                ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                    SpørOmTilbakemelding IkkeSynligJobbskifter
+                                        |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
+
+                                  else
+                                    SpørOmTilbakemelding IkkeSynligJobbskifter
+                                        |> oppdaterSamtale model info UtenSvar
+                                , lagtTilSpørsmålCmd model.debugStatus
+                                )
 
                         Err error ->
                             if LagreStatus.lagrerEtterUtlogging lagreStatus then
@@ -1375,11 +1385,16 @@ updateAndreSamtaleSteg model msg info =
                 _ ->
                     ( model, Cmd.none )
 
-        BrukerGirOppÅLagre ->
-            ( SpørOmTilbakemeldingIkkeUnderOppfølging
-                |> oppdaterSamtale model info (SvarFraMsg msg)
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
+        BrukerGirOppÅLagre skalVæreSynlig ->
+            if skalVæreSynlig then
+                --todo : gi beskjed til bruker om at de må endre på min side, gå til jobbprofil
+                ( model, Cmd.none )
+
+            else
+                ( SpørOmTilbakemelding IkkeSynligJobbskifter
+                    |> oppdaterSamtale model info (SvarFraMsg msg)
+                , lagtTilSpørsmålCmd model.debugStatus
+                )
 
         WindowEndrerVisibility visibility ->
             case visibility of
@@ -1556,18 +1571,14 @@ visEksemplerSammendrag model info msg aktivSamtale =
     )
 
 
-gåTilAvslutning : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
-gåTilAvslutning model info =
+gåTilJobbprofilSjekk : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
+gåTilJobbprofilSjekk model info =
     if Person.underOppfolging model.person then
-        ( SpørOmTilbakemeldingUnderOppfølging
-            |> oppdaterSamtale model info UtenSvar
-        , lagtTilSpørsmålCmd model.debugStatus
-        )
+        ( model, Cmd.none )
+        --todo gå til jobbprofil
 
     else
-        ( model.person
-            |> Person.cvSynligForArbeidsgiver
-            |> DelMedArbeidsgiver
+        ( DelMedArbeidsgiver
             |> oppdaterSamtale model info UtenSvar
         , lagtTilSpørsmålCmd model.debugStatus
         )
@@ -1677,30 +1688,32 @@ samtaleTilMeldingsLogg samtale =
         LagringAvSammendragFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre sammendrag" } ]
 
-        DelMedArbeidsgiver synlig ->
-            [ Melding.spørsmål [ "Du kan velge om arbeidsgivere skal få se CV-en din. Da kan de ta kontakt hvis de har en jobb du kan passe til. " ]
-            , if synlig then
-                Melding.spørsmål
-                    [ "CV-en din er allerede synlig for arbeidsgivere!"
-                    , "Ønsker du fremdeles at arbeidsgivere skal kunne se CV-en din?"
+        DelMedArbeidsgiver ->
+            [ Melding.spørsmål [ "Noen arbeidsgivere søker aktivt i CV-ene på Arbeidsplassen. Da kan de kokntakte deg direkte. " ]
+            , Melding.spørsmål [ "Vil du la arbeidsgivere søke opp CV-en din?" ]
+            ]
+
+        SpørOmTilbakemelding synlighetInfo ->
+            case synlighetInfo of
+                IkkeSynligJobbskifter ->
+                    [ Melding.spørsmål [ "Ok. Du kan gjøre CV-en søkbar senere på Min side." ]
+                    , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
                     ]
 
-              else
-                Melding.spørsmål
-                    [ "Ønsker du at arbeidsgivere skal kunne se CV-en din?" ]
-            ]
+                SynligJobbskifter ->
+                    [ Melding.spørsmål [ "Bra innsats! 👍👍 Nå er du søkbar 😊" ]
+                    , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                    ]
 
-        SpørOmTilbakemeldingUnderOppfølging ->
-            [ Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "For å bli synlig for arbeidsgivere må du også registrere en jobbprofil. Det kan du gjøre etter at vi er ferdig i denne samtalen." ]
-            , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
-            ]
+                IkkeSynligUnderOppfølging ->
+                    [ Melding.spørsmål [ "Bra innsats! 👍👍 NAV-veiledere kan nå søke opp CV-en din. Hvis du ønsker at arbeidsgivere skal kunne søke deg opp, må du kontakte NAV-veilederen din." ]
+                    , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                    ]
 
-        SpørOmTilbakemeldingIkkeUnderOppfølging ->
-            [ Melding.spørsmål [ "Bra innsats! 👍👍 Alt du har lagt inn er nå lagret i CV-en din." ]
-            , Melding.spørsmål [ "Da er vi ferdige med CV-en. Husk at du når som helst kan endre og forbedre den." ]
-            , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
-            ]
+                SynligUnderOppfølging ->
+                    [ Melding.spørsmål [ "Bra innsats! 👍👍 Arbeidsgivere og NAV-veiledere kan nå søke opp CV-din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
+                    , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                    ]
 
         GiTilbakemelding ->
             [ Melding.spørsmål [ "Så bra at du vil svare! Klikk på lenken." ]
@@ -1781,7 +1794,7 @@ andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
         LagringAvSammendragFeilet _ _ ->
             Metrikker.Sammendrag
 
-        DelMedArbeidsgiver _ ->
+        DelMedArbeidsgiver ->
             Metrikker.Synlighet
 
         LagrerSynlighet _ _ ->
@@ -1790,10 +1803,7 @@ andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
         LagringSynlighetFeilet _ _ ->
             Metrikker.Synlighet
 
-        SpørOmTilbakemeldingIkkeUnderOppfølging ->
-            Metrikker.Slutten
-
-        SpørOmTilbakemeldingUnderOppfølging ->
+        SpørOmTilbakemelding _ ->
             Metrikker.Slutten
 
         GiTilbakemelding ->
@@ -2348,18 +2358,19 @@ andreSamtaleStegTilBrukerInput info =
             LeggTilFlereAnnet ->
                 viewLeggTilAnnet
 
-            DelMedArbeidsgiver _ ->
+            DelMedArbeidsgiver ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en skal være synlig for arbeidsgivere"
+                    [ Knapp.knapp BrukerGodkjennerSynligCV "Ja, CV-en min skal være søkbar"
                         |> Knapp.withId (inputIdTilString DelMedArbeidsgiverId)
-                    , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en skal bare være synlig for meg"
+                    , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en min skal ikke være søkbar"
                     ]
 
-            SpørOmTilbakemeldingUnderOppfølging ->
-                viewSpørOmTilbakemelding
-
-            SpørOmTilbakemeldingIkkeUnderOppfølging ->
-                viewSpørOmTilbakemelding
+            SpørOmTilbakemelding _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
+                        |> Knapp.withId (inputIdTilString GiTilbakemeldingId)
+                    , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
+                    ]
 
             GiTilbakemelding ->
                 BrukerInput.lenke
@@ -2386,11 +2397,11 @@ andreSamtaleStegTilBrukerInput info =
                 else
                     BrukerInput.utenInnhold
 
-            LagringSynlighetFeilet error _ ->
+            LagringSynlighetFeilet error skalVæreSynlig ->
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp BrukerGirOppÅLagre "Gå videre"
+                            [ Knapp.knapp (BrukerGirOppÅLagre skalVæreSynlig) "Gå videre"
                                 |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
@@ -2398,7 +2409,7 @@ andreSamtaleStegTilBrukerInput info =
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagreSynlighetPåNytt "Prøv på nytt"
                                 |> Knapp.withId (inputIdTilString LagringFeiletActionId)
-                            , Knapp.knapp BrukerGirOppÅLagre "Gå videre"
+                            , Knapp.knapp (BrukerGirOppÅLagre skalVæreSynlig) "Gå videre"
                             ]
 
                     LoggInn ->
@@ -2427,15 +2438,6 @@ viewLeggTilAnnet =
         , seksjonsvalgKnapp KursValgt
         , seksjonsvalgKnapp SertifiseringValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
-        ]
-
-
-viewSpørOmTilbakemelding : BrukerInput AndreSamtaleStegMsg
-viewSpørOmTilbakemelding =
-    BrukerInput.knapper Flytende
-        [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
-            |> Knapp.withId (inputIdTilString GiTilbakemeldingId)
-        , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
         ]
 
 

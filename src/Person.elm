@@ -5,6 +5,7 @@ module Person exposing
     , decodeBackendData
     , harGodtattVilkår
     , underOppfolging
+    , usynligGrunnetArenaFlagg
     )
 
 import Json.Decode exposing (Decoder, bool, map, nullable, string, succeed)
@@ -18,6 +19,7 @@ type Person
 type alias PersonInfo =
     { underOppfolging : Bool
     , cvSynligForArbeidsgiver : Bool
+    , usynligGrunnetArenaFlagg : Bool
     , godtattVilkaar : Bool
     }
 
@@ -30,6 +32,11 @@ underOppfolging (Person info) =
 cvSynligForArbeidsgiver : Person -> Bool
 cvSynligForArbeidsgiver (Person info) =
     info.cvSynligForArbeidsgiver
+
+
+usynligGrunnetArenaFlagg : Person -> Bool
+usynligGrunnetArenaFlagg (Person info) =
+    info.usynligGrunnetArenaFlagg
 
 
 harGodtattVilkår : Person -> Bool
@@ -53,3 +60,4 @@ decodeBackendData =
         |> required "underOppfolging" bool
         |> required "cvSynligForArbeidsgiver" bool
         |> required "godtattVilkaar" bool
+        |> required "usynligGrunnetArenaFlagg" bool
