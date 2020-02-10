@@ -1,11 +1,13 @@
 module Jobbprofil.Seksjon exposing (..)
 
 import DebugStatus exposing (DebugStatus)
-import Jobbprofil.Jobbprofil exposing (Jobbprofil)
+import FrontendModuler.Radio as Radio
+import Html exposing (Html, div)
+import Jobbprofil.Jobbprofil exposing (Jobbprofil, JobbprofilInfo)
+import Jobbprofil.Skjema exposing (SeksjonValg(..), hentSeksjonsValg)
 import Meldinger.Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
-import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Time exposing (Posix)
 
 
@@ -29,6 +31,8 @@ type alias ModelInfo =
 type Samtale
     = Intro Jobbprofil
     | BekreftJobbprofil
+    | VelgOppstart
+    | BekreftOppstart
 
 
 type FullføringStatus
@@ -74,6 +78,26 @@ lagtTilSpørsmålCmd debugStatus =
 
 
 --- VIEW ---
+
+
+isChecked : Maybe String -> String -> Bool
+isChecked a b =
+    case a of
+        Just x ->
+            x == b
+
+        Nothing ->
+            False
+
+
+radioGruppe : JobbprofilInfo -> Html Melding
+radioGruppe model =
+    div []
+        [ List.map (\v -> Radio.radio v.label v.value BekreftOppstart (isChecked model.oppstart v.value)) (hentSeksjonsValg OppstartValg)
+        ]
+
+
+
 --- INIT ---
 
 

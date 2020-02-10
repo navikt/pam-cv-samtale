@@ -1,6 +1,6 @@
 module Jobbprofil.Skjema exposing (..)
 
-import FrontendModuler.Radio exposing (RadioOption)
+import FrontendModuler.RadioGroup exposing (RadioOption)
 import Jobbprofil.Jobbprofil
     exposing
         ( GeografiInfo
@@ -69,15 +69,17 @@ type alias ValgElement =
     }
 
 
-getOptions : SeksjonValg -> List RadioOption
-getOptions seksjonValg =
+hentSeksjonsValg : SeksjonValg -> List RadioOption
+hentSeksjonsValg seksjonValg =
     case seksjonValg of
+        -- RADIO BUTTON --
         OppstartValg ->
             [ { label = "Jeg kan begynne nå", value = "LEDIG_NAA" }
             , { label = "Jeg har 3 måneder oppsigelse", value = "ETTER_TRE_MND" }
             , { label = "Jeg kan begynne etter nærmere avtale", value = "ETTER_AVTALE" }
             ]
 
+        -- CHECKBOXES --
         OmfangValg ->
             [ { label = "Heltid", value = "HELTID" }
             , { label = "Deltid", value = "DELTID" }
@@ -181,17 +183,64 @@ oppstartFraSkjema (JobbprofilSkjema info) =
 --- OPPDATERING ---
 
 
+leggTilStilling : JobbprofilSkjema -> StillingInfo -> JobbprofilSkjema
+leggTilStilling (JobbprofilSkjema info) stilling =
+    JobbprofilSkjema { info | stillingliste = List.append info.stillingliste [ stilling ] }
+
+
+fjernStilling : JobbprofilSkjema -> StillingInfo -> JobbprofilSkjema
+fjernStilling (JobbprofilSkjema info) stilling =
+    JobbprofilSkjema { info | stillingliste = List.filter (\it -> it.id /= stilling.id) info.stillingliste }
+
+
+leggTilStillingKladd : JobbprofilSkjema -> StillingKladdInfo -> JobbprofilSkjema
+leggTilStillingKladd (JobbprofilSkjema info) stillingKladd =
+    JobbprofilSkjema { info | stillingKladdListe = List.append info.stillingKladdListe [ stillingKladd ] }
+
+
+fjernStillingKladd : JobbprofilSkjema -> StillingKladdInfo -> JobbprofilSkjema
+fjernStillingKladd (JobbprofilSkjema info) stillingKladd =
+    JobbprofilSkjema { info | stillingKladdListe = List.filter (\it -> it.id /= stillingKladd.id) info.stillingKladdListe }
+
+
+leggTilKompetanse : JobbprofilSkjema -> KompetanseInfo -> JobbprofilSkjema
+leggTilKompetanse (JobbprofilSkjema info) kompetanse =
+    JobbprofilSkjema { info | kompetanseliste = List.append info.kompetanseliste [ kompetanse ] }
+
+
+fjernKompetanse : JobbprofilSkjema -> KompetanseInfo -> JobbprofilSkjema
+fjernKompetanse (JobbprofilSkjema info) kompetanse =
+    JobbprofilSkjema { info | kompetanseliste = List.filter (\it -> it.id /= kompetanse.id) info.kompetanseliste }
+
+
+leggTilGeografi : JobbprofilSkjema -> GeografiInfo -> JobbprofilSkjema
+leggTilGeografi (JobbprofilSkjema info) geografi =
+    JobbprofilSkjema { info | geografiliste = List.append info.geografiliste [ geografi ] }
+
+
+fjernGeografi : JobbprofilSkjema -> GeografiInfo -> JobbprofilSkjema
+fjernGeografi (JobbprofilSkjema info) geografi =
+    JobbprofilSkjema { info | geografiliste = List.filter (\it -> it.id /= geografi.id) info.geografiliste }
+
+
 leggTilOmfang : JobbprofilSkjema -> String -> JobbprofilSkjema
 leggTilOmfang (JobbprofilSkjema info) omfang =
     JobbprofilSkjema { info | omfangsliste = List.append info.omfangsliste [ omfang ] }
 
 
+fjernOmfang : JobbprofilSkjema -> String -> JobbprofilSkjema
+fjernOmfang (JobbprofilSkjema info) omfang =
+    JobbprofilSkjema { info | omfangsliste = List.filter (\it -> it /= omfang) info.omfangsliste }
 
-{-
-   fjernOmfang : JobbprofilSkjema -> String -> JobbprofilSkjema
-   fjernOmfang (JobbprofilSkjema info) omfang =
-       JobbprofilSkjema { info | omfangsliste = List.filter (\it -> it not omfang) info.omfangsliste }
--}
+
+leggTilAnsettelsesForm : JobbprofilSkjema -> String -> JobbprofilSkjema
+leggTilAnsettelsesForm (JobbprofilSkjema info) ansettelsesForm =
+    JobbprofilSkjema { info | ansettelsesformliste = List.append info.ansettelsesformliste [ ansettelsesForm ] }
+
+
+fjernAnsettelsesForm : JobbprofilSkjema -> String -> JobbprofilSkjema
+fjernAnsettelsesForm (JobbprofilSkjema info) ansettelsesForm =
+    JobbprofilSkjema { info | ansettelsesformliste = List.filter (\it -> it /= ansettelsesForm) info.ansettelsesformliste }
 
 
 oppdaterOppstart : JobbprofilSkjema -> Maybe String -> JobbprofilSkjema
