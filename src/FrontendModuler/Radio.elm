@@ -1,70 +1,45 @@
-module FrontendModuler.Radio exposing (..)
+module FrontendModuler.Radio exposing
+    ( Radio
+    , radio
+    , toHtml
+    )
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 
 
-type alias RadioOption =
-    { label : String
-    , value : String
-    }
-
-
-type alias RadioOptionWithChecked =
-    { label : String
-    , value : String
-    , checked : Bool
-    }
-
-
 type Radio msg
     = Radio
-        { options : List RadioOption
+        { label : String
+        , value : String
         , msg : msg
-        , checked : RadioOption
+        , checked : Bool
         }
 
 
-radio : List RadioOption -> msg -> RadioOption -> Radio msg
-radio options msg checked =
+radio : String -> String -> msg -> Bool -> Radio msg
+radio label value msg checked =
     Radio
-        { options = options
+        { label = label
+        , value = value
         , msg = msg
         , checked = checked
         }
 
 
-getRadioOptionsWithChecked : RadioOption -> List RadioOption -> List RadioOptionWithChecked
-getRadioOptionsWithChecked checkedRadioOption radioOptions =
-    List.map
-        (\radioOption ->
-            if radioOption == checkedRadioOption then
-                RadioOptionWithChecked radioOption.label radioOption.value True
-
-            else
-                RadioOptionWithChecked radioOption.label radioOption.value False
-        )
-        radioOptions
-
-
-optionToHtml : RadioOptionWithChecked -> Html msg
-optionToHtml radioOption =
+toHtml : Radio msg -> Html msg
+toHtml (Radio radio_) =
     div
-        [ class "skjemaelement skjemaelement--horisontal"
-        ]
+        [ class "skjemaelement skjemaelement--horisontal" ]
         [ input
-            [ type_ "checkbox"
-            , class "skjemaelement__input checkboks"
-            , checked radioOption.checked
+            [ type_ "radio"
+            , class "skjemaelement__input radio"
+            , checked radio_.checked
+            , onClick radio_.msg
             ]
             []
-        , label [ class "skjemaelement__label skjemaelement--checkbox-label" ] [ text radioOption.label ]
+
+        --- TODO: htmlFor
+        , label [ class "skjemaelement__label", class "skjemaelement--checkbox-label", onClick radio_.msg ] [ text radio_.label ]
         ]
-
-
-toHtml : Radio msg -> Html msg
-toHtml (Radio radioObject) =
-    div
-        []
-        (List.map optionToHtml (getRadioOptionsWithChecked radioObject.checked radioObject.options))
