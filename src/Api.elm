@@ -203,15 +203,6 @@ getJobbprofil msgConstructor =
         }
 
 
-opprettJobbprofil : (Result Error Jobbprofil -> msg) -> Cmd msg
-opprettJobbprofil msgConstructor =
-    Http.post
-        { url = "/cv-samtale/api/rest/jobbprofil"
-        , expect = expectJson msgConstructor Jobbprofil.decode
-        , body = emptyBody
-        }
-
-
 getAAreg : (Result Error (List Arbeidserfaring) -> msg) -> Cmd msg
 getAAreg msgConstructor =
     Http.get

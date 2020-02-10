@@ -1,6 +1,9 @@
-module Jobbprofil.Skjema exposing (..)
+module Jobbprofil.Skjema exposing
+    ( JobbprofilSkjema
+    , ValidertJobbprofilSkjema
+    , initValidert
+    )
 
-import FrontendModuler.RadioGroup exposing (RadioOption)
 import Jobbprofil.Jobbprofil
     exposing
         ( GeografiInfo
@@ -15,27 +18,7 @@ type JobbprofilSkjema
 
 
 type alias JobbprofilSkjemaInfo =
-    { id : String
-    , aktiv : Bool
-    , stillingliste : List StillingInfo
-    , stillingKladdListe : List StillingKladdInfo
-    , kompetanseliste : List KompetanseInfo
-    , geografiliste : List GeografiInfo
-    , ansettelsesformliste : List String
-    , arbeidstidliste : List String
-    , arbeidsdagerliste : List String
-    , arbeidstidsordningliste : List String
-    , omfangsliste : List String
-    , oppstart : Maybe String
-    }
-
-
-type ValidertJobbprofilSkjema
-    = ValidertJobbprofilSkjema ValidertJobbprofilSkjemaInfo
-
-
-type alias ValidertJobbprofilSkjemaInfo =
-    { id : String
+    { id : Maybe Int
     , aktiv : Bool
     , stillingliste : List StillingInfo
     , stillingKladdListe : List StillingKladdInfo
@@ -54,6 +37,26 @@ type alias ValidertJobbprofilSkjemaInfo =
     }
 
 
+type ValidertJobbprofilSkjema
+    = ValidertJobbprofilSkjema ValidertJobbprofilSkjemaInfo
+
+
+type alias ValidertJobbprofilSkjemaInfo =
+    { id : Maybe Int
+    , aktiv : Bool
+    , stillingliste : List StillingInfo
+    , stillingKladdListe : List StillingKladdInfo
+    , kompetanseliste : List KompetanseInfo
+    , geografiliste : List GeografiInfo
+    , ansettelsesformliste : List String
+    , arbeidstidliste : List String
+    , arbeidsdagerliste : List String
+    , arbeidstidsordningliste : List String
+    , omfangsliste : List String
+    , oppstart : Maybe String
+    }
+
+
 type SeksjonValg
     = OppstartValg
     | OmfangValg
@@ -69,8 +72,8 @@ type alias ValgElement =
     }
 
 
-hentSeksjonsValg : SeksjonValg -> List RadioOption
-hentSeksjonsValg seksjonValg =
+getOptions : SeksjonValg -> List ValgElement
+getOptions seksjonValg =
     case seksjonValg of
         -- RADIO BUTTON --
         OppstartValg ->
