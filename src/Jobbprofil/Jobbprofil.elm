@@ -5,7 +5,19 @@ module Jobbprofil.Jobbprofil exposing
     , KompetanseInfo
     , StillingInfo
     , StillingKladdInfo
+    , aktiv
+    , ansettelsesformliste
+    , arbeidsdagerliste
+    , arbeidstidliste
+    , arbeidstidsordningliste
     , decode
+    , geografiliste
+    , id
+    , kompetanseliste
+    , omfangsliste
+    , oppstart
+    , stillingKladdListe
+    , stillingliste
     )
 
 import Json.Decode exposing (..)
@@ -57,6 +69,66 @@ type alias GeografiInfo =
     , konseptid : Maybe Int
     , kode : Maybe String
     }
+
+
+id : Jobbprofil -> Int
+id (Jobbprofil info) =
+    info.id
+
+
+aktiv : Jobbprofil -> Bool
+aktiv (Jobbprofil info) =
+    info.aktiv
+
+
+stillingliste : Jobbprofil -> List StillingInfo
+stillingliste (Jobbprofil info) =
+    info.stillingliste
+
+
+stillingKladdListe : Jobbprofil -> List StillingKladdInfo
+stillingKladdListe (Jobbprofil info) =
+    info.stillingKladdListe
+
+
+kompetanseliste : Jobbprofil -> List KompetanseInfo
+kompetanseliste (Jobbprofil info) =
+    info.kompetanseliste
+
+
+geografiliste : Jobbprofil -> List GeografiInfo
+geografiliste (Jobbprofil info) =
+    info.geografiliste
+
+
+ansettelsesformliste : Jobbprofil -> List String
+ansettelsesformliste (Jobbprofil info) =
+    info.ansettelsesformliste
+
+
+arbeidstidliste : Jobbprofil -> List String
+arbeidstidliste (Jobbprofil info) =
+    info.arbeidstidliste
+
+
+arbeidsdagerliste : Jobbprofil -> List String
+arbeidsdagerliste (Jobbprofil info) =
+    info.arbeidsdagerliste
+
+
+arbeidstidsordningliste : Jobbprofil -> List String
+arbeidstidsordningliste (Jobbprofil info) =
+    info.arbeidstidsordningliste
+
+
+omfangsliste : Jobbprofil -> List String
+omfangsliste (Jobbprofil info) =
+    info.omfangsliste
+
+
+oppstart : Jobbprofil -> Maybe String
+oppstart (Jobbprofil info) =
+    info.oppstart
 
 
 

@@ -4,13 +4,7 @@ module Jobbprofil.Skjema exposing
     , initValidert
     )
 
-import Jobbprofil.Jobbprofil
-    exposing
-        ( GeografiInfo
-        , KompetanseInfo
-        , StillingInfo
-        , StillingKladdInfo
-        )
+import Jobbprofil.Jobbprofil as Jobbprofil exposing (GeografiInfo, Jobbprofil, KompetanseInfo, StillingInfo, StillingKladdInfo)
 
 
 type JobbprofilSkjema
@@ -131,6 +125,28 @@ init info =
 initValidert : ValidertJobbprofilSkjemaInfo -> ValidertJobbprofilSkjema
 initValidert validertJobbprofilSkjemaInfo =
     ValidertJobbprofilSkjema validertJobbprofilSkjemaInfo
+
+
+fraJobbprofil : Jobbprofil -> JobbprofilSkjema
+fraJobbprofil jobbprofil =
+    JobbprofilSkjema
+        { id = Just (Jobbprofil.id jobbprofil)
+        , aktiv = Jobbprofil.aktiv jobbprofil
+        , stillingliste = Jobbprofil.stillingliste jobbprofil
+        , stillingKladdListe = Jobbprofil.stillingKladdListe jobbprofil
+        , kompetanseliste = Jobbprofil.kompetanseliste jobbprofil
+        , geografiliste = Jobbprofil.geografiliste jobbprofil
+        , ansettelsesformliste = Jobbprofil.ansettelsesformliste jobbprofil
+        , arbeidstidliste = Jobbprofil.arbeidstidliste jobbprofil
+        , arbeidsdagerliste = Jobbprofil.arbeidsdagerliste jobbprofil
+        , arbeidstidsordningliste = Jobbprofil.arbeidstidsordningliste jobbprofil
+        , omfangsliste = Jobbprofil.omfangsliste jobbprofil
+        , oppstart = Jobbprofil.oppstart jobbprofil
+        , tillatÅViseFeilmeldingStillingliste = False
+        , tillatÅViseFeilmeldingKompetanseliste = False
+        , tillatÅViseFeilmeldingGeografiliste = False
+        , tillatÅViseFeilmeldingOppstart = False
+        }
 
 
 
