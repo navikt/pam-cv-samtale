@@ -1,6 +1,5 @@
 module Jobbprofil.Skjema exposing (..)
 
-import FrontendModuler.Radio exposing (RadioOption)
 import Jobbprofil.Jobbprofil
     exposing
         ( GeografiInfo
@@ -69,7 +68,7 @@ type alias ValgElement =
     }
 
 
-getOptions : SeksjonValg -> List RadioOption
+getOptions : SeksjonValg -> List ValgElement
 getOptions seksjonValg =
     case seksjonValg of
         OppstartValg ->
