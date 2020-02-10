@@ -34,7 +34,7 @@ toHtml (Radio radio_) =
         [ class "skjemaelement skjemaelement--horisontal" ]
         [ input
             [ type_ "radio"
-            , class "skjemaelement__input radio"
+            , class "skjemaelement__input radioknapp"
             , checked radio_.checked
             , onClick radio_.msg
             ]
