@@ -27,6 +27,7 @@ import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.Seksjon
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
 import Meldinger.Konstanter as Konstanter
@@ -264,7 +265,6 @@ type LoadingMsg
     | CvHentet (Result Http.Error Cv)
     | CvOpprettet (Result Http.Error Cv)
     | RegistreringsProgresjonHentet (Result Http.Error RegistreringsProgresjon)
-    | JobbprofilHentet (Result Http.Error Jobbprofil)
 
 
 updateLoading : DebugStatus -> LoadingMsg -> Model -> ( Model, Cmd Msg )
@@ -360,14 +360,6 @@ updateLoading debugStatus msg model =
 
                 Err error ->
                     uhåndtertErrorUnderLoading model error "Hent registreringsprogresjon"
-
-        JobbprofilHentet result ->
-            case result of
-                Ok _ ->
-                    ( model, Cmd.none )
-
-                Err error ->
-                    uhåndtertErrorUnderLoading model error "Hent jobbprofil"
 
 
 personHentet : Model -> Person -> ( Model, Cmd Msg )
@@ -488,6 +480,7 @@ type SamtaleSeksjon
     | FørerkortSeksjon Forerkort.Seksjon.Model
     | KursSeksjon Kurs.Seksjon.Model
     | AndreSamtaleSteg AndreSamtaleStegInfo
+    | JobbprofilSeksjon Jobbprofil.Seksjon.Model
 
 
 
@@ -505,6 +498,7 @@ type SuccessMsg
     | FørerkortMsg Forerkort.Seksjon.Msg
     | KursMsg Kurs.Seksjon.Msg
     | AndreSamtaleStegMsg AndreSamtaleStegMsg
+    | JobbprofilMsg Jobbprofil.Seksjon.Msg
     | FokusSatt (Result Dom.Error ())
 
 
@@ -668,6 +662,24 @@ updateSuccess successMsg model =
             case model.aktivSeksjon of
                 AndreSamtaleSteg andreSamtaleStegInfo ->
                     updateAndreSamtaleSteg model andreSamtaleStegMsg andreSamtaleStegInfo
+
+                _ ->
+                    ( model, Cmd.none )
+
+        JobbprofilMsg msg ->
+            case model.aktivSeksjon of
+                JobbprofilSeksjon jobbprofilModel ->
+                    case Jobbprofil.Seksjon.update msg jobbprofilModel of
+                        Jobbprofil.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> JobbprofilSeksjon
+                                |> oppdaterSamtaleSeksjon model
+                            , Cmd.map JobbprofilMsg cmd
+                            )
+
+                        Jobbprofil.Seksjon.Ferdig _ meldingsLogg ->
+                            --todo: gå til tilbakemelding
+                            ( model, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -886,6 +898,9 @@ successModelTilMetrikkSeksjon { aktivSeksjon } =
 
         AndreSamtaleSteg andreSamtaleStegInfo ->
             andreSamtaleStegTilMetrikkSeksjon andreSamtaleStegInfo
+
+        JobbprofilSeksjon _ ->
+            Metrikker.Jobbprofil
 
 
 
@@ -1321,8 +1336,7 @@ updateAndreSamtaleSteg model msg info =
                     case result of
                         Ok _ ->
                             if skalVæreSynlig then
-                                ( model, Cmd.none )
-                                --todo gå til jobbprofil
+                                gåTilJobbprofil (Cv.sistEndretDato model.cv) model info
 
                             else
                                 -- Kun jobbskiftere får valget om å velge synlighet, hvis de svarer nei, sender vi de til tilbakemelding
@@ -1582,6 +1596,28 @@ gåTilJobbprofilSjekk model info =
             |> oppdaterSamtale model info UtenSvar
         , lagtTilSpørsmålCmd model.debugStatus
         )
+
+
+gåTilJobbprofil : Posix -> SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
+gåTilJobbprofil sistLagret model info =
+    case MeldingsLogg.ferdigAnimert info.meldingsLogg of
+        FerdigAnimert ferdigAnimertMeldingsLogg ->
+            let
+                ( jobbprofilModel, jobbprofilCmd ) =
+                    Jobbprofil.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg
+            in
+            ( { model
+                | aktivSeksjon = JobbprofilSeksjon jobbprofilModel
+              }
+            , Cmd.map JobbprofilMsg jobbprofilCmd
+            )
+
+        MeldingerGjenstår ->
+            ( { info | meldingsLogg = info.meldingsLogg }
+                |> AndreSamtaleSteg
+                |> oppdaterSamtaleSeksjon model
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
 
 
 svarFraBrukerInput : AndreSamtaleStegInfo -> AndreSamtaleStegMsg -> Melding
@@ -1905,6 +1941,10 @@ getSistLagret extendedModel =
                         |> Kurs.Seksjon.sistLagret
                         |> sistLagretToString extendedModel
 
+                JobbprofilSeksjon model ->
+                    -- todo: håndter sistlagret
+                    Nothing
+
         _ ->
             Nothing
 
@@ -1996,6 +2036,9 @@ meldingsLoggFraSeksjon aktivSeksjon =
 
         AndreSamtaleSteg andreSamtaleStegInfo ->
             andreSamtaleStegInfo.meldingsLogg
+
+        JobbprofilSeksjon model ->
+            Jobbprofil.Seksjon.meldingsLogg model
 
 
 viewSuccess : SuccessModel -> Html Msg
@@ -2278,6 +2321,11 @@ viewBrukerInputForSeksjon aktivSeksjon =
         AndreSamtaleSteg andreSamtaleStegInfo ->
             viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
                 |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
+
+        JobbprofilSeksjon jobbprofilSeksjon ->
+            jobbprofilSeksjon
+                |> Jobbprofil.Seksjon.viewBrukerInput
+                |> Html.map (JobbprofilMsg >> SuccessMsg)
 
 
 viewBrukerInputForAndreSamtaleSteg : AndreSamtaleStegInfo -> Html AndreSamtaleStegMsg
@@ -2603,3 +2651,8 @@ seksjonSubscriptions model =
                             |> SamtaleAnimasjon.subscriptions
                             |> Sub.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg >> SuccessMsg)
                         ]
+
+                JobbprofilSeksjon jobbprofilModel ->
+                    jobbprofilModel
+                        |> Jobbprofil.Seksjon.subscriptions
+                        |> Sub.map (JobbprofilMsg >> SuccessMsg)

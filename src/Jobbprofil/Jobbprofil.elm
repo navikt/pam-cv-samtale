@@ -17,7 +17,7 @@ type Jobbprofil
 
 
 type alias JobbprofilInfo =
-    { id : String
+    { id : Int
     , aktiv : Bool
     , stillingliste : List StillingInfo
     , stillingKladdListe : List StillingKladdInfo
@@ -101,7 +101,7 @@ geografiInfoDecoder =
 
 
 type alias BackendData =
-    { id : String
+    { id : Int
     , aktiv : Bool
     , stillingliste : List StillingInfo
     , stillingKladdListe : List StillingKladdInfo
@@ -119,7 +119,7 @@ type alias BackendData =
 decodeBackendData : Decoder BackendData
 decodeBackendData =
     succeed BackendData
-        |> required "id" string
+        |> required "id" int
         |> required "aktiv" bool
         |> required "stillingliste" (list stillingInfoDecoder)
         |> required "stillingKladdListe" (list stillingKladdInfoDecoder)
@@ -128,6 +128,6 @@ decodeBackendData =
         |> required "ansettelsesformliste" (list string)
         |> required "arbeidstidliste" (list string)
         |> required "arbeidsdagerliste" (list string)
-        |> required "arbeidstidsorningliste" (list string)
+        |> required "arbeidstidsordningliste" (list string)
         |> required "omfangsliste" (list string)
         |> required "oppstart" (nullable string)

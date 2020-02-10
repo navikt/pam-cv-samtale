@@ -1,4 +1,8 @@
-module Jobbprofil.Skjema exposing (..)
+module Jobbprofil.Skjema exposing
+    ( JobbprofilSkjema
+    , ValidertJobbprofilSkjema
+    , initValidert
+    )
 
 import Jobbprofil.Jobbprofil
     exposing
@@ -14,27 +18,7 @@ type JobbprofilSkjema
 
 
 type alias JobbprofilSkjemaInfo =
-    { id : String
-    , aktiv : Bool
-    , stillingliste : List StillingInfo
-    , stillingKladdListe : List StillingKladdInfo
-    , kompetanseliste : List KompetanseInfo
-    , geografiliste : List GeografiInfo
-    , ansettelsesformliste : List String
-    , arbeidstidliste : List String
-    , arbeidsdagerliste : List String
-    , arbeidstidsordningliste : List String
-    , omfangsliste : List String
-    , oppstart : Maybe String
-    }
-
-
-type ValidertJobbprofilSkjema
-    = ValidertJobbprofilSkjema ValidertJobbprofilSkjemaInfo
-
-
-type alias ValidertJobbprofilSkjemaInfo =
-    { id : String
+    { id : Maybe Int
     , aktiv : Bool
     , stillingliste : List StillingInfo
     , stillingKladdListe : List StillingKladdInfo
@@ -50,6 +34,26 @@ type alias ValidertJobbprofilSkjemaInfo =
     , tillatÅViseFeilmeldingKompetanseliste : Bool
     , tillatÅViseFeilmeldingGeografiliste : Bool
     , tillatÅViseFeilmeldingOppstart : Bool
+    }
+
+
+type ValidertJobbprofilSkjema
+    = ValidertJobbprofilSkjema ValidertJobbprofilSkjemaInfo
+
+
+type alias ValidertJobbprofilSkjemaInfo =
+    { id : Maybe Int
+    , aktiv : Bool
+    , stillingliste : List StillingInfo
+    , stillingKladdListe : List StillingKladdInfo
+    , kompetanseliste : List KompetanseInfo
+    , geografiliste : List GeografiInfo
+    , ansettelsesformliste : List String
+    , arbeidstidliste : List String
+    , arbeidsdagerliste : List String
+    , arbeidstidsordningliste : List String
+    , omfangsliste : List String
+    , oppstart : Maybe String
     }
 
 
