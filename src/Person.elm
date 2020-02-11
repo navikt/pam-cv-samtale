@@ -1,10 +1,14 @@
 module Person exposing
     ( Person
+    , Synlighet(..)
+    , SynlighetInfo(..)
     , cvSynligForArbeidsgiver
     , decode
     , decodeBackendData
     , harGodtattVilkår
+    , synlighet
     , underOppfolging
+    , usynligGrunnetArenaFlagg
     )
 
 import Json.Decode exposing (Decoder, bool, map, nullable, string, succeed)
@@ -15,11 +19,38 @@ type Person
     = Person PersonInfo
 
 
+type Synlighet
+    = Synlig
+    | IkkeSynlig
+
+
+type SynlighetInfo
+    = JobbSkifter Synlighet
+    | UnderOppfølging Synlighet
+
+
 type alias PersonInfo =
     { underOppfolging : Bool
     , cvSynligForArbeidsgiver : Bool
     , godtattVilkaar : Bool
+    , usynligGrunnetArenaFlagg : Bool
     }
+
+
+synlighet : Person -> SynlighetInfo
+synlighet (Person info) =
+    if info.underOppfolging then
+        if info.usynligGrunnetArenaFlagg then
+            UnderOppfølging IkkeSynlig
+
+        else
+            UnderOppfølging Synlig
+
+    else if info.cvSynligForArbeidsgiver then
+        JobbSkifter Synlig
+
+    else
+        JobbSkifter IkkeSynlig
 
 
 underOppfolging : Person -> Bool
@@ -30,6 +61,11 @@ underOppfolging (Person info) =
 cvSynligForArbeidsgiver : Person -> Bool
 cvSynligForArbeidsgiver (Person info) =
     info.cvSynligForArbeidsgiver
+
+
+usynligGrunnetArenaFlagg : Person -> Bool
+usynligGrunnetArenaFlagg (Person info) =
+    info.usynligGrunnetArenaFlagg
 
 
 harGodtattVilkår : Person -> Bool
@@ -53,3 +89,4 @@ decodeBackendData =
         |> required "underOppfolging" bool
         |> required "cvSynligForArbeidsgiver" bool
         |> required "godtattVilkaar" bool
+        |> required "usynligGrunnetArenaFlagg" bool

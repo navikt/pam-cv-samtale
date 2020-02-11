@@ -23,6 +23,7 @@ import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
+import Person exposing (SynlighetInfo(..))
 import Time exposing (Posix)
 
 
@@ -39,14 +40,17 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , debugStatus : DebugStatus
     , sistLagretFraCV : Posix
+    , synlighetInfo : SynlighetInfo
     }
 
 
 type Samtale
     = LasterJobbprofil
     | HentingAvJobbprofilFeilet Http.Error
-    | HarJobbprofil Jobbprofil
-    | HarIkkeJobbprofil
+    | HarJobbprofilJobbsøker Jobbprofil
+    | HarJobbprofilUnderOppfølging Jobbprofil
+    | HarIkkeJobbprofilJobbsøker
+    | LeggTilYrke Bool
 
 
 type FullføringStatus
@@ -83,9 +87,26 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         JobbprofilHentet result ->
+            let
+                underOppfølging =
+                    case model.synlighetInfo of
+                        UnderOppfølging _ ->
+                            True
+
+                        JobbSkifter _ ->
+                            False
+            in
             case result of
                 Ok jobbprofil ->
-                    ( HarJobbprofil jobbprofil
+                    let
+                        nesteSamtaleSteg =
+                            if underOppfølging then
+                                HarJobbprofilUnderOppfølging jobbprofil
+
+                            else
+                                HarJobbprofilJobbsøker jobbprofil
+                    in
+                    ( nesteSamtaleSteg
                         |> oppdaterSamtale model UtenSvar
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -94,7 +115,15 @@ update msg (Model model) =
                 Err error ->
                     case error of
                         Http.BadStatus 404 ->
-                            ( HarIkkeJobbprofil
+                            let
+                                nesteSamtaleSteg =
+                                    if underOppfølging then
+                                        LeggTilYrke True
+
+                                    else
+                                        HarIkkeJobbprofilJobbsøker
+                            in
+                            ( nesteSamtaleSteg
                                 |> oppdaterSamtale model UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -103,11 +132,27 @@ update msg (Model model) =
                         _ ->
                             IkkeFerdig ( Model model, logFeilmelding error "Hente jobbprofil" )
 
+        VilBegynnePåJobbprofil ->
+            ( LeggTilYrke False
+                |> oppdaterSamtale model (SvarFraMsg msg)
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
+
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
                 |> updateEtterFullførtMelding model
 
-        _ ->
+        VilEndreJobbprofil ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        VilLagreJobbprofil ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        WindowEndrerVisibility visibility ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
 
 
@@ -141,28 +186,60 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
         LasterJobbprofil ->
             []
 
-        HarIkkeJobbprofil ->
+        HarIkkeJobbprofilJobbsøker ->
             [ Melding.spørsmål
                 [ "Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
                 ]
             ]
 
-        HarJobbprofil jobbprofil ->
+        HarJobbprofilJobbsøker jobbprofil ->
             [ Melding.spørsmål
                 (List.concat
-                    [ [ "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:" ]
+                    [ [ "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
+                      , Melding.tomLinje
+                      ]
                     , jobbprofil
                         |> Skjema.fraJobbprofil
                         |> skjemaOppsummering
                     , [ Melding.tomLinje
-                      , "Er kontaktinformasjonen riktig?"
+                      , "Er informasjonen riktig?"
+                      ]
+                    ]
+                )
+            ]
+
+        HarJobbprofilUnderOppfølging jobbprofil ->
+            [ Melding.spørsmål
+                (List.concat
+                    [ [ "Bra! Nå gjenstår bare jobbprofilen. Jeg ser du har lagt inn dette tidligere:"
+                      , Melding.tomLinje
+                      ]
+                    , jobbprofil
+                        |> Skjema.fraJobbprofil
+                        |> skjemaOppsummering
+                    , [ Melding.tomLinje
+                      , "Er informasjonen riktig?"
                       ]
                     ]
                 )
             ]
 
         HentingAvJobbprofilFeilet error ->
+            --todo: håndter feil
             []
+
+        LeggTilYrke underOppfølging ->
+            if underOppfølging then
+                [ Melding.spørsmål [ "Bra! Nå gjenstår bare jobbprofilen." ]
+                , Melding.spørsmål [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider." ]
+                ]
+
+            else
+                [ Melding.spørsmål [ "Flott! Da begynner vi." ]
+                , Melding.spørsmål
+                    [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider."
+                    ]
+                ]
 
 
 skjemaOppsummering : JobbprofilSkjema -> List String
@@ -252,13 +329,13 @@ modelTilBrukerInput model =
             LasterJobbprofil ->
                 BrukerInput.utenInnhold
 
-            HarIkkeJobbprofil ->
+            HarIkkeJobbprofilJobbsøker ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilBegynnePåJobbprofil "Ja!"
                         |> Knapp.withId (inputIdTilString BegynnPåJobbprofilId)
                     ]
 
-            HarJobbprofil _ ->
+            HarJobbprofilJobbsøker _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
                         |> Knapp.withId (inputIdTilString BekreftJobbprofilId)
@@ -266,6 +343,12 @@ modelTilBrukerInput model =
                     ]
 
             HentingAvJobbprofilFeilet _ ->
+                BrukerInput.utenInnhold
+
+            HarJobbprofilUnderOppfølging jobbprofil ->
+                BrukerInput.utenInnhold
+
+            LeggTilYrke _ ->
                 BrukerInput.utenInnhold
 
     else
@@ -276,8 +359,8 @@ modelTilBrukerInput model =
 --- INIT ---
 
 
-init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-init debugStatus sistLagretFraCV gammelMeldingsLogg =
+init : DebugStatus -> Posix -> SynlighetInfo -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraCV synlighetInfo gammelMeldingsLogg =
     let
         aktivSamtale =
             LasterJobbprofil
@@ -288,6 +371,7 @@ init debugStatus sistLagretFraCV gammelMeldingsLogg =
                 |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
+        , synlighetInfo = synlighetInfo
         , debugStatus = debugStatus
         , sistLagretFraCV = sistLagretFraCV
         }

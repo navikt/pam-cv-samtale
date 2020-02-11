@@ -37,7 +37,7 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Meldinger.SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
 import Metrikker
-import Person exposing (Person)
+import Person exposing (Person, Synlighet(..), SynlighetInfo(..))
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Seksjon
 import Process
@@ -920,13 +920,6 @@ type BekreftSammendragState
     | EndretSammendrag String
 
 
-type SynlighetInfo
-    = IkkeSynligJobbskifter
-    | SynligJobbskifter
-    | IkkeSynligUnderOppfølging
-    | SynligUnderOppfølging
-
-
 type Samtale
     = Introduksjon Personalia
     | LeggTilAutorisasjoner
@@ -1336,16 +1329,16 @@ updateAndreSamtaleSteg model msg info =
                     case result of
                         Ok _ ->
                             if skalVæreSynlig then
-                                gåTilJobbprofil (Cv.sistEndretDato model.cv) model info
+                                gåTilJobbprofil (Cv.sistEndretDato model.cv) (JobbSkifter Synlig) model info
 
                             else
                                 -- Kun jobbskiftere får valget om å velge synlighet, hvis de svarer nei, sender vi de til tilbakemelding
                                 ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                    SpørOmTilbakemelding IkkeSynligJobbskifter
+                                    SpørOmTilbakemelding (JobbSkifter IkkeSynlig)
                                         |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                                   else
-                                    SpørOmTilbakemelding IkkeSynligJobbskifter
+                                    SpørOmTilbakemelding (JobbSkifter IkkeSynlig)
                                         |> oppdaterSamtale model info UtenSvar
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -1405,7 +1398,7 @@ updateAndreSamtaleSteg model msg info =
                 ( model, Cmd.none )
 
             else
-                ( SpørOmTilbakemelding IkkeSynligJobbskifter
+                ( SpørOmTilbakemelding (JobbSkifter IkkeSynlig)
                     |> oppdaterSamtale model info (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
@@ -1587,24 +1580,28 @@ visEksemplerSammendrag model info msg aktivSamtale =
 
 gåTilJobbprofilSjekk : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
 gåTilJobbprofilSjekk model info =
-    if Person.underOppfolging model.person then
-        ( model, Cmd.none )
-        --todo gå til jobbprofil
+    let
+        synlighet =
+            Person.synlighet model.person
+    in
+    case synlighet of
+        UnderOppfølging _ ->
+            gåTilJobbprofil (Cv.sistEndretDato model.cv) synlighet model info
 
-    else
-        ( DelMedArbeidsgiver
-            |> oppdaterSamtale model info UtenSvar
-        , lagtTilSpørsmålCmd model.debugStatus
-        )
+        JobbSkifter _ ->
+            ( DelMedArbeidsgiver
+                |> oppdaterSamtale model info UtenSvar
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
 
 
-gåTilJobbprofil : Posix -> SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
-gåTilJobbprofil sistLagret model info =
+gåTilJobbprofil : Posix -> SynlighetInfo -> SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
+gåTilJobbprofil sistLagret synlighetInfo model info =
     case MeldingsLogg.ferdigAnimert info.meldingsLogg of
         FerdigAnimert ferdigAnimertMeldingsLogg ->
             let
                 ( jobbprofilModel, jobbprofilCmd ) =
-                    Jobbprofil.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg
+                    Jobbprofil.Seksjon.init model.debugStatus sistLagret synlighetInfo ferdigAnimertMeldingsLogg
             in
             ( { model
                 | aktivSeksjon = JobbprofilSeksjon jobbprofilModel
@@ -1731,22 +1728,22 @@ samtaleTilMeldingsLogg samtale =
 
         SpørOmTilbakemelding synlighetInfo ->
             case synlighetInfo of
-                IkkeSynligJobbskifter ->
+                JobbSkifter IkkeSynlig ->
                     [ Melding.spørsmål [ "Ok. Du kan gjøre CV-en søkbar senere på Min side." ]
                     , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
                     ]
 
-                SynligJobbskifter ->
+                JobbSkifter Synlig ->
                     [ Melding.spørsmål [ "Bra innsats! 👍👍 Nå er du søkbar 😊" ]
                     , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
                     ]
 
-                IkkeSynligUnderOppfølging ->
+                UnderOppfølging IkkeSynlig ->
                     [ Melding.spørsmål [ "Bra innsats! 👍👍 NAV-veiledere kan nå søke opp CV-en din. Hvis du ønsker at arbeidsgivere skal kunne søke deg opp, må du kontakte NAV-veilederen din." ]
                     , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
                     ]
 
-                SynligUnderOppfølging ->
+                UnderOppfølging Synlig ->
                     [ Melding.spørsmål [ "Bra innsats! 👍👍 Arbeidsgivere og NAV-veiledere kan nå søke opp CV-din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
                     , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
                     ]
