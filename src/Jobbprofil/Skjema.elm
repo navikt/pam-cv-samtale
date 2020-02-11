@@ -58,55 +58,55 @@ type SeksjonValg
 
 
 type alias ValgElement =
-    { label : String
+    { label : Maybe String
     , value : String
     }
 
 
-getOptions : SeksjonValg -> List ValgElement
-getOptions seksjonValg =
+hentValg : SeksjonValg -> List ValgElement
+hentValg seksjonValg =
     case seksjonValg of
         -- RADIO BUTTON --
         OppstartValg ->
-            [ { label = "Jeg kan begynne nå", value = "LEDIG_NAA" }
-            , { label = "Jeg har 3 måneder oppsigelse", value = "ETTER_TRE_MND" }
-            , { label = "Jeg kan begynne etter nærmere avtale", value = "ETTER_AVTALE" }
+            [ { label = Just "Jeg kan begynne nå", value = "LEDIG_NAA" }
+            , { label = Just "Jeg har 3 måneder oppsigelse", value = "ETTER_TRE_MND" }
+            , { label = Just "Jeg kan begynne etter nærmere avtale", value = "ETTER_AVTALE" }
             ]
 
         -- CHECKBOXES --
         OmfangValg ->
-            [ { label = "Heltid", value = "HELTID" }
-            , { label = "Deltid", value = "DELTID" }
+            [ { label = Just "Heltid", value = "HELTID" }
+            , { label = Just "Deltid", value = "DELTID" }
             ]
 
         ArbeidsdagerValg ->
-            [ { label = "Lørdag", value = "LOERDAG" }
-            , { label = "Søndag", value = "SOENDAG" }
+            [ { label = Just "Lørdag", value = "LOERDAG" }
+            , { label = Just "Søndag", value = "SOENDAG" }
             ]
 
         AnsettelsesformValg ->
-            [ { label = "Fast", value = "FAST" }
-            , { label = "Vikariat", value = "VIKARIAT" }
-            , { label = "Engasjement", value = "ENGASJEMENT" }
-            , { label = "Prosjekt", value = "PROSJEKT" }
-            , { label = "Sesong", value = "SESONG" }
-            , { label = "Trainee", value = "TRAINEE" }
-            , { label = "Lærling", value = "LAERLING" }
-            , { label = "Selvstendig næringsdrivende", value = "SELVSTENDIG_NAERINGSDRIVENDE" }
-            , { label = "Feriejobb", value = "FERIEJOBB" }
-            , { label = "Annet", value = "ANNET" }
+            [ { label = Just "Fast", value = "FAST" }
+            , { label = Just "Vikariat", value = "VIKARIAT" }
+            , { label = Just "Engasjement", value = "ENGASJEMENT" }
+            , { label = Just "Prosjekt", value = "PROSJEKT" }
+            , { label = Just "Sesong", value = "SESONG" }
+            , { label = Just "Trainee", value = "TRAINEE" }
+            , { label = Just "Lærling", value = "LAERLING" }
+            , { label = Just "Selvstendig næringsdrivende", value = "SELVSTENDIG_NAERINGSDRIVENDE" }
+            , { label = Just "Feriejobb", value = "FERIEJOBB" }
+            , { label = Just "Annet", value = "ANNET" }
             ]
 
         ArbeidstidsOrdningValg ->
-            [ { label = "Skift", value = "SKIFT" }
-            , { label = "Vakt", value = "VAKT" }
-            , { label = "Turnus", value = "TURNUS" }
+            [ { label = Just "Skift", value = "SKIFT" }
+            , { label = Just "Vakt", value = "VAKT" }
+            , { label = Just "Turnus", value = "TURNUS" }
             ]
 
         ArbeidstidValg ->
-            [ { label = "Dag", value = "DAGTID" }
-            , { label = "Kveld", value = "KVELD" }
-            , { label = "Natt", value = "NATT" }
+            [ { label = Just "Dag", value = "DAGTID" }
+            , { label = Just "Kveld", value = "KVELD" }
+            , { label = Just "Natt", value = "NATT" }
             ]
 
 
@@ -155,9 +155,12 @@ stillingListeFraSkjema (JobbprofilSkjema info) =
     info.stillingliste
 
 
-stillingSammendragFraSkjema : List StillingInfo -> List String
+stillingSammendragFraSkjema : JobbprofilSkjema -> String
 stillingSammendragFraSkjema info =
-    Maybe.Extra.values (List.map (\it -> it.tittel) info)
+    stillingListeFraSkjema info
+        |> List.map (\it -> it.tittel)
+        |> Maybe.Extra.values
+        |> String.join ", "
 
 
 stillingKladdListeFraSkjema : JobbprofilSkjema -> List StillingKladdInfo
@@ -170,9 +173,12 @@ kompetanseListeFraSkjema (JobbprofilSkjema info) =
     info.kompetanseliste
 
 
-kompetanseSammendragFraSkjema : List KompetanseInfo -> List String
+kompetanseSammendragFraSkjema : JobbprofilSkjema -> String
 kompetanseSammendragFraSkjema info =
-    Maybe.Extra.values (List.map (\it -> it.tittel) info)
+    kompetanseListeFraSkjema info
+        |> List.map (\it -> it.tittel)
+        |> Maybe.Extra.values
+        |> String.join ", "
 
 
 geografiListeFraSkjema : JobbprofilSkjema -> List GeografiInfo
@@ -180,9 +186,12 @@ geografiListeFraSkjema (JobbprofilSkjema info) =
     info.geografiliste
 
 
-geografiSammendragFraSkjema : List GeografiInfo -> List String
+geografiSammendragFraSkjema : JobbprofilSkjema -> String
 geografiSammendragFraSkjema info =
-    Maybe.Extra.values (List.map (\it -> it.tittel) info)
+    geografiListeFraSkjema info
+        |> List.map (\it -> it.tittel)
+        |> Maybe.Extra.values
+        |> String.join ", "
 
 
 ansettelsesformListeFraSkjema : JobbprofilSkjema -> List String
@@ -190,9 +199,20 @@ ansettelsesformListeFraSkjema (JobbprofilSkjema info) =
     info.ansettelsesformliste
 
 
+ansettelsesformSammendragFraSkjema : JobbprofilSkjema -> String
+ansettelsesformSammendragFraSkjema info =
+    ansettelsesformListeFraSkjema info
+        |> listeSammendragFraSkjema (hentValg AnsettelsesformValg)
+
+
 arbeidstidListeFraSkjema : JobbprofilSkjema -> List String
 arbeidstidListeFraSkjema (JobbprofilSkjema info) =
     info.arbeidstidliste
+
+
+arbeidsdagerListeFraSkjema : JobbprofilSkjema -> List String
+arbeidsdagerListeFraSkjema (JobbprofilSkjema info) =
+    info.arbeidsdagerliste
 
 
 arbeidstidordningListeFraSkjema : JobbprofilSkjema -> List String
@@ -200,14 +220,51 @@ arbeidstidordningListeFraSkjema (JobbprofilSkjema info) =
     info.arbeidstidsordningliste
 
 
+nårKanDuJobbeSammendragFraSkjema : JobbprofilSkjema -> String
+nårKanDuJobbeSammendragFraSkjema info =
+    (arbeidstidListeFraSkjema info ++ arbeidstidordningListeFraSkjema info ++ arbeidsdagerListeFraSkjema info)
+        |> listeSammendragFraSkjema (hentValg ArbeidstidsOrdningValg ++ hentValg ArbeidsdagerValg ++ hentValg ArbeidstidValg)
+
+
 omfangsListeFraSkjema : JobbprofilSkjema -> List String
 omfangsListeFraSkjema (JobbprofilSkjema info) =
     info.omfangsliste
 
 
+omfangsSammendragFraSkjema : JobbprofilSkjema -> String
+omfangsSammendragFraSkjema info =
+    omfangsListeFraSkjema info
+        |> listeSammendragFraSkjema (hentValg OmfangValg)
+
+
+listeSammendragFraSkjema : List ValgElement -> List String -> String
+listeSammendragFraSkjema valg info =
+    List.map
+        (\i ->
+            List.filterMap
+                (\v ->
+                    if i == v.value then
+                        v.label
+
+                    else
+                        Nothing
+                )
+                valg
+        )
+        info
+        |> List.foldr (++) []
+        |> String.join ", "
+
+
 oppstartFraSkjema : JobbprofilSkjema -> Maybe String
 oppstartFraSkjema (JobbprofilSkjema info) =
     info.oppstart
+
+
+oppstartSammendragFraSkjema : JobbprofilSkjema -> String
+oppstartSammendragFraSkjema info =
+    [ Maybe.withDefault "" (oppstartFraSkjema info) ]
+        |> listeSammendragFraSkjema (hentValg OppstartValg)
 
 
 
