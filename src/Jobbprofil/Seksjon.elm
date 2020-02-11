@@ -37,22 +37,16 @@ type Model
 type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
-    , jobbprofil : JobbprofilModel
     , debugStatus : DebugStatus
     , sistLagretFraCV : Posix
     }
 
 
-type JobbprofilModel
-    = Loading
-    | Success (Maybe Jobbprofil)
-    | Failure Http.Error
-
-
 type Samtale
-    = Intro
-    | BekreftJobbprofil Jobbprofil
-    | BegynnPåJobbprofil
+    = LasterJobbprofil
+    | HentingAvJobbprofilFeilet Http.Error
+    | HarJobbprofil Jobbprofil
+    | HarIkkeJobbprofil
 
 
 type FullføringStatus
@@ -91,8 +85,8 @@ update msg (Model model) =
         JobbprofilHentet result ->
             case result of
                 Ok jobbprofil ->
-                    ( BekreftJobbprofil jobbprofil
-                        |> oppdaterSamtale { model | jobbprofil = Success (Just jobbprofil) } UtenSvar
+                    ( HarJobbprofil jobbprofil
+                        |> oppdaterSamtale model UtenSvar
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -100,8 +94,8 @@ update msg (Model model) =
                 Err error ->
                     case error of
                         Http.BadStatus 404 ->
-                            ( BegynnPåJobbprofil
-                                |> oppdaterSamtale { model | jobbprofil = Success Nothing } UtenSvar
+                            ( HarIkkeJobbprofil
+                                |> oppdaterSamtale model UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -144,21 +138,39 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg jobbprofilSamtale =
     case jobbprofilSamtale of
-        Intro ->
+        LasterJobbprofil ->
             []
 
-        BegynnPåJobbprofil ->
+        HarIkkeJobbprofil ->
             [ Melding.spørsmål
                 [ "Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
                 ]
             ]
 
-        BekreftJobbprofil _ ->
+        HarJobbprofil jobbprofil ->
             [ Melding.spørsmål
-                [ "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
-                , "Er informasjonen riktig?"
-                ]
+                (List.concat
+                    [ [ "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:" ]
+                    , jobbprofil
+                        |> Skjema.fraJobbprofil
+                        |> skjemaOppsummering
+                    , [ Melding.tomLinje
+                      , "Er kontaktinformasjonen riktig?"
+                      ]
+                    ]
+                )
             ]
+
+        HentingAvJobbprofilFeilet error ->
+            []
+
+
+skjemaOppsummering : JobbprofilSkjema -> List String
+skjemaOppsummering skjema =
+    [ "Stilling/yrke: "
+    , "Område: "
+    , "Heltid/deltid: "
+    ]
 
 
 lagtTilSpørsmålCmd : DebugStatus -> Cmd Msg
@@ -237,21 +249,24 @@ modelTilBrukerInput : ModelInfo -> BrukerInput Msg
 modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
-            Intro ->
+            LasterJobbprofil ->
                 BrukerInput.utenInnhold
 
-            BegynnPåJobbprofil ->
+            HarIkkeJobbprofil ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilBegynnePåJobbprofil "Ja!"
                         |> Knapp.withId (inputIdTilString BegynnPåJobbprofilId)
                     ]
 
-            BekreftJobbprofil _ ->
+            HarJobbprofil _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
                         |> Knapp.withId (inputIdTilString BekreftJobbprofilId)
                     , Knapp.knapp VilEndreJobbprofil "Nei, jeg vil endre"
                     ]
+
+            HentingAvJobbprofilFeilet _ ->
+                BrukerInput.utenInnhold
 
     else
         BrukerInput.utenInnhold
@@ -265,7 +280,7 @@ init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
 init debugStatus sistLagretFraCV gammelMeldingsLogg =
     let
         aktivSamtale =
-            Intro
+            LasterJobbprofil
     in
     ( Model
         { seksjonsMeldingsLogg =
@@ -273,7 +288,6 @@ init debugStatus sistLagretFraCV gammelMeldingsLogg =
                 |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
-        , jobbprofil = Loading
         , debugStatus = debugStatus
         , sistLagretFraCV = sistLagretFraCV
         }

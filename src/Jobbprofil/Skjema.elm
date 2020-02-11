@@ -1,6 +1,7 @@
 module Jobbprofil.Skjema exposing
     ( JobbprofilSkjema
     , ValidertJobbprofilSkjema
+    , fraJobbprofil
     , initValidert
     )
 
