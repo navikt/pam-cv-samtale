@@ -1,11 +1,7 @@
-module Jobbprofil.Skjema exposing
-    ( JobbprofilSkjema
-    , ValidertJobbprofilSkjema
-    , fraJobbprofil
-    , initValidert
-    )
+module Jobbprofil.Skjema exposing (..)
 
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (GeografiInfo, Jobbprofil, KompetanseInfo, StillingInfo, StillingKladdInfo)
+import Maybe.Extra
 
 
 type JobbprofilSkjema
@@ -159,6 +155,11 @@ stillingListeFraSkjema (JobbprofilSkjema info) =
     info.stillingliste
 
 
+stillingSammendragFraSkjema : List StillingInfo -> List String
+stillingSammendragFraSkjema info =
+    Maybe.Extra.values (List.map (\it -> it.tittel) info)
+
+
 stillingKladdListeFraSkjema : JobbprofilSkjema -> List StillingKladdInfo
 stillingKladdListeFraSkjema (JobbprofilSkjema info) =
     info.stillingKladdListe
@@ -169,9 +170,19 @@ kompetanseListeFraSkjema (JobbprofilSkjema info) =
     info.kompetanseliste
 
 
+kompetanseSammendragFraSkjema : List KompetanseInfo -> List String
+kompetanseSammendragFraSkjema info =
+    Maybe.Extra.values (List.map (\it -> it.tittel) info)
+
+
 geografiListeFraSkjema : JobbprofilSkjema -> List GeografiInfo
 geografiListeFraSkjema (JobbprofilSkjema info) =
     info.geografiliste
+
+
+geografiSammendragFraSkjema : List GeografiInfo -> List String
+geografiSammendragFraSkjema info =
+    Maybe.Extra.values (List.map (\it -> it.tittel) info)
 
 
 ansettelsesformListeFraSkjema : JobbprofilSkjema -> List String

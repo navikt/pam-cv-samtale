@@ -18,7 +18,7 @@ import FrontendModuler.Knapp as Knapp
 import Html exposing (Html)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, ValidertJobbprofilSkjema)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, ValidertJobbprofilSkjema, geografiListeFraSkjema, geografiSammendragFraSkjema, omfangsListeFraSkjema, stillingListeFraSkjema, stillingSammendragFraSkjema)
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
@@ -167,9 +167,9 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
 
 skjemaOppsummering : JobbprofilSkjema -> List String
 skjemaOppsummering skjema =
-    [ "Stilling/yrke: "
-    , "Område: "
-    , "Heltid/deltid: "
+    [ "Stilling/yrke: " ++ String.join ", " (stillingSammendragFraSkjema (stillingListeFraSkjema skjema))
+    , "Område: " ++ String.join ", " (geografiSammendragFraSkjema (geografiListeFraSkjema skjema))
+    , "Heltid/deltid: " ++ String.join ", " (omfangsListeFraSkjema skjema)
     ]
 
 
