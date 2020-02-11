@@ -1,7 +1,6 @@
 module Fagdokumentasjon.Fagdokumentasjon exposing
     ( Fagdokumentasjon
     , FagdokumentasjonType(..)
-    , beskrivelse
     , decode
     , fagdokumentasjonType
     , id
@@ -23,7 +22,6 @@ type Fagdokumentasjon
 type alias FagdokumentasjonInfo =
     { id : String
     , tittel : Maybe String
-    , beskrivelse : Maybe String
     , konseptId : Maybe String
     , fagdokumentasjonType : FagdokumentasjonType
     , sistEndretDato : Posix
@@ -49,11 +47,6 @@ tittel (Fagdokumentasjon info) =
 konseptId : Fagdokumentasjon -> Maybe String
 konseptId (Fagdokumentasjon info) =
     info.konseptId
-
-
-beskrivelse : Fagdokumentasjon -> Maybe String
-beskrivelse (Fagdokumentasjon info) =
-    info.beskrivelse
 
 
 fagdokumentasjonType : Fagdokumentasjon -> FagdokumentasjonType
@@ -82,7 +75,6 @@ decodeBackendData =
     succeed BackendData
         |> required "id" string
         |> required "tittel" (nullable string)
-        |> required "beskrivelse" (nullable string)
         |> required "konseptId" (nullable string)
         |> required "type" string
         |> required "sistEndretDato" Iso8601.decoder
@@ -99,7 +91,6 @@ lagFagdokumentasjonInfo backendData fd =
     { id = backendData.id
     , tittel = backendData.tittel
     , konseptId = backendData.konseptId
-    , beskrivelse = backendData.beskrivelse
     , fagdokumentasjonType = fd
     , sistEndretDato = backendData.sistEndretDato
     }
@@ -124,7 +115,6 @@ type alias BackendData =
     { id : String
     , tittel : Maybe String
     , konseptId : Maybe String
-    , beskrivelse : Maybe String
     , type_ : String
     , sistEndretDato : Posix
     }

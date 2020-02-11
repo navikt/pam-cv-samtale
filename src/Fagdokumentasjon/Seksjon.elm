@@ -73,7 +73,6 @@ type OppsummeringsType
 
 type Samtale
     = RegistrerKonsept Bool (Typeahead.Model Konsept)
-    | RegistrerBeskrivelse Bool BeskrivelseInfo
     | Oppsummering OppsummeringsType ValidertFagdokumentasjonSkjema
     | EndrerOppsummering (Typeahead.Model Konsept) FagdokumentasjonSkjema
     | BekreftSlettingAvPåbegynt ValidertFagdokumentasjonSkjema
@@ -106,17 +105,6 @@ sistLagret (Model model) =
         |> nyesteSistLagretVerdi model.sistLagretFraForrigeSeksjon
 
 
-type alias BeskrivelseInfo =
-    { konsept : Konsept
-    , beskrivelse : String
-    }
-
-
-forrigetilBeskrivelseInfo : Konsept -> BeskrivelseInfo
-forrigetilBeskrivelseInfo konseptTypeahead =
-    { konsept = konseptTypeahead, beskrivelse = "" }
-
-
 
 --- UPDATE ---
 
@@ -126,9 +114,6 @@ type Msg
     | HentetTypeahead Typeahead.Query (Result Http.Error (List Konsept))
     | TimeoutEtterAtFeltMistetFokus
     | BrukerVilRegistrereKonsept
-    | VilSeEksempel
-    | BrukerVilRegistrereFagdokumentasjonBeskrivelse
-    | OppdaterFagdokumentasjonBeskrivelse String
     | BrukerVilLagreIOppsummeringen
     | BrukerVilEndreOppsummeringen
     | VilSlettePåbegynt
@@ -228,43 +213,6 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilSeEksempel ->
-            case model.aktivSamtale of
-                RegistrerBeskrivelse _ beskrivelseinfo ->
-                    let
-                        oppdatertMeldingslogg =
-                            model.seksjonsMeldingsLogg
-                                |> MeldingsLogg.leggTilSvar (svarFraBrukerInput model msg)
-                                |> MeldingsLogg.leggTilSpørsmål (eksemplerPåFagdokumentasjon model.fagdokumentasjonType)
-                    in
-                    IkkeFerdig
-                        ( beskrivelseinfo
-                            |> RegistrerBeskrivelse False
-                            |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        BrukerVilRegistrereFagdokumentasjonBeskrivelse ->
-            case model.aktivSamtale of
-                RegistrerBeskrivelse _ info ->
-                    case feilmeldingBeskrivelsesfelt info.beskrivelse of
-                        Nothing ->
-                            ( Skjema.initValidertSkjema model.fagdokumentasjonType info.konsept info.beskrivelse
-                                |> Oppsummering FørsteGang
-                                |> oppdaterSamtale model (SvarFraMsg msg)
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
-                        Just _ ->
-                            IkkeFerdig ( Model model, Cmd.none )
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
         BrukerVilLagreIOppsummeringen ->
             case model.aktivSamtale of
                 Oppsummering _ skjema ->
@@ -339,28 +287,6 @@ update msg (Model model) =
                                     |> oppdaterSamtale model IngenNyeMeldinger
                                 , Cmd.none
                                 )
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        OppdaterFagdokumentasjonBeskrivelse beskrivelse ->
-            case model.aktivSamtale of
-                RegistrerBeskrivelse medEksempelKnapp info ->
-                    ( { info | beskrivelse = beskrivelse }
-                        |> RegistrerBeskrivelse medEksempelKnapp
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
-
-                EndrerOppsummering typeaheadModel skjema ->
-                    ( skjema
-                        |> Skjema.oppdaterBeskrivelse beskrivelse
-                        |> EndrerOppsummering typeaheadModel
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , Cmd.none
-                    )
-                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -522,7 +448,6 @@ validertSkjemaTilSetninger validertSkjema =
             Skjema.tilUvalidertSkjema validertSkjema
     in
     [ typeaheadLabel (Skjema.fagdokumentasjonType skjema) ++ ": " ++ Skjema.konseptStringFraValidertSkjema validertSkjema
-    , "Beskrivelse: " ++ Skjema.beskrivelseFraValidertSkjema validertSkjema
     ]
 
 
@@ -634,8 +559,8 @@ visFeilmeldingRegistrerKonsept model typeaheadModel =
 brukerVilRegistrereKonsept : ModelInfo -> Msg -> Konsept -> SamtaleStatus
 brukerVilRegistrereKonsept model msg konsept =
     ( konsept
-        |> forrigetilBeskrivelseInfo
-        |> RegistrerBeskrivelse True
+        |> Skjema.initValidertSkjema model.fagdokumentasjonType
+        |> Oppsummering FørsteGang
         |> oppdaterSamtale model (SvarFraMsg msg)
     , lagtTilSpørsmålCmd model.debugStatus
     )
@@ -813,20 +738,6 @@ samtaleTilMeldingsLogg fagdokumentasjonType fagbrevSeksjon =
                     , Melding.spørsmål [ "Begynn å skriv inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
                     ]
 
-        RegistrerBeskrivelse _ _ ->
-            case fagdokumentasjonType of
-                SvennebrevFagbrev ->
-                    [ Melding.spørsmål [ "Beskriv kort fagbrevet/svennebrevet ditt." ]
-                    ]
-
-                Mesterbrev ->
-                    [ Melding.spørsmål [ "Beskriv kort mesterbrevet ditt." ]
-                    ]
-
-                Autorisasjon ->
-                    [ Melding.spørsmål [ "Beskriv kort autorisasjonen din. Ikke skriv inn autorisasjonsnummeret ditt." ]
-                    ]
-
         Oppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
@@ -940,9 +851,6 @@ settFokus samtale =
         RegistrerKonsept _ _ ->
             settFokusCmd RegistrerKonseptInput
 
-        RegistrerBeskrivelse _ _ ->
-            settFokusCmd RegistrerBeskrivelseInput
-
         Oppsummering _ _ ->
             settFokusCmd BekreftOppsummeringId
 
@@ -1054,16 +962,6 @@ modelTilBrukerInput model =
                         |> FrontendModuler.Typeahead.map TypeaheadMsg
                     )
 
-            RegistrerBeskrivelse medEksempelKnapp beskrivelseinfo ->
-                beskrivelseinfo.beskrivelse
-                    |> Textarea.textarea { msg = OppdaterFagdokumentasjonBeskrivelse, label = "Kort beskrivelse" }
-                    |> Textarea.withFeilmelding (feilmeldingBeskrivelsesfelt beskrivelseinfo.beskrivelse)
-                    |> Textarea.withId (inputIdTilString RegistrerBeskrivelseInput)
-                    |> BrukerInputMedGåVidereKnapp.textarea BrukerVilRegistrereFagdokumentasjonBeskrivelse
-                    |> BrukerInputMedGåVidereKnapp.withVisEksempelKnapp medEksempelKnapp VilSeEksempel
-                    |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp BrukerVilAvbryteRegistreringen
-                    |> BrukerInput.brukerInputMedGåVidereKnapp
-
             Oppsummering _ _ ->
                 viewBekreftOppsummering
 
@@ -1073,11 +971,6 @@ modelTilBrukerInput model =
                         |> Skjema.feilmeldingTypeahead
                         |> Typeahead.view Konsept.label typeaheadModel
                         |> Html.map TypeaheadMsg
-                    , skjema
-                        |> Skjema.beskrivelse
-                        |> Textarea.textarea { label = "Beskrivelse", msg = OppdaterFagdokumentasjonBeskrivelse }
-                        |> Textarea.withFeilmelding (Skjema.beskrivelse skjema |> feilmeldingBeskrivelsesfelt)
-                        |> Textarea.toHtml
                     ]
 
             BekreftSlettingAvPåbegynt _ ->

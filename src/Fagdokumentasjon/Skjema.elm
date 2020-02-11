@@ -1,8 +1,6 @@
 module Fagdokumentasjon.Skjema exposing
     ( FagdokumentasjonSkjema
     , ValidertFagdokumentasjonSkjema
-    , beskrivelse
-    , beskrivelseFraValidertSkjema
     , encode
     , fagdokumentasjonType
     , feilmeldingTypeahead
@@ -11,7 +9,6 @@ module Fagdokumentasjon.Skjema exposing
     , initValidertSkjema
     , konseptFraValidertSkjema
     , konseptStringFraValidertSkjema
-    , oppdaterBeskrivelse
     , oppdaterKonsept
     , tilUvalidertSkjema
     , validertSkjema
@@ -30,7 +27,6 @@ type alias UvalidertSkjemaInfo =
     { fagdokumentasjonType : FagdokumentasjonType
     , visFeilmeldingTypeahead : Bool
     , konsept : Maybe Konsept
-    , beskrivelse : String
     }
 
 
@@ -38,21 +34,19 @@ type alias UvalidertSkjemaInfo =
 --- INIT ---
 
 
-init : FagdokumentasjonType -> Konsept -> String -> FagdokumentasjonSkjema
-init skjemaType konsept_ beskrivelse_ =
+init : FagdokumentasjonType -> Konsept -> FagdokumentasjonSkjema
+init skjemaType konsept_ =
     UvalidertSkjema
         { konsept = Just konsept_
         , visFeilmeldingTypeahead = False
-        , beskrivelse = beskrivelse_
         , fagdokumentasjonType = skjemaType
         }
 
 
-initValidertSkjema : FagdokumentasjonType -> Konsept -> String -> ValidertFagdokumentasjonSkjema
-initValidertSkjema skjemaType konsept_ beskrivelse_ =
+initValidertSkjema : FagdokumentasjonType -> Konsept -> ValidertFagdokumentasjonSkjema
+initValidertSkjema skjemaType konsept_ =
     ValidertSkjema
         { konsept = konsept_
-        , beskrivelse = beskrivelse_
         , fagdokumentasjonType = skjemaType
         }
 
@@ -62,23 +56,12 @@ tilUvalidertSkjema (ValidertSkjema info) =
     UvalidertSkjema
         { konsept = Just info.konsept
         , visFeilmeldingTypeahead = False
-        , beskrivelse = info.beskrivelse
         , fagdokumentasjonType = info.fagdokumentasjonType
         }
 
 
 
 --- INNHOLD ---
-
-
-beskrivelse : FagdokumentasjonSkjema -> String
-beskrivelse (UvalidertSkjema info) =
-    info.beskrivelse
-
-
-beskrivelseFraValidertSkjema : ValidertFagdokumentasjonSkjema -> String
-beskrivelseFraValidertSkjema (ValidertSkjema info) =
-    info.beskrivelse
 
 
 konseptStringFraValidertSkjema : ValidertFagdokumentasjonSkjema -> String
@@ -98,11 +81,6 @@ fagdokumentasjonType (UvalidertSkjema info) =
 
 
 --- OPPDATERING ---
-
-
-oppdaterBeskrivelse : String -> FagdokumentasjonSkjema -> FagdokumentasjonSkjema
-oppdaterBeskrivelse beskrivelse_ (UvalidertSkjema info) =
-    UvalidertSkjema { info | beskrivelse = beskrivelse_ }
 
 
 oppdaterKonsept : FagdokumentasjonSkjema -> Maybe Konsept -> FagdokumentasjonSkjema
@@ -155,7 +133,6 @@ type ValidertFagdokumentasjonSkjema
 type alias ValidertSkjemaInfo =
     { fagdokumentasjonType : FagdokumentasjonType
     , konsept : Konsept
-    , beskrivelse : String
     }
 
 
@@ -166,17 +143,12 @@ validertSkjema (UvalidertSkjema info) =
             Nothing
 
         Just konsept_ ->
-            if String.length info.beskrivelse > 200 then
-                Nothing
-
-            else
-                Just
-                    (ValidertSkjema
-                        { fagdokumentasjonType = info.fagdokumentasjonType
-                        , konsept = konsept_
-                        , beskrivelse = info.beskrivelse
-                        }
-                    )
+            Just
+                (ValidertSkjema
+                    { fagdokumentasjonType = info.fagdokumentasjonType
+                    , konsept = konsept_
+                    }
+                )
 
 
 
@@ -187,7 +159,6 @@ encode : ValidertFagdokumentasjonSkjema -> Json.Encode.Value
 encode (ValidertSkjema info) =
     Json.Encode.object
         [ ( "tittel", Json.Encode.string (Konsept.label info.konsept) )
-        , ( "beskrivelse", Json.Encode.string info.beskrivelse )
         , ( "type", encodeFagdokumentasjonType info.fagdokumentasjonType )
         , ( "konseptId"
           , info.konsept
