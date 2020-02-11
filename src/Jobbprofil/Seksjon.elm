@@ -245,11 +245,17 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
 skjemaOppsummering : JobbprofilSkjema -> List String
 skjemaOppsummering skjema =
     [ "Stilling/yrke: " ++ stillingSammendragFraSkjema skjema
+    , Melding.tomLinje
     , "Område: " ++ geografiSammendragFraSkjema skjema
+    , Melding.tomLinje
     , "Heltid/deltid: " ++ omfangsSammendragFraSkjema skjema
+    , Melding.tomLinje
     , "Når kan du jobbe? " ++ nårKanDuJobbeSammendragFraSkjema skjema
+    , Melding.tomLinje
     , "Hva slags ansettelse ønsker du? " ++ ansettelsesformSammendragFraSkjema skjema
+    , Melding.tomLinje
     , "Når kan du begynne? " ++ oppstartSammendragFraSkjema skjema
+    , Melding.tomLinje
     , "Kompetanser: " ++ kompetanseSammendragFraSkjema skjema
     ]
 
