@@ -202,7 +202,7 @@ ansettelsesformListeFraSkjema (JobbprofilSkjema info) =
 ansettelsesformSammendragFraSkjema : JobbprofilSkjema -> String
 ansettelsesformSammendragFraSkjema info =
     ansettelsesformListeFraSkjema info
-        |> listeSammendragFraSkjema (hentValg AnsettelsesformValg)
+        |> listeSammendragFraSkjema (hentValg AnsettelsesformValg) " - "
 
 
 arbeidstidListeFraSkjema : JobbprofilSkjema -> List String
@@ -223,7 +223,7 @@ arbeidstidordningListeFraSkjema (JobbprofilSkjema info) =
 nårKanDuJobbeSammendragFraSkjema : JobbprofilSkjema -> String
 nårKanDuJobbeSammendragFraSkjema info =
     (arbeidstidListeFraSkjema info ++ arbeidstidordningListeFraSkjema info ++ arbeidsdagerListeFraSkjema info)
-        |> listeSammendragFraSkjema (hentValg ArbeidstidsOrdningValg ++ hentValg ArbeidsdagerValg ++ hentValg ArbeidstidValg)
+        |> listeSammendragFraSkjema (hentValg ArbeidstidsOrdningValg ++ hentValg ArbeidsdagerValg ++ hentValg ArbeidstidValg) " - "
 
 
 omfangsListeFraSkjema : JobbprofilSkjema -> List String
@@ -234,11 +234,11 @@ omfangsListeFraSkjema (JobbprofilSkjema info) =
 omfangsSammendragFraSkjema : JobbprofilSkjema -> String
 omfangsSammendragFraSkjema info =
     omfangsListeFraSkjema info
-        |> listeSammendragFraSkjema (hentValg OmfangValg)
+        |> listeSammendragFraSkjema (hentValg OmfangValg) " - "
 
 
-listeSammendragFraSkjema : List ValgElement -> List String -> String
-listeSammendragFraSkjema valg info =
+listeSammendragFraSkjema : List ValgElement -> String -> List String -> String
+listeSammendragFraSkjema valg separator info =
     List.map
         (\i ->
             List.filterMap
@@ -253,7 +253,7 @@ listeSammendragFraSkjema valg info =
         )
         info
         |> List.foldr (++) []
-        |> String.join ", "
+        |> String.join separator
 
 
 oppstartFraSkjema : JobbprofilSkjema -> Maybe String
@@ -264,7 +264,7 @@ oppstartFraSkjema (JobbprofilSkjema info) =
 oppstartSammendragFraSkjema : JobbprofilSkjema -> String
 oppstartSammendragFraSkjema info =
     [ Maybe.withDefault "" (oppstartFraSkjema info) ]
-        |> listeSammendragFraSkjema (hentValg OppstartValg)
+        |> listeSammendragFraSkjema (hentValg OppstartValg) " - "
 
 
 
