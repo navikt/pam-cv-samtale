@@ -23,7 +23,7 @@ import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
-import Person exposing (SynlighetInfo(..))
+import Person exposing (BrukerInfo(..))
 import Time exposing (Posix)
 
 
@@ -40,7 +40,7 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , debugStatus : DebugStatus
     , sistLagretFraCV : Posix
-    , synlighetInfo : SynlighetInfo
+    , brukerInfo : BrukerInfo
     }
 
 
@@ -89,7 +89,7 @@ update msg (Model model) =
         JobbprofilHentet result ->
             let
                 underOppfølging =
-                    case model.synlighetInfo of
+                    case model.brukerInfo of
                         UnderOppfølging _ ->
                             True
 
@@ -359,8 +359,8 @@ modelTilBrukerInput model =
 --- INIT ---
 
 
-init : DebugStatus -> Posix -> SynlighetInfo -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-init debugStatus sistLagretFraCV synlighetInfo gammelMeldingsLogg =
+init : DebugStatus -> Posix -> BrukerInfo -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
     let
         aktivSamtale =
             LasterJobbprofil
@@ -371,7 +371,7 @@ init debugStatus sistLagretFraCV synlighetInfo gammelMeldingsLogg =
                 |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
-        , synlighetInfo = synlighetInfo
+        , brukerInfo = brukerInfo
         , debugStatus = debugStatus
         , sistLagretFraCV = sistLagretFraCV
         }

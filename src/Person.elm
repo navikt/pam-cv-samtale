@@ -1,12 +1,12 @@
 module Person exposing
-    ( Person
+    ( BrukerInfo(..)
+    , Person
     , Synlighet(..)
-    , SynlighetInfo(..)
+    , brukerInfo
     , cvSynligForArbeidsgiver
     , decode
     , decodeBackendData
     , harGodtattVilkår
-    , synlighet
     , underOppfolging
     , usynligGrunnetArenaFlagg
     )
@@ -24,7 +24,7 @@ type Synlighet
     | IkkeSynlig
 
 
-type SynlighetInfo
+type BrukerInfo
     = JobbSkifter Synlighet
     | UnderOppfølging Synlighet
 
@@ -37,8 +37,8 @@ type alias PersonInfo =
     }
 
 
-synlighet : Person -> SynlighetInfo
-synlighet (Person info) =
+brukerInfo : Person -> BrukerInfo
+brukerInfo (Person info) =
     if info.underOppfolging then
         if info.usynligGrunnetArenaFlagg then
             UnderOppfølging IkkeSynlig

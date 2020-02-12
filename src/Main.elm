@@ -37,7 +37,7 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Meldinger.SporsmalViewState as SpørsmålViewState exposing (IkonStatus(..), SpørsmålStyle(..), SpørsmålViewState)
 import Metrikker
-import Person exposing (Person, Synlighet(..), SynlighetInfo(..))
+import Person exposing (BrukerInfo(..), Person, Synlighet(..))
 import Personalia.Personalia as Personalia exposing (Personalia)
 import Personalia.Seksjon
 import Process
@@ -932,9 +932,10 @@ type Samtale
     | LagrerSammendrag String LagreStatus
     | LagringAvSammendragFeilet Http.Error String
     | DelMedArbeidsgiver
+    | VenterPåÅGåTilJobbprofil BrukerInfo
     | LagrerSynlighet Bool LagreStatus
     | LagringSynlighetFeilet Http.Error Bool
-    | SpørOmTilbakemelding SynlighetInfo
+    | SpørOmTilbakemelding BrukerInfo
     | GiTilbakemelding
     | Avslutt Bool
 
@@ -1251,7 +1252,6 @@ updateAndreSamtaleSteg model msg info =
                                             info.meldingsLogg
                                                 |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
                                                 |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med det vanskeligste 😊" ] ]
-                                                |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Veldig bra! Nå er vi ferdig med CV-en. Husk at du når som helst kan endre og forbedre den 😊" ] ]
 
                                         else
                                             info.meldingsLogg
@@ -1466,20 +1466,30 @@ updateAndreSamtaleSteg model msg info =
                 ( nyMeldingslogg, cmd ) =
                     SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg info.meldingsLogg
             in
-            ( { info | meldingsLogg = nyMeldingslogg }
-                |> AndreSamtaleSteg
-                |> oppdaterSamtaleSeksjon model
-            , Cmd.batch
-                [ cmd
-                    |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
-                , case MeldingsLogg.ferdigAnimert nyMeldingslogg of
-                    FerdigAnimert ferdigAnimertSamtale ->
-                        settFokus info.aktivSamtale
+            case MeldingsLogg.ferdigAnimert nyMeldingslogg of
+                FerdigAnimert ferdigAnimertSamtale ->
+                    case info.aktivSamtale of
+                        VenterPåÅGåTilJobbprofil brukerInfo ->
+                            gåTilJobbprofil (Cv.sistEndretDato model.cv) brukerInfo model { info | meldingsLogg = nyMeldingslogg }
 
-                    MeldingerGjenstår ->
-                        Cmd.none
-                ]
-            )
+                        _ ->
+                            ( { info | meldingsLogg = nyMeldingslogg }
+                                |> AndreSamtaleSteg
+                                |> oppdaterSamtaleSeksjon model
+                            , Cmd.batch
+                                [ cmd
+                                    |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
+                                , settFokus info.aktivSamtale
+                                ]
+                            )
+
+                MeldingerGjenstår ->
+                    ( { info | meldingsLogg = nyMeldingslogg }
+                        |> AndreSamtaleSteg
+                        |> oppdaterSamtaleSeksjon model
+                    , cmd
+                        |> Cmd.map (SamtaleAnimasjonMsg >> AndreSamtaleStegMsg)
+                    )
 
         ErrorLogget ->
             ( model, Cmd.none )
@@ -1581,12 +1591,12 @@ visEksemplerSammendrag model info msg aktivSamtale =
 gåTilJobbprofilSjekk : SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
 gåTilJobbprofilSjekk model info =
     let
-        synlighet =
-            Person.synlighet model.person
+        brukerInfo =
+            Person.brukerInfo model.person
     in
-    case synlighet of
+    case brukerInfo of
         UnderOppfølging _ ->
-            gåTilJobbprofil (Cv.sistEndretDato model.cv) synlighet model info
+            gåTilJobbprofil (Cv.sistEndretDato model.cv) brukerInfo model info
 
         JobbSkifter _ ->
             ( DelMedArbeidsgiver
@@ -1595,13 +1605,13 @@ gåTilJobbprofilSjekk model info =
             )
 
 
-gåTilJobbprofil : Posix -> SynlighetInfo -> SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
-gåTilJobbprofil sistLagret synlighetInfo model info =
+gåTilJobbprofil : Posix -> BrukerInfo -> SuccessModel -> AndreSamtaleStegInfo -> ( SuccessModel, Cmd SuccessMsg )
+gåTilJobbprofil sistLagret brukerInfo model info =
     case MeldingsLogg.ferdigAnimert info.meldingsLogg of
         FerdigAnimert ferdigAnimertMeldingsLogg ->
             let
                 ( jobbprofilModel, jobbprofilCmd ) =
-                    Jobbprofil.Seksjon.init model.debugStatus sistLagret synlighetInfo ferdigAnimertMeldingsLogg
+                    Jobbprofil.Seksjon.init model.debugStatus sistLagret brukerInfo ferdigAnimertMeldingsLogg
             in
             ( { model
                 | aktivSeksjon = JobbprofilSeksjon jobbprofilModel
@@ -1610,9 +1620,8 @@ gåTilJobbprofil sistLagret synlighetInfo model info =
             )
 
         MeldingerGjenstår ->
-            ( { info | meldingsLogg = info.meldingsLogg }
-                |> AndreSamtaleSteg
-                |> oppdaterSamtaleSeksjon model
+            ( VenterPåÅGåTilJobbprofil brukerInfo
+                |> oppdaterSamtale model info IngenNyeMeldinger
             , lagtTilSpørsmålCmd model.debugStatus
             )
 
@@ -1721,13 +1730,16 @@ samtaleTilMeldingsLogg samtale =
         LagringAvSammendragFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre sammendrag" } ]
 
+        VenterPåÅGåTilJobbprofil _ ->
+            []
+
         DelMedArbeidsgiver ->
             [ Melding.spørsmål [ "Noen arbeidsgivere søker aktivt i CV-ene på Arbeidsplassen. Da kan de kokntakte deg direkte. " ]
             , Melding.spørsmål [ "Vil du la arbeidsgivere søke opp CV-en din?" ]
             ]
 
-        SpørOmTilbakemelding synlighetInfo ->
-            case synlighetInfo of
+        SpørOmTilbakemelding brukerInfo ->
+            case brukerInfo of
                 JobbSkifter IkkeSynlig ->
                     [ Melding.spørsmål [ "Ok. Du kan gjøre CV-en søkbar senere på Min side." ]
                     , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
@@ -1825,6 +1837,9 @@ andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
             Metrikker.Sammendrag
 
         LagringAvSammendragFeilet _ _ ->
+            Metrikker.Sammendrag
+
+        VenterPåÅGåTilJobbprofil _ ->
             Metrikker.Sammendrag
 
         DelMedArbeidsgiver ->
@@ -2402,6 +2417,9 @@ andreSamtaleStegTilBrukerInput info =
 
             LeggTilFlereAnnet ->
                 viewLeggTilAnnet
+
+            VenterPåÅGåTilJobbprofil _ ->
+                BrukerInput.utenInnhold
 
             DelMedArbeidsgiver ->
                 BrukerInput.knapper Flytende
