@@ -1,24 +1,4 @@
-module Jobbprofil.Jobbprofil exposing
-    ( GeografiInfo
-    , Jobbprofil
-    , JobbprofilInfo
-    , KompetanseInfo
-    , StillingInfo
-    , StillingKladdInfo
-    , aktiv
-    , ansettelsesformliste
-    , arbeidsdagerliste
-    , arbeidstidliste
-    , arbeidstidsordningliste
-    , decode
-    , geografiliste
-    , id
-    , kompetanseliste
-    , omfangsliste
-    , oppstart
-    , stillingKladdListe
-    , stillingliste
-    )
+module Jobbprofil.Jobbprofil exposing (..)
 
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
@@ -69,6 +49,24 @@ type alias GeografiInfo =
     , konseptid : Maybe Int
     , kode : Maybe String
     }
+
+
+init : Jobbprofil
+init =
+    Jobbprofil
+        { id = 0
+        , aktiv = True
+        , stillingliste = []
+        , stillingKladdListe = []
+        , kompetanseliste = []
+        , geografiliste = []
+        , ansettelsesformliste = []
+        , arbeidstidliste = []
+        , arbeidsdagerliste = []
+        , arbeidstidsordningliste = []
+        , omfangsliste = []
+        , oppstart = Nothing
+        }
 
 
 id : Jobbprofil -> Int

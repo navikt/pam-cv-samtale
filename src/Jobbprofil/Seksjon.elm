@@ -14,11 +14,12 @@ import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Knapp as Knapp
 import Html exposing (Html)
 import Http
-import Jobbprofil.Jobbprofil exposing (Jobbprofil)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformListeFraSkjema, ansettelsesformSammendragFraSkjema, arbeidsdagerListeFraSkjema, arbeidstidListeFraSkjema, arbeidstidordningListeFraSkjema, geografiListeFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseListeFraSkjema, kompetanseSammendragFraSkjema, listeSammendragFraSkjema, nårKanDuJobbeSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingListeFraSkjema, stillingSammendragFraSkjema)
+import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformListeFraSkjema, ansettelsesformSammendragFraSkjema, arbeidsdagerListeFraSkjema, arbeidstidListeFraSkjema, arbeidstidordningListeFraSkjema, fraJobbprofil, geografiListeFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseListeFraSkjema, kompetanseSammendragFraSkjema, listeSammendragFraSkjema, nårKanDuJobbeSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingListeFraSkjema, stillingSammendragFraSkjema)
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
@@ -38,6 +39,7 @@ type Model
 type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
+    , jobbprofil : Jobbprofil
     , debugStatus : DebugStatus
     , sistLagretFraCV : Posix
     , brukerInfo : BrukerInfo
@@ -50,6 +52,8 @@ type Samtale
     | HarJobbprofilJobbsøker Jobbprofil
     | HarJobbprofilUnderOppfølging Jobbprofil
     | HarIkkeJobbprofilJobbsøker
+    | VelgOmfang
+    | VelgArbeidstid
     | LeggTilYrke Bool
 
 
@@ -77,10 +81,16 @@ type Msg
     = JobbprofilHentet (Result Http.Error Jobbprofil)
     | VilEndreJobbprofil
     | VilLagreJobbprofil
+    | VilLagreOmfang
     | VilBegynnePåJobbprofil
+    | JobbprofilEndret SkjemaEndring
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | WindowEndrerVisibility Visibility
     | ErrorLogget
+
+
+type SkjemaEndring
+    = Omfang
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -118,7 +128,8 @@ update msg (Model model) =
                             let
                                 nesteSamtaleSteg =
                                     if underOppfølging then
-                                        LeggTilYrke True
+                                        VelgOmfang
+                                        --LeggTilYrke True
 
                                     else
                                         HarIkkeJobbprofilJobbsøker
@@ -147,6 +158,12 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
         VilLagreJobbprofil ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        JobbprofilEndret skjemaEndring ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        VilLagreOmfang ->
             IkkeFerdig ( Model model, Cmd.none )
 
         WindowEndrerVisibility visibility ->
@@ -227,6 +244,12 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
         HentingAvJobbprofilFeilet error ->
             --todo: håndter feil
             []
+
+        VelgOmfang ->
+            [ Melding.spørsmål [ "Vil du jobbe heltid eller deltid?" ] ]
+
+        VelgArbeidstid ->
+            [ Melding.spørsmål [ "Når kan du jobbe?" ] ]
 
         LeggTilYrke underOppfølging ->
             if underOppfølging then
@@ -352,6 +375,15 @@ modelTilBrukerInput model =
             HarJobbprofilUnderOppfølging jobbprofil ->
                 BrukerInput.utenInnhold
 
+            VelgOmfang ->
+                BrukerInput.skjema { lagreMsg = VilLagreOmfang, lagreKnappTekst = "Gå videre" }
+                    [ Checkbox.checkbox "Heltid" (JobbprofilEndret Omfang) False
+                        |> Checkbox.toHtml
+                    ]
+
+            VelgArbeidstid ->
+                BrukerInput.utenInnhold
+
             LeggTilYrke _ ->
                 BrukerInput.utenInnhold
 
@@ -363,8 +395,8 @@ modelTilBrukerInput model =
 --- INIT ---
 
 
-init : DebugStatus -> Posix -> BrukerInfo -> FerdigAnimertMeldingsLogg -> ( Model, Cmd Msg )
-init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
+init : DebugStatus -> Posix -> BrukerInfo -> FerdigAnimertMeldingsLogg -> Jobbprofil -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg jobbprofil =
     let
         aktivSamtale =
             LasterJobbprofil
@@ -376,6 +408,7 @@ init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
         , brukerInfo = brukerInfo
+        , jobbprofil = jobbprofil
         , debugStatus = debugStatus
         , sistLagretFraCV = sistLagretFraCV
         }

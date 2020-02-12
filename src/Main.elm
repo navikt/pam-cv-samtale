@@ -26,7 +26,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
 import Http
-import Jobbprofil.Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Seksjon
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
@@ -1611,7 +1611,7 @@ gåTilJobbprofil sistLagret brukerInfo model info =
         FerdigAnimert ferdigAnimertMeldingsLogg ->
             let
                 ( jobbprofilModel, jobbprofilCmd ) =
-                    Jobbprofil.Seksjon.init model.debugStatus sistLagret brukerInfo ferdigAnimertMeldingsLogg
+                    Jobbprofil.Seksjon.init model.debugStatus sistLagret brukerInfo ferdigAnimertMeldingsLogg Jobbprofil.init
             in
             ( { model
                 | aktivSeksjon = JobbprofilSeksjon jobbprofilModel
