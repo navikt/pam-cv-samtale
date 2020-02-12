@@ -1611,7 +1611,7 @@ gåTilJobbprofil sistLagret brukerInfo model info =
         FerdigAnimert ferdigAnimertMeldingsLogg ->
             let
                 ( jobbprofilModel, jobbprofilCmd ) =
-                    Jobbprofil.Seksjon.init model.debugStatus sistLagret brukerInfo ferdigAnimertMeldingsLogg Jobbprofil.init
+                    Jobbprofil.Seksjon.init model.debugStatus sistLagret brukerInfo ferdigAnimertMeldingsLogg
             in
             ( { model
                 | aktivSeksjon = JobbprofilSeksjon jobbprofilModel

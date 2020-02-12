@@ -17,6 +17,7 @@ module Api exposing
     , getPersonalia
     , getSertifikatTypeahead
     , getSpråkkoder
+    , getYrkeJobbprofilTypeahead
     , getYrkeTypeahead
     , hentPoststed
     , logError
@@ -278,6 +279,14 @@ getYrkeTypeahead : (Typeahead.Query -> Result Error (List Yrke) -> msg) -> Typea
 getYrkeTypeahead msgConstructor query =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/yrke" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
+        , expect = expectJson (msgConstructor query) (Json.Decode.list YrkeTypeahead.decode)
+        }
+
+
+getYrkeJobbprofilTypeahead : (Typeahead.Query -> Result Error (List Yrke) -> msg) -> Typeahead.Query -> Cmd msg
+getYrkeJobbprofilTypeahead msgConstructor query =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/stilling" ++ Url.Builder.toQuery [ Url.Builder.string "query" (Typeahead.queryToString query) ]
         , expect = expectJson (msgConstructor query) (Json.Decode.list YrkeTypeahead.decode)
         }
 
