@@ -18,7 +18,7 @@ import FrontendModuler.Knapp as Knapp
 import Html exposing (Html)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, ValidertJobbprofilSkjema, geografiListeFraSkjema, geografiSammendragFraSkjema, omfangsListeFraSkjema, stillingListeFraSkjema, stillingSammendragFraSkjema)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformListeFraSkjema, ansettelsesformSammendragFraSkjema, arbeidsdagerListeFraSkjema, arbeidstidListeFraSkjema, arbeidstidordningListeFraSkjema, geografiListeFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseListeFraSkjema, kompetanseSammendragFraSkjema, listeSammendragFraSkjema, nårKanDuJobbeSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingListeFraSkjema, stillingSammendragFraSkjema)
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
@@ -244,9 +244,19 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
 
 skjemaOppsummering : JobbprofilSkjema -> List String
 skjemaOppsummering skjema =
-    [ "Stilling/yrke: " ++ String.join ", " (stillingSammendragFraSkjema (stillingListeFraSkjema skjema))
-    , "Område: " ++ String.join ", " (geografiSammendragFraSkjema (geografiListeFraSkjema skjema))
-    , "Heltid/deltid: " ++ String.join ", " (omfangsListeFraSkjema skjema)
+    [ "Stilling/yrke: " ++ stillingSammendragFraSkjema skjema
+    , Melding.tomLinje
+    , "Område: " ++ geografiSammendragFraSkjema skjema
+    , Melding.tomLinje
+    , "Heltid/deltid: " ++ omfangsSammendragFraSkjema skjema
+    , Melding.tomLinje
+    , "Når kan du jobbe? " ++ nårKanDuJobbeSammendragFraSkjema skjema
+    , Melding.tomLinje
+    , "Hva slags ansettelse ønsker du? " ++ ansettelsesformSammendragFraSkjema skjema
+    , Melding.tomLinje
+    , "Når kan du begynne? " ++ oppstartSammendragFraSkjema skjema
+    , Melding.tomLinje
+    , "Kompetanser: " ++ kompetanseSammendragFraSkjema skjema
     ]
 
 
