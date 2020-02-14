@@ -17,8 +17,10 @@ module Typeahead.Typeahead exposing
     , selected
     , toViewElement
     , update
+    , updateAfterSelect
     , updateSuggestions
     , view
+    , withSubmitOnElementSelected
     )
 
 import Browser.Dom
@@ -44,6 +46,7 @@ type alias ModelInfo a =
     , id : String
     , label : String
     , lastMousePosition : { x : Float, y : Float }
+    , submitOnElementSelected : Bool
     }
 
 
@@ -157,7 +160,11 @@ update toString msg (Model model) =
                 Typeahead.Enter ->
                     case TypeaheadState.active model.typeaheadState of
                         Just active ->
-                            updateAfterSelect toString active model
+                            if model.submitOnElementSelected then
+                                updateAfterSelectAndSubmit active model
+
+                            else
+                                updateAfterSelect toString active model
 
                         Nothing ->
                             ( model.typeaheadState
@@ -195,7 +202,11 @@ update toString msg (Model model) =
             )
 
         BrukerVelgerElement selected_ ->
-            updateAfterSelect toString selected_ model
+            if model.submitOnElementSelected then
+                updateAfterSelectAndSubmit selected_ model
+
+            else
+                updateAfterSelect toString selected_ model
 
         TypeaheadFikkFokus ->
             ( model.typeaheadState
@@ -236,6 +247,29 @@ update toString msg (Model model) =
                 , inputStatus = NoChange
                 }
             )
+
+
+updateAfterSelectAndSubmit : a -> ModelInfo a -> ( Model a, Status )
+updateAfterSelectAndSubmit selected_ model =
+    let
+        newTypeaheadState =
+            TypeaheadState.init ""
+                |> TypeaheadState.hideSuggestions
+    in
+    ( Model
+        { model
+            | typeaheadState = newTypeaheadState
+            , selected = Just selected_
+        }
+    , Status
+        { getSuggestionStatus =
+            newTypeaheadState
+                |> TypeaheadState.query
+                |> Query
+                |> GetSuggestionsForInput
+        , inputStatus = Submit
+        }
+    )
 
 
 updateTypeaheadState : (a -> String) -> ModelInfo a -> TypeaheadState a -> Model a
@@ -387,6 +421,7 @@ init input =
         , label = input.label
         , typeaheadState = typeaheadState
         , lastMousePosition = { x = 0, y = 0 }
+        , submitOnElementSelected = False
         }
     , typeaheadState
         |> TypeaheadState.query
@@ -421,6 +456,7 @@ initWithSelected input =
                 |> input.toString
                 |> TypeaheadState.init
                 |> TypeaheadState.hideSuggestions
+        , submitOnElementSelected = False
         }
     , typeaheadState
         |> TypeaheadState.query
@@ -431,3 +467,8 @@ initWithSelected input =
 hideSuggestions : Model a -> Model a
 hideSuggestions (Model model) =
     Model { model | typeaheadState = TypeaheadState.hideSuggestions model.typeaheadState }
+
+
+withSubmitOnElementSelected : Model a -> Model a
+withSubmitOnElementSelected (Model model) =
+    Model { model | submitOnElementSelected = True }

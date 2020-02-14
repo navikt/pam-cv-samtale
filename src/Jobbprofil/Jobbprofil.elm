@@ -51,24 +51,6 @@ type alias GeografiInfo =
     }
 
 
-init : Jobbprofil
-init =
-    Jobbprofil
-        { id = 0
-        , aktiv = True
-        , stillingliste = []
-        , stillingKladdListe = []
-        , kompetanseliste = []
-        , geografiliste = []
-        , ansettelsesformliste = []
-        , arbeidstidliste = []
-        , arbeidsdagerliste = []
-        , arbeidstidsordningliste = []
-        , omfangsliste = []
-        , oppstart = Nothing
-        }
-
-
 id : Jobbprofil -> Int
 id (Jobbprofil info) =
     info.id

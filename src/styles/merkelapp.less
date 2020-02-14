@@ -1,0 +1,38 @@
+@import '../../node_modules/pam-frontend-core/less/variables.less';
+
+.Merkelapp__wrapper {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.Merkelapp {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  margin: 0.125rem 0.5rem 0.5rem 0;
+  border: 2px solid @greenLighten;
+  color: @blueDarken;
+  cursor: pointer;
+}
+
+.Merkelapp__text {
+  text-align: left;
+  margin-right: 1rem;
+  word-break: break-word;
+}
+
+.Merkelapp__slett__icon {
+  background-image: url("data:image/svg+xml,%3Csvg contentScriptType='text/ecmascript' width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23062140'%3E%3Cpath d='M11.5 0C5.159 0 0 5.159 0 11.5S5.159 23 11.5 23 23 17.841 23 11.5 17.841 0 11.5 0zm0 22C5.71 22 1 17.29 1 11.5S5.71 1 11.5 1 22 5.71 22 11.5 17.29 22 11.5 22z'/%3E%3Cpath d='M16.096 6.904a.5.5 0 0 0-.707 0L11.5 10.793 7.61 6.904a.5.5 0 0 0-.707.707l3.889 3.889-3.889 3.889a.5.5 0 0 0 .708.707l3.889-3.889 3.889 3.889a.498.498 0 0 0 .708 0 .5.5 0 0 0 0-.707l-3.89-3.889 3.889-3.889a.5.5 0 0 0 0-.707z'/%3E%3C/g%3E%3C/svg%3E");
+  width: 20px;
+  height: 19px;
+  background-size: 20px;
+  flex: none;
+}
+
+.Merkelapp:hover, .Merkelapp:active {
+  border-color: @blueDarken;
+  .Merkelapp__slett__icon {
+    background-image: url("data:image/svg+xml,%3Csvg contentScriptType='text/ecmascript' width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23062140' d='M11.499 0C5.17 0 .012 5.148 0 11.477a11.426 11.426 0 0 0 3.352 8.139A11.428 11.428 0 0 0 11.478 23h.022c6.328 0 11.487-5.149 11.5-11.479C23.012 5.181 17.863.012 11.499 0zm.001 22.5zm4.588-7.102a.501.501 0 0 1-.709.707l-3.882-3.898-3.896 3.882a.498.498 0 0 1-.707 0 .5.5 0 0 1 .001-.707l3.897-3.882L6.91 7.602a.498.498 0 0 1 .002-.706.497.497 0 0 1 .707.001l3.881 3.897 3.896-3.881a.5.5 0 1 1 .706.708l-3.896 3.882 3.882 3.895z'/%3E%3C/svg%3E");
+  }
+}
