@@ -23,8 +23,10 @@ import FrontendModuler.Typeahead
 import Html exposing (Html, text)
 import Http
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformListeFraSkjema, ansettelsesformSammendragFraSkjema, arbeidsdagerListeFraSkjema, arbeidstidListeFraSkjema, arbeidstidordningListeFraSkjema, fraJobbprofil, geografiListeFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseListeFraSkjema, kompetanseSammendragFraSkjema, listeSammendragFraSkjema, nårKanDuJobbeSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingListeFraSkjema, stillingSammendragFraSkjema)
 import List.Extra as List
+import Maybe.Extra
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
@@ -61,6 +63,7 @@ type Samtale
     | HarJobbprofilUnderOppfølging Jobbprofil
     | HarIkkeJobbprofilJobbsøker
     | LeggTilYrker YrkeInfo (Typeahead.Model Yrke)
+    | LeggTilOmrader OmradeInfo (Typeahead.Model Omrade)
     | EndreOppsummering (Typeahead.Model Yrke) JobbprofilSkjema
     | VelgOmfang
     | VelgArbeidstid
@@ -94,8 +97,12 @@ type Msg
     | HentetYrkeTypeahead Typeahead.Query (Result Http.Error (List Yrke))
     | VilLeggeTilYrke Yrke
     | FjernValgtYrke Yrke
-    | VilGåVidereFraYrke Yrke (Typeahead.Msg Yrke)
-    | VilLeggeTilAnsettelsesform AnsettelsesformInfo
+    | VilGåVidereFraYrke YrkeInfo
+    | OmradeTypeaheadMsg (Typeahead.Msg Omrade)
+    | HentetOmradeTypeahead Typeahead.Query (Result Http.Error (List Omrade))
+    | VilLeggeTilOmrade Omrade
+    | VilGåVidereFraOmrade OmradeInfo
+    | FjernValgtOmrade Omrade
     | VilLagreOmfang
     | JobbprofilEndret SkjemaEndring
     | VilLagreJobbprofil
@@ -117,9 +124,10 @@ type alias YrkeInfo =
     }
 
 
-type alias AnsettelsesformInfo =
+type alias OmradeInfo =
     { yrker : List Yrke
-    , ansettelsesformer : List String
+    , omrader : List Omrade
+    , visFeilmelding : Bool
     }
 
 
@@ -183,6 +191,74 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
+        OmradeTypeaheadMsg typeaheadMsg ->
+            case model.aktivSamtale of
+                LeggTilOmrader info typeaheadModel ->
+                    updateSamtaleOmradeTypeahead model info typeaheadMsg typeaheadModel
+
+                EndreOppsummering gammelTypeaheadModel skjema ->
+                    --Todo: implementer
+                    IkkeFerdig ( Model model, Cmd.none )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        FjernValgtOmrade omrade ->
+            case model.aktivSamtale of
+                LeggTilOmrader info typeaheadModel ->
+                    ( typeaheadModel
+                        |> LeggTilOmrader { info | omrader = List.remove omrade info.omrader }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilLeggeTilOmrade _ ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        VilGåVidereFraOmrade info ->
+            case List.isEmpty info.omrader of
+                True ->
+                    Debug.log "Liste er tom"
+                        IkkeFerdig
+                        ( Model model, Cmd.none )
+
+                False ->
+                    Debug.log "Liste har verdier"
+                        IkkeFerdig
+                        ( Model model, Cmd.none )
+
+        HentetOmradeTypeahead query result ->
+            case model.aktivSamtale of
+                LeggTilOmrader info typeaheadModel ->
+                    let
+                        resultWithoutSelected =
+                            result
+                                |> Result.map (List.filter (\omrade_ -> List.notMember omrade_ info.omrader))
+                    in
+                    ( resultWithoutSelected
+                        |> Typeahead.updateSuggestions Omrade.tittel typeaheadModel query
+                        |> LeggTilOmrader info
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , result
+                        |> Result.error
+                        |> Maybe.map (logFeilmelding "Hente omradetypeahead")
+                        |> Maybe.withDefault Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                EndreOppsummering typeaheadModel skjema ->
+                    -- todo: Gjør det samme som for legg til yrker her
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
         YrkeTypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
                 LeggTilYrker info typeaheadModel ->
@@ -239,21 +315,32 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilGåVidereFraYrke info typeaheadModel ->
+        VilGåVidereFraYrke info ->
             case List.isEmpty info.yrker of
                 True ->
-                    ( typeaheadModel
-                        |> LeggTilYrker { info | visFeilmelding = True }
-                        |> oppdaterSamtale model IngenNyeMeldinger
+                    {- ( typeaheadModel
+                           |> LeggTilYrker { info | visFeilmelding = True }
+                           |> oppdaterSamtale model IngenNyeMeldinger
+                       , lagtTilSpørsmålCmd model.debugStatus
+                       )
+                           |> IkkeFerdig
+                    -}
+                    IkkeFerdig ( Model model, Cmd.none )
+
+                False ->
+                    ( initOmradeTypeahead
+                        |> Tuple.first
+                        |> LeggTilOmrader { yrker = info.yrker, omrader = [], visFeilmelding = False }
+                        |> oppdaterSamtale model
+                            (ManueltSvar
+                                (Melding.svar
+                                    [ String.join ", " (List.map (\it -> Yrke.label it) info.yrker)
+                                    ]
+                                )
+                            )
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
-
-                --  ( Model model, Cmd.none )
-                False ->
-                    Debug.log "Liste har verdier"
-                        IkkeFerdig
-                        ( Model model, Cmd.none )
 
         VilEndreJobbprofil ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -288,8 +375,57 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilLeggeTilAnsettelsesform _ ->
-            IkkeFerdig ( Model model, mistetFokusCmd )
+
+updateSamtaleOmradeTypeahead : ModelInfo -> OmradeInfo -> Typeahead.Msg Omrade -> Typeahead.Model Omrade -> SamtaleStatus
+updateSamtaleOmradeTypeahead model info msg typeaheadModel =
+    let
+        ( nyTypeaheadModel, status ) =
+            Typeahead.update Omrade.tittel msg typeaheadModel
+    in
+    case Typeahead.inputStatus status of
+        Typeahead.Submit ->
+            case Typeahead.selected nyTypeaheadModel of
+                Just omrade ->
+                    ( nyTypeaheadModel
+                        |> LeggTilOmrader { info | omrader = List.append info.omrader [ omrade ], visFeilmelding = False }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                Nothing ->
+                    visFeilmeldingForOmrade model info typeaheadModel
+
+        Typeahead.InputBlurred ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> LeggTilOmrader info
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , mistetFokusCmd
+                )
+
+        Typeahead.NoChange ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> LeggTilOmrader info
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , case Typeahead.getSuggestionsStatus status of
+                    GetSuggestionsForInput query ->
+                        Api.getOmradeJobbprofilTypeahead HentetOmradeTypeahead query
+
+                    DoNothing ->
+                        Cmd.none
+                )
+
+        NewActiveElement ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> LeggTilOmrader info
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , nyTypeaheadModel
+                    |> Typeahead.scrollActiveSuggestionIntoView Omrade.tittel Nothing
+                    |> Cmd.map OmradeTypeaheadMsg
+                )
 
 
 updateSamtaleYrkeTypeahead : ModelInfo -> YrkeInfo -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
@@ -436,6 +572,9 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                     ]
                 ]
 
+        LeggTilOmrader info _ ->
+            [ Melding.spørsmål [ "Hvor vil du jobbe? For eksempel Oslo eller Kristiansund." ] ]
+
         EndreOppsummering model jobbprofilSkjema ->
             []
 
@@ -519,6 +658,7 @@ type InputId
     = BekreftJobbprofilId
     | BegynnPåJobbprofilId
     | StillingYrkeTypeaheadId
+    | OmradeTypeaheadId
 
 
 inputIdTilString : InputId -> String
@@ -532,6 +672,9 @@ inputIdTilString inputId =
 
         StillingYrkeTypeaheadId ->
             "jobbprofil-yrke-typeahaed-id"
+
+        OmradeTypeaheadId ->
+            "jobbprofil-omrade-typeahead-id"
 
 
 maybeHvisTrue : Bool -> Maybe a -> Maybe a
@@ -568,6 +711,23 @@ modelTilBrukerInput model =
 
             HarJobbprofilUnderOppfølging jobbprofil ->
                 BrukerInput.utenInnhold
+
+            LeggTilOmrader info typeaheadModel ->
+                BrukerInput.skjema { lagreMsg = VilGåVidereFraOmrade info, lagreKnappTekst = "Gå videre" }
+                    (List.concat
+                        [ [ Nothing
+                                |> Typeahead.view Omrade.tittel typeaheadModel
+                                |> Html.map OmradeTypeaheadMsg
+                          ]
+                        , if List.length info.omrader > 0 then
+                            [ List.map (\x -> Merkelapp.merkelapp (FjernValgtOmrade x) (Omrade.tittel x)) info.omrader
+                                |> Merkelapp.merkelapper
+                            ]
+
+                          else
+                            []
+                        ]
+                    )
 
             LeggTilYrker info typeaheadModel ->
                 -- todo: Lag en variant av skjema for dette tilfelle som har gåvidereknapp istedet for lagre
@@ -611,11 +771,18 @@ modelTilBrukerInput model =
             VelgArbeidstid ->
                 BrukerInput.utenInnhold
 
-            EndreOppsummering typeaheadMOdel jobbprofilSkjema ->
-                BrukerInput.utenInnhold
+            EndreOppsummering typeaheadModel jobbprofilSkjema ->
+                Debug.log "yo"
+                    BrukerInput.utenInnhold
 
     else
-        BrukerInput.utenInnhold
+        Debug.log "hei"
+            BrukerInput.utenInnhold
+
+
+omradeMerkelapp : Omrade -> Merkelapp Msg
+omradeMerkelapp omrade =
+    Merkelapp.merkelapp (FjernValgtOmrade omrade) (Omrade.tittel omrade)
 
 
 yrkeMerkelapp : Yrke -> Merkelapp Msg
@@ -630,6 +797,16 @@ feilmeldingTypeahead yrker =
 
     else
         Nothing
+
+
+visFeilmeldingForOmrade : ModelInfo -> OmradeInfo -> Typeahead.Model Omrade -> SamtaleStatus
+visFeilmeldingForOmrade model info typeaheadModel =
+    ( typeaheadModel
+        |> LeggTilOmrader { info | visFeilmelding = True }
+        |> oppdaterSamtale model IngenNyeMeldinger
+    , Cmd.none
+    )
+        |> IkkeFerdig
 
 
 visFeilmeldingForYrke : ModelInfo -> YrkeInfo -> Typeahead.Model Yrke -> SamtaleStatus
@@ -667,6 +844,17 @@ init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
         , Api.getJobbprofil JobbprofilHentet
         ]
     )
+
+
+initOmradeTypeahead : ( Typeahead.Model Omrade, Typeahead.Query )
+initOmradeTypeahead =
+    Typeahead.init
+        { value = ""
+        , label = "Skriv inn fylker eller kommuner"
+        , id = inputIdTilString OmradeTypeaheadId
+        , toString = Omrade.tittel
+        }
+        |> Tuple.mapFirst Typeahead.withSubmitOnElementSelected
 
 
 initYrkeTypeahead : ( Typeahead.Model Yrke, Typeahead.Query )
