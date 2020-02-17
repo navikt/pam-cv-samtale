@@ -90,12 +90,13 @@ type Msg
     = JobbprofilHentet (Result Http.Error Jobbprofil)
     | VilEndreJobbprofil
     | VilBegynnePåJobbprofil
-    | VilLagreOmfang
     | YrkeTypeaheadMsg (Typeahead.Msg Yrke)
     | HentetYrkeTypeahead Typeahead.Query (Result Http.Error (List Yrke))
     | VilLeggeTilYrke Yrke
     | FjernValgtYrke Yrke
-    | VilGåVidereFraYrke
+    | VilGåVidereFraYrke Yrke (Typeahead.Msg Yrke)
+    | VilLeggeTilAnsettelsesform AnsettelsesformInfo
+    | VilLagreOmfang
     | JobbprofilEndret SkjemaEndring
     | VilLagreJobbprofil
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
@@ -113,6 +114,12 @@ type alias YrkeInfo =
     { yrker : List Yrke
     , underOppfølging : Bool -- todo: fjern underOppfølging herfra
     , visFeilmelding : Bool
+    }
+
+
+type alias AnsettelsesformInfo =
+    { yrker : List Yrke
+    , ansettelsesformer : List String
     }
 
 
@@ -232,8 +239,21 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilGåVidereFraYrke ->
-            IkkeFerdig ( Model model, Cmd.none )
+        VilGåVidereFraYrke info typeaheadModel ->
+            case List.isEmpty info.yrker of
+                True ->
+                    ( typeaheadModel
+                        |> LeggTilYrker { info | visFeilmelding = True }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                --  ( Model model, Cmd.none )
+                False ->
+                    Debug.log "Liste har verdier"
+                        IkkeFerdig
+                        ( Model model, Cmd.none )
 
         VilEndreJobbprofil ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -267,6 +287,9 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+        VilLeggeTilAnsettelsesform _ ->
+            IkkeFerdig ( Model model, mistetFokusCmd )
 
 
 updateSamtaleYrkeTypeahead : ModelInfo -> YrkeInfo -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
@@ -548,7 +571,7 @@ modelTilBrukerInput model =
 
             LeggTilYrker info typeaheadModel ->
                 -- todo: Lag en variant av skjema for dette tilfelle som har gåvidereknapp istedet for lagre
-                BrukerInput.skjema { lagreMsg = VilGåVidereFraYrke, lagreKnappTekst = "Gå videre" }
+                BrukerInput.skjema { lagreMsg = VilGåVidereFraYrke info, lagreKnappTekst = "Gå videre" }
                     (List.concat
                         [ [ --info.yrker
                             --  |> feilmeldingTypeahead
@@ -577,7 +600,7 @@ modelTilBrukerInput model =
                      |> BrukerInputMedGåVidereKnapp.typeahead VilGåVidereFraYrke
                      |> BrukerInput.brukerInputMedGåVidereKnapp
 
-                                    
+
                                     --}
             VelgOmfang ->
                 BrukerInput.skjema { lagreMsg = VilLagreOmfang, lagreKnappTekst = "Gå videre" }
