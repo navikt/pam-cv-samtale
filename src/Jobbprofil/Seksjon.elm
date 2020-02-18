@@ -15,18 +15,15 @@ import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
-import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
-import FrontendModuler.Typeahead
-import Html exposing (Html, text)
+import Html exposing (Html)
 import Http
-import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformListeFraSkjema, ansettelsesformSammendragFraSkjema, arbeidsdagerListeFraSkjema, arbeidstidListeFraSkjema, arbeidstidordningListeFraSkjema, fraJobbprofil, geografiListeFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseListeFraSkjema, kompetanseSammendragFraSkjema, listeSammendragFraSkjema, nårKanDuJobbeSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingListeFraSkjema, stillingSammendragFraSkjema)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, nårKanDuJobbeSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema)
 import List.Extra as List
-import Maybe.Extra
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
@@ -64,8 +61,8 @@ type Samtale
     | HarIkkeJobbprofilJobbsøker
     | LeggTilYrker YrkeInfo (Typeahead.Model Yrke)
     | LeggTilOmrader OmradeInfo (Typeahead.Model Omrade)
+    | LeggTilOmfang OmfangInfo
     | EndreOppsummering (Typeahead.Model Yrke) JobbprofilSkjema
-    | VelgOmfang
     | VelgArbeidstid
 
 
@@ -114,7 +111,8 @@ type Msg
 
 
 type SkjemaEndring
-    = Omfang
+    = OmfangHeltid OmfangInfo
+    | OmfangDeltid OmfangInfo
 
 
 type alias YrkeInfo =
@@ -128,6 +126,14 @@ type alias OmradeInfo =
     { yrker : List Yrke
     , omrader : List Omrade
     , visFeilmelding : Bool
+    }
+
+
+type alias OmfangInfo =
+    { yrker : List Yrke
+    , omrader : List Omrade
+    , heltid : Bool
+    , deltid : Bool
     }
 
 
@@ -222,14 +228,26 @@ update msg (Model model) =
         VilGåVidereFraOmrade info ->
             case List.isEmpty info.omrader of
                 True ->
-                    Debug.log "Liste er tom"
-                        IkkeFerdig
-                        ( Model model, Cmd.none )
+                    ( initOmradeTypeahead
+                        |> Tuple.first
+                        |> LeggTilOmrader { omrader = [], yrker = info.yrker, visFeilmelding = True }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 False ->
-                    Debug.log "Liste har verdier"
-                        IkkeFerdig
-                        ( Model model, Cmd.none )
+                    ( LeggTilOmfang { heltid = False, deltid = False, yrker = info.yrker, omrader = info.omrader }
+                        |> oppdaterSamtale model
+                            (ManueltSvar
+                                (Melding.svar
+                                    [ String.join ", " (List.map (\it -> Omrade.tittel it) info.omrader)
+                                    ]
+                                )
+                            )
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
         HentetOmradeTypeahead query result ->
             case model.aktivSamtale of
@@ -318,14 +336,13 @@ update msg (Model model) =
         VilGåVidereFraYrke info ->
             case List.isEmpty info.yrker of
                 True ->
-                    {- ( typeaheadModel
-                           |> LeggTilYrker { info | visFeilmelding = True }
-                           |> oppdaterSamtale model IngenNyeMeldinger
-                       , lagtTilSpørsmålCmd model.debugStatus
-                       )
-                           |> IkkeFerdig
-                    -}
-                    IkkeFerdig ( Model model, Cmd.none )
+                    ( initYrkeTypeahead
+                        |> Tuple.first
+                        |> LeggTilYrker { yrker = [], underOppfølging = False, visFeilmelding = True }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 False ->
                     ( initOmradeTypeahead
@@ -349,7 +366,16 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
         JobbprofilEndret skjemaEndring ->
-            IkkeFerdig ( Model model, Cmd.none )
+            case skjemaEndring of
+                OmfangHeltid info ->
+                    --  OmfangInfo { info | heltid = info.heltid }
+                    --  |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
+
+                OmfangDeltid info ->
+                    --  OmfangInfo { info | deltid = info.deltid }
+                    --  |> IkkeFerdig
+                    IkkeFerdig ( Model model, Cmd.none )
 
         VilLagreOmfang ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -553,7 +579,7 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
             --todo: håndter feil
             []
 
-        VelgOmfang ->
+        LeggTilOmfang _ ->
             [ Melding.spørsmål [ "Vil du jobbe heltid eller deltid?" ] ]
 
         VelgArbeidstid ->
@@ -564,6 +590,9 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                 [ Melding.spørsmål [ "Nå gjenstår bare jobbprofilen." ]
                 , Melding.spørsmål [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider." ]
                 ]
+
+            else if info.visFeilmelding then
+                []
 
             else
                 [ Melding.spørsmål [ "Flott! Da begynner vi." ]
@@ -762,9 +791,11 @@ modelTilBrukerInput model =
 
 
                                     --}
-            VelgOmfang ->
+            LeggTilOmfang info ->
                 BrukerInput.skjema { lagreMsg = VilLagreOmfang, lagreKnappTekst = "Gå videre" }
-                    [ Checkbox.checkbox "Heltid" (JobbprofilEndret Omfang) False
+                    [ Checkbox.checkbox "Heltid" (JobbprofilEndret (OmfangHeltid info)) False
+                        |> Checkbox.toHtml
+                    , Checkbox.checkbox "Deltid" (JobbprofilEndret (OmfangDeltid info)) False
                         |> Checkbox.toHtml
                     ]
 
@@ -772,12 +803,10 @@ modelTilBrukerInput model =
                 BrukerInput.utenInnhold
 
             EndreOppsummering typeaheadModel jobbprofilSkjema ->
-                Debug.log "yo"
-                    BrukerInput.utenInnhold
+                BrukerInput.utenInnhold
 
     else
-        Debug.log "hei"
-            BrukerInput.utenInnhold
+        BrukerInput.utenInnhold
 
 
 omradeMerkelapp : Omrade -> Merkelapp Msg
