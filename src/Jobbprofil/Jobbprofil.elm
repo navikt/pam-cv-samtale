@@ -36,6 +36,11 @@ type alias StillingKladdInfo =
     StillingInfo
 
 
+
+-- TODO - Clean up Jobbprofil
+-- Remove kompetanse? (in new file)
+
+
 type alias KompetanseInfo =
     { id : Maybe String
     , tittel : Maybe String

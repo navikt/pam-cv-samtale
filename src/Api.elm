@@ -12,6 +12,7 @@ module Api exposing
     , getFagbrevTypeahead
     , getHeaderInfo
     , getJobbprofil
+    , getKompetanseJobbprofilTypeahead
     , getMesterbrevTypeahead
     , getOmradeJobbprofilTypeahead
     , getPerson
@@ -51,6 +52,7 @@ import Forerkort.Forerkort as Førerkort exposing (Førerkort)
 import Forerkort.Skjema
 import Http exposing (..)
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.Kompetanse as KompetanseTypeahead exposing (Kompetanse)
 import Jobbprofil.Omrade as OmradeTypeahead exposing (Omrade)
 import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
@@ -298,6 +300,14 @@ getOmradeJobbprofilTypeahead msgConstructor query =
     Http.get
         { url = "/cv-samtale/api/rest/typeahead/sted" ++ Url.Builder.toQuery [ Url.Builder.string "query" (Typeahead.queryToString query) ]
         , expect = expectJson (msgConstructor query) (Json.Decode.list OmradeTypeahead.decode)
+        }
+
+
+getKompetanseJobbprofilTypeahead : (Typeahead.Query -> Result Error (List Kompetanse) -> msg) -> Typeahead.Query -> Cmd msg
+getKompetanseJobbprofilTypeahead msgConstructor query =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/kompetanse" ++ Url.Builder.toQuery [ Url.Builder.string "query" (Typeahead.queryToString query) ]
+        , expect = expectJson (msgConstructor query) (Json.Decode.list KompetanseTypeahead.decode)
         }
 
 

@@ -22,6 +22,7 @@ import FrontendModuler.Radio as Radio
 import Html exposing (Html)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema)
 import List.Extra as List
@@ -32,6 +33,7 @@ import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Person exposing (BrukerInfo(..))
 import Process
 import Result.Extra as Result
+import String exposing (isEmpty)
 import Task
 import Time exposing (Posix)
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
@@ -66,6 +68,8 @@ type Samtale
     | LeggTilArbeidstid ArbeidstidInfo
     | LeggTilAnsettelsesform AnsettelsesformInfo
     | VelgOppstart OppstartInfo
+    | LeggTilKompetanser KompetanseInfo (Typeahead.Model Kompetanse)
+    | VisOppsummering KompetanseInfo
     | EndreOppsummering (Typeahead.Model Yrke) JobbprofilSkjema
 
 
@@ -107,6 +111,11 @@ type Msg
     | VilGåVidereFraArbeidstid ArbeidstidInfo
     | VilGåVidereFraAnsettelsesform AnsettelsesformInfo
     | VilGåVidereFraOppstart OppstartInfo
+    | KompetanseTypeaheadMsg (Typeahead.Msg Kompetanse)
+    | HentetKompetanseTypeahead Typeahead.Query (Result Http.Error (List Kompetanse))
+    | VilLeggeTilkompetanse Kompetanse
+    | FjernValgtKompetanse Kompetanse
+    | VilGåVidereFraKompetanse KompetanseInfo
     | JobbprofilEndret SkjemaEndring
     | VilLagreJobbprofil
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
@@ -171,6 +180,18 @@ type alias OppstartInfo =
     }
 
 
+type alias KompetanseInfo =
+    { yrker : List Yrke
+    , omrader : List Omrade
+    , omfanger : List String
+    , arbeidstider : List String
+    , ansettelsesformer : List String
+    , oppstart : String
+    , kompetanser : List Kompetanse
+    , visFeilmelding : Bool
+    }
+
+
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
@@ -231,6 +252,86 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
+        KompetanseTypeaheadMsg typeaheadMsg ->
+            case model.aktivSamtale of
+                LeggTilKompetanser info typeaheadModel ->
+                    updateSamtaleKompetanseTypeahead model info typeaheadMsg typeaheadModel
+
+                EndreOppsummering gammelTypeaheadModel skjema ->
+                    -- Todo: implementer
+                    IkkeFerdig ( Model model, Cmd.none )
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilLeggeTilkompetanse _ ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        VilGåVidereFraKompetanse info ->
+            case List.isEmpty info.kompetanser of
+                True ->
+                    ( initKompetanseTypeahead
+                        |> Tuple.first
+                        |> LeggTilKompetanser { info | visFeilmelding = True }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                False ->
+                    ( VisOppsummering info
+                        |> oppdaterSamtale model
+                            (ManueltSvar
+                                (Melding.svar
+                                    [ String.join ", " (List.map (\it -> Kompetanse.label it) info.kompetanser)
+                                    ]
+                                )
+                            )
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+        FjernValgtKompetanse kompetanse ->
+            case model.aktivSamtale of
+                LeggTilKompetanser info typeaheadModel ->
+                    ( typeaheadModel
+                        |> LeggTilKompetanser { info | kompetanser = List.remove kompetanse info.kompetanser }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        HentetKompetanseTypeahead query result ->
+            case model.aktivSamtale of
+                LeggTilKompetanser info typeaheadModel ->
+                    let
+                        resultWithoutSelected =
+                            result
+                                |> Result.map (List.filter (\kompetanse_ -> List.notMember kompetanse_ info.kompetanser))
+                    in
+                    ( resultWithoutSelected
+                        |> Typeahead.updateSuggestions Kompetanse.label typeaheadModel query
+                        |> LeggTilKompetanser info
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , result
+                        |> Result.error
+                        |> Maybe.map (logFeilmelding "Hente kompetansetypeahead")
+                        |> Maybe.withDefault Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                EndreOppsummering typeaheadModel skjema ->
+                    -- todo: Gjør det samme som for legg til yrker her
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, Cmd.none )
+                        |> IkkeFerdig
+
         OmradeTypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
                 LeggTilOmrader info typeaheadModel ->
@@ -264,7 +365,7 @@ update msg (Model model) =
                 True ->
                     ( initOmradeTypeahead
                         |> Tuple.first
-                        |> LeggTilOmrader { omrader = [], yrker = info.yrker, visFeilmelding = True }
+                        |> LeggTilOmrader { info | visFeilmelding = True }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -372,7 +473,7 @@ update msg (Model model) =
                 True ->
                     ( initYrkeTypeahead
                         |> Tuple.first
-                        |> LeggTilYrker { yrker = [], underOppfølging = False, visFeilmelding = True }
+                        |> LeggTilYrker { info | visFeilmelding = True }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -480,7 +581,7 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         VilGåVidereFraAnsettelsesform info ->
-            ( VelgOppstart { oppstart = "Jeg har 3 måneder oppsigelse", ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+            ( VelgOppstart { oppstart = "", ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
                 |> oppdaterSamtale model
                     (ManueltSvar
                         (Melding.svar
@@ -493,7 +594,26 @@ update msg (Model model) =
                 |> IkkeFerdig
 
         VilGåVidereFraOppstart info ->
-            IkkeFerdig ( Model model, Cmd.none )
+            case isEmpty info.oppstart of
+                True ->
+                    ( VelgOppstart { info | oppstart = "" }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                False ->
+                    -- TODO - funksjoner for transformering av records i transisjonsfaser, f.eks. oppstartInfoTilKompetanseInfo : OppstartInfo -> KompetanseInfo
+                    ( initKompetanseTypeahead
+                        |> Tuple.first
+                        |> LeggTilKompetanser { kompetanser = [], oppstart = info.oppstart, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader, visFeilmelding = False }
+                        |> oppdaterSamtale model
+                            (ManueltSvar
+                                (Melding.svar [ info.oppstart ])
+                            )
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
@@ -515,6 +635,58 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+
+updateSamtaleKompetanseTypeahead : ModelInfo -> KompetanseInfo -> Typeahead.Msg Kompetanse -> Typeahead.Model Kompetanse -> SamtaleStatus
+updateSamtaleKompetanseTypeahead model info msg typeaheadModel =
+    let
+        ( nyTypeaheadModel, status ) =
+            Typeahead.update Kompetanse.label msg typeaheadModel
+    in
+    case Typeahead.inputStatus status of
+        Typeahead.Submit ->
+            case Typeahead.selected nyTypeaheadModel of
+                Just kompetanse ->
+                    ( nyTypeaheadModel
+                        |> LeggTilKompetanser { info | kompetanser = List.append info.kompetanser [ kompetanse ], visFeilmelding = False }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                Nothing ->
+                    visFeilmeldingForKompetanse model info typeaheadModel
+
+        Typeahead.InputBlurred ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> LeggTilKompetanser info
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , mistetFokusCmd
+                )
+
+        Typeahead.NoChange ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> LeggTilKompetanser info
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , case Typeahead.getSuggestionsStatus status of
+                    GetSuggestionsForInput query ->
+                        Api.getKompetanseJobbprofilTypeahead HentetKompetanseTypeahead query
+
+                    DoNothing ->
+                        Cmd.none
+                )
+
+        NewActiveElement ->
+            IkkeFerdig
+                ( nyTypeaheadModel
+                    |> LeggTilKompetanser info
+                    |> oppdaterSamtale model IngenNyeMeldinger
+                , nyTypeaheadModel
+                    |> Typeahead.scrollActiveSuggestionIntoView Kompetanse.label Nothing
+                    |> Cmd.map KompetanseTypeaheadMsg
+                )
 
 
 updateSamtaleOmradeTypeahead : ModelInfo -> OmradeInfo -> Typeahead.Msg Omrade -> Typeahead.Model Omrade -> SamtaleStatus
@@ -722,11 +894,41 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                     ]
                 ]
 
-        LeggTilOmrader info _ ->
+        LeggTilOmrader _ _ ->
             [ Melding.spørsmål [ "Hvor vil du jobbe? For eksempel Oslo eller Kristiansund." ] ]
+
+        LeggTilKompetanser _ _ ->
+            [ Melding.spørsmål [ "Tenk på kunnskapene og ferdighetene dine fra jobb eller utdanning." ] ]
+
+        VisOppsummering info ->
+            [ Melding.spørsmål
+                (List.concat
+                    [ [ "Du har lagt inn dette:"
+                      , Melding.tomLinje
+                      ]
+                    , info
+                        |> oppsummering
+                    , [ Melding.tomLinje
+                      , "Er informasjonen riktig?"
+                      ]
+                    ]
+                )
+            ]
 
         EndreOppsummering model jobbprofilSkjema ->
             []
+
+
+oppsummering : KompetanseInfo -> List String
+oppsummering info =
+    [ "Stilling/yrke: " ++ String.join ", " (List.map (\it -> Yrke.label it) info.yrker)
+    , "Område: " ++ String.join ", " (List.map (\it -> Omrade.tittel it) info.omrader)
+    , "Heltid/deltid: " ++ String.join ", " info.omfanger
+    , "Når kan du jobbe? " ++ String.join ", " info.arbeidstider
+    , "Hva slags ansettelse ønsker du? " ++ String.join ", " info.ansettelsesformer
+    , "Når kan du begynne? " ++ info.oppstart
+    , "Kompetanser: " ++ String.join ", " (List.map (\it -> Kompetanse.label it) info.kompetanser)
+    ]
 
 
 skjemaOppsummering : JobbprofilSkjema -> List String
@@ -809,6 +1011,7 @@ type InputId
     | BegynnPåJobbprofilId
     | StillingYrkeTypeaheadId
     | OmradeTypeaheadId
+    | KompetanseTypeaheadId
 
 
 inputIdTilString : InputId -> String
@@ -825,6 +1028,9 @@ inputIdTilString inputId =
 
         OmradeTypeaheadId ->
             "jobbprofil-omrade-typeahead-id"
+
+        KompetanseTypeaheadId ->
+            "jobbprofil-kompetanse-typeahead-id"
 
 
 maybeHvisTrue : Bool -> Maybe a -> Maybe a
@@ -949,18 +1155,39 @@ modelTilBrukerInput model =
                     )
 
             VelgOppstart info ->
+                BrukerInput.skjema { lagreMsg = VilGåVidereFraOppstart info, lagreKnappTekst = "Gå videre" }
+                    (List.concat
+                        [ List.map
+                            (\it ->
+                                Radio.radio (Skjema.label it) (Skjema.value it) (JobbprofilEndret (Oppstart info (Skjema.label it))) (info.oppstart == Skjema.label it)
+                            )
+                            (hentValg OppstartValg)
+                            |> List.map (\it -> Radio.toHtml it)
+                        ]
+                    )
+
+            LeggTilKompetanser info typeaheadModel ->
+                BrukerInput.skjema { lagreMsg = VilGåVidereFraKompetanse info, lagreKnappTekst = "Gå videre" }
+                    (List.concat
+                        [ [ Nothing
+                                |> Typeahead.view Kompetanse.label typeaheadModel
+                                |> Html.map KompetanseTypeaheadMsg
+
+                          -- OmradeTypeaheadMsg
+                          ]
+                        , if List.length info.kompetanser > 0 then
+                            [ List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser
+                                |> Merkelapp.merkelapper
+                            ]
+
+                          else
+                            []
+                        ]
+                    )
+
+            VisOppsummering _ ->
                 BrukerInput.utenInnhold
 
-            {- BrukerInput.skjema { lagreMsg = VilGåVidereFraOppstart info, lagreKnappTekst = "Gå videre" }
-               (List.concat
-                   [ List.map
-                       (\it ->
-                           Radio.radio (Skjema.label it) (JobbprofilEndret ())
-                       )
-                   ]
-
-               )
-            -}
             EndreOppsummering typeaheadModel jobbprofilSkjema ->
                 BrukerInput.utenInnhold
 
@@ -985,6 +1212,16 @@ feilmeldingTypeahead yrker =
 
     else
         Nothing
+
+
+visFeilmeldingForKompetanse : ModelInfo -> KompetanseInfo -> Typeahead.Model Kompetanse -> SamtaleStatus
+visFeilmeldingForKompetanse model info typeaheadModel =
+    ( typeaheadModel
+        |> LeggTilKompetanser { info | visFeilmelding = True }
+        |> oppdaterSamtale model IngenNyeMeldinger
+    , Cmd.none
+    )
+        |> IkkeFerdig
 
 
 visFeilmeldingForOmrade : ModelInfo -> OmradeInfo -> Typeahead.Model Omrade -> SamtaleStatus
@@ -1032,6 +1269,17 @@ init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
         , Api.getJobbprofil JobbprofilHentet
         ]
     )
+
+
+initKompetanseTypeahead : ( Typeahead.Model Kompetanse, Typeahead.Query )
+initKompetanseTypeahead =
+    Typeahead.init
+        { value = ""
+        , label = "Kompetanser"
+        , id = inputIdTilString KompetanseTypeaheadId
+        , toString = Kompetanse.label
+        }
+        |> Tuple.mapFirst Typeahead.withSubmitOnElementSelected
 
 
 initOmradeTypeahead : ( Typeahead.Model Omrade, Typeahead.Query )

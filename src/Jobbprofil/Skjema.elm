@@ -71,6 +71,11 @@ label elem =
             verdi
 
 
+value : ValgElement -> String
+value elem =
+    elem.value
+
+
 hentValg : SeksjonValg -> List ValgElement
 hentValg seksjonValg =
     case seksjonValg of
