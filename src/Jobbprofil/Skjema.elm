@@ -51,9 +51,7 @@ type alias ValidertJobbprofilSkjemaInfo =
 type SeksjonValg
     = OppstartValg
     | OmfangValg
-    | ArbeidsdagerValg
     | AnsettelsesformValg
-    | ArbeidstidsOrdningValg
     | ArbeidstidValg
 
 
@@ -61,6 +59,16 @@ type alias ValgElement =
     { label : Maybe String
     , value : String
     }
+
+
+label : ValgElement -> String
+label elem =
+    case elem.label of
+        Nothing ->
+            ""
+
+        Just verdi ->
+            verdi
 
 
 hentValg : SeksjonValg -> List ValgElement
@@ -79,11 +87,6 @@ hentValg seksjonValg =
             , { label = Just "Deltid", value = "DELTID" }
             ]
 
-        ArbeidsdagerValg ->
-            [ { label = Just "Lørdag", value = "LOERDAG" }
-            , { label = Just "Søndag", value = "SOENDAG" }
-            ]
-
         AnsettelsesformValg ->
             [ { label = Just "Fast", value = "FAST" }
             , { label = Just "Vikariat", value = "VIKARIAT" }
@@ -97,16 +100,15 @@ hentValg seksjonValg =
             , { label = Just "Annet", value = "ANNET" }
             ]
 
-        ArbeidstidsOrdningValg ->
-            [ { label = Just "Skift", value = "SKIFT" }
-            , { label = Just "Vakt", value = "VAKT" }
-            , { label = Just "Turnus", value = "TURNUS" }
-            ]
-
         ArbeidstidValg ->
             [ { label = Just "Dag", value = "DAGTID" }
             , { label = Just "Kveld", value = "KVELD" }
             , { label = Just "Natt", value = "NATT" }
+            , { label = Just "Lørdag", value = "LOERDAG" }
+            , { label = Just "Søndag", value = "SOENDAG" }
+            , { label = Just "Skift", value = "SKIFT" }
+            , { label = Just "Vakt", value = "VAKT" }
+            , { label = Just "Turnus", value = "TURNUS" }
             ]
 
 
@@ -210,20 +212,10 @@ arbeidstidListeFraSkjema (JobbprofilSkjema info) =
     info.arbeidstidliste
 
 
-arbeidsdagerListeFraSkjema : JobbprofilSkjema -> List String
-arbeidsdagerListeFraSkjema (JobbprofilSkjema info) =
-    info.arbeidsdagerliste
-
-
-arbeidstidordningListeFraSkjema : JobbprofilSkjema -> List String
-arbeidstidordningListeFraSkjema (JobbprofilSkjema info) =
-    info.arbeidstidsordningliste
-
-
-nårKanDuJobbeSammendragFraSkjema : JobbprofilSkjema -> String
-nårKanDuJobbeSammendragFraSkjema info =
-    (arbeidstidListeFraSkjema info ++ arbeidstidordningListeFraSkjema info ++ arbeidsdagerListeFraSkjema info)
-        |> listeSammendragFraSkjema (hentValg ArbeidstidsOrdningValg ++ hentValg ArbeidsdagerValg ++ hentValg ArbeidstidValg) " - "
+arbeidstidSammendragFraSkjema : JobbprofilSkjema -> String
+arbeidstidSammendragFraSkjema info =
+    arbeidstidListeFraSkjema info
+        |> listeSammendragFraSkjema (hentValg ArbeidstidValg) ", "
 
 
 omfangsListeFraSkjema : JobbprofilSkjema -> List String

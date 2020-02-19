@@ -18,11 +18,12 @@ import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, Knapper
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
+import FrontendModuler.Radio as Radio
 import Html exposing (Html)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, nårKanDuJobbeSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema)
 import List.Extra as List
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
@@ -62,8 +63,10 @@ type Samtale
     | LeggTilYrker YrkeInfo (Typeahead.Model Yrke)
     | LeggTilOmrader OmradeInfo (Typeahead.Model Omrade)
     | LeggTilOmfang OmfangInfo
+    | LeggTilArbeidstid ArbeidstidInfo
+    | LeggTilAnsettelsesform AnsettelsesformInfo
+    | VelgOppstart OppstartInfo
     | EndreOppsummering (Typeahead.Model Yrke) JobbprofilSkjema
-    | VelgArbeidstid
 
 
 type FullføringStatus
@@ -100,7 +103,10 @@ type Msg
     | VilLeggeTilOmrade Omrade
     | VilGåVidereFraOmrade OmradeInfo
     | FjernValgtOmrade Omrade
-    | VilLagreOmfang
+    | VilGåVidereFraOmfang OmfangInfo
+    | VilGåVidereFraArbeidstid ArbeidstidInfo
+    | VilGåVidereFraAnsettelsesform AnsettelsesformInfo
+    | VilGåVidereFraOppstart OppstartInfo
     | JobbprofilEndret SkjemaEndring
     | VilLagreJobbprofil
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
@@ -111,8 +117,10 @@ type Msg
 
 
 type SkjemaEndring
-    = OmfangHeltid OmfangInfo
-    | OmfangDeltid OmfangInfo
+    = Omfang OmfangInfo String
+    | Arbeidstid ArbeidstidInfo String
+    | Ansettelsesform AnsettelsesformInfo String
+    | Oppstart OppstartInfo String
 
 
 type alias YrkeInfo =
@@ -132,8 +140,34 @@ type alias OmradeInfo =
 type alias OmfangInfo =
     { yrker : List Yrke
     , omrader : List Omrade
-    , heltid : Bool
-    , deltid : Bool
+    , omfanger : List String
+    }
+
+
+type alias ArbeidstidInfo =
+    { yrker : List Yrke
+    , omrader : List Omrade
+    , omfanger : List String
+    , arbeidstider : List String
+    }
+
+
+type alias AnsettelsesformInfo =
+    { yrker : List Yrke
+    , omrader : List Omrade
+    , omfanger : List String
+    , arbeidstider : List String
+    , ansettelsesformer : List String
+    }
+
+
+type alias OppstartInfo =
+    { yrker : List Yrke
+    , omrader : List Omrade
+    , omfanger : List String
+    , arbeidstider : List String
+    , ansettelsesformer : List String
+    , oppstart : String
     }
 
 
@@ -237,7 +271,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 False ->
-                    ( LeggTilOmfang { heltid = False, deltid = False, yrker = info.yrker, omrader = info.omrader }
+                    ( LeggTilOmfang { omfanger = [], yrker = info.yrker, omrader = info.omrader }
                         |> oppdaterSamtale model
                             (ManueltSvar
                                 (Melding.svar
@@ -367,17 +401,98 @@ update msg (Model model) =
 
         JobbprofilEndret skjemaEndring ->
             case skjemaEndring of
-                OmfangHeltid info ->
-                    --  OmfangInfo { info | heltid = info.heltid }
-                    --  |> IkkeFerdig
-                    IkkeFerdig ( Model model, Cmd.none )
+                Oppstart info verdi ->
+                    ( VelgOppstart { oppstart = verdi, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
-                OmfangDeltid info ->
-                    --  OmfangInfo { info | deltid = info.deltid }
-                    --  |> IkkeFerdig
-                    IkkeFerdig ( Model model, Cmd.none )
+                Ansettelsesform info verdi ->
+                    if List.member verdi info.ansettelsesformer then
+                        ( LeggTilAnsettelsesform { ansettelsesformer = List.remove verdi info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
 
-        VilLagreOmfang ->
+                    else
+                        ( LeggTilAnsettelsesform { ansettelsesformer = List.append [ verdi ] info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+                Arbeidstid info verdi ->
+                    if List.member verdi info.arbeidstider then
+                        ( LeggTilArbeidstid { arbeidstider = List.remove verdi info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+                    else
+                        ( LeggTilArbeidstid { arbeidstider = List.append [ verdi ] info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+                Omfang info verdi ->
+                    if List.member verdi info.omfanger then
+                        ( LeggTilOmfang { omfanger = List.remove verdi info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+                    else
+                        ( LeggTilOmfang { omfanger = List.append [ verdi ] info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+        VilGåVidereFraOmfang info ->
+            ( LeggTilArbeidstid { arbeidstider = [], omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                |> oppdaterSamtale model
+                    (ManueltSvar
+                        (Melding.svar
+                            [ String.join ", " (List.map (\it -> it) info.omfanger)
+                            ]
+                        )
+                    )
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
+
+        VilGåVidereFraArbeidstid info ->
+            ( LeggTilAnsettelsesform { ansettelsesformer = [], arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                |> oppdaterSamtale model
+                    (ManueltSvar
+                        (Melding.svar
+                            [ String.join ", " (List.map (\it -> it) info.arbeidstider)
+                            ]
+                        )
+                    )
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
+
+        VilGåVidereFraAnsettelsesform info ->
+            ( VelgOppstart { oppstart = "Jeg har 3 måneder oppsigelse", ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                |> oppdaterSamtale model
+                    (ManueltSvar
+                        (Melding.svar
+                            [ String.join ", " (List.map (\it -> it) info.ansettelsesformer)
+                            ]
+                        )
+                    )
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
+
+        VilGåVidereFraOppstart info ->
             IkkeFerdig ( Model model, Cmd.none )
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
@@ -582,8 +697,14 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
         LeggTilOmfang _ ->
             [ Melding.spørsmål [ "Vil du jobbe heltid eller deltid?" ] ]
 
-        VelgArbeidstid ->
+        LeggTilArbeidstid _ ->
             [ Melding.spørsmål [ "Når kan du jobbe?" ] ]
+
+        LeggTilAnsettelsesform _ ->
+            [ Melding.spørsmål [ "Hva slags ansettelse ønsker du?" ] ]
+
+        VelgOppstart _ ->
+            [ Melding.spørsmål [ "Når kan du begynne i ny jobb?" ] ]
 
         LeggTilYrker info _ ->
             if info.underOppfølging then
@@ -613,7 +734,7 @@ skjemaOppsummering skjema =
     [ "Stilling/yrke: " ++ stillingSammendragFraSkjema skjema
     , "Område: " ++ geografiSammendragFraSkjema skjema
     , "Heltid/deltid: " ++ omfangsSammendragFraSkjema skjema
-    , "Når kan du jobbe? " ++ nårKanDuJobbeSammendragFraSkjema skjema
+    , "Når kan du jobbe? " ++ arbeidstidSammendragFraSkjema skjema
     , "Hva slags ansettelse ønsker du? " ++ ansettelsesformSammendragFraSkjema skjema
     , "Når kan du begynne? " ++ oppstartSammendragFraSkjema skjema
     , "Kompetanser: " ++ kompetanseSammendragFraSkjema skjema
@@ -792,16 +913,54 @@ modelTilBrukerInput model =
 
                                     --}
             LeggTilOmfang info ->
-                BrukerInput.skjema { lagreMsg = VilLagreOmfang, lagreKnappTekst = "Gå videre" }
-                    [ Checkbox.checkbox "Heltid" (JobbprofilEndret (OmfangHeltid info)) False
-                        |> Checkbox.toHtml
-                    , Checkbox.checkbox "Deltid" (JobbprofilEndret (OmfangDeltid info)) False
-                        |> Checkbox.toHtml
-                    ]
+                BrukerInput.skjema { lagreMsg = VilGåVidereFraOmfang info, lagreKnappTekst = "Gå videre" }
+                    (List.concat
+                        [ List.map
+                            (\it ->
+                                Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Omfang info (Skjema.label it))) (List.member (Skjema.label it) info.omfanger)
+                            )
+                            (hentValg OmfangValg)
+                            |> List.map (\it -> Checkbox.toHtml it)
+                        ]
+                    )
 
-            VelgArbeidstid ->
+            LeggTilArbeidstid info ->
+                BrukerInput.skjema { lagreMsg = VilGåVidereFraArbeidstid info, lagreKnappTekst = "Gå videre" }
+                    (List.concat
+                        [ List.map
+                            (\it ->
+                                Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Arbeidstid info (Skjema.label it))) (List.member (Skjema.label it) info.arbeidstider)
+                            )
+                            (hentValg ArbeidstidValg)
+                            |> List.map (\it -> Checkbox.toHtml it)
+                        ]
+                    )
+
+            LeggTilAnsettelsesform info ->
+                BrukerInput.skjema { lagreMsg = VilGåVidereFraAnsettelsesform info, lagreKnappTekst = "Gå videre" }
+                    (List.concat
+                        [ List.map
+                            (\it ->
+                                Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Ansettelsesform info (Skjema.label it))) (List.member (Skjema.label it) info.ansettelsesformer)
+                            )
+                            (hentValg AnsettelsesformValg)
+                            |> List.map (\it -> Checkbox.toHtml it)
+                        ]
+                    )
+
+            VelgOppstart info ->
                 BrukerInput.utenInnhold
 
+            {- BrukerInput.skjema { lagreMsg = VilGåVidereFraOppstart info, lagreKnappTekst = "Gå videre" }
+               (List.concat
+                   [ List.map
+                       (\it ->
+                           Radio.radio (Skjema.label it) (JobbprofilEndret ())
+                       )
+                   ]
+
+               )
+            -}
             EndreOppsummering typeaheadModel jobbprofilSkjema ->
                 BrukerInput.utenInnhold
 
