@@ -70,7 +70,7 @@ type Samtale
     | VelgOppstart OppstartInfo
     | LeggTilKompetanser KompetanseInfo (Typeahead.Model Kompetanse)
     | VisOppsummering KompetanseInfo
-    | EndreOppsummering (Typeahead.Model Yrke) JobbprofilSkjema
+    | EndreOppsummering OppsummeringInfo
 
 
 type FullføringStatus
@@ -116,6 +116,8 @@ type Msg
     | VilLeggeTilkompetanse Kompetanse
     | FjernValgtKompetanse Kompetanse
     | VilGåVidereFraKompetanse KompetanseInfo
+    | VilEndreOppsummering OppsummeringInfo
+    | VilLagreOppsummering OppsummeringInfo
     | JobbprofilEndret SkjemaEndring
     | VilLagreJobbprofil
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
@@ -192,6 +194,25 @@ type alias KompetanseInfo =
     }
 
 
+type alias OppsummeringInfo =
+    { yrker : List Yrke
+    , visYrkerFeilmelding : Bool
+    , omrader : List Omrade
+    , visOmraderFeilmelding : Bool
+    , omfanger : List String
+    , arbeidstider : List String
+    , ansettelsesformer : List String
+    , oppstart : String
+    , kompetanser : List Kompetanse
+    , visKompetanserFeilmelding : Bool
+    }
+
+
+initOppsummeringInfo : KompetanseInfo -> OppsummeringInfo
+initOppsummeringInfo info =
+    { yrker = info.yrker, visYrkerFeilmelding = False, omrader = info.omrader, visOmraderFeilmelding = False, omfanger = info.omfanger, arbeidstider = info.arbeidstider, ansettelsesformer = info.ansettelsesformer, oppstart = info.oppstart, kompetanser = info.kompetanser, visKompetanserFeilmelding = False }
+
+
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
@@ -257,7 +278,7 @@ update msg (Model model) =
                 LeggTilKompetanser info typeaheadModel ->
                     updateSamtaleKompetanseTypeahead model info typeaheadMsg typeaheadModel
 
-                EndreOppsummering gammelTypeaheadModel skjema ->
+                EndreOppsummering info ->
                     -- Todo: implementer
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -323,7 +344,7 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering typeaheadModel skjema ->
+                EndreOppsummering skjema ->
                     -- todo: Gjør det samme som for legg til yrker her
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
@@ -337,7 +358,7 @@ update msg (Model model) =
                 LeggTilOmrader info typeaheadModel ->
                     updateSamtaleOmradeTypeahead model info typeaheadMsg typeaheadModel
 
-                EndreOppsummering gammelTypeaheadModel skjema ->
+                EndreOppsummering skjema ->
                     --Todo: implementer
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -403,8 +424,7 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering typeaheadModel skjema ->
-                    -- todo: Gjør det samme som for legg til yrker her
+                EndreOppsummering skjema ->
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
@@ -417,7 +437,7 @@ update msg (Model model) =
                 LeggTilYrker info typeaheadModel ->
                     updateSamtaleYrkeTypeahead model info typeaheadMsg typeaheadModel
 
-                EndreOppsummering gammelTypeaheadModel skjema ->
+                EndreOppsummering skjema ->
                     --Todo: implementer
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -443,7 +463,7 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering typeaheadModel skjema ->
+                EndreOppsummering skjema ->
                     -- todo: Gjør det samme som for legg til yrker her
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
@@ -614,6 +634,16 @@ update msg (Model model) =
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
+
+        VilEndreOppsummering info ->
+            ( EndreOppsummering info
+                |> oppdaterSamtale model (ManueltSvar (Melding.svar [ "Nei, jeg vil endre" ]))
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
+
+        VilLagreOppsummering info ->
+            IkkeFerdig ( Model model, Cmd.none )
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
@@ -915,8 +945,8 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                 )
             ]
 
-        EndreOppsummering model jobbprofilSkjema ->
-            []
+        EndreOppsummering jobbprofilSkjema ->
+            [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
 
 oppsummering : KompetanseInfo -> List String
@@ -1012,6 +1042,7 @@ type InputId
     | StillingYrkeTypeaheadId
     | OmradeTypeaheadId
     | KompetanseTypeaheadId
+    | LagreOppsummeringId
 
 
 inputIdTilString : InputId -> String
@@ -1031,6 +1062,9 @@ inputIdTilString inputId =
 
         KompetanseTypeaheadId ->
             "jobbprofil-kompetanse-typeahead-id"
+
+        LagreOppsummeringId ->
+            "jobbprofil-lagre-oppsummering-id"
 
 
 maybeHvisTrue : Bool -> Maybe a -> Maybe a
@@ -1185,11 +1219,17 @@ modelTilBrukerInput model =
                         ]
                     )
 
-            VisOppsummering _ ->
-                BrukerInput.utenInnhold
+            VisOppsummering info ->
+                BrukerInput.knapper Kolonne
+                    [ Knapp.knapp (VilEndreOppsummering (initOppsummeringInfo info)) "Nei, jeg vil endre"
+                    ]
 
-            EndreOppsummering typeaheadModel jobbprofilSkjema ->
+            EndreOppsummering info ->
                 BrukerInput.utenInnhold
+        {-
+           BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
+               []
+        -}
 
     else
         BrukerInput.utenInnhold
