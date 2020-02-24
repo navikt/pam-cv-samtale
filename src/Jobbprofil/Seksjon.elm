@@ -19,6 +19,7 @@ import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
 import FrontendModuler.Radio as Radio
+import FrontendModuler.Typeahead
 import Html exposing (Html)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
@@ -101,7 +102,7 @@ type Msg
     | HentetYrkeTypeahead Typeahead.Query (Result Http.Error (List Yrke))
     | VilLeggeTilYrke Yrke
     | FjernValgtYrke Yrke
-    | VilGåVidereFraYrke YrkeInfo
+    | VilGåVidereFraYrke
     | OmradeTypeaheadMsg (Typeahead.Msg Omrade)
     | HentetOmradeTypeahead Typeahead.Query (Result Http.Error (List Omrade))
     | VilLeggeTilOmrade Omrade
@@ -278,7 +279,7 @@ update msg (Model model) =
                 LeggTilKompetanser info typeaheadModel ->
                     updateSamtaleKompetanseTypeahead model info typeaheadMsg typeaheadModel
 
-                EndreOppsummering info ->
+                EndreOppsummering _ ->
                     -- Todo: implementer
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -344,7 +345,7 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering skjema ->
+                EndreOppsummering _ ->
                     -- todo: Gjør det samme som for legg til yrker her
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
@@ -437,7 +438,7 @@ update msg (Model model) =
                 LeggTilYrker info typeaheadModel ->
                     updateSamtaleYrkeTypeahead model info typeaheadMsg typeaheadModel
 
-                EndreOppsummering skjema ->
+                EndreOppsummering _ ->
                     --Todo: implementer
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -488,30 +489,30 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilGåVidereFraYrke info ->
-            case List.isEmpty info.yrker of
-                True ->
-                    ( initYrkeTypeahead
-                        |> Tuple.first
-                        |> LeggTilYrker { info | visFeilmelding = True }
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                False ->
-                    ( initOmradeTypeahead
-                        |> Tuple.first
-                        |> LeggTilOmrader { yrker = info.yrker, omrader = [], visFeilmelding = False }
-                        |> oppdaterSamtale model
-                            (ManueltSvar
-                                (Melding.svar
-                                    [ String.join ", " (List.map (\it -> Yrke.label it) info.yrker)
-                                    ]
-                                )
+        VilGåVidereFraYrke ->
+            case model.aktivSamtale of
+                LeggTilYrker info _ ->
+                    case List.isEmpty info.yrker of
+                        True ->
+                            ( initYrkeTypeahead
+                                |> Tuple.first
+                                |> LeggTilYrker { info | visFeilmelding = True }
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , lagtTilSpørsmålCmd model.debugStatus
                             )
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
+                                |> IkkeFerdig
+
+                        False ->
+                            ( initOmradeTypeahead
+                                |> Tuple.first
+                                |> LeggTilOmrader { yrker = info.yrker, omrader = [], visFeilmelding = False }
+                                |> oppdaterSamtale model (SvarFraMsg msg)
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
         VilEndreJobbprofil ->
@@ -642,14 +643,14 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        VilLagreOppsummering info ->
+        VilLagreOppsummering _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
                 |> updateEtterFullførtMelding model
 
-        WindowEndrerVisibility visibility ->
+        WindowEndrerVisibility _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
         ErrorLogget ->
@@ -912,16 +913,13 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
             if info.underOppfølging then
                 [ Melding.spørsmål [ "Nå gjenstår bare jobbprofilen." ]
                 , Melding.spørsmål [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider." ]
+                , Melding.spørsmål [ "Du kan legge til flere stillinger eller yrker" ]
                 ]
-
-            else if info.visFeilmelding then
-                []
 
             else
                 [ Melding.spørsmål [ "Flott! Da begynner vi." ]
-                , Melding.spørsmål
-                    [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider."
-                    ]
+                , Melding.spørsmål [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider." ]
+                , Melding.spørsmål [ "Du kan legge til flere stillinger eller yrker" ]
                 ]
 
         LeggTilOmrader _ _ ->
@@ -945,7 +943,7 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                 )
             ]
 
-        EndreOppsummering jobbprofilSkjema ->
+        EndreOppsummering _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
 
@@ -1099,7 +1097,7 @@ modelTilBrukerInput model =
             HentingAvJobbprofilFeilet _ ->
                 BrukerInput.utenInnhold
 
-            HarJobbprofilUnderOppfølging jobbprofil ->
+            HarJobbprofilUnderOppfølging _ ->
                 BrukerInput.utenInnhold
 
             LeggTilOmrader info typeaheadModel ->
@@ -1111,7 +1109,7 @@ modelTilBrukerInput model =
                           ]
                         , if List.length info.omrader > 0 then
                             [ List.map (\x -> Merkelapp.merkelapp (FjernValgtOmrade x) (Omrade.tittel x)) info.omrader
-                                |> Merkelapp.merkelapper
+                                |> Merkelapp.toHtml
                             ]
 
                           else
@@ -1120,38 +1118,15 @@ modelTilBrukerInput model =
                     )
 
             LeggTilYrker info typeaheadModel ->
-                -- todo: Lag en variant av skjema for dette tilfelle som har gåvidereknapp istedet for lagre
-                BrukerInput.skjema { lagreMsg = VilGåVidereFraYrke info, lagreKnappTekst = "Gå videre" }
-                    (List.concat
-                        [ [ --info.yrker
-                            --  |> feilmeldingTypeahead
-                            --  |> maybeHvisTrue info.visFeilmelding
-                            Nothing
-                                |> Typeahead.view Yrke.label typeaheadModel
-                                |> Html.map YrkeTypeaheadMsg
-                          ]
-                        , if List.length info.yrker > 0 then
-                            [ List.map (\x -> Merkelapp.merkelapp (FjernValgtYrke x) (Yrke.label x)) info.yrker
-                                |> Merkelapp.merkelapper
-                            ]
-
-                          else
-                            []
-                        ]
+                BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraYrke
+                    (info.yrker
+                        |> feilmeldingTypeahead
+                        |> maybeHvisTrue info.visFeilmelding
+                        |> Typeahead.toViewElement Yrke.label typeaheadModel
+                        |> FrontendModuler.Typeahead.map YrkeTypeaheadMsg
                     )
+                    (List.map (\x -> Merkelapp.merkelapp (FjernValgtYrke x) (Yrke.label x)) info.yrker)
 
-            {--
-                 (typeaheadModel
-                     |> feilmeldingTypeahead
-                     |> maybeHvisTrue info.visFeilmelding
-                     |> Typeahead.toViewElement Yrke.label typeaheadModel
-                     |> FrontendModuler.Typeahead.map YrkeTypeaheadMsg
-                 )
-                     |> BrukerInputMedGåVidereKnapp.typeahead VilGåVidereFraYrke
-                     |> BrukerInput.brukerInputMedGåVidereKnapp
-
-
-                                    --}
             LeggTilOmfang info ->
                 BrukerInput.skjema { lagreMsg = VilGåVidereFraOmfang info, lagreKnappTekst = "Gå videre" }
                     (List.concat
@@ -1211,7 +1186,7 @@ modelTilBrukerInput model =
                           ]
                         , if List.length info.kompetanser > 0 then
                             [ List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser
-                                |> Merkelapp.merkelapper
+                                |> Merkelapp.toHtml
                             ]
 
                           else
@@ -1337,7 +1312,7 @@ initYrkeTypeahead : ( Typeahead.Model Yrke, Typeahead.Query )
 initYrkeTypeahead =
     Typeahead.init
         { value = ""
-        , label = "Hvilken stilling/yrke har du?"
+        , label = "Stillinger/yrker"
         , id = inputIdTilString StillingYrkeTypeaheadId
         , toString = Yrke.label
         }

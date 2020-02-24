@@ -13,6 +13,7 @@ module FrontendModuler.BrukerInput exposing
     , tilSvarMelding
     , toHtml
     , typeaheadMedGåVidereKnapp
+    , typeaheadMedMerkelapperOgGåVidereKnapp
     , utenInnhold
     )
 
@@ -23,6 +24,7 @@ import FrontendModuler.Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Knapp)
 import FrontendModuler.Lenke as Lenke exposing (Lenke)
 import FrontendModuler.ManedKnapper as MånedKnapper
+import FrontendModuler.Merkelapp exposing (Merkelapp)
 import FrontendModuler.Select exposing (Select)
 import FrontendModuler.Textarea exposing (Textarea)
 import FrontendModuler.Typeahead exposing (Typeahead)
@@ -37,6 +39,7 @@ type BrukerInput msg
     | BrukerInputMedGåVidereKnapp (BrukerInputMedGåVidereKnapp msg)
     | MånedKnapper { onMånedValg : Måned -> msg, onAvbryt : msg, fokusId : String }
     | Skjema { lagreMsg : msg, lagreKnappTekst : String } (List (Html msg))
+    | TypeaheadMedMerkelapper (BrukerInputMedGåVidereKnapp msg)
     | Lenke (Lenke msg)
     | UtenInnhold
 
@@ -66,6 +69,12 @@ inputMedGåVidereKnapp { onGåVidere, onAvbryt } inputElement =
     BrukerInputMedGåVidereKnapp.input onGåVidere inputElement
         |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp onAvbryt
         |> brukerInputMedGåVidereKnapp
+
+
+typeaheadMedMerkelapperOgGåVidereKnapp : msg -> Typeahead msg -> List (Merkelapp msg) -> BrukerInput msg
+typeaheadMedMerkelapperOgGåVidereKnapp gåVidereMsg typeaheadElement merkelapper =
+    BrukerInputMedGåVidereKnapp.typeaheadMedMerkelapper gåVidereMsg typeaheadElement merkelapper
+        |> TypeaheadMedMerkelapper
 
 
 brukerInputMedGåVidereKnapp : BrukerInputMedGåVidereKnapp msg -> BrukerInput msg
@@ -173,6 +182,9 @@ toHtml brukerInput =
         BrukerInputMedGåVidereKnapp brukerInputMedGåVidereKnapp_ ->
             BrukerInputMedGåVidereKnapp.toHtml brukerInputMedGåVidereKnapp_
 
+        TypeaheadMedMerkelapper brukerInputMedGåVidereKnapp_ ->
+            BrukerInputMedGåVidereKnapp.toHtml brukerInputMedGåVidereKnapp_
+
 
 
 --- TIL MELDING ---
@@ -215,3 +227,6 @@ tilString msg brukerInput =
                     |> List.find (\måned -> onMånedValg måned == msg)
                     |> Maybe.map Måned.tilString
                     |> Maybe.withDefault ""
+
+        TypeaheadMedMerkelapper brukerInputMedGåVidereKnapp_ ->
+            BrukerInputMedGåVidereKnapp.tilString msg brukerInputMedGåVidereKnapp_

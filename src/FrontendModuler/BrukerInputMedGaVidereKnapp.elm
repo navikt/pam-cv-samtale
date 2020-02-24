@@ -7,6 +7,7 @@ module FrontendModuler.BrukerInputMedGaVidereKnapp exposing
     , tilString
     , toHtml
     , typeahead
+    , typeaheadMedMerkelapper
     , withAlternativKnappetekst
     , withAvbrytKnapp
     , withVisEksempelKnapp
@@ -15,6 +16,7 @@ module FrontendModuler.BrukerInputMedGaVidereKnapp exposing
 import FrontendModuler.DatoInputEttFelt as DatoInputEttFelt exposing (DatoInputEttFelt)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Type(..))
+import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
 import FrontendModuler.Select as Select exposing (Select)
 import FrontendModuler.Textarea as Textarea exposing (Textarea)
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
@@ -39,6 +41,7 @@ type InputElement msg
     = InputElement (Input msg)
     | TextareaElement (Textarea msg)
     | TypeaheadElement (Typeahead msg)
+    | TypeaheadMedMerkelapper (Typeahead msg) (List (Merkelapp msg))
     | SelectElement (Select msg)
     | DatoInputEttFeltElement (DatoInputEttFelt msg)
 
@@ -58,6 +61,12 @@ textarea gåVidereMsg textareaElement =
 typeahead : msg -> Typeahead msg -> BrukerInputMedGåVidereKnapp msg
 typeahead gåVidereMsg typeaheadElement =
     TypeaheadElement typeaheadElement
+        |> init gåVidereMsg
+
+
+typeaheadMedMerkelapper : msg -> Typeahead msg -> List (Merkelapp msg) -> BrukerInputMedGåVidereKnapp msg
+typeaheadMedMerkelapper gåVidereMsg typeaheadElement merkelapper =
+    TypeaheadMedMerkelapper typeaheadElement merkelapper
         |> init gåVidereMsg
 
 
@@ -141,6 +150,15 @@ toHtml (BrukerInputMedGåVidereKnapp options) =
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema typeahead-skjema-height-wrapper" ]
                     [ Typeahead.toHtml typeaheadElement
+                    , knapper options
+                    ]
+                ]
+
+        TypeaheadMedMerkelapper typeaheadElement merkelapper ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema typeahead-skjema-height-wrapper" ]
+                    [ Typeahead.toHtml typeaheadElement
+                    , Merkelapp.toHtml merkelapper
                     , knapper options
                     ]
                 ]
@@ -252,6 +270,9 @@ inputElementInnhold inputElement_ =
 
         TypeaheadElement typeaheadElement ->
             Typeahead.innhold typeaheadElement
+
+        TypeaheadMedMerkelapper _ merkelapper ->
+            Merkelapp.listeTilString merkelapper
 
         SelectElement selectElement ->
             --- TODO: Fiks dette
