@@ -34,31 +34,15 @@ listeTilString : List (Merkelapp msg) -> String
 listeTilString merkelappListe =
     case merkelappListe of
         [] ->
-            let
-                _ =
-                    Debug.log "test" merkelappListe
-            in
             ""
 
         x :: [] ->
-            let
-                _ =
-                    Debug.log "a" merkelappListe
-            in
             innhold x
 
         x :: y :: [] ->
-            let
-                _ =
-                    Debug.log "b" merkelappListe
-            in
             innhold x ++ " og " ++ innhold y
 
         x :: y :: z :: more ->
-            let
-                _ =
-                    Debug.log "c" merkelappListe
-            in
             toStringHelper (innhold x ++ ", " ++ innhold y) (z :: more)
 
 
