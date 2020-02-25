@@ -4,6 +4,7 @@ import Arbeidserfaring.Yrke exposing (Yrke)
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (GeografiInfo, Jobbprofil, KompetanseInfo, StillingInfo, StillingKladdInfo)
 import Jobbprofil.Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade exposing (Omrade)
+import Jobbprofil.StegInfo exposing (KompetanseStegInfo)
 import Maybe.Extra
 
 
@@ -24,6 +25,21 @@ type alias JobbprofilSkjemaInfo =
     , arbeidstidsordningliste : List String
     , omfangsliste : List String
     , oppstart : Maybe String
+    }
+
+
+type ValidertSkjema
+    = ValidertSkjema ValidertSkjemaInfo
+
+
+type alias ValidertSkjemaInfo =
+    { yrker : List Yrke
+    , omrader : List Omrade
+    , omfanger : List String
+    , arbeidstider : List String
+    , ansettelsesformer : List String
+    , oppstart : String
+    , kompetanser : List Kompetanse
     }
 
 
@@ -147,6 +163,36 @@ init info =
 initValidert : ValidertJobbprofilSkjemaInfo -> ValidertJobbprofilSkjema
 initValidert validertJobbprofilSkjemaInfo =
     ValidertJobbprofilSkjema validertJobbprofilSkjemaInfo
+
+
+tilValidertSkjema : KompetanseStegInfo -> ValidertSkjema
+tilValidertSkjema info =
+    ValidertSkjema
+        { yrker = info.yrker
+        , omrader = info.omrader
+        , omfanger = info.omfanger
+        , arbeidstider = info.arbeidstider
+        , ansettelsesformer = info.ansettelsesformer
+        , oppstart = info.oppstart
+        , kompetanser = info.kompetanser
+        }
+
+
+tilUvalidertSkjema : ValidertSkjema -> UvalidertSkjema
+tilUvalidertSkjema (ValidertSkjema skjema) =
+    UvalidertSkjema
+        { yrker = skjema.yrker
+        , omrader = skjema.omrader
+        , omfanger = skjema.omfanger
+        , arbeidstider = skjema.arbeidstider
+        , ansettelsesformer = skjema.ansettelsesformer
+        , oppstart = skjema.oppstart
+        , kompetanser = skjema.kompetanser
+        , visYrkerFeilmelding = False
+        , visKompetanserFeilmelding = False
+        , visOmraderFeilmelding = False
+        , visOppstartFeilmelding = False
+        }
 
 
 fraJobbprofil : Jobbprofil -> JobbprofilSkjema

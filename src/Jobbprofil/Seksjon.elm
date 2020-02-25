@@ -25,7 +25,8 @@ import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), UvalidertSkjemaInfo, ValidertJobbprofilSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), UvalidertSkjema, UvalidertSkjemaInfo, ValidertJobbprofilSkjema, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema)
+import Jobbprofil.StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
 import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde)
 import List.Extra as List
 import Meldinger.Melding as Melding exposing (Melding)
@@ -64,15 +65,15 @@ type Samtale
     | HarJobbprofilJobbsøker Jobbprofil
     | HarJobbprofilUnderOppfølging Jobbprofil
     | HarIkkeJobbprofilJobbsøker
-    | LeggTilYrker YrkeInfo (Typeahead.Model Yrke)
-    | LeggTilOmrader OmradeInfo (Typeahead.Model Omrade)
-    | LeggTilOmfang OmfangInfo
-    | LeggTilArbeidstid ArbeidstidInfo
-    | LeggTilAnsettelsesform AnsettelsesformInfo
-    | VelgOppstart OppstartInfo
-    | LeggTilKompetanser KompetanseInfo (Typeahead.Model Kompetanse)
-    | VisOppsummering KompetanseInfo
-    | EndreOppsummering UvalidertSkjemaInfo
+    | LeggTilYrker YrkeStegInfo (Typeahead.Model Yrke)
+    | LeggTilOmrader OmradeStegInfo (Typeahead.Model Omrade)
+    | LeggTilOmfang OmfangStegInfo
+    | LeggTilArbeidstid ArbeidstidStegInfo
+    | LeggTilAnsettelsesform AnsettelsesformStegInfo
+    | VelgOppstart OppstartStegInfo
+    | LeggTilKompetanser KompetanseStegInfo (Typeahead.Model Kompetanse)
+    | VisOppsummering ValidertSkjema
+    | EndreOppsummering UvalidertSkjema
 
 
 type FullføringStatus
@@ -118,8 +119,8 @@ type Msg
     | VilLeggeTilkompetanse Kompetanse
     | FjernValgtKompetanse Kompetanse
     | VilGåVidereFraKompetanse
-    | VilEndreOppsummering UvalidertSkjemaInfo
-    | VilLagreOppsummering UvalidertSkjemaInfo
+    | VilEndreOppsummering UvalidertSkjema
+    | VilLagreOppsummering ValidertSkjema
     | JobbprofilEndret SkjemaEndring
     | VilLagreJobbprofil
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
@@ -130,70 +131,10 @@ type Msg
 
 
 type SkjemaEndring
-    = Omfang OmfangInfo String
-    | Arbeidstid ArbeidstidInfo String
-    | Ansettelsesform AnsettelsesformInfo String
-    | Oppstart OppstartInfo String
-
-
-type alias YrkeInfo =
-    { yrker : List Yrke
-    , underOppfølging : Bool -- todo: fjern underOppfølging herfra
-    , visFeilmelding : Bool
-    }
-
-
-type alias OmradeInfo =
-    { yrker : List Yrke
-    , omrader : List Omrade
-    , visFeilmelding : Bool
-    }
-
-
-type alias OmfangInfo =
-    { yrker : List Yrke
-    , omrader : List Omrade
-    , omfanger : List String
-    }
-
-
-type alias ArbeidstidInfo =
-    { yrker : List Yrke
-    , omrader : List Omrade
-    , omfanger : List String
-    , arbeidstider : List String
-    }
-
-
-type alias AnsettelsesformInfo =
-    { yrker : List Yrke
-    , omrader : List Omrade
-    , omfanger : List String
-    , arbeidstider : List String
-    , ansettelsesformer : List String
-    }
-
-
-type alias OppstartInfo =
-    { yrker : List Yrke
-    , omrader : List Omrade
-    , omfanger : List String
-    , arbeidstider : List String
-    , ansettelsesformer : List String
-    , oppstart : String
-    }
-
-
-type alias KompetanseInfo =
-    { yrker : List Yrke
-    , omrader : List Omrade
-    , omfanger : List String
-    , arbeidstider : List String
-    , ansettelsesformer : List String
-    , oppstart : String
-    , kompetanser : List Kompetanse
-    , visFeilmelding : Bool
-    }
+    = Omfang OmfangStegInfo String
+    | Arbeidstid ArbeidstidStegInfo String
+    | Ansettelsesform AnsettelsesformStegInfo String
+    | Oppstart OppstartStegInfo String
 
 
 
@@ -211,22 +152,6 @@ type alias KompetanseInfo =
    , visKompetanserFeilmelding : Bool
    }
 -}
-
-
-initUvalidertSkjema : KompetanseInfo -> UvalidertSkjemaInfo
-initUvalidertSkjema info =
-    { yrker = info.yrker
-    , omrader = info.omrader
-    , omfanger = info.omfanger
-    , arbeidstider = info.arbeidstider
-    , ansettelsesformer = info.ansettelsesformer
-    , oppstart = info.oppstart
-    , kompetanser = info.kompetanser
-    , visYrkerFeilmelding = False
-    , visKompetanserFeilmelding = False
-    , visOmraderFeilmelding = False
-    , visOppstartFeilmelding = False
-    }
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -317,7 +242,8 @@ update msg (Model model) =
                             |> IkkeFerdig
 
                     else
-                        ( VisOppsummering info
+                        ( tilValidertSkjema info
+                            |> VisOppsummering
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
@@ -680,7 +606,7 @@ update msg (Model model) =
                     IkkeFerdig ( Model model, Cmd.none )
 
 
-updateSamtaleKompetanseTypeahead : ModelInfo -> KompetanseInfo -> Typeahead.Msg Kompetanse -> Typeahead.Model Kompetanse -> SamtaleStatus
+updateSamtaleKompetanseTypeahead : ModelInfo -> KompetanseStegInfo -> Typeahead.Msg Kompetanse -> Typeahead.Model Kompetanse -> SamtaleStatus
 updateSamtaleKompetanseTypeahead model info msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
@@ -732,7 +658,7 @@ updateSamtaleKompetanseTypeahead model info msg typeaheadModel =
                 )
 
 
-updateSamtaleOmradeTypeahead : ModelInfo -> OmradeInfo -> Typeahead.Msg Omrade -> Typeahead.Model Omrade -> SamtaleStatus
+updateSamtaleOmradeTypeahead : ModelInfo -> OmradeStegInfo -> Typeahead.Msg Omrade -> Typeahead.Model Omrade -> SamtaleStatus
 updateSamtaleOmradeTypeahead model info msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
@@ -784,7 +710,7 @@ updateSamtaleOmradeTypeahead model info msg typeaheadModel =
                 )
 
 
-updateSamtaleYrkeTypeahead : ModelInfo -> YrkeInfo -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
+updateSamtaleYrkeTypeahead : ModelInfo -> YrkeStegInfo -> Typeahead.Msg Yrke -> Typeahead.Model Yrke -> SamtaleStatus
 updateSamtaleYrkeTypeahead model info msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
@@ -959,8 +885,8 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
 
-oppsummering : KompetanseInfo -> List String
-oppsummering info =
+oppsummering : Skjema.ValidertSkjema -> List String
+oppsummering (Skjema.ValidertSkjema info) =
     [ "Stilling/yrke: " ++ String.join ", " (List.map (\it -> Yrke.label it) info.yrker)
     , "Område: " ++ String.join ", " (List.map (\it -> Omrade.tittel it) info.omrader)
     , "Heltid/deltid: " ++ String.join ", " info.omfanger
@@ -1180,10 +1106,10 @@ modelTilBrukerInput model =
 
             VisOppsummering info ->
                 BrukerInput.knapper Kolonne
-                    [ Knapp.knapp (VilEndreOppsummering (initUvalidertSkjema info)) "Nei, jeg vil endre"
+                    [ Knapp.knapp (VilEndreOppsummering (tilUvalidertSkjema info)) "Nei, jeg vil endre"
                     ]
 
-            EndreOppsummering info ->
+            EndreOppsummering skjema ->
                 -- TODO - Bytt til uvalidert skjema
                 BrukerInput.utenInnhold
         {-
@@ -1214,7 +1140,7 @@ feilmeldingTypeahead yrker =
         Nothing
 
 
-visFeilmeldingForKompetanse : ModelInfo -> KompetanseInfo -> Typeahead.Model Kompetanse -> SamtaleStatus
+visFeilmeldingForKompetanse : ModelInfo -> KompetanseStegInfo -> Typeahead.Model Kompetanse -> SamtaleStatus
 visFeilmeldingForKompetanse model info typeaheadModel =
     ( typeaheadModel
         |> LeggTilKompetanser { info | visFeilmelding = True }
@@ -1224,7 +1150,7 @@ visFeilmeldingForKompetanse model info typeaheadModel =
         |> IkkeFerdig
 
 
-visFeilmeldingForOmrade : ModelInfo -> OmradeInfo -> Typeahead.Model Omrade -> SamtaleStatus
+visFeilmeldingForOmrade : ModelInfo -> OmradeStegInfo -> Typeahead.Model Omrade -> SamtaleStatus
 visFeilmeldingForOmrade model info typeaheadModel =
     ( typeaheadModel
         |> LeggTilOmrader { info | visFeilmelding = True }
@@ -1234,7 +1160,7 @@ visFeilmeldingForOmrade model info typeaheadModel =
         |> IkkeFerdig
 
 
-visFeilmeldingForYrke : ModelInfo -> YrkeInfo -> Typeahead.Model Yrke -> SamtaleStatus
+visFeilmeldingForYrke : ModelInfo -> YrkeStegInfo -> Typeahead.Model Yrke -> SamtaleStatus
 visFeilmeldingForYrke model info typeaheadModel =
     ( typeaheadModel
         |> LeggTilYrker { info | visFeilmelding = True }
