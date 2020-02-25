@@ -1,6 +1,9 @@
 module Jobbprofil.Skjema exposing (..)
 
+import Arbeidserfaring.Yrke exposing (Yrke)
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (GeografiInfo, Jobbprofil, KompetanseInfo, StillingInfo, StillingKladdInfo)
+import Jobbprofil.Kompetanse exposing (Kompetanse)
+import Jobbprofil.Omrade exposing (Omrade)
 import Maybe.Extra
 
 
@@ -21,10 +24,25 @@ type alias JobbprofilSkjemaInfo =
     , arbeidstidsordningliste : List String
     , omfangsliste : List String
     , oppstart : Maybe String
-    , tillatÅViseFeilmeldingStillingliste : Bool
-    , tillatÅViseFeilmeldingKompetanseliste : Bool
-    , tillatÅViseFeilmeldingGeografiliste : Bool
-    , tillatÅViseFeilmeldingOppstart : Bool
+    }
+
+
+type UvalidertSkjema
+    = UvalidertSkjema UvalidertSkjemaInfo
+
+
+type alias UvalidertSkjemaInfo =
+    { yrker : List Yrke
+    , omrader : List Omrade
+    , omfanger : List String
+    , arbeidstider : List String
+    , ansettelsesformer : List String
+    , oppstart : String
+    , kompetanser : List Kompetanse
+    , visYrkerFeilmelding : Bool
+    , visKompetanserFeilmelding : Bool
+    , visOmraderFeilmelding : Bool
+    , visOppstartFeilmelding : Bool
     }
 
 
@@ -146,10 +164,6 @@ fraJobbprofil jobbprofil =
         , arbeidstidsordningliste = Jobbprofil.arbeidstidsordningliste jobbprofil
         , omfangsliste = Jobbprofil.omfangsliste jobbprofil
         , oppstart = Jobbprofil.oppstart jobbprofil
-        , tillatÅViseFeilmeldingStillingliste = False
-        , tillatÅViseFeilmeldingKompetanseliste = False
-        , tillatÅViseFeilmeldingGeografiliste = False
-        , tillatÅViseFeilmeldingOppstart = False
         }
 
 

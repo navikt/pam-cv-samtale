@@ -25,7 +25,7 @@ import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), UvalidertSkjemaInfo, ValidertJobbprofilSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema)
 import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde)
 import List.Extra as List
 import Meldinger.Melding as Melding exposing (Melding)
@@ -72,7 +72,7 @@ type Samtale
     | VelgOppstart OppstartInfo
     | LeggTilKompetanser KompetanseInfo (Typeahead.Model Kompetanse)
     | VisOppsummering KompetanseInfo
-    | EndreOppsummering OppsummeringInfo
+    | EndreOppsummering UvalidertSkjemaInfo
 
 
 type FullføringStatus
@@ -118,8 +118,8 @@ type Msg
     | VilLeggeTilkompetanse Kompetanse
     | FjernValgtKompetanse Kompetanse
     | VilGåVidereFraKompetanse
-    | VilEndreOppsummering OppsummeringInfo
-    | VilLagreOppsummering OppsummeringInfo
+    | VilEndreOppsummering UvalidertSkjemaInfo
+    | VilLagreOppsummering UvalidertSkjemaInfo
     | JobbprofilEndret SkjemaEndring
     | VilLagreJobbprofil
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
@@ -196,23 +196,37 @@ type alias KompetanseInfo =
     }
 
 
-type alias OppsummeringInfo =
-    { yrker : List Yrke
-    , visYrkerFeilmelding : Bool
-    , omrader : List Omrade
-    , visOmraderFeilmelding : Bool
-    , omfanger : List String
-    , arbeidstider : List String
-    , ansettelsesformer : List String
-    , oppstart : String
-    , kompetanser : List Kompetanse
-    , visKompetanserFeilmelding : Bool
+
+-- Burde bruke uvalidert skjema istedenfor OppsummeringInfo
+{- type alias UvalidertSkjema =
+   { yrker : List Yrke
+   , visYrkerFeilmelding : Bool
+   , omrader : List Omrade
+   , visOmraderFeilmelding : Bool
+   , omfanger : List String
+   , arbeidstider : List String
+   , ansettelsesformer : List String
+   , oppstart : String
+   , kompetanser : List Kompetanse
+   , visKompetanserFeilmelding : Bool
+   }
+-}
+
+
+initUvalidertSkjema : KompetanseInfo -> UvalidertSkjemaInfo
+initUvalidertSkjema info =
+    { yrker = info.yrker
+    , omrader = info.omrader
+    , omfanger = info.omfanger
+    , arbeidstider = info.arbeidstider
+    , ansettelsesformer = info.ansettelsesformer
+    , oppstart = info.oppstart
+    , kompetanser = info.kompetanser
+    , visYrkerFeilmelding = False
+    , visKompetanserFeilmelding = False
+    , visOmraderFeilmelding = False
+    , visOppstartFeilmelding = False
     }
-
-
-initOppsummeringInfo : KompetanseInfo -> OppsummeringInfo
-initOppsummeringInfo info =
-    { yrker = info.yrker, visYrkerFeilmelding = False, omrader = info.omrader, visOmraderFeilmelding = False, omfanger = info.omfanger, arbeidstider = info.arbeidstider, ansettelsesformer = info.ansettelsesformer, oppstart = info.oppstart, kompetanser = info.kompetanser, visKompetanserFeilmelding = False }
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -1166,10 +1180,11 @@ modelTilBrukerInput model =
 
             VisOppsummering info ->
                 BrukerInput.knapper Kolonne
-                    [ Knapp.knapp (VilEndreOppsummering (initOppsummeringInfo info)) "Nei, jeg vil endre"
+                    [ Knapp.knapp (VilEndreOppsummering (initUvalidertSkjema info)) "Nei, jeg vil endre"
                     ]
 
             EndreOppsummering info ->
+                -- TODO - Bytt til uvalidert skjema
                 BrukerInput.utenInnhold
         {-
            BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
