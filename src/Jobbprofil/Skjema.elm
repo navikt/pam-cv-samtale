@@ -214,6 +214,15 @@ fraJobbprofil jobbprofil =
 
 
 
+--- Innhold UvalidertSkjema---
+
+
+yrkerFraSkjema : UvalidertSkjema -> List Yrke
+yrkerFraSkjema (UvalidertSkjema info) =
+    info.yrker
+
+
+
 --- INNHOLD ---
 
 

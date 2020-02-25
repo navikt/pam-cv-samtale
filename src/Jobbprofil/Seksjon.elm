@@ -13,21 +13,25 @@ import Api
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
+import ErrorHandtering as ErrorHåndtering
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Checkbox as Checkbox
 import FrontendModuler.Knapp as Knapp
+import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
 import FrontendModuler.Radio as Radio
 import FrontendModuler.Typeahead
-import Html exposing (Html)
+import Html exposing (Html, div, span, text)
+import Html.Attributes exposing (class)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), UvalidertSkjema, UvalidertSkjemaInfo, ValidertJobbprofilSkjema, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema)
 import Jobbprofil.StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
-import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde)
+import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingYrke)
+import LagreStatus exposing (LagreStatus)
 import List.Extra as List
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
@@ -81,6 +85,8 @@ type Samtale
     | LeggTilKompetanser KompetanseStegInfo (Typeahead.Model Kompetanse)
     | VisOppsummering ValidertSkjema
     | EndreOppsummering TypeaheadOppsummeringInfo UvalidertSkjema
+    | LagrerSkjema ValidertSkjema LagreStatus
+    | LagringFeilet Http.Error ValidertSkjema
 
 
 type FullføringStatus
@@ -127,9 +133,11 @@ type Msg
     | FjernValgtKompetanse Kompetanse
     | VilGåVidereFraKompetanse
     | VilEndreOppsummering UvalidertSkjema
-    | VilLagreOppsummering ValidertSkjema
+    | VilLagreOppsummering
     | JobbprofilEndret SkjemaEndring
     | VilLagreJobbprofil
+    | JobbprofilLagret (Result Http.Error Jobbprofil)
+    | VilGiOppLagring
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | WindowEndrerVisibility Visibility
     | ErrorLogget
@@ -588,7 +596,7 @@ update msg (Model model) =
             )
                 |> IkkeFerdig
 
-        VilLagreOppsummering _ ->
+        VilLagreOppsummering ->
             IkkeFerdig ( Model model, Cmd.none )
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
@@ -611,6 +619,12 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+        JobbprofilLagret result ->
+            IkkeFerdig ( Model model, Cmd.none )
+
+        VilGiOppLagring ->
+            IkkeFerdig ( Model model, Cmd.none )
 
 
 updateSamtaleKompetanseTypeahead : ModelInfo -> KompetanseStegInfo -> Typeahead.Msg Kompetanse -> Typeahead.Model Kompetanse -> SamtaleStatus
@@ -891,6 +905,12 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
         EndreOppsummering _ _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
+        LagrerSkjema _ _ ->
+            []
+
+        LagringFeilet error _ ->
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre jobbprofil" } ]
+
 
 oppsummering : Skjema.ValidertSkjema -> List String
 oppsummering (Skjema.ValidertSkjema info) =
@@ -1058,7 +1078,7 @@ modelTilBrukerInput model =
             LeggTilYrker info typeaheadModel ->
                 BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraYrke
                     (info.yrker
-                        |> feilmeldingTypeahead
+                        |> feilmeldingYrke
                         |> maybeHvisTrue info.visFeilmelding
                         |> Typeahead.toViewElement Yrke.label typeaheadModel
                         |> FrontendModuler.Typeahead.map YrkeTypeaheadMsg
@@ -1116,13 +1136,53 @@ modelTilBrukerInput model =
                     [ Knapp.knapp (VilEndreOppsummering (tilUvalidertSkjema info)) "Nei, jeg vil endre"
                     ]
 
-            EndreOppsummering typeaheadInfo (Skjema.UvalidertSkjema uvalidertSkjema) ->
+            EndreOppsummering typeaheadInfo skjema ->
+                let
+                    stillinger =
+                        Skjema.yrkerFraSkjema skjema
+                in
                 BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
-                    []
-        {-
-           BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
-               []
-        -}
+                    [ stillinger
+                        |> feilmeldingYrke
+                        |> Typeahead.view Yrke.label (Tuple.first typeaheadInfo.yrker)
+                        |> Html.map YrkeTypeaheadMsg
+                    , if List.length stillinger > 0 then
+                        div []
+                            [ span [ class "skjemaelement__label" ] [ text "Dette har du valgt: " ]
+                            , List.map (\x -> Merkelapp.merkelapp (FjernValgtYrke x) (Yrke.label x)) stillinger
+                                |> Merkelapp.toHtml
+                            ]
+
+                      else
+                        text ""
+                    ]
+
+            LagrerSkjema _ lagreStatus ->
+                if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                    LoggInnLenke.viewLoggInnLenke
+
+                else
+                    BrukerInput.utenInnhold
+
+            LagringFeilet error _ ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    ErrorHåndtering.GiOpp ->
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp VilGiOppLagring "Gå videre"
+
+                            --    |> Knapp.withId (inputIdTilString LagringFeiletActionId)
+                            ]
+
+                    ErrorHåndtering.PrøvPåNytt ->
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp VilLagreJobbprofil "Prøv igjen"
+
+                            -- |> Knapp.withId (inputIdTilString LagringFeiletActionId)
+                            , Knapp.knapp VilGiOppLagring "Gå videre"
+                            ]
+
+                    ErrorHåndtering.LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
 
     else
         BrukerInput.utenInnhold
@@ -1136,15 +1196,6 @@ omradeMerkelapp omrade =
 yrkeMerkelapp : Yrke -> Merkelapp Msg
 yrkeMerkelapp yrke =
     Merkelapp.merkelapp (FjernValgtYrke yrke) (Yrke.label yrke)
-
-
-feilmeldingTypeahead : List Yrke -> Maybe String
-feilmeldingTypeahead yrker =
-    if List.length yrker == 0 then
-        Just "Skriv inn et yrke eller en stilling. Velg fra listen med forslag som kommer opp."
-
-    else
-        Nothing
 
 
 visFeilmeldingForKompetanse : ModelInfo -> KompetanseStegInfo -> Typeahead.Model Kompetanse -> SamtaleStatus
