@@ -26,6 +26,7 @@ import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), ValidertJobbprofilSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema)
+import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde)
 import List.Extra as List
 import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
@@ -106,17 +107,17 @@ type Msg
     | OmradeTypeaheadMsg (Typeahead.Msg Omrade)
     | HentetOmradeTypeahead Typeahead.Query (Result Http.Error (List Omrade))
     | VilLeggeTilOmrade Omrade
-    | VilGåVidereFraOmrade OmradeInfo
+    | VilGåVidereFraOmrade
     | FjernValgtOmrade Omrade
-    | VilGåVidereFraOmfang OmfangInfo
-    | VilGåVidereFraArbeidstid ArbeidstidInfo
-    | VilGåVidereFraAnsettelsesform AnsettelsesformInfo
-    | VilGåVidereFraOppstart OppstartInfo
+    | VilGåVidereFraOmfang
+    | VilGåVidereFraArbeidstid
+    | VilGåVidereFraAnsettelsesform
+    | VilGåVidereFraOppstart
     | KompetanseTypeaheadMsg (Typeahead.Msg Kompetanse)
     | HentetKompetanseTypeahead Typeahead.Query (Result Http.Error (List Kompetanse))
     | VilLeggeTilkompetanse Kompetanse
     | FjernValgtKompetanse Kompetanse
-    | VilGåVidereFraKompetanse KompetanseInfo
+    | VilGåVidereFraKompetanse
     | VilEndreOppsummering OppsummeringInfo
     | VilLagreOppsummering OppsummeringInfo
     | JobbprofilEndret SkjemaEndring
@@ -289,29 +290,27 @@ update msg (Model model) =
         VilLeggeTilkompetanse _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        VilGåVidereFraKompetanse info ->
-            case List.isEmpty info.kompetanser of
-                True ->
-                    ( initKompetanseTypeahead
-                        |> Tuple.first
-                        |> LeggTilKompetanser { info | visFeilmelding = True }
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+        VilGåVidereFraKompetanse ->
+            case model.aktivSamtale of
+                LeggTilKompetanser info _ ->
+                    if List.isEmpty info.kompetanser then
+                        ( initKompetanseTypeahead
+                            |> Tuple.first
+                            |> LeggTilKompetanser { info | visFeilmelding = True }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
 
-                False ->
-                    ( VisOppsummering info
-                        |> oppdaterSamtale model
-                            (ManueltSvar
-                                (Melding.svar
-                                    [ String.join ", " (List.map (\it -> Kompetanse.label it) info.kompetanser)
-                                    ]
-                                )
-                            )
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    else
+                        ( VisOppsummering info
+                            |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         FjernValgtKompetanse kompetanse ->
             case model.aktivSamtale of
@@ -382,29 +381,27 @@ update msg (Model model) =
         VilLeggeTilOmrade _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
-        VilGåVidereFraOmrade info ->
-            case List.isEmpty info.omrader of
-                True ->
-                    ( initOmradeTypeahead
-                        |> Tuple.first
-                        |> LeggTilOmrader { info | visFeilmelding = True }
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+        VilGåVidereFraOmrade ->
+            case model.aktivSamtale of
+                LeggTilOmrader info _ ->
+                    if List.isEmpty info.omrader then
+                        ( initOmradeTypeahead
+                            |> Tuple.first
+                            |> LeggTilOmrader { info | visFeilmelding = True }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
 
-                False ->
-                    ( LeggTilOmfang { omfanger = [], yrker = info.yrker, omrader = info.omrader }
-                        |> oppdaterSamtale model
-                            (ManueltSvar
-                                (Melding.svar
-                                    [ String.join ", " (List.map (\it -> Omrade.tittel it) info.omrader)
-                                    ]
-                                )
-                            )
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                    else
+                        ( LeggTilOmfang { omfanger = [], yrker = info.yrker, omrader = info.omrader }
+                            |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         HentetOmradeTypeahead query result ->
             case model.aktivSamtale of
@@ -492,24 +489,23 @@ update msg (Model model) =
         VilGåVidereFraYrke ->
             case model.aktivSamtale of
                 LeggTilYrker info _ ->
-                    case List.isEmpty info.yrker of
-                        True ->
-                            ( initYrkeTypeahead
-                                |> Tuple.first
-                                |> LeggTilYrker { info | visFeilmelding = True }
-                                |> oppdaterSamtale model IngenNyeMeldinger
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
+                    if List.isEmpty info.yrker then
+                        ( initYrkeTypeahead
+                            |> Tuple.first
+                            |> LeggTilYrker { info | visFeilmelding = True }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
 
-                        False ->
-                            ( initOmradeTypeahead
-                                |> Tuple.first
-                                |> LeggTilOmrader { yrker = info.yrker, omrader = [], visFeilmelding = False }
-                                |> oppdaterSamtale model (SvarFraMsg msg)
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
+                    else
+                        ( initOmradeTypeahead
+                            |> Tuple.first
+                            |> LeggTilOmrader { yrker = info.yrker, omrader = [], visFeilmelding = False }
+                            |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
 
                 _ ->
                     ( Model model, lagtTilSpørsmålCmd model.debugStatus )
@@ -575,65 +571,67 @@ update msg (Model model) =
                         )
                             |> IkkeFerdig
 
-        VilGåVidereFraOmfang info ->
-            ( LeggTilArbeidstid { arbeidstider = [], omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                |> oppdaterSamtale model
-                    (ManueltSvar
-                        (Melding.svar
-                            [ String.join ", " (List.map (\it -> it) info.omfanger)
-                            ]
-                        )
-                    )
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
-        VilGåVidereFraArbeidstid info ->
-            ( LeggTilAnsettelsesform { ansettelsesformer = [], arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                |> oppdaterSamtale model
-                    (ManueltSvar
-                        (Melding.svar
-                            [ String.join ", " (List.map (\it -> it) info.arbeidstider)
-                            ]
-                        )
-                    )
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
-        VilGåVidereFraAnsettelsesform info ->
-            ( VelgOppstart { oppstart = "", ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                |> oppdaterSamtale model
-                    (ManueltSvar
-                        (Melding.svar
-                            [ String.join ", " (List.map (\it -> it) info.ansettelsesformer)
-                            ]
-                        )
-                    )
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
-        VilGåVidereFraOppstart info ->
-            case isEmpty info.oppstart of
-                True ->
-                    ( VelgOppstart { info | oppstart = "" }
-                        |> oppdaterSamtale model IngenNyeMeldinger
+        VilGåVidereFraOmfang ->
+            case model.aktivSamtale of
+                LeggTilOmfang info ->
+                    ( LeggTilArbeidstid { arbeidstider = [], omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
-                False ->
-                    -- TODO - funksjoner for transformering av records i transisjonsfaser, f.eks. oppstartInfoTilKompetanseInfo : OppstartInfo -> KompetanseInfo
-                    ( initKompetanseTypeahead
-                        |> Tuple.first
-                        |> LeggTilKompetanser { kompetanser = [], oppstart = info.oppstart, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader, visFeilmelding = False }
-                        |> oppdaterSamtale model
-                            (ManueltSvar
-                                (Melding.svar [ info.oppstart ])
-                            )
+                _ ->
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
+                        |> IkkeFerdig
+
+        VilGåVidereFraArbeidstid ->
+            case model.aktivSamtale of
+                LeggTilArbeidstid info ->
+                    ( LeggTilAnsettelsesform { ansettelsesformer = [], arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                        |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
+                        |> IkkeFerdig
+
+        VilGåVidereFraAnsettelsesform ->
+            case model.aktivSamtale of
+                LeggTilAnsettelsesform info ->
+                    ( VelgOppstart { oppstart = "", ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
+                        |> IkkeFerdig
+
+        VilGåVidereFraOppstart ->
+            case model.aktivSamtale of
+                VelgOppstart info ->
+                    if isEmpty info.oppstart then
+                        ( VelgOppstart { info | oppstart = "" }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+                    else
+                        -- TODO - funksjoner for transformering av records i transisjonsfaser, f.eks. oppstartInfoTilKompetanseInfo : OppstartInfo -> KompetanseInfo
+                        ( initKompetanseTypeahead
+                            |> Tuple.first
+                            |> LeggTilKompetanser { kompetanser = [], oppstart = info.oppstart, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader, visFeilmelding = False }
+                            |> oppdaterSamtale model (SvarFraMsg msg)
+                        , lagtTilSpørsmålCmd model.debugStatus
+                        )
+                            |> IkkeFerdig
+
+                _ ->
+                    ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
         VilEndreOppsummering info ->
@@ -1101,21 +1099,14 @@ modelTilBrukerInput model =
                 BrukerInput.utenInnhold
 
             LeggTilOmrader info typeaheadModel ->
-                BrukerInput.skjema { lagreMsg = VilGåVidereFraOmrade info, lagreKnappTekst = "Gå videre" }
-                    (List.concat
-                        [ [ Nothing
-                                |> Typeahead.view Omrade.tittel typeaheadModel
-                                |> Html.map OmradeTypeaheadMsg
-                          ]
-                        , if List.length info.omrader > 0 then
-                            [ List.map (\x -> Merkelapp.merkelapp (FjernValgtOmrade x) (Omrade.tittel x)) info.omrader
-                                |> Merkelapp.toHtml
-                            ]
-
-                          else
-                            []
-                        ]
+                BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraOmrade
+                    (info.omrader
+                        |> feilmeldingOmråde
+                        |> maybeHvisTrue info.visFeilmelding
+                        |> Typeahead.toViewElement Omrade.tittel typeaheadModel
+                        |> FrontendModuler.Typeahead.map OmradeTypeaheadMsg
                     )
+                    (List.map (\x -> Merkelapp.merkelapp (FjernValgtOmrade x) (Omrade.tittel x)) info.omrader)
 
             LeggTilYrker info typeaheadModel ->
                 BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraYrke
@@ -1128,71 +1119,50 @@ modelTilBrukerInput model =
                     (List.map (\x -> Merkelapp.merkelapp (FjernValgtYrke x) (Yrke.label x)) info.yrker)
 
             LeggTilOmfang info ->
-                BrukerInput.skjema { lagreMsg = VilGåVidereFraOmfang info, lagreKnappTekst = "Gå videre" }
-                    (List.concat
-                        [ List.map
-                            (\it ->
-                                Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Omfang info (Skjema.label it))) (List.member (Skjema.label it) info.omfanger)
-                            )
-                            (hentValg OmfangValg)
-                            |> List.map (\it -> Checkbox.toHtml it)
-                        ]
+                BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraOmfang
+                    (List.map
+                        (\it ->
+                            Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Omfang info (Skjema.label it))) (List.member (Skjema.label it) info.omfanger)
+                        )
+                        (hentValg OmfangValg)
                     )
 
             LeggTilArbeidstid info ->
-                BrukerInput.skjema { lagreMsg = VilGåVidereFraArbeidstid info, lagreKnappTekst = "Gå videre" }
-                    (List.concat
-                        [ List.map
-                            (\it ->
-                                Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Arbeidstid info (Skjema.label it))) (List.member (Skjema.label it) info.arbeidstider)
-                            )
-                            (hentValg ArbeidstidValg)
-                            |> List.map (\it -> Checkbox.toHtml it)
-                        ]
+                BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraArbeidstid
+                    (List.map
+                        (\it ->
+                            Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Arbeidstid info (Skjema.label it))) (List.member (Skjema.label it) info.arbeidstider)
+                        )
+                        (hentValg ArbeidstidValg)
                     )
 
             LeggTilAnsettelsesform info ->
-                BrukerInput.skjema { lagreMsg = VilGåVidereFraAnsettelsesform info, lagreKnappTekst = "Gå videre" }
-                    (List.concat
-                        [ List.map
-                            (\it ->
-                                Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Ansettelsesform info (Skjema.label it))) (List.member (Skjema.label it) info.ansettelsesformer)
-                            )
-                            (hentValg AnsettelsesformValg)
-                            |> List.map (\it -> Checkbox.toHtml it)
-                        ]
+                BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraAnsettelsesform
+                    (List.map
+                        (\it ->
+                            Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Ansettelsesform info (Skjema.label it))) (List.member (Skjema.label it) info.ansettelsesformer)
+                        )
+                        (hentValg AnsettelsesformValg)
                     )
 
             VelgOppstart info ->
-                BrukerInput.skjema { lagreMsg = VilGåVidereFraOppstart info, lagreKnappTekst = "Gå videre" }
-                    (List.concat
-                        [ List.map
-                            (\it ->
-                                Radio.radio (Skjema.label it) (Skjema.value it) (JobbprofilEndret (Oppstart info (Skjema.label it))) (info.oppstart == Skjema.label it)
-                            )
-                            (hentValg OppstartValg)
-                            |> List.map (\it -> Radio.toHtml it)
-                        ]
+                BrukerInput.radioGruppeMedGåVidereKnapp VilGåVidereFraOppstart
+                    (List.map
+                        (\it ->
+                            Radio.radio (Skjema.label it) (Skjema.value it) (JobbprofilEndret (Oppstart info (Skjema.label it))) (info.oppstart == Skjema.label it)
+                        )
+                        (hentValg OppstartValg)
                     )
 
             LeggTilKompetanser info typeaheadModel ->
-                BrukerInput.skjema { lagreMsg = VilGåVidereFraKompetanse info, lagreKnappTekst = "Gå videre" }
-                    (List.concat
-                        [ [ Nothing
-                                |> Typeahead.view Kompetanse.label typeaheadModel
-                                |> Html.map KompetanseTypeaheadMsg
-
-                          -- OmradeTypeaheadMsg
-                          ]
-                        , if List.length info.kompetanser > 0 then
-                            [ List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser
-                                |> Merkelapp.toHtml
-                            ]
-
-                          else
-                            []
-                        ]
+                BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraKompetanse
+                    (info.kompetanser
+                        |> feilmeldingKompetanse
+                        |> maybeHvisTrue info.visFeilmelding
+                        |> Typeahead.toViewElement Kompetanse.label typeaheadModel
+                        |> FrontendModuler.Typeahead.map KompetanseTypeaheadMsg
                     )
+                    (List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser)
 
             VisOppsummering info ->
                 BrukerInput.knapper Kolonne

@@ -2,6 +2,7 @@ module FrontendModuler.Checkbox exposing
     ( Checkbox
     , checkbox
     , toHtml
+    , toStringOfChecked
     , withClass
     )
 
@@ -58,3 +59,46 @@ toHtml (Checkbox options) =
 noAttribute : Html.Attribute msg
 noAttribute =
     classList []
+
+
+innhold : Checkbox msg -> String
+innhold (Checkbox options) =
+    options.label
+
+
+isChecked : Checkbox msg -> Bool
+isChecked (Checkbox options) =
+    options.checked
+
+
+toStringOfChecked : List (Checkbox msg) -> String
+toStringOfChecked checkboxListe =
+    let
+        listOfChecked =
+            List.filter isChecked checkboxListe
+    in
+    case listOfChecked of
+        [] ->
+            ""
+
+        x :: [] ->
+            innhold x
+
+        x :: y :: [] ->
+            innhold x ++ " og " ++ innhold y
+
+        x :: y :: z :: more ->
+            toStringHelper (innhold x ++ ", " ++ innhold y) (z :: more)
+
+
+toStringHelper : String -> List (Checkbox msg) -> String
+toStringHelper foreløpigString merkelappListe =
+    case merkelappListe of
+        [] ->
+            foreløpigString
+
+        x :: [] ->
+            foreløpigString ++ " og " ++ innhold x
+
+        x :: xs ->
+            toStringHelper (foreløpigString ++ ", " ++ innhold x) xs
