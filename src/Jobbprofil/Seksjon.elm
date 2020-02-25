@@ -59,6 +59,13 @@ type alias ModelInfo =
     }
 
 
+type alias TypeaheadOppsummeringInfo =
+    { yrker : ( Typeahead.Model Yrke, Typeahead.Query )
+    , omrader : ( Typeahead.Model Omrade, Typeahead.Query )
+    , kompetanser : ( Typeahead.Model Kompetanse, Typeahead.Query )
+    }
+
+
 type Samtale
     = LasterJobbprofil
     | HentingAvJobbprofilFeilet Http.Error
@@ -73,7 +80,7 @@ type Samtale
     | VelgOppstart OppstartStegInfo
     | LeggTilKompetanser KompetanseStegInfo (Typeahead.Model Kompetanse)
     | VisOppsummering ValidertSkjema
-    | EndreOppsummering UvalidertSkjema
+    | EndreOppsummering TypeaheadOppsummeringInfo UvalidertSkjema
 
 
 type FullføringStatus
@@ -219,7 +226,7 @@ update msg (Model model) =
                 LeggTilKompetanser info typeaheadModel ->
                     updateSamtaleKompetanseTypeahead model info typeaheadMsg typeaheadModel
 
-                EndreOppsummering _ ->
+                EndreOppsummering _ _ ->
                     -- Todo: implementer
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -284,7 +291,7 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering _ ->
+                EndreOppsummering _ _ ->
                     -- todo: Gjør det samme som for legg til yrker her
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
@@ -298,7 +305,7 @@ update msg (Model model) =
                 LeggTilOmrader info typeaheadModel ->
                     updateSamtaleOmradeTypeahead model info typeaheadMsg typeaheadModel
 
-                EndreOppsummering skjema ->
+                EndreOppsummering _ skjema ->
                     --Todo: implementer
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -362,7 +369,7 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering skjema ->
+                EndreOppsummering _ _ ->
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
 
@@ -375,7 +382,7 @@ update msg (Model model) =
                 LeggTilYrker info typeaheadModel ->
                     updateSamtaleYrkeTypeahead model info typeaheadMsg typeaheadModel
 
-                EndreOppsummering _ ->
+                EndreOppsummering _ _ ->
                     --Todo: implementer
                     IkkeFerdig ( Model model, Cmd.none )
 
@@ -401,7 +408,7 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering skjema ->
+                EndreOppsummering _ skjema ->
                     -- todo: Gjør det samme som for legg til yrker her
                     ( Model model, Cmd.none )
                         |> IkkeFerdig
@@ -575,7 +582,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
         VilEndreOppsummering info ->
-            ( EndreOppsummering info
+            ( EndreOppsummering { yrker = initYrkeTypeahead, omrader = initOmradeTypeahead, kompetanser = initKompetanseTypeahead } info
                 |> oppdaterSamtale model (ManueltSvar (Melding.svar [ "Nei, jeg vil endre" ]))
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -881,7 +888,7 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                 )
             ]
 
-        EndreOppsummering _ ->
+        EndreOppsummering _ _ ->
             [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
 
@@ -1109,9 +1116,9 @@ modelTilBrukerInput model =
                     [ Knapp.knapp (VilEndreOppsummering (tilUvalidertSkjema info)) "Nei, jeg vil endre"
                     ]
 
-            EndreOppsummering skjema ->
-                -- TODO - Bytt til uvalidert skjema
-                BrukerInput.utenInnhold
+            EndreOppsummering typeaheadInfo (Skjema.UvalidertSkjema uvalidertSkjema) ->
+                BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
+                    []
         {-
            BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
                []
