@@ -26,7 +26,6 @@ import FrontendModuler.Textarea as Textarea exposing (Textarea)
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
 import Html exposing (..)
 import Html.Attributes exposing (class)
-import List.Extra as List
 
 
 type BrukerInputMedGåVidereKnapp msg
@@ -185,31 +184,13 @@ toHtml (BrukerInputMedGåVidereKnapp options) =
         CheckboxGruppe checkboxer ->
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema radio-checkbox-gruppe-wrapper" ]
-                    ([ List.map
-                        (\it ->
-                            it
-                                |> Checkbox.toHtml
-                        )
-                        checkboxer
-                     , [ knapper options ]
-                     ]
-                        |> List.concat
-                    )
+                    (List.map Checkbox.toHtml checkboxer ++ [ knapper options ])
                 ]
 
         RadioGruppe radioknapper ->
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema radio-checkbox-gruppe-wrapper" ]
-                    ([ List.map
-                        (\it ->
-                            it
-                                |> Radio.toHtml
-                        )
-                        radioknapper
-                     , [ knapper options ]
-                     ]
-                        |> List.concat
-                    )
+                    (List.map Radio.toHtml radioknapper ++ [ knapper options ])
                 ]
 
 
