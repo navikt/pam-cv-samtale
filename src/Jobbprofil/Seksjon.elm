@@ -29,7 +29,7 @@ import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (SeksjonValg(..), hentValg)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema)
 import Jobbprofil.StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
 import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingYrke)
 import LagreStatus exposing (LagreStatus)
@@ -135,7 +135,7 @@ type Msg
     | VilGåVidereFraKompetanse
     | VilEndreOppsummering UvalidertSkjema
     | VilLagreOppsummering
-    | JobbprofilEndret SkjemaEndring
+    | JobbprofilEndret CheckboxSkjemaEndring
     | VilLagreJobbprofil
     | JobbprofilLagret (Result Http.Error Jobbprofil)
     | VilGiOppLagring
@@ -146,7 +146,7 @@ type Msg
     | TimeoutEtterAtFeltMistetFokus
 
 
-type SkjemaEndring
+type CheckboxSkjemaEndring
     = Omfang OmfangStegInfo String
     | Arbeidstid ArbeidstidStegInfo String
     | Ansettelsesform AnsettelsesformStegInfo String
@@ -528,102 +528,54 @@ update msg (Model model) =
 
         JobbprofilEndret skjemaEndring ->
             case skjemaEndring of
-                Oppstart info verdi ->
-                    ( VelgOppstart { oppstart = verdi, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                Omfang info verdi ->
+                    ( LeggTilOmfang { info | omfanger = leggTilEllerFjernFraListe verdi info.omfanger }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                Arbeidstid info verdi ->
+                    ( LeggTilArbeidstid { info | arbeidstider = leggTilEllerFjernFraListe verdi info.arbeidstider }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 Ansettelsesform info verdi ->
-                    if List.member verdi info.ansettelsesformer then
-                        ( LeggTilAnsettelsesform { ansettelsesformer = List.remove verdi info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
+                    ( LeggTilAnsettelsesform { info | ansettelsesformer = leggTilEllerFjernFraListe verdi info.ansettelsesformer }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
-                    else
-                        ( LeggTilAnsettelsesform { ansettelsesformer = List.append [ verdi ] info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
-
-                Arbeidstid info verdi ->
-                    if List.member verdi info.arbeidstider then
-                        ( LeggTilArbeidstid { arbeidstider = List.remove verdi info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
-
-                    else
-                        ( LeggTilArbeidstid { arbeidstider = List.append [ verdi ] info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
-
-                Omfang info verdi ->
-                    if List.member verdi info.omfanger then
-                        ( LeggTilOmfang { omfanger = List.remove verdi info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
-
-                    else
-                        ( LeggTilOmfang { omfanger = List.append [ verdi ] info.omfanger, yrker = info.yrker, omrader = info.omrader }
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
+                Oppstart info verdi ->
+                    ( VelgOppstart { info | oppstart = verdi }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 EndreOmfang (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
-                    if List.member verdi skjema.omfanger then
-                        ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | omfanger = List.remove verdi skjema.omfanger }) typeaheadInfo
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
-
-                    else
-                        ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | omfanger = List.append [ verdi ] skjema.omfanger }) typeaheadInfo
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
+                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | omfanger = leggTilEllerFjernFraListe verdi skjema.omfanger }) typeaheadInfo
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 EndreArbeidstid (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
-                    if List.member verdi skjema.arbeidstider then
-                        ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | arbeidstider = List.remove verdi skjema.arbeidstider }) typeaheadInfo
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
-
-                    else
-                        ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | arbeidstider = List.append [ verdi ] skjema.arbeidstider }) typeaheadInfo
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
+                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | arbeidstider = leggTilEllerFjernFraListe verdi skjema.arbeidstider }) typeaheadInfo
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 EndreAnsettelsesform (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
-                    if List.member verdi skjema.ansettelsesformer then
-                        ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | ansettelsesformer = List.remove verdi skjema.ansettelsesformer }) typeaheadInfo
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
-
-                    else
-                        ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | ansettelsesformer = List.append [ verdi ] skjema.ansettelsesformer }) typeaheadInfo
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
+                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | ansettelsesformer = leggTilEllerFjernFraListe verdi skjema.ansettelsesformer }) typeaheadInfo
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
 
                 EndreOppstart (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
                     ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | oppstart = verdi }) typeaheadInfo
@@ -731,6 +683,15 @@ update msg (Model model) =
 
         VilGiOppLagring ->
             IkkeFerdig ( Model model, Cmd.none )
+
+
+leggTilEllerFjernFraListe : String -> List String -> List String
+leggTilEllerFjernFraListe verdi liste =
+    if List.member verdi liste then
+        List.remove verdi liste
+
+    else
+        List.append [ verdi ] liste
 
 
 updateSamtaleKompetanseTypeahead : ModelInfo -> KompetanseStegInfo -> Typeahead.Msg Kompetanse -> Typeahead.Model Kompetanse -> SamtaleStatus
@@ -943,7 +904,6 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just yrke ->
-                    -- brukerVelgerYrke model (YrkeTypeaheadMsg msg) yrke
                     ( nyTypeaheadModel
                         |> LeggTilYrker { yrker = List.append info.yrker [ yrke ], underOppfølging = info.underOppfølging, visFeilmelding = False }
                         |> oppdaterSamtale model IngenNyeMeldinger
