@@ -26,9 +26,10 @@ import Html exposing (Html, div, span, text)
 import Html.Attributes exposing (class)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (SeksjonValg(..), hentValg)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, SeksjonValg(..), UvalidertSkjema, UvalidertSkjemaInfo, ValidertJobbprofilSkjema, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, hentValg, kompetanseSammendragFraSkjema, label, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema)
+import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidListeFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema)
 import Jobbprofil.StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
 import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingYrke)
 import LagreStatus exposing (LagreStatus)
@@ -470,7 +471,18 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
         VilLagreJobbprofil ->
-            IkkeFerdig ( Model model, Cmd.none )
+            case model.aktivSamtale of
+                VisOppsummering skjema ->
+                    ( LagreStatus.init
+                        |> LagrerSkjema skjema
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                      -- todo kall endreJobbprofil hvis den finnes fra før
+                    , Api.opprettJobbprofil JobbprofilLagret skjema
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         JobbprofilEndret skjemaEndring ->
             case skjemaEndring of
@@ -591,7 +603,7 @@ update msg (Model model) =
 
         VilEndreOppsummering info ->
             ( EndreOppsummering { yrker = initYrkeTypeahead, omrader = initOmradeTypeahead, kompetanser = initKompetanseTypeahead } info
-                |> oppdaterSamtale model (ManueltSvar (Melding.svar [ "Nei, jeg vil endre" ]))
+                |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
                 |> IkkeFerdig
@@ -1089,7 +1101,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraOmfang
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Omfang info (Skjema.label it))) (List.member (Skjema.label it) info.omfanger)
+                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Omfang info (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) info.omfanger)
                         )
                         (hentValg OmfangValg)
                     )
@@ -1098,7 +1110,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraArbeidstid
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Arbeidstid info (Skjema.label it))) (List.member (Skjema.label it) info.arbeidstider)
+                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Arbeidstid info (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) info.arbeidstider)
                         )
                         (hentValg ArbeidstidValg)
                     )
@@ -1107,7 +1119,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraAnsettelsesform
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (Skjema.label it) (JobbprofilEndret (Ansettelsesform info (Skjema.label it))) (List.member (Skjema.label it) info.ansettelsesformer)
+                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Ansettelsesform info (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) info.ansettelsesformer)
                         )
                         (hentValg AnsettelsesformValg)
                     )
@@ -1116,7 +1128,9 @@ modelTilBrukerInput model =
                 BrukerInput.radioGruppeMedGåVidereKnapp VilGåVidereFraOppstart
                     (List.map
                         (\it ->
-                            Radio.radio (Skjema.label it) (Skjema.value it) (JobbprofilEndret (Oppstart info (Skjema.label it))) (info.oppstart == Skjema.label it)
+                            info.oppstart
+                                == JobbprofilValg.label it
+                                |> Radio.radio (JobbprofilValg.label it) (JobbprofilValg.value it) (JobbprofilEndret (Oppstart info (JobbprofilValg.label it)))
                         )
                         (hentValg OppstartValg)
                     )
@@ -1132,8 +1146,9 @@ modelTilBrukerInput model =
                     (List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser)
 
             VisOppsummering info ->
-                BrukerInput.knapper Kolonne
-                    [ Knapp.knapp (VilEndreOppsummering (tilUvalidertSkjema info)) "Nei, jeg vil endre"
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
+                    , Knapp.knapp (VilEndreOppsummering (tilUvalidertSkjema info)) "Nei, jeg vil endre"
                     ]
 
             EndreOppsummering typeaheadInfo skjema ->

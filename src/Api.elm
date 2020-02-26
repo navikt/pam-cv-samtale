@@ -29,6 +29,7 @@ module Api exposing
     , opprettCv
     , opprettFagdokumentasjon
     , opprettFørerkort
+    , opprettJobbprofil
     , opprettKurs
     , opprettPerson
     , opprettPersonalia
@@ -54,6 +55,7 @@ import Http exposing (..)
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Kompetanse as KompetanseTypeahead exposing (Kompetanse)
 import Jobbprofil.Omrade as OmradeTypeahead exposing (Omrade)
+import Jobbprofil.Skjema
 import Json.Decode exposing (Decoder, bool, field)
 import Json.Encode
 import Kurs.Kurs as Kurs exposing (Kurs)
@@ -205,6 +207,15 @@ getJobbprofil msgConstructor =
     Http.get
         { url = "/cv-samtale/api/rest/jobbprofil"
         , expect = expectJson msgConstructor Jobbprofil.decode
+        }
+
+
+opprettJobbprofil : (Result Error Jobbprofil -> msg) -> Jobbprofil.Skjema.ValidertSkjema -> Cmd msg
+opprettJobbprofil msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/jobbprofil"
+        , expect = expectJson msgConstructor Jobbprofil.decode
+        , body = Jobbprofil.Skjema.encode skjema |> jsonBody
         }
 
 

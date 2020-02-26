@@ -1,10 +1,12 @@
 module Jobbprofil.Skjema exposing (..)
 
-import Arbeidserfaring.Yrke exposing (Yrke)
+import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (GeografiInfo, Jobbprofil, KompetanseInfo, StillingInfo, StillingKladdInfo)
-import Jobbprofil.Kompetanse exposing (Kompetanse)
-import Jobbprofil.Omrade exposing (Omrade)
+import Jobbprofil.JobbprofilValg exposing (SeksjonValg(..), ValgElement, ansettelsesFormTilBackendString, arbeidsdagValg, arbeidstidTilBackendString, arbeidstidValg, arbeidstidsordningValg, hentValg, oppstartTilBackendString)
+import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
+import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.StegInfo exposing (KompetanseStegInfo)
+import Json.Encode
 import Maybe.Extra
 
 
@@ -62,95 +64,6 @@ type alias UvalidertSkjemaInfo =
     }
 
 
-type ValidertJobbprofilSkjema
-    = ValidertJobbprofilSkjema ValidertJobbprofilSkjemaInfo
-
-
-type alias ValidertJobbprofilSkjemaInfo =
-    { id : Maybe Int
-    , aktiv : Bool
-    , stillingliste : List StillingInfo
-    , stillingKladdListe : List StillingKladdInfo
-    , kompetanseliste : List KompetanseInfo
-    , geografiliste : List GeografiInfo
-    , ansettelsesformliste : List String
-    , arbeidstidliste : List String
-    , arbeidsdagerliste : List String
-    , arbeidstidsordningliste : List String
-    , omfangsliste : List String
-    , oppstart : Maybe String
-    }
-
-
-type SeksjonValg
-    = OppstartValg
-    | OmfangValg
-    | AnsettelsesformValg
-    | ArbeidstidValg
-
-
-type alias ValgElement =
-    { label : Maybe String
-    , value : String
-    }
-
-
-label : ValgElement -> String
-label elem =
-    case elem.label of
-        Nothing ->
-            ""
-
-        Just verdi ->
-            verdi
-
-
-value : ValgElement -> String
-value elem =
-    elem.value
-
-
-hentValg : SeksjonValg -> List ValgElement
-hentValg seksjonValg =
-    case seksjonValg of
-        -- RADIO BUTTON --
-        OppstartValg ->
-            [ { label = Just "Jeg kan begynne nå", value = "LEDIG_NAA" }
-            , { label = Just "Jeg har 3 måneder oppsigelse", value = "ETTER_TRE_MND" }
-            , { label = Just "Jeg kan begynne etter nærmere avtale", value = "ETTER_AVTALE" }
-            ]
-
-        -- CHECKBOXES --
-        OmfangValg ->
-            [ { label = Just "Heltid", value = "HELTID" }
-            , { label = Just "Deltid", value = "DELTID" }
-            ]
-
-        AnsettelsesformValg ->
-            [ { label = Just "Fast", value = "FAST" }
-            , { label = Just "Vikariat", value = "VIKARIAT" }
-            , { label = Just "Engasjement", value = "ENGASJEMENT" }
-            , { label = Just "Prosjekt", value = "PROSJEKT" }
-            , { label = Just "Sesong", value = "SESONG" }
-            , { label = Just "Trainee", value = "TRAINEE" }
-            , { label = Just "Lærling", value = "LAERLING" }
-            , { label = Just "Selvstendig næringsdrivende", value = "SELVSTENDIG_NAERINGSDRIVENDE" }
-            , { label = Just "Feriejobb", value = "FERIEJOBB" }
-            , { label = Just "Annet", value = "ANNET" }
-            ]
-
-        ArbeidstidValg ->
-            [ { label = Just "Dag", value = "DAGTID" }
-            , { label = Just "Kveld", value = "KVELD" }
-            , { label = Just "Natt", value = "NATT" }
-            , { label = Just "Lørdag", value = "LOERDAG" }
-            , { label = Just "Søndag", value = "SOENDAG" }
-            , { label = Just "Skift", value = "SKIFT" }
-            , { label = Just "Vakt", value = "VAKT" }
-            , { label = Just "Turnus", value = "TURNUS" }
-            ]
-
-
 
 --- INIT ---
 
@@ -158,11 +71,6 @@ hentValg seksjonValg =
 init : JobbprofilSkjemaInfo -> JobbprofilSkjema
 init info =
     JobbprofilSkjema info
-
-
-initValidert : ValidertJobbprofilSkjemaInfo -> ValidertJobbprofilSkjema
-initValidert validertJobbprofilSkjemaInfo =
-    ValidertJobbprofilSkjema validertJobbprofilSkjemaInfo
 
 
 tilValidertSkjema : KompetanseStegInfo -> ValidertSkjema
@@ -405,3 +313,41 @@ oppdaterOppstart (JobbprofilSkjema info) oppstart =
 
 --- VALIDER ---
 --- ENCODE ---
+
+
+encode : ValidertSkjema -> Json.Encode.Value
+encode (ValidertSkjema skjema) =
+    [ [ ( "stillingliste", Json.Encode.list Yrke.encode skjema.yrker )
+      , ( "stillingKladdListe", Json.Encode.list Json.Encode.string [] )
+      , ( "ansettelsesformliste", Json.Encode.list Json.Encode.string (List.map ansettelsesFormTilBackendString skjema.ansettelsesformer) )
+      , ( "kompetanseliste", Json.Encode.list Kompetanse.encode skjema.kompetanser )
+      , ( "geografiliste", Json.Encode.list Omrade.encode skjema.omrader )
+      , ( "oppstart", Json.Encode.string (oppstartTilBackendString skjema.oppstart) )
+      , ( "aktiv", Json.Encode.bool False )
+      , ( "omfangsliste", Json.Encode.list Json.Encode.string (List.map String.toUpper skjema.omfanger) )
+      ]
+    , encodeArbeidstider skjema.arbeidstider
+    ]
+        |> List.concat
+        |> Json.Encode.object
+
+
+encodeArbeidstider : List String -> List ( String, Json.Encode.Value )
+encodeArbeidstider arbeidstider =
+    let
+        _ =
+            Debug.log "arbeidstider" arbeidstider
+
+        arbeidstid =
+            List.filter (\b -> List.member b arbeidstidValg) arbeidstider
+
+        arbeidsdag =
+            List.filter (\b -> List.member b arbeidsdagValg) arbeidstider
+
+        arbeidtidsordning =
+            List.filter (\b -> List.member b arbeidstidsordningValg) arbeidstider
+    in
+    [ ( "arbeidstidliste", Json.Encode.list Json.Encode.string (List.map arbeidstidTilBackendString arbeidstid) )
+    , ( "arbeidsdagerliste", Json.Encode.list Json.Encode.string (List.map arbeidstidTilBackendString arbeidsdag) )
+    , ( "arbeidstidsordningliste", Json.Encode.list Json.Encode.string (List.map arbeidstidTilBackendString arbeidtidsordning) )
+    ]

@@ -1,6 +1,7 @@
 module Jobbprofil.Omrade exposing (..)
 
 import Json.Decode exposing (Decoder, at, int, map, map3, string)
+import Json.Encode
 
 
 type Omrade
@@ -31,3 +32,12 @@ decodeBackendData =
         (at [ "konseptid" ] int)
         (at [ "tittel" ] string)
         (at [ "kode" ] string)
+
+
+encode : Omrade -> Json.Encode.Value
+encode (Omrade info) =
+    Json.Encode.object
+        [ ( "konseptid", Json.Encode.int info.konseptId )
+        , ( "tittel", Json.Encode.string info.tittel )
+        , ( "kode", Json.Encode.string info.kode )
+        ]
