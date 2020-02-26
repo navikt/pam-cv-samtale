@@ -130,6 +130,36 @@ yrkerFraSkjema (UvalidertSkjema info) =
     info.yrker
 
 
+omraderFraSkjema : UvalidertSkjema -> List Omrade
+omraderFraSkjema (UvalidertSkjema info) =
+    info.omrader
+
+
+omfangerFraSkjema : UvalidertSkjema -> List String
+omfangerFraSkjema (UvalidertSkjema info) =
+    info.omfanger
+
+
+arbeidstiderFraSkjema : UvalidertSkjema -> List String
+arbeidstiderFraSkjema (UvalidertSkjema info) =
+    info.arbeidstider
+
+
+ansettelsesformerFraSkjema : UvalidertSkjema -> List String
+ansettelsesformerFraSkjema (UvalidertSkjema info) =
+    info.ansettelsesformer
+
+
+oppstartFraSkjema : UvalidertSkjema -> String
+oppstartFraSkjema (UvalidertSkjema info) =
+    info.oppstart
+
+
+kompetanserFraSkjema : UvalidertSkjema -> List Kompetanse
+kompetanserFraSkjema (UvalidertSkjema info) =
+    info.kompetanser
+
+
 
 --- INNHOLD ---
 
@@ -230,14 +260,14 @@ listeSammendragFraSkjema valg separator info =
         |> String.join separator
 
 
-oppstartFraSkjema : JobbprofilSkjema -> Maybe String
-oppstartFraSkjema (JobbprofilSkjema info) =
+oppstartFraJobbprofilSkjema : JobbprofilSkjema -> Maybe String
+oppstartFraJobbprofilSkjema (JobbprofilSkjema info) =
     info.oppstart
 
 
 oppstartSammendragFraSkjema : JobbprofilSkjema -> String
 oppstartSammendragFraSkjema info =
-    [ Maybe.withDefault "" (oppstartFraSkjema info) ]
+    [ Maybe.withDefault "" (oppstartFraJobbprofilSkjema info) ]
         |> listeSammendragFraSkjema (hentValg OppstartValg) " - "
 
 
