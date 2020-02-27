@@ -1,5 +1,7 @@
 module Jobbprofil.JobbprofilValg exposing (..)
 
+import List.Extra exposing (andThen)
+
 
 type Arbeidstid
     = Dag
@@ -65,6 +67,12 @@ type alias ValgElement =
 label : ValgElement -> String
 label elem =
     Maybe.withDefault "" elem.label
+
+
+labels : List String -> List ValgElement -> List String
+labels input valg =
+    List.filterMap (\it -> List.Extra.find (\v -> value v == it) valg) input
+        |> List.map (\it -> label it)
 
 
 value : ValgElement -> String

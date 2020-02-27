@@ -26,7 +26,7 @@ import Html exposing (Html, br, div, span, text)
 import Html.Attributes exposing (class)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
-import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (SeksjonValg(..), hentValg)
+import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (SeksjonValg(..), hentValg, labels)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.Skjema as Skjema exposing (UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema, yrkeSammendragFraSkjema)
@@ -112,7 +112,7 @@ meldingsLogg (Model info) =
 
 type Msg
     = JobbprofilHentet (Result Http.Error Jobbprofil)
-    | VilEndreJobbprofil
+    | VilEndreJobbprofil UvalidertSkjema
     | VilBegynnePåJobbprofil
     | YrkeTypeaheadMsg (Typeahead.Msg Yrke)
     | HentetYrkeTypeahead Typeahead.Query (Result Http.Error (List Yrke))
@@ -509,8 +509,13 @@ update msg (Model model) =
                     ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
-        VilEndreJobbprofil ->
-            IkkeFerdig ( Model model, Cmd.none )
+        VilEndreJobbprofil skjema ->
+            ( { yrker = Tuple.first initYrkeTypeahead, omrader = Tuple.first initOmradeTypeahead, kompetanser = Tuple.first initKompetanseTypeahead }
+                |> EndreOppsummering skjema
+                |> oppdaterSamtale model IngenNyeMeldinger
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
 
         VilLagreJobbprofil ->
             case model.aktivSamtale of
@@ -1126,10 +1131,10 @@ oppsummering : Skjema.ValidertSkjema -> List String
 oppsummering (Skjema.ValidertSkjema info) =
     [ "Stilling/yrke: " ++ String.join ", " (List.map Yrke.label info.yrker)
     , "Område: " ++ String.join ", " (List.map Omrade.tittel info.omrader)
-    , "Heltid/deltid: " ++ String.join ", " info.omfanger
-    , "Når kan du jobbe? " ++ String.join ", " info.arbeidstider
-    , "Hva slags ansettelse ønsker du? " ++ String.join ", " info.ansettelsesformer
-    , "Når kan du begynne? " ++ info.oppstart
+    , "Heltid/deltid: " ++ String.join ", " (labels info.omfanger (hentValg OmfangValg))
+    , "Når kan du jobbe? " ++ String.join ", " (labels info.arbeidstider (hentValg ArbeidstidValg))
+    , "Hva slags ansettelse ønsker du? " ++ String.join ", " (labels info.ansettelsesformer (hentValg AnsettelsesformValg))
+    , "Når kan du begynne? " ++ String.join ", " (labels [ info.oppstart ] (hentValg OppstartValg))
     , "Kompetanser: " ++ String.join ", " (List.map Kompetanse.label info.kompetanser)
     ]
 
@@ -1262,11 +1267,11 @@ modelTilBrukerInput model =
                         |> Knapp.withId (inputIdTilString BegynnPåJobbprofilId)
                     ]
 
-            HarJobbprofilJobbsøker _ ->
+            HarJobbprofilJobbsøker jobbprofil ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
                         |> Knapp.withId (inputIdTilString BekreftJobbprofilId)
-                    , Knapp.knapp VilEndreJobbprofil "Nei, jeg vil endre"
+                    , Knapp.knapp (VilEndreJobbprofil (Skjema.fraJobbprofil jobbprofil)) "Nei, jeg vil endre"
                     ]
 
             HentingAvJobbprofilFeilet _ ->
@@ -1299,7 +1304,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraOmfang
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Omfang info (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) info.omfanger)
+                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Omfang info (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) info.omfanger)
                         )
                         (hentValg OmfangValg)
                     )
@@ -1308,7 +1313,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraArbeidstid
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Arbeidstid info (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) info.arbeidstider)
+                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Arbeidstid info (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) info.arbeidstider)
                         )
                         (hentValg ArbeidstidValg)
                     )
@@ -1317,7 +1322,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraAnsettelsesform
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Ansettelsesform info (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) info.ansettelsesformer)
+                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Ansettelsesform info (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) info.ansettelsesformer)
                         )
                         (hentValg AnsettelsesformValg)
                     )
@@ -1327,8 +1332,8 @@ modelTilBrukerInput model =
                     (List.map
                         (\it ->
                             info.oppstart
-                                == JobbprofilValg.label it
-                                |> Radio.radio (JobbprofilValg.label it) (JobbprofilValg.value it) (JobbprofilEndret (Oppstart info (JobbprofilValg.label it)))
+                                == JobbprofilValg.value it
+                                |> Radio.radio (JobbprofilValg.label it) (JobbprofilValg.value it) (JobbprofilEndret (Oppstart info (JobbprofilValg.value it)))
                         )
                         (hentValg OppstartValg)
                     )
@@ -1405,7 +1410,7 @@ modelTilBrukerInput model =
                         (span [ class "skjemaelement__label" ] [ text "Vil du jobbe heltid eller deltid? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreOmfang skjema typeaheadInfo (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) omfanger)
+                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreOmfang skjema typeaheadInfo (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) omfanger)
                                         |> Checkbox.toHtml
                                 )
                                 (hentValg OmfangValg)
@@ -1415,7 +1420,7 @@ modelTilBrukerInput model =
                         (span [ class "skjemaelement__label" ] [ text "Når kan du jobbe? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreArbeidstid skjema typeaheadInfo (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) arbeidstider)
+                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreArbeidstid skjema typeaheadInfo (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) arbeidstider)
                                         |> Checkbox.toHtml
                                 )
                                 (hentValg ArbeidstidValg)
@@ -1425,7 +1430,7 @@ modelTilBrukerInput model =
                         (span [ class "skjemaelement__label" ] [ text "Hva slags ansettelse ønsker du? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreAnsettelsesform skjema typeaheadInfo (JobbprofilValg.label it))) (List.member (JobbprofilValg.label it) ansettelsesformer)
+                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreAnsettelsesform skjema typeaheadInfo (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) ansettelsesformer)
                                         |> Checkbox.toHtml
                                 )
                                 (hentValg AnsettelsesformValg)
@@ -1436,8 +1441,8 @@ modelTilBrukerInput model =
                             :: List.map
                                 (\it ->
                                     oppstart
-                                        == JobbprofilValg.label it
-                                        |> Radio.radio (JobbprofilValg.label it) (JobbprofilValg.value it) (JobbprofilEndret (EndreOppstart skjema typeaheadInfo (JobbprofilValg.label it)))
+                                        == JobbprofilValg.value it
+                                        |> Radio.radio (JobbprofilValg.label it) (JobbprofilValg.value it) (JobbprofilEndret (EndreOppstart skjema typeaheadInfo (JobbprofilValg.value it)))
                                         |> Radio.toHtml
                                 )
                                 (hentValg OppstartValg)
