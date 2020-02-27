@@ -14,9 +14,22 @@ type alias KompetanseInfo =
     }
 
 
+fraEnkeltElementer : String -> Int -> Kompetanse
+fraEnkeltElementer label_ konsept =
+    Kompetanse
+        { konseptid = konsept
+        , label = label_
+        }
+
+
 label : Kompetanse -> String
 label (Kompetanse info) =
     info.label
+
+
+konseptId : Kompetanse -> Int
+konseptId (Kompetanse info) =
+    info.konseptid
 
 
 decode : Decoder Kompetanse

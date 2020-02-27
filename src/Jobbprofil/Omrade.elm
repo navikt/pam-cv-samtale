@@ -20,6 +20,20 @@ tittel (Omrade info) =
     info.tittel
 
 
+konseptId : Omrade -> Int
+konseptId (Omrade info) =
+    info.konseptId
+
+
+fraEnkeltElementer : String -> Int -> String -> Omrade
+fraEnkeltElementer label konsept kode =
+    Omrade
+        { konseptId = konsept
+        , tittel = label
+        , kode = kode
+        }
+
+
 decode : Decoder Omrade
 decode =
     decodeBackendData

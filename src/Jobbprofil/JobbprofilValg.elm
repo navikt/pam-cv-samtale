@@ -1,6 +1,54 @@
 module Jobbprofil.JobbprofilValg exposing (..)
 
 
+type Arbeidstid
+    = Dag
+    | Kveld
+    | Natt
+
+
+arbeidstidTilString : Arbeidstid -> String
+arbeidstidTilString arbeidstid =
+    case arbeidstid of
+        Dag ->
+            "DAG"
+
+        Kveld ->
+            "KVELD"
+
+        Natt ->
+            "NATT"
+
+
+type Arbeidsdager
+    = Lørdag
+    | Søndag
+
+
+type ArbeidstidOrdning
+    = Vakt
+    | Skift
+    | Turnus
+
+
+type Omfang
+    = Heltid
+    | Deltid
+
+
+type AnsettelsesForm
+    = Fast
+    | Vikariat
+    | Engasjement
+    | Prosjekt
+    | Sesong
+    | Trainee
+    | Lærling
+    | SelvstendigNæringsdrivende
+    | Feriejobb
+    | Annet
+
+
 type SeksjonValg
     = OppstartValg
     | OmfangValg
@@ -16,12 +64,7 @@ type alias ValgElement =
 
 label : ValgElement -> String
 label elem =
-    case elem.label of
-        Nothing ->
-            ""
-
-        Just verdi ->
-            verdi
+    Maybe.withDefault "" elem.label
 
 
 value : ValgElement -> String

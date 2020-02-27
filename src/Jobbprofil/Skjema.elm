@@ -1,33 +1,12 @@
 module Jobbprofil.Skjema exposing (..)
 
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
-import Jobbprofil.Jobbprofil as Jobbprofil exposing (GeografiInfo, Jobbprofil, KompetanseInfo, StillingInfo, StillingKladdInfo)
+import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.JobbprofilValg exposing (SeksjonValg(..), ValgElement, ansettelsesFormTilBackendString, arbeidsdagValg, arbeidstidTilBackendString, arbeidstidValg, arbeidstidsordningValg, hentValg, oppstartTilBackendString)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.StegInfo exposing (KompetanseStegInfo)
 import Json.Encode
-import Maybe.Extra
-
-
-type JobbprofilSkjema
-    = JobbprofilSkjema JobbprofilSkjemaInfo
-
-
-type alias JobbprofilSkjemaInfo =
-    { id : Maybe Int
-    , aktiv : Bool
-    , stillingliste : List StillingInfo
-    , stillingKladdListe : List StillingKladdInfo
-    , kompetanseliste : List KompetanseInfo
-    , geografiliste : List GeografiInfo
-    , ansettelsesformliste : List String
-    , arbeidstidliste : List String
-    , arbeidsdagerliste : List String
-    , arbeidstidsordningliste : List String
-    , omfangsliste : List String
-    , oppstart : Maybe String
-    }
 
 
 type ValidertSkjema
@@ -35,7 +14,8 @@ type ValidertSkjema
 
 
 type alias ValidertSkjemaInfo =
-    { yrker : List Yrke
+    { id : Maybe Int
+    , yrker : List Yrke
     , omrader : List Omrade
     , omfanger : List String
     , arbeidstider : List String
@@ -50,7 +30,8 @@ type UvalidertSkjema
 
 
 type alias UvalidertSkjemaInfo =
-    { yrker : List Yrke
+    { id : Maybe Int
+    , yrker : List Yrke
     , omrader : List Omrade
     , omfanger : List String
     , arbeidstider : List String
@@ -68,15 +49,16 @@ type alias UvalidertSkjemaInfo =
 --- INIT ---
 
 
-init : JobbprofilSkjemaInfo -> JobbprofilSkjema
-init info =
-    JobbprofilSkjema info
+initValidert : ValidertSkjemaInfo -> ValidertSkjema
+initValidert info =
+    ValidertSkjema info
 
 
 tilValidertSkjema : KompetanseStegInfo -> ValidertSkjema
 tilValidertSkjema info =
     ValidertSkjema
-        { yrker = info.yrker
+        { id = Nothing
+        , yrker = info.yrker
         , omrader = info.omrader
         , omfanger = info.omfanger
         , arbeidstider = info.arbeidstider
@@ -89,7 +71,8 @@ tilValidertSkjema info =
 tilUvalidertSkjema : ValidertSkjema -> UvalidertSkjema
 tilUvalidertSkjema (ValidertSkjema skjema) =
     UvalidertSkjema
-        { yrker = skjema.yrker
+        { id = skjema.id
+        , yrker = skjema.yrker
         , omrader = skjema.omrader
         , omfanger = skjema.omfanger
         , arbeidstider = skjema.arbeidstider
@@ -103,21 +86,26 @@ tilUvalidertSkjema (ValidertSkjema skjema) =
         }
 
 
-fraJobbprofil : Jobbprofil -> JobbprofilSkjema
+fraJobbprofil : Jobbprofil -> UvalidertSkjema
 fraJobbprofil jobbprofil =
-    JobbprofilSkjema
+    UvalidertSkjema
         { id = Just (Jobbprofil.id jobbprofil)
-        , aktiv = Jobbprofil.aktiv jobbprofil
-        , stillingliste = Jobbprofil.stillingliste jobbprofil
-        , stillingKladdListe = Jobbprofil.stillingKladdListe jobbprofil
-        , kompetanseliste = Jobbprofil.kompetanseliste jobbprofil
-        , geografiliste = Jobbprofil.geografiliste jobbprofil
-        , ansettelsesformliste = Jobbprofil.ansettelsesformliste jobbprofil
-        , arbeidstidliste = Jobbprofil.arbeidstidliste jobbprofil
-        , arbeidsdagerliste = Jobbprofil.arbeidsdagerliste jobbprofil
-        , arbeidstidsordningliste = Jobbprofil.arbeidstidsordningliste jobbprofil
-        , omfangsliste = Jobbprofil.omfangsliste jobbprofil
-        , oppstart = Jobbprofil.oppstart jobbprofil
+        , yrker = Jobbprofil.stillingliste jobbprofil
+        , omrader = Jobbprofil.geografiliste jobbprofil
+        , omfanger = Jobbprofil.omfangsliste jobbprofil
+        , arbeidstider =
+            List.concat
+                [ Jobbprofil.arbeidstidliste jobbprofil
+                , Jobbprofil.arbeidsdagerliste jobbprofil
+                , Jobbprofil.arbeidstidsordningliste jobbprofil
+                ]
+        , ansettelsesformer = Jobbprofil.ansettelsesformliste jobbprofil
+        , oppstart = (Jobbprofil.oppstart >> Maybe.withDefault "") jobbprofil
+        , kompetanser = Jobbprofil.kompetanseliste jobbprofil
+        , visYrkerFeilmelding = False
+        , visKompetanserFeilmelding = False
+        , visOmraderFeilmelding = False
+        , visOppstartFeilmelding = False
         }
 
 
@@ -160,82 +148,59 @@ kompetanserFraSkjema (UvalidertSkjema info) =
     info.kompetanser
 
 
-
---- INNHOLD ---
-
-
-stillingListeFraSkjema : JobbprofilSkjema -> List StillingInfo
-stillingListeFraSkjema (JobbprofilSkjema info) =
-    info.stillingliste
-
-
-stillingSammendragFraSkjema : JobbprofilSkjema -> String
-stillingSammendragFraSkjema info =
-    stillingListeFraSkjema info
-        |> List.map (\it -> it.tittel)
-        |> Maybe.Extra.values
+yrkeSammendragFraSkjema : UvalidertSkjema -> String
+yrkeSammendragFraSkjema info =
+    List.map Yrke.label (yrkerFraSkjema info)
         |> String.join ", "
 
 
-stillingKladdListeFraSkjema : JobbprofilSkjema -> List StillingKladdInfo
-stillingKladdListeFraSkjema (JobbprofilSkjema info) =
-    info.stillingKladdListe
-
-
-kompetanseListeFraSkjema : JobbprofilSkjema -> List KompetanseInfo
-kompetanseListeFraSkjema (JobbprofilSkjema info) =
-    info.kompetanseliste
-
-
-kompetanseSammendragFraSkjema : JobbprofilSkjema -> String
+kompetanseSammendragFraSkjema : UvalidertSkjema -> String
 kompetanseSammendragFraSkjema info =
-    kompetanseListeFraSkjema info
-        |> List.map (\it -> it.tittel)
-        |> Maybe.Extra.values
+    kompetanserFraSkjema info
+        |> List.map Kompetanse.label
         |> String.join ", "
 
 
-geografiListeFraSkjema : JobbprofilSkjema -> List GeografiInfo
-geografiListeFraSkjema (JobbprofilSkjema info) =
-    info.geografiliste
+geografiListeFraSkjema : UvalidertSkjema -> List Omrade
+geografiListeFraSkjema (UvalidertSkjema info) =
+    info.omrader
 
 
-geografiSammendragFraSkjema : JobbprofilSkjema -> String
+geografiSammendragFraSkjema : UvalidertSkjema -> String
 geografiSammendragFraSkjema info =
     geografiListeFraSkjema info
-        |> List.map (\it -> it.tittel)
-        |> Maybe.Extra.values
+        |> List.map Omrade.tittel
         |> String.join ", "
 
 
-ansettelsesformListeFraSkjema : JobbprofilSkjema -> List String
-ansettelsesformListeFraSkjema (JobbprofilSkjema info) =
-    info.ansettelsesformliste
+ansettelsesformListeFraSkjema : UvalidertSkjema -> List String
+ansettelsesformListeFraSkjema (UvalidertSkjema info) =
+    info.ansettelsesformer
 
 
-ansettelsesformSammendragFraSkjema : JobbprofilSkjema -> String
+ansettelsesformSammendragFraSkjema : UvalidertSkjema -> String
 ansettelsesformSammendragFraSkjema info =
     ansettelsesformListeFraSkjema info
         |> listeSammendragFraSkjema (hentValg AnsettelsesformValg) " - "
 
 
-arbeidstidListeFraSkjema : JobbprofilSkjema -> List String
-arbeidstidListeFraSkjema (JobbprofilSkjema info) =
-    info.arbeidstidliste
+arbeidstidListeFraSkjema : UvalidertSkjema -> List String
+arbeidstidListeFraSkjema (UvalidertSkjema info) =
+    info.arbeidstider
 
 
-arbeidstidSammendragFraSkjema : JobbprofilSkjema -> String
+arbeidstidSammendragFraSkjema : UvalidertSkjema -> String
 arbeidstidSammendragFraSkjema info =
     arbeidstidListeFraSkjema info
         |> listeSammendragFraSkjema (hentValg ArbeidstidValg) ", "
 
 
-omfangsListeFraSkjema : JobbprofilSkjema -> List String
-omfangsListeFraSkjema (JobbprofilSkjema info) =
-    info.omfangsliste
+omfangsListeFraSkjema : UvalidertSkjema -> List String
+omfangsListeFraSkjema (UvalidertSkjema info) =
+    info.omfanger
 
 
-omfangsSammendragFraSkjema : JobbprofilSkjema -> String
+omfangsSammendragFraSkjema : UvalidertSkjema -> String
 omfangsSammendragFraSkjema info =
     omfangsListeFraSkjema info
         |> listeSammendragFraSkjema (hentValg OmfangValg) " - "
@@ -260,14 +225,14 @@ listeSammendragFraSkjema valg separator info =
         |> String.join separator
 
 
-oppstartFraJobbprofilSkjema : JobbprofilSkjema -> Maybe String
-oppstartFraJobbprofilSkjema (JobbprofilSkjema info) =
+oppstartFraJobbprofilSkjema : UvalidertSkjema -> String
+oppstartFraJobbprofilSkjema (UvalidertSkjema info) =
     info.oppstart
 
 
-oppstartSammendragFraSkjema : JobbprofilSkjema -> String
+oppstartSammendragFraSkjema : UvalidertSkjema -> String
 oppstartSammendragFraSkjema info =
-    [ Maybe.withDefault "" (oppstartFraJobbprofilSkjema info) ]
+    [ oppstartFraSkjema info ]
         |> listeSammendragFraSkjema (hentValg OppstartValg) " - "
 
 
@@ -275,69 +240,59 @@ oppstartSammendragFraSkjema info =
 --- OPPDATERING ---
 
 
-leggTilStilling : JobbprofilSkjema -> StillingInfo -> JobbprofilSkjema
-leggTilStilling (JobbprofilSkjema info) stilling =
-    JobbprofilSkjema { info | stillingliste = List.append info.stillingliste [ stilling ] }
+leggTilStilling : UvalidertSkjema -> Yrke -> UvalidertSkjema
+leggTilStilling (UvalidertSkjema info) stilling =
+    UvalidertSkjema { info | yrker = List.append info.yrker [ stilling ] }
 
 
-fjernStilling : JobbprofilSkjema -> StillingInfo -> JobbprofilSkjema
-fjernStilling (JobbprofilSkjema info) stilling =
-    JobbprofilSkjema { info | stillingliste = List.filter (\it -> it.id /= stilling.id) info.stillingliste }
+fjernStilling : UvalidertSkjema -> Yrke -> UvalidertSkjema
+fjernStilling (UvalidertSkjema info) yrke =
+    UvalidertSkjema { info | yrker = List.filter (\it -> Yrke.konseptId it /= Yrke.konseptId yrke) info.yrker }
 
 
-leggTilStillingKladd : JobbprofilSkjema -> StillingKladdInfo -> JobbprofilSkjema
-leggTilStillingKladd (JobbprofilSkjema info) stillingKladd =
-    JobbprofilSkjema { info | stillingKladdListe = List.append info.stillingKladdListe [ stillingKladd ] }
+leggTilKompetanse : UvalidertSkjema -> Kompetanse -> UvalidertSkjema
+leggTilKompetanse (UvalidertSkjema info) kompetanse =
+    UvalidertSkjema { info | kompetanser = List.append info.kompetanser [ kompetanse ] }
 
 
-fjernStillingKladd : JobbprofilSkjema -> StillingKladdInfo -> JobbprofilSkjema
-fjernStillingKladd (JobbprofilSkjema info) stillingKladd =
-    JobbprofilSkjema { info | stillingKladdListe = List.filter (\it -> it.id /= stillingKladd.id) info.stillingKladdListe }
+fjernKompetanse : UvalidertSkjema -> Kompetanse -> UvalidertSkjema
+fjernKompetanse (UvalidertSkjema info) kompetanse =
+    UvalidertSkjema { info | kompetanser = List.filter (\it -> Kompetanse.konseptId it /= Kompetanse.konseptId kompetanse) info.kompetanser }
 
 
-leggTilKompetanse : JobbprofilSkjema -> KompetanseInfo -> JobbprofilSkjema
-leggTilKompetanse (JobbprofilSkjema info) kompetanse =
-    JobbprofilSkjema { info | kompetanseliste = List.append info.kompetanseliste [ kompetanse ] }
+leggTilGeografi : UvalidertSkjema -> Omrade -> UvalidertSkjema
+leggTilGeografi (UvalidertSkjema info) geografi =
+    UvalidertSkjema { info | omrader = List.append info.omrader [ geografi ] }
 
 
-fjernKompetanse : JobbprofilSkjema -> KompetanseInfo -> JobbprofilSkjema
-fjernKompetanse (JobbprofilSkjema info) kompetanse =
-    JobbprofilSkjema { info | kompetanseliste = List.filter (\it -> it.id /= kompetanse.id) info.kompetanseliste }
+fjernGeografi : UvalidertSkjema -> Omrade -> UvalidertSkjema
+fjernGeografi (UvalidertSkjema info) omrade =
+    UvalidertSkjema { info | omrader = List.filter (\it -> Omrade.konseptId it /= Omrade.konseptId omrade) info.omrader }
 
 
-leggTilGeografi : JobbprofilSkjema -> GeografiInfo -> JobbprofilSkjema
-leggTilGeografi (JobbprofilSkjema info) geografi =
-    JobbprofilSkjema { info | geografiliste = List.append info.geografiliste [ geografi ] }
+leggTilOmfang : UvalidertSkjema -> String -> UvalidertSkjema
+leggTilOmfang (UvalidertSkjema info) omfang =
+    UvalidertSkjema { info | omfanger = List.append info.omfanger [ omfang ] }
 
 
-fjernGeografi : JobbprofilSkjema -> GeografiInfo -> JobbprofilSkjema
-fjernGeografi (JobbprofilSkjema info) geografi =
-    JobbprofilSkjema { info | geografiliste = List.filter (\it -> it.id /= geografi.id) info.geografiliste }
+fjernOmfang : UvalidertSkjema -> String -> UvalidertSkjema
+fjernOmfang (UvalidertSkjema info) omfang =
+    UvalidertSkjema { info | omfanger = List.filter (\it -> it /= omfang) info.omfanger }
 
 
-leggTilOmfang : JobbprofilSkjema -> String -> JobbprofilSkjema
-leggTilOmfang (JobbprofilSkjema info) omfang =
-    JobbprofilSkjema { info | omfangsliste = List.append info.omfangsliste [ omfang ] }
+leggTilAnsettelsesForm : UvalidertSkjema -> String -> UvalidertSkjema
+leggTilAnsettelsesForm (UvalidertSkjema info) ansettelsesForm =
+    UvalidertSkjema { info | ansettelsesformer = List.append info.ansettelsesformer [ ansettelsesForm ] }
 
 
-fjernOmfang : JobbprofilSkjema -> String -> JobbprofilSkjema
-fjernOmfang (JobbprofilSkjema info) omfang =
-    JobbprofilSkjema { info | omfangsliste = List.filter (\it -> it /= omfang) info.omfangsliste }
+fjernAnsettelsesForm : UvalidertSkjema -> String -> UvalidertSkjema
+fjernAnsettelsesForm (UvalidertSkjema info) ansettelsesForm =
+    UvalidertSkjema { info | ansettelsesformer = List.filter (\it -> it /= ansettelsesForm) info.ansettelsesformer }
 
 
-leggTilAnsettelsesForm : JobbprofilSkjema -> String -> JobbprofilSkjema
-leggTilAnsettelsesForm (JobbprofilSkjema info) ansettelsesForm =
-    JobbprofilSkjema { info | ansettelsesformliste = List.append info.ansettelsesformliste [ ansettelsesForm ] }
-
-
-fjernAnsettelsesForm : JobbprofilSkjema -> String -> JobbprofilSkjema
-fjernAnsettelsesForm (JobbprofilSkjema info) ansettelsesForm =
-    JobbprofilSkjema { info | ansettelsesformliste = List.filter (\it -> it /= ansettelsesForm) info.ansettelsesformliste }
-
-
-oppdaterOppstart : JobbprofilSkjema -> Maybe String -> JobbprofilSkjema
-oppdaterOppstart (JobbprofilSkjema info) oppstart =
-    JobbprofilSkjema { info | oppstart = oppstart }
+oppdaterOppstart : UvalidertSkjema -> String -> UvalidertSkjema
+oppdaterOppstart (UvalidertSkjema info) oppstart =
+    UvalidertSkjema { info | oppstart = oppstart }
 
 
 
@@ -365,9 +320,6 @@ encode (ValidertSkjema skjema) =
 encodeArbeidstider : List String -> List ( String, Json.Encode.Value )
 encodeArbeidstider arbeidstider =
     let
-        _ =
-            Debug.log "arbeidstider" arbeidstider
-
         arbeidstid =
             List.filter (\b -> List.member b arbeidstidValg) arbeidstider
 

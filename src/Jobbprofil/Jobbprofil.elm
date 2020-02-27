@@ -1,5 +1,8 @@
 module Jobbprofil.Jobbprofil exposing (..)
 
+import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
+import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
+import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
 
@@ -10,11 +13,9 @@ type Jobbprofil
 
 type alias JobbprofilInfo =
     { id : Int
-    , aktiv : Bool
-    , stillingliste : List StillingInfo
-    , stillingKladdListe : List StillingKladdInfo
-    , kompetanseliste : List KompetanseInfo
-    , geografiliste : List GeografiInfo
+    , stillingliste : List Yrke
+    , kompetanseliste : List Kompetanse
+    , geografiliste : List Omrade
     , ansettelsesformliste : List String
     , arbeidstidliste : List String
     , arbeidsdagerliste : List String
@@ -61,27 +62,17 @@ id (Jobbprofil info) =
     info.id
 
 
-aktiv : Jobbprofil -> Bool
-aktiv (Jobbprofil info) =
-    info.aktiv
-
-
-stillingliste : Jobbprofil -> List StillingInfo
+stillingliste : Jobbprofil -> List Yrke
 stillingliste (Jobbprofil info) =
     info.stillingliste
 
 
-stillingKladdListe : Jobbprofil -> List StillingKladdInfo
-stillingKladdListe (Jobbprofil info) =
-    info.stillingKladdListe
-
-
-kompetanseliste : Jobbprofil -> List KompetanseInfo
+kompetanseliste : Jobbprofil -> List Kompetanse
 kompetanseliste (Jobbprofil info) =
     info.kompetanseliste
 
 
-geografiliste : Jobbprofil -> List GeografiInfo
+geografiliste : Jobbprofil -> List Omrade
 geografiliste (Jobbprofil info) =
     info.geografiliste
 
@@ -123,12 +114,69 @@ oppstart (Jobbprofil info) =
 decode : Decoder Jobbprofil
 decode =
     decodeBackendData
-        |> map Jobbprofil
+        |> andThen tilJobbprofil
 
 
-stillingKladdInfoDecoder : Decoder StillingKladdInfo
-stillingKladdInfoDecoder =
-    stillingInfoDecoder
+tilJobbprofil : BackendData -> Decoder Jobbprofil
+tilJobbprofil backendData =
+    Json.Decode.succeed (lagJobbprofil backendData)
+
+
+lagJobbprofil : BackendData -> Jobbprofil
+lagJobbprofil backendData =
+    Jobbprofil
+        { id = backendData.id
+        , stillingliste = lagYrker backendData.stillingliste
+        , kompetanseliste = lagKompetanser backendData.kompetanseliste
+        , geografiliste = lagOmrader backendData.geografiliste
+        , ansettelsesformliste = backendData.arbeidsdagerliste
+        , arbeidstidliste = backendData.arbeidsdagerliste
+        , arbeidsdagerliste = backendData.arbeidsdagerliste
+        , arbeidstidsordningliste = backendData.arbeidstidsordningliste
+        , omfangsliste = backendData.omfangsliste
+        , oppstart = backendData.oppstart
+        }
+
+
+lagYrke : StillingInfo -> Maybe Yrke
+lagYrke stillingsInfo =
+    Maybe.map3 Yrke.fraString
+        stillingsInfo.tittel
+        stillingsInfo.styrk08
+        (konseptIdToString stillingsInfo.konseptid)
+
+
+lagYrker : List StillingInfo -> List Yrke
+lagYrker stillingsInfo =
+    List.filterMap lagYrke stillingsInfo
+
+
+lagKompetanser : List KompetanseInfo -> List Kompetanse
+lagKompetanser kompetanseInfo =
+    List.filterMap
+        (\x ->
+            Maybe.map2 Kompetanse.fraEnkeltElementer
+                x.tittel
+                x.konseptid
+        )
+        kompetanseInfo
+
+
+lagOmrader : List GeografiInfo -> List Omrade
+lagOmrader geografiInfo =
+    List.filterMap
+        (\x ->
+            Maybe.map3 Omrade.fraEnkeltElementer
+                x.tittel
+                x.konseptid
+                x.kode
+        )
+        geografiInfo
+
+
+konseptIdToString : Maybe Int -> Maybe String
+konseptIdToString id_ =
+    Just (String.fromInt (Maybe.withDefault 1 id_))
 
 
 stillingInfoDecoder : Decoder StillingInfo
@@ -159,9 +207,7 @@ geografiInfoDecoder =
 
 type alias BackendData =
     { id : Int
-    , aktiv : Bool
     , stillingliste : List StillingInfo
-    , stillingKladdListe : List StillingKladdInfo
     , kompetanseliste : List KompetanseInfo
     , geografiliste : List GeografiInfo
     , ansettelsesformliste : List String
@@ -177,9 +223,7 @@ decodeBackendData : Decoder BackendData
 decodeBackendData =
     succeed BackendData
         |> required "id" int
-        |> required "aktiv" bool
         |> required "stillingliste" (list stillingInfoDecoder)
-        |> required "stillingKladdListe" (list stillingKladdInfoDecoder)
         |> required "kompetanseliste" (list kompetanseInfoDecoder)
         |> required "geografiliste" (list geografiInfoDecoder)
         |> required "ansettelsesformliste" (list string)

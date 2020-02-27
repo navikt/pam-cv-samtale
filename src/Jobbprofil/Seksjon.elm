@@ -29,7 +29,7 @@ import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (SeksjonValg(..), hentValg)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (JobbprofilSkjema, UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, stillingSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema)
+import Jobbprofil.Skjema as Skjema exposing (UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema, yrkeSammendragFraSkjema)
 import Jobbprofil.StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
 import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingYrke)
 import LagreStatus exposing (LagreStatus)
@@ -518,7 +518,7 @@ update msg (Model model) =
                     ( LagreStatus.init
                         |> LagrerSkjema skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                      -- todo kall endreJobbprofil hvis den finnes fra før
+                      -- Post kalles uansett om man lagrer første gang eller endrer jobbprofil
                     , Api.opprettJobbprofil JobbprofilLagret skjema
                     )
                         |> IkkeFerdig
@@ -1124,19 +1124,19 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
 
 oppsummering : Skjema.ValidertSkjema -> List String
 oppsummering (Skjema.ValidertSkjema info) =
-    [ "Stilling/yrke: " ++ String.join ", " (List.map (\it -> Yrke.label it) info.yrker)
-    , "Område: " ++ String.join ", " (List.map (\it -> Omrade.tittel it) info.omrader)
+    [ "Stilling/yrke: " ++ String.join ", " (List.map Yrke.label info.yrker)
+    , "Område: " ++ String.join ", " (List.map Omrade.tittel info.omrader)
     , "Heltid/deltid: " ++ String.join ", " info.omfanger
     , "Når kan du jobbe? " ++ String.join ", " info.arbeidstider
     , "Hva slags ansettelse ønsker du? " ++ String.join ", " info.ansettelsesformer
     , "Når kan du begynne? " ++ info.oppstart
-    , "Kompetanser: " ++ String.join ", " (List.map (\it -> Kompetanse.label it) info.kompetanser)
+    , "Kompetanser: " ++ String.join ", " (List.map Kompetanse.label info.kompetanser)
     ]
 
 
-skjemaOppsummering : JobbprofilSkjema -> List String
+skjemaOppsummering : UvalidertSkjema -> List String
 skjemaOppsummering skjema =
-    [ "Stilling/yrke: " ++ stillingSammendragFraSkjema skjema
+    [ "Stilling/yrke: " ++ yrkeSammendragFraSkjema skjema
     , "Område: " ++ geografiSammendragFraSkjema skjema
     , "Heltid/deltid: " ++ omfangsSammendragFraSkjema skjema
     , "Når kan du jobbe? " ++ arbeidstidSammendragFraSkjema skjema
@@ -1487,16 +1487,6 @@ modelTilBrukerInput model =
 
     else
         BrukerInput.utenInnhold
-
-
-omradeMerkelapp : Omrade -> Merkelapp Msg
-omradeMerkelapp omrade =
-    Merkelapp.merkelapp (FjernValgtOmrade omrade) (Omrade.tittel omrade)
-
-
-yrkeMerkelapp : Yrke -> Merkelapp Msg
-yrkeMerkelapp yrke =
-    Merkelapp.merkelapp (FjernValgtYrke yrke) (Yrke.label yrke)
 
 
 visFeilmeldingForKompetanse : ModelInfo -> KompetanseStegInfo -> Typeahead.Model Kompetanse -> SamtaleStatus
