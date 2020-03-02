@@ -136,9 +136,13 @@ type Msg
     | VilLeggeTilOmrade Omrade
     | VilGåVidereFraOmrade
     | FjernValgtOmrade Omrade
+    | OppdatererOmfang Omfang
     | VilGåVidereFraOmfang
+    | OppdatererArbeidstid Arbeidstider
     | VilGåVidereFraArbeidstid
+    | OppdatererAnsettelsesform AnsettelsesForm
     | VilGåVidereFraAnsettelsesform
+    | OppdatererOppstart Oppstart
     | VilGåVidereFraOppstart
     | KompetanseTypeaheadMsg (Typeahead.Msg Kompetanse)
     | HentetKompetanseTypeahead Typeahead.Query (Result Http.Error (List Kompetanse))
@@ -147,7 +151,7 @@ type Msg
     | VilGåVidereFraKompetanse
     | VilEndreOppsummering
     | VilLagreOppsummering
-    | JobbprofilEndret CheckboxSkjemaEndring
+    | SkjemaEndret CheckboxEndring
     | VilLagreJobbprofil
     | JobbprofilLagret (Result Http.Error Jobbprofil)
     | VilGiOppLagring
@@ -158,17 +162,11 @@ type Msg
     | TimeoutEtterAtFeltMistetFokus
 
 
-type
-    CheckboxSkjemaEndring
-    -- todo : splitt opp i samtale og skjema
-    = Omfang OmfangStegInfo Omfang
-    | Arbeidstid ArbeidstidStegInfo Arbeidstider
-    | Ansettelsesform AnsettelsesformStegInfo AnsettelsesForm
-    | Oppstart OppstartStegInfo Oppstart
-    | EndreOmfang UvalidertSkjema TypeaheadOppsummeringInfo Omfang
-    | EndreArbeidstid UvalidertSkjema TypeaheadOppsummeringInfo Arbeidstider
-    | EndreAnsettelsesform UvalidertSkjema TypeaheadOppsummeringInfo AnsettelsesForm
-    | EndreOppstart UvalidertSkjema TypeaheadOppsummeringInfo Oppstart
+type CheckboxEndring
+    = OmfangEndret Omfang
+    | ArbeidstidEndret Arbeidstider
+    | AnsettelsesformEndret AnsettelsesForm
+    | OppstartEndret Oppstart
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -537,63 +535,40 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        JobbprofilEndret skjemaEndring ->
-            case skjemaEndring of
-                Omfang info verdi ->
-                    ( LeggTilOmfang { info | omfanger = leggTilEllerFjernFraListe verdi info.omfanger }
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+        SkjemaEndret skjemaEndring ->
+            case model.aktivSamtale of
+                EndreOppsummering skjema typeaheadInfo ->
+                    case skjemaEndring of
+                        OmfangEndret verdi ->
+                            ( EndreOppsummering (Skjema.leggTilEllerFjernOmfang skjema verdi) typeaheadInfo
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
-                Arbeidstid info verdi ->
-                    ( LeggTilArbeidstid { info | arbeidstider = leggTilEllerFjernFraListe verdi info.arbeidstider }
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                        ArbeidstidEndret verdi ->
+                            ( EndreOppsummering (Skjema.leggTilEllerFjernArbeidstid skjema verdi) typeaheadInfo
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
-                Ansettelsesform info verdi ->
-                    ( LeggTilAnsettelsesform { info | ansettelsesformer = leggTilEllerFjernFraListe verdi info.ansettelsesformer }
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                        AnsettelsesformEndret verdi ->
+                            ( EndreOppsummering (Skjema.leggTilEllerFjernAnsettelsesForm skjema verdi) typeaheadInfo
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
-                Oppstart info verdi ->
-                    ( VelgOppstart { info | oppstart = Just verdi }
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                        OppstartEndret verdi ->
+                            ( EndreOppsummering (Skjema.oppdaterOppstart skjema verdi) typeaheadInfo
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
-                EndreOmfang skjema typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.leggTilEllerFjernOmfang skjema verdi) typeaheadInfo
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                EndreArbeidstid skjema typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.leggTilEllerFjernArbeidstid skjema verdi) typeaheadInfo
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                EndreAnsettelsesform skjema typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.leggTilEllerFjernAnsettelsesForm skjema verdi) typeaheadInfo
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                EndreOppstart skjema typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.oppdaterOppstart skjema verdi) typeaheadInfo
-                        |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         VilGåVidereFraOmfang ->
             case model.aktivSamtale of
@@ -633,6 +608,54 @@ update msg (Model model) =
                 _ ->
                     ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
+
+        OppdatererOmfang endring ->
+            case model.aktivSamtale of
+                LeggTilOmfang omfanginfo ->
+                    ( LeggTilOmfang { omfanginfo | omfanger = leggTilEllerFjernFraListe endring omfanginfo.omfanger }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        OppdatererArbeidstid endring ->
+            case model.aktivSamtale of
+                LeggTilArbeidstid info ->
+                    ( LeggTilArbeidstid { info | arbeidstider = leggTilEllerFjernFraListe endring info.arbeidstider }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        OppdatererAnsettelsesform endring ->
+            case model.aktivSamtale of
+                LeggTilAnsettelsesform info ->
+                    ( LeggTilAnsettelsesform { info | ansettelsesformer = leggTilEllerFjernFraListe endring info.ansettelsesformer }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        OppdatererOppstart endring ->
+            case model.aktivSamtale of
+                VelgOppstart info ->
+                    ( VelgOppstart { info | oppstart = Just endring }
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         VilGåVidereFraOppstart ->
             case model.aktivSamtale of
@@ -1316,7 +1339,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraOmfang
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.omfangLabel it) (JobbprofilEndret (Omfang info it)) (List.member it info.omfanger)
+                            Checkbox.checkbox (JobbprofilValg.omfangLabel it) (OppdatererOmfang it) (List.member it info.omfanger)
                         )
                         omfangValg
                     )
@@ -1325,7 +1348,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraArbeidstid
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (JobbprofilEndret (Arbeidstid info it)) (List.member it info.arbeidstider)
+                            Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (OppdatererArbeidstid it) (List.member it info.arbeidstider)
                         )
                         arbeidstidValg
                     )
@@ -1334,7 +1357,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraAnsettelsesform
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (JobbprofilEndret (Ansettelsesform info it)) (List.member it info.ansettelsesformer)
+                            Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (OppdatererAnsettelsesform it) (List.member it info.ansettelsesformer)
                         )
                         ansettelsesformValg
                     )
@@ -1345,7 +1368,7 @@ modelTilBrukerInput model =
                         (\it ->
                             info.oppstart
                                 == Just it
-                                |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (JobbprofilEndret (Oppstart info it))
+                                |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (OppdatererOppstart it)
                         )
                         oppstartValg
                     )
@@ -1422,7 +1445,7 @@ modelTilBrukerInput model =
                         (span [ class "skjemaelement__label" ] [ text "Vil du jobbe heltid eller deltid? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.omfangLabel it) (JobbprofilEndret (EndreOmfang skjema typeaheadInfo it)) (List.member it omfanger)
+                                    Checkbox.checkbox (JobbprofilValg.omfangLabel it) (SkjemaEndret (OmfangEndret it)) (List.member it omfanger)
                                         |> Checkbox.toHtml
                                 )
                                 omfangValg
@@ -1432,7 +1455,7 @@ modelTilBrukerInput model =
                         (span [ class "skjemaelement__label" ] [ text "Når kan du jobbe? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (JobbprofilEndret (EndreArbeidstid skjema typeaheadInfo it)) (List.member it arbeidstider)
+                                    Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (SkjemaEndret (ArbeidstidEndret it)) (List.member it arbeidstider)
                                         |> Checkbox.toHtml
                                 )
                                 arbeidstidValg
@@ -1442,7 +1465,7 @@ modelTilBrukerInput model =
                         (span [ class "skjemaelement__label" ] [ text "Hva slags ansettelse ønsker du? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (JobbprofilEndret (EndreAnsettelsesform skjema typeaheadInfo it)) (List.member it ansettelsesformer)
+                                    Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (SkjemaEndret (AnsettelsesformEndret it)) (List.member it ansettelsesformer)
                                         |> Checkbox.toHtml
                                 )
                                 ansettelsesformValg
@@ -1454,7 +1477,7 @@ modelTilBrukerInput model =
                                 (\it ->
                                     oppstart
                                         == Just it
-                                        |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (JobbprofilEndret (EndreOppstart skjema typeaheadInfo it))
+                                        |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (SkjemaEndret (OppstartEndret it))
                                         |> Radio.toHtml
                                 )
                                 oppstartValg
