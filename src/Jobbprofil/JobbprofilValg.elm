@@ -1,41 +1,64 @@
 module Jobbprofil.JobbprofilValg exposing (..)
 
-import List.Extra exposing (andThen)
+import Json.Decode exposing (..)
 
 
-type Arbeidstid
-    = Dag
-    | Kveld
-    | Natt
 
-
-arbeidstidTilString : Arbeidstid -> String
-arbeidstidTilString arbeidstid =
-    case arbeidstid of
-        Dag ->
-            "DAG"
-
-        Kveld ->
-            "KVELD"
-
-        Natt ->
-            "NATT"
-
-
-type Arbeidsdager
-    = Lørdag
-    | Søndag
-
-
-type ArbeidstidOrdning
-    = Vakt
-    | Skift
-    | Turnus
+--- OMFANG ---
 
 
 type Omfang
     = Heltid
     | Deltid
+
+
+omfangValg : List Omfang
+omfangValg =
+    [ Heltid
+    , Deltid
+    ]
+
+
+omfangTilBackendString : Omfang -> String
+omfangTilBackendString omfang =
+    case omfang of
+        Heltid ->
+            "HELTID"
+
+        Deltid ->
+            "DELTID"
+
+
+omfangLabel : Omfang -> String
+omfangLabel omfang =
+    case omfang of
+        Heltid ->
+            "Heltid"
+
+        Deltid ->
+            "Deltid"
+
+
+decodeOmfang : Decoder Omfang
+decodeOmfang =
+    Json.Decode.string
+        |> Json.Decode.andThen decodeOmfangString
+
+
+decodeOmfangString : String -> Decoder Omfang
+decodeOmfangString omfang =
+    if omfang == "HELTID" then
+        succeed Heltid
+
+    else if omfang == "DELTID" then
+        succeed Deltid
+
+    else
+        fail ("Decoding av enum omfang feilet. Klarer ikke decode verdi: " ++ omfang)
+
+
+
+--- ANSETTELSESFORM ---
 
 
 type AnsettelsesForm
@@ -51,146 +74,343 @@ type AnsettelsesForm
     | Annet
 
 
-type SeksjonValg
-    = OppstartValg
-    | OmfangValg
-    | AnsettelsesformValg
-    | ArbeidstidValg
+ansettelsesformValg : List AnsettelsesForm
+ansettelsesformValg =
+    [ Fast
+    , Vikariat
+    , Engasjement
+    , Prosjekt
+    , Sesong
+    , Trainee
+    , Lærling
+    , SelvstendigNæringsdrivende
+    , Feriejobb
+    , Annet
+    ]
 
 
-type alias ValgElement =
-    { label : Maybe String
-    , value : String
-    }
+ansettelsesFormTilBackendString : AnsettelsesForm -> String
+ansettelsesFormTilBackendString af =
+    case af of
+        Fast ->
+            "FAST"
 
+        Vikariat ->
+            "VIKARIAT"
 
-label : ValgElement -> String
-label elem =
-    Maybe.withDefault "" elem.label
+        Engasjement ->
+            "ENGASJEMENT"
 
+        Prosjekt ->
+            "PROSJEKT"
 
-labels : List String -> List ValgElement -> List String
-labels input valg =
-    List.filterMap (\it -> List.Extra.find (\v -> value v == it) valg) input
-        |> List.map (\it -> label it)
+        Sesong ->
+            "SESONG"
 
+        Trainee ->
+            "TRAINEE"
 
-value : ValgElement -> String
-value elem =
-    elem.value
-
-
-hentValg : SeksjonValg -> List ValgElement
-hentValg seksjonValg =
-    case seksjonValg of
-        -- RADIO BUTTON --
-        OppstartValg ->
-            [ { label = Just "Jeg kan begynne nå", value = "LEDIG_NAA" }
-            , { label = Just "Jeg har 3 måneder oppsigelse", value = "ETTER_TRE_MND" }
-            , { label = Just "Jeg kan begynne etter nærmere avtale", value = "ETTER_AVTALE" }
-            ]
-
-        -- CHECKBOXES --
-        OmfangValg ->
-            [ { label = Just "Heltid", value = "HELTID" }
-            , { label = Just "Deltid", value = "DELTID" }
-            ]
-
-        AnsettelsesformValg ->
-            [ { label = Just "Fast", value = "FAST" }
-            , { label = Just "Vikariat", value = "VIKARIAT" }
-            , { label = Just "Engasjement", value = "ENGASJEMENT" }
-            , { label = Just "Prosjekt", value = "PROSJEKT" }
-            , { label = Just "Sesong", value = "SESONG" }
-            , { label = Just "Trainee", value = "TRAINEE" }
-            , { label = Just "Lærling", value = "LAERLING" }
-            , { label = Just "Selvstendig næringsdrivende", value = "SELVSTENDIG_NAERINGSDRIVENDE" }
-            , { label = Just "Feriejobb", value = "FERIEJOBB" }
-            , { label = Just "Annet", value = "ANNET" }
-            ]
-
-        ArbeidstidValg ->
-            [ { label = Just "Dag", value = "DAGTID" }
-            , { label = Just "Kveld", value = "KVELD" }
-            , { label = Just "Natt", value = "NATT" }
-            , { label = Just "Lørdag", value = "LOERDAG" }
-            , { label = Just "Søndag", value = "SOENDAG" }
-            , { label = Just "Skift", value = "SKIFT" }
-            , { label = Just "Vakt", value = "VAKT" }
-            , { label = Just "Turnus", value = "TURNUS" }
-            ]
-
-
-arbeidstidValg : List String
-arbeidstidValg =
-    [ "Dag", "Kveld", "Natt" ]
-
-
-arbeidsdagValg : List String
-arbeidsdagValg =
-    [ "Lørdag", "Søndag" ]
-
-
-arbeidstidsordningValg : List String
-arbeidstidsordningValg =
-    [ "Skift", "Vakt", "Turnus" ]
-
-
-arbeidstidTilBackendString : String -> String
-arbeidstidTilBackendString tid =
-    case tid of
-        "Skift" ->
-            "SKIFT"
-
-        "Vakt" ->
-            "VAKT"
-
-        "Turnus" ->
-            "TURNUS"
-
-        "Lørdag" ->
-            "LOERDAG"
-
-        "Søndag" ->
-            "SOENDAG"
-
-        "Dag" ->
-            "DAGTID"
-
-        "Kveld" ->
-            "KVELD"
-
-        "Natt" ->
-            "NATT"
-
-        _ ->
-            ""
-
-
-ansettelsesFormTilBackendString : String -> String
-ansettelsesFormTilBackendString input =
-    case input of
-        "Selvstendig næringsdrivende" ->
-            "SELVSTENDIG_NAERINGSDRIVENDE"
-
-        "Lærling" ->
+        Lærling ->
             "LAERLING"
 
-        _ ->
-            String.toUpper input
+        SelvstendigNæringsdrivende ->
+            "SELVSTENDIG_NAERINGSDRIVENDE"
+
+        Feriejobb ->
+            "FERIEJOBB"
+
+        Annet ->
+            "ANNET"
 
 
-oppstartTilBackendString : String -> String
-oppstartTilBackendString input =
-    case input of
-        "Jeg kan begynne nå" ->
+ansettelsesFormLabel : AnsettelsesForm -> String
+ansettelsesFormLabel af =
+    case af of
+        Fast ->
+            "Fast"
+
+        Vikariat ->
+            "Vikariat"
+
+        Engasjement ->
+            "Engasjement"
+
+        Prosjekt ->
+            "Prosjekt"
+
+        Sesong ->
+            "Sesong"
+
+        Trainee ->
+            "Trainee"
+
+        Lærling ->
+            "Lærling"
+
+        SelvstendigNæringsdrivende ->
+            "Selvstendig næringsdrivende"
+
+        Feriejobb ->
+            "Feriejobb"
+
+        Annet ->
+            "Annet"
+
+
+decodeAnsettelsesform : Decoder AnsettelsesForm
+decodeAnsettelsesform =
+    Json.Decode.string
+        |> Json.Decode.andThen decodeAnsettelsesformString
+
+
+decodeAnsettelsesformString : String -> Decoder AnsettelsesForm
+decodeAnsettelsesformString af =
+    if af == "FAST" then
+        succeed Fast
+
+    else if af == "VIKARIAT" then
+        succeed Vikariat
+
+    else if af == "ENGASJEMENT" then
+        succeed Engasjement
+
+    else if af == "PROSJEKT" then
+        succeed Prosjekt
+
+    else if af == "SESONG" then
+        succeed Sesong
+
+    else if af == "TRAINEE" then
+        succeed Trainee
+
+    else if af == "LAERLING" then
+        succeed Lærling
+
+    else if af == "SELVSTENDIG_NAERINGSDRIVENDE" then
+        succeed SelvstendigNæringsdrivende
+
+    else if af == "FERIEJOBB" then
+        succeed Feriejobb
+
+    else if af == "ANNET" then
+        succeed Annet
+
+    else
+        fail ("Decoding av enum Ansettelsesform feilet. Klarer ikke decode verdi: " ++ af)
+
+
+
+--- OPPSTART ---
+
+
+type Oppstart
+    = LedigNå
+    | OmTreMåneder
+    | EtterAvtale
+
+
+oppstartValg : List Oppstart
+oppstartValg =
+    [ LedigNå
+    , OmTreMåneder
+    , EtterAvtale
+    ]
+
+
+oppstartTilBackendString : Oppstart -> String
+oppstartTilBackendString oppstart =
+    case oppstart of
+        LedigNå ->
             "LEDIG_NAA"
 
-        "Jeg har 3 måneder oppsigelse" ->
+        OmTreMåneder ->
             "ETTER_TRE_MND"
 
-        "Jeg kan begynne etter nærmere avtale" ->
+        EtterAvtale ->
             "ETTER_AVTALE"
 
-        _ ->
-            ""
+
+oppstartLabel : Oppstart -> String
+oppstartLabel oppstart =
+    case oppstart of
+        LedigNå ->
+            "Jeg kan begynne nå"
+
+        OmTreMåneder ->
+            "Jeg har 3 måneder oppsigelse"
+
+        EtterAvtale ->
+            "Jeg kan begynne etter nærmere avtale "
+
+
+decodeOppstart : Decoder Oppstart
+decodeOppstart =
+    Json.Decode.string
+        |> Json.Decode.andThen decodeOppstartString
+
+
+decodeOppstartString : String -> Decoder Oppstart
+decodeOppstartString oppstart =
+    if oppstart == "LEDIG_NAA" then
+        succeed LedigNå
+
+    else if oppstart == "ETTER_TRE_MND" then
+        succeed OmTreMåneder
+
+    else if oppstart == "ETTER_AVTALE" then
+        succeed EtterAvtale
+
+    else
+        fail ("Decoding av enum Oppstart feilet. Klarer ikke decode verdi: " ++ oppstart)
+
+
+
+--- TIDSPUNKT---
+
+
+type Arbeidstidspunkt
+    = Dag
+    | Kveld
+    | Natt
+
+
+arbeidstidspunktTilBackendString : Arbeidstidspunkt -> String
+arbeidstidspunktTilBackendString tid =
+    case tid of
+        Dag ->
+            "DAGTID"
+
+        Kveld ->
+            "KVELD"
+
+        Natt ->
+            "NATT"
+
+
+
+--- DAG ---
+
+
+type Arbeidsdag
+    = Lørdag
+    | Søndag
+
+
+arbeidsdagTilBackendString : Arbeidsdag -> String
+arbeidsdagTilBackendString dag =
+    case dag of
+        Lørdag ->
+            "LOERDAG"
+
+        Søndag ->
+            "SOENDAG"
+
+
+
+--- ORDNING ---
+
+
+type ArbeidstidOrdning
+    = Vakt
+    | Skift
+    | Turnus
+
+
+arbeidstidOrdningTilBackendString : ArbeidstidOrdning -> String
+arbeidstidOrdningTilBackendString ordning =
+    case ordning of
+        Vakt ->
+            "VAKT"
+
+        Skift ->
+            "SKIFT"
+
+        Turnus ->
+            "TURNUS"
+
+
+
+---- ARBEIDSTIDER ---
+
+
+type Arbeidstider
+    = Arbeidstid Arbeidstidspunkt
+    | Arbeidsdager Arbeidsdag
+    | ArbeidstidOrdning ArbeidstidOrdning
+
+
+arbeidstidValg : List Arbeidstider
+arbeidstidValg =
+    [ Arbeidstid Dag
+    , Arbeidstid Kveld
+    , Arbeidstid Natt
+    , Arbeidsdager Lørdag
+    , Arbeidsdager Søndag
+    , ArbeidstidOrdning Turnus
+    , ArbeidstidOrdning Skift
+    , ArbeidstidOrdning Vakt
+    ]
+
+
+arbeidstidLabel : Arbeidstider -> String
+arbeidstidLabel tid =
+    case tid of
+        Arbeidstid Dag ->
+            "Dag"
+
+        Arbeidstid Kveld ->
+            "Kveld"
+
+        Arbeidstid Natt ->
+            "Natt"
+
+        Arbeidsdager Lørdag ->
+            "Lørdag"
+
+        Arbeidsdager Søndag ->
+            "Søndag"
+
+        ArbeidstidOrdning Turnus ->
+            "Turnus"
+
+        ArbeidstidOrdning Skift ->
+            "Skift"
+
+        ArbeidstidOrdning Vakt ->
+            "Vakt"
+
+
+decodeArbeidstider : Decoder Arbeidstider
+decodeArbeidstider =
+    Json.Decode.string
+        |> Json.Decode.andThen decodeArbeidstiderString
+
+
+decodeArbeidstiderString : String -> Decoder Arbeidstider
+decodeArbeidstiderString tid =
+    if tid == "LOERDAG" then
+        succeed (Arbeidsdager Lørdag)
+
+    else if tid == "SOENDAG" then
+        succeed (Arbeidsdager Søndag)
+
+    else if tid == "DAGTID" then
+        succeed (Arbeidstid Dag)
+
+    else if tid == "KVELD" then
+        succeed (Arbeidstid Kveld)
+
+    else if tid == "NATT" then
+        succeed (Arbeidstid Natt)
+
+    else if tid == "SKIFT" then
+        succeed (ArbeidstidOrdning Skift)
+
+    else if tid == "VAKT" then
+        succeed (ArbeidstidOrdning Vakt)
+
+    else if tid == "TURNUS" then
+        succeed (ArbeidstidOrdning Turnus)
+
+    else
+        fail ("Decoding av enum Arbeitider feilet. Klarer ikke decode verdi: " ++ tid)

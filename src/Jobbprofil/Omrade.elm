@@ -1,6 +1,7 @@
 module Jobbprofil.Omrade exposing (..)
 
-import Json.Decode exposing (Decoder, at, int, map, map3, string)
+import Json.Decode exposing (..)
+import Json.Decode.Pipeline exposing (required)
 import Json.Encode
 
 
@@ -9,8 +10,8 @@ type Omrade
 
 
 type alias OmradeInfo =
-    { konseptId : Int
-    , tittel : String
+    { tittel : String
+    , konseptId : Int
     , kode : String
     }
 
@@ -43,8 +44,8 @@ decode =
 decodeBackendData : Decoder OmradeInfo
 decodeBackendData =
     map3 OmradeInfo
-        (at [ "konseptid" ] int)
         (at [ "tittel" ] string)
+        (at [ "konseptid" ] int)
         (at [ "kode" ] string)
 
 
@@ -55,3 +56,43 @@ encode (Omrade info) =
         , ( "tittel", Json.Encode.string info.tittel )
         , ( "kode", Json.Encode.string info.kode )
         ]
+
+
+
+--- Decode Jobbprofilgeografi ---
+
+
+type alias JobbprofilGeografiInfo =
+    { tittel : Maybe String
+    , konseptid : Maybe Int
+    , kode : Maybe String
+    }
+
+
+decodeJobbprofilGeografi : Decoder Omrade
+decodeJobbprofilGeografi =
+    geografiInfoDecoder
+        |> Json.Decode.andThen jobbprofilTilOmrådeDecoder
+
+
+geografiInfoDecoder : Decoder JobbprofilGeografiInfo
+geografiInfoDecoder =
+    succeed JobbprofilGeografiInfo
+        |> required "tittel" (nullable string)
+        |> required "konseptid" (nullable int)
+        |> required "kode" (nullable string)
+
+
+jobbprofilTilOmrådeDecoder : JobbprofilGeografiInfo -> Decoder Omrade
+jobbprofilTilOmrådeDecoder geografiInfo =
+    case
+        Maybe.map3 fraEnkeltElementer
+            geografiInfo.tittel
+            geografiInfo.konseptid
+            geografiInfo.kode
+    of
+        Just value ->
+            succeed value
+
+        Nothing ->
+            fail "Decoding av område feilet."

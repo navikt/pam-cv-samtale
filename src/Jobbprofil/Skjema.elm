@@ -1,11 +1,12 @@
 module Jobbprofil.Skjema exposing (..)
 
+--todo: expose bare det du trenger
+
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
-import Jobbprofil.JobbprofilValg exposing (SeksjonValg(..), ValgElement, ansettelsesFormTilBackendString, arbeidsdagValg, arbeidstidTilBackendString, arbeidstidValg, arbeidstidsordningValg, hentValg, oppstartTilBackendString)
+import Jobbprofil.JobbprofilValg exposing (..)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.StegInfo exposing (KompetanseStegInfo)
 import Json.Encode
 
 
@@ -14,13 +15,12 @@ type ValidertSkjema
 
 
 type alias ValidertSkjemaInfo =
-    { id : Maybe Int
-    , yrker : List Yrke
+    { yrker : List Yrke
     , omrader : List Omrade
-    , omfanger : List String
-    , arbeidstider : List String
-    , ansettelsesformer : List String
-    , oppstart : String
+    , omfanger : List Omfang
+    , arbeidstider : List Arbeidstider
+    , ansettelsesformer : List AnsettelsesForm
+    , oppstart : Oppstart
     , kompetanser : List Kompetanse
     }
 
@@ -30,13 +30,12 @@ type UvalidertSkjema
 
 
 type alias UvalidertSkjemaInfo =
-    { id : Maybe Int
-    , yrker : List Yrke
+    { yrker : List Yrke
     , omrader : List Omrade
-    , omfanger : List String
-    , arbeidstider : List String
-    , ansettelsesformer : List String
-    , oppstart : String
+    , omfanger : List Omfang
+    , arbeidstider : List Arbeidstider
+    , ansettelsesformer : List AnsettelsesForm
+    , oppstart : Maybe Oppstart
     , kompetanser : List Kompetanse
     , visYrkerFeilmelding : Bool
     , visKompetanserFeilmelding : Bool
@@ -49,35 +48,20 @@ type alias UvalidertSkjemaInfo =
 --- INIT ---
 
 
-initValidert : ValidertSkjemaInfo -> ValidertSkjema
-initValidert info =
+initValidertSkjema : ValidertSkjemaInfo -> ValidertSkjema
+initValidertSkjema info =
     ValidertSkjema info
-
-
-tilValidertSkjema : KompetanseStegInfo -> ValidertSkjema
-tilValidertSkjema info =
-    ValidertSkjema
-        { id = Nothing
-        , yrker = info.yrker
-        , omrader = info.omrader
-        , omfanger = info.omfanger
-        , arbeidstider = info.arbeidstider
-        , ansettelsesformer = info.ansettelsesformer
-        , oppstart = info.oppstart
-        , kompetanser = info.kompetanser
-        }
 
 
 tilUvalidertSkjema : ValidertSkjema -> UvalidertSkjema
 tilUvalidertSkjema (ValidertSkjema skjema) =
     UvalidertSkjema
-        { id = skjema.id
-        , yrker = skjema.yrker
+        { yrker = skjema.yrker
         , omrader = skjema.omrader
         , omfanger = skjema.omfanger
         , arbeidstider = skjema.arbeidstider
         , ansettelsesformer = skjema.ansettelsesformer
-        , oppstart = skjema.oppstart
+        , oppstart = Just skjema.oppstart
         , kompetanser = skjema.kompetanser
         , visYrkerFeilmelding = False
         , visKompetanserFeilmelding = False
@@ -86,26 +70,16 @@ tilUvalidertSkjema (ValidertSkjema skjema) =
         }
 
 
-fraJobbprofil : Jobbprofil -> UvalidertSkjema
+fraJobbprofil : Jobbprofil -> ValidertSkjema
 fraJobbprofil jobbprofil =
-    UvalidertSkjema
-        { id = Just (Jobbprofil.id jobbprofil)
-        , yrker = Jobbprofil.stillingliste jobbprofil
+    ValidertSkjema
+        { yrker = Jobbprofil.stillingliste jobbprofil
         , omrader = Jobbprofil.geografiliste jobbprofil
         , omfanger = Jobbprofil.omfangsliste jobbprofil
-        , arbeidstider =
-            List.concat
-                [ Jobbprofil.arbeidstidliste jobbprofil
-                , Jobbprofil.arbeidsdagerliste jobbprofil
-                , Jobbprofil.arbeidstidsordningliste jobbprofil
-                ]
+        , arbeidstider = Jobbprofil.arbeidstider jobbprofil
         , ansettelsesformer = Jobbprofil.ansettelsesformliste jobbprofil
-        , oppstart = (Jobbprofil.oppstart >> Maybe.withDefault "") jobbprofil
+        , oppstart = (Jobbprofil.oppstart >> Maybe.withDefault EtterAvtale) jobbprofil
         , kompetanser = Jobbprofil.kompetanseliste jobbprofil
-        , visYrkerFeilmelding = False
-        , visKompetanserFeilmelding = False
-        , visOmraderFeilmelding = False
-        , visOppstartFeilmelding = False
         }
 
 
@@ -123,22 +97,22 @@ omraderFraSkjema (UvalidertSkjema info) =
     info.omrader
 
 
-omfangerFraSkjema : UvalidertSkjema -> List String
+omfangerFraSkjema : UvalidertSkjema -> List Omfang
 omfangerFraSkjema (UvalidertSkjema info) =
     info.omfanger
 
 
-arbeidstiderFraSkjema : UvalidertSkjema -> List String
+arbeidstiderFraSkjema : UvalidertSkjema -> List Arbeidstider
 arbeidstiderFraSkjema (UvalidertSkjema info) =
     info.arbeidstider
 
 
-ansettelsesformerFraSkjema : UvalidertSkjema -> List String
+ansettelsesformerFraSkjema : UvalidertSkjema -> List AnsettelsesForm
 ansettelsesformerFraSkjema (UvalidertSkjema info) =
     info.ansettelsesformer
 
 
-oppstartFraSkjema : UvalidertSkjema -> String
+oppstartFraSkjema : UvalidertSkjema -> Maybe Oppstart
 oppstartFraSkjema (UvalidertSkjema info) =
     info.oppstart
 
@@ -148,92 +122,57 @@ kompetanserFraSkjema (UvalidertSkjema info) =
     info.kompetanser
 
 
-yrkeSammendragFraSkjema : UvalidertSkjema -> String
-yrkeSammendragFraSkjema info =
-    List.map Yrke.label (yrkerFraSkjema info)
+yrke : ValidertSkjema -> String
+yrke (ValidertSkjema info) =
+    List.map Yrke.label info.yrker
         |> String.join ", "
 
 
-kompetanseSammendragFraSkjema : UvalidertSkjema -> String
-kompetanseSammendragFraSkjema info =
-    kompetanserFraSkjema info
+kompetanse : ValidertSkjema -> String
+kompetanse (ValidertSkjema info) =
+    info.kompetanser
         |> List.map Kompetanse.label
         |> String.join ", "
 
 
-geografiListeFraSkjema : UvalidertSkjema -> List Omrade
-geografiListeFraSkjema (UvalidertSkjema info) =
+geografi : ValidertSkjema -> String
+geografi (ValidertSkjema info) =
     info.omrader
-
-
-geografiSammendragFraSkjema : UvalidertSkjema -> String
-geografiSammendragFraSkjema info =
-    geografiListeFraSkjema info
         |> List.map Omrade.tittel
         |> String.join ", "
 
 
-ansettelsesformListeFraSkjema : UvalidertSkjema -> List String
-ansettelsesformListeFraSkjema (UvalidertSkjema info) =
+ansettelsesform : ValidertSkjema -> String
+ansettelsesform (ValidertSkjema info) =
     info.ansettelsesformer
+        |> List.map ansettelsesFormLabel
+        |> listeSammendragFraSkjema " - "
 
 
-ansettelsesformSammendragFraSkjema : UvalidertSkjema -> String
-ansettelsesformSammendragFraSkjema info =
-    ansettelsesformListeFraSkjema info
-        |> listeSammendragFraSkjema (hentValg AnsettelsesformValg) " - "
-
-
-arbeidstidListeFraSkjema : UvalidertSkjema -> List String
-arbeidstidListeFraSkjema (UvalidertSkjema info) =
+arbeidstid : ValidertSkjema -> String
+arbeidstid (ValidertSkjema info) =
     info.arbeidstider
+        |> List.map arbeidstidLabel
+        |> listeSammendragFraSkjema ", "
 
 
-arbeidstidSammendragFraSkjema : UvalidertSkjema -> String
-arbeidstidSammendragFraSkjema info =
-    arbeidstidListeFraSkjema info
-        |> listeSammendragFraSkjema (hentValg ArbeidstidValg) ", "
-
-
-omfangsListeFraSkjema : UvalidertSkjema -> List String
-omfangsListeFraSkjema (UvalidertSkjema info) =
+omfangs : ValidertSkjema -> String
+omfangs (ValidertSkjema info) =
     info.omfanger
+        |> List.map omfangLabel
+        |> listeSammendragFraSkjema " - "
 
 
-omfangsSammendragFraSkjema : UvalidertSkjema -> String
-omfangsSammendragFraSkjema info =
-    omfangsListeFraSkjema info
-        |> listeSammendragFraSkjema (hentValg OmfangValg) " - "
-
-
-listeSammendragFraSkjema : List ValgElement -> String -> List String -> String
-listeSammendragFraSkjema valg separator info =
-    List.map
-        (\i ->
-            List.filterMap
-                (\v ->
-                    if i == v.value then
-                        v.label
-
-                    else
-                        Nothing
-                )
-                valg
-        )
-        info
-        |> List.foldr (++) []
+listeSammendragFraSkjema : String -> List String -> String
+listeSammendragFraSkjema separator info =
+    info
         |> String.join separator
 
 
-oppstartFraJobbprofilSkjema : UvalidertSkjema -> String
-oppstartFraJobbprofilSkjema (UvalidertSkjema info) =
+oppstart : ValidertSkjema -> String
+oppstart (ValidertSkjema info) =
     info.oppstart
-
-
-oppstartSammendragFraSkjema : UvalidertSkjema -> String
-oppstartSammendragFraSkjema info =
-    [ oppstartFraSkjema info ]
-        |> listeSammendragFraSkjema (hentValg OppstartValg) " - "
+        |> oppstartLabel
 
 
 
@@ -246,23 +185,23 @@ leggTilStilling (UvalidertSkjema info) stilling =
 
 
 fjernStilling : UvalidertSkjema -> Yrke -> UvalidertSkjema
-fjernStilling (UvalidertSkjema info) yrke =
-    UvalidertSkjema { info | yrker = List.filter (\it -> Yrke.konseptId it /= Yrke.konseptId yrke) info.yrker }
+fjernStilling (UvalidertSkjema info) yrke_ =
+    UvalidertSkjema { info | yrker = List.filter (\it -> Yrke.konseptId it /= Yrke.konseptId yrke_) info.yrker }
 
 
 leggTilKompetanse : UvalidertSkjema -> Kompetanse -> UvalidertSkjema
-leggTilKompetanse (UvalidertSkjema info) kompetanse =
-    UvalidertSkjema { info | kompetanser = List.append info.kompetanser [ kompetanse ] }
+leggTilKompetanse (UvalidertSkjema info) kompetanse_ =
+    UvalidertSkjema { info | kompetanser = List.append info.kompetanser [ kompetanse_ ] }
 
 
 fjernKompetanse : UvalidertSkjema -> Kompetanse -> UvalidertSkjema
-fjernKompetanse (UvalidertSkjema info) kompetanse =
-    UvalidertSkjema { info | kompetanser = List.filter (\it -> Kompetanse.konseptId it /= Kompetanse.konseptId kompetanse) info.kompetanser }
+fjernKompetanse (UvalidertSkjema info) kompetanse_ =
+    UvalidertSkjema { info | kompetanser = List.filter (\it -> Kompetanse.konseptId it /= Kompetanse.konseptId kompetanse_) info.kompetanser }
 
 
 leggTilGeografi : UvalidertSkjema -> Omrade -> UvalidertSkjema
-leggTilGeografi (UvalidertSkjema info) geografi =
-    UvalidertSkjema { info | omrader = List.append info.omrader [ geografi ] }
+leggTilGeografi (UvalidertSkjema info) geografi_ =
+    UvalidertSkjema { info | omrader = List.append info.omrader [ geografi_ ] }
 
 
 fjernGeografi : UvalidertSkjema -> Omrade -> UvalidertSkjema
@@ -270,29 +209,29 @@ fjernGeografi (UvalidertSkjema info) omrade =
     UvalidertSkjema { info | omrader = List.filter (\it -> Omrade.konseptId it /= Omrade.konseptId omrade) info.omrader }
 
 
-leggTilOmfang : UvalidertSkjema -> String -> UvalidertSkjema
+leggTilOmfang : UvalidertSkjema -> Omfang -> UvalidertSkjema
 leggTilOmfang (UvalidertSkjema info) omfang =
     UvalidertSkjema { info | omfanger = List.append info.omfanger [ omfang ] }
 
 
-fjernOmfang : UvalidertSkjema -> String -> UvalidertSkjema
+fjernOmfang : UvalidertSkjema -> Omfang -> UvalidertSkjema
 fjernOmfang (UvalidertSkjema info) omfang =
     UvalidertSkjema { info | omfanger = List.filter (\it -> it /= omfang) info.omfanger }
 
 
-leggTilAnsettelsesForm : UvalidertSkjema -> String -> UvalidertSkjema
+leggTilAnsettelsesForm : UvalidertSkjema -> AnsettelsesForm -> UvalidertSkjema
 leggTilAnsettelsesForm (UvalidertSkjema info) ansettelsesForm =
     UvalidertSkjema { info | ansettelsesformer = List.append info.ansettelsesformer [ ansettelsesForm ] }
 
 
-fjernAnsettelsesForm : UvalidertSkjema -> String -> UvalidertSkjema
+fjernAnsettelsesForm : UvalidertSkjema -> AnsettelsesForm -> UvalidertSkjema
 fjernAnsettelsesForm (UvalidertSkjema info) ansettelsesForm =
     UvalidertSkjema { info | ansettelsesformer = List.filter (\it -> it /= ansettelsesForm) info.ansettelsesformer }
 
 
-oppdaterOppstart : UvalidertSkjema -> String -> UvalidertSkjema
-oppdaterOppstart (UvalidertSkjema info) oppstart =
-    UvalidertSkjema { info | oppstart = oppstart }
+oppdaterOppstart : UvalidertSkjema -> Oppstart -> UvalidertSkjema
+oppdaterOppstart (UvalidertSkjema info) oppstart_ =
+    UvalidertSkjema { info | oppstart = Just oppstart_ }
 
 
 
@@ -309,7 +248,7 @@ encode (ValidertSkjema skjema) =
       , ( "geografiliste", Json.Encode.list Omrade.encode skjema.omrader )
       , ( "oppstart", Json.Encode.string (oppstartTilBackendString skjema.oppstart) )
       , ( "aktiv", Json.Encode.bool False )
-      , ( "omfangsliste", Json.Encode.list Json.Encode.string (List.map String.toUpper skjema.omfanger) )
+      , ( "omfangsliste", Json.Encode.list Json.Encode.string (List.map omfangTilBackendString skjema.omfanger) )
       ]
     , encodeArbeidstider skjema.arbeidstider
     ]
@@ -317,19 +256,46 @@ encode (ValidertSkjema skjema) =
         |> Json.Encode.object
 
 
-encodeArbeidstider : List String -> List ( String, Json.Encode.Value )
+encodeArbeidstider : List Arbeidstider -> List ( String, Json.Encode.Value )
 encodeArbeidstider arbeidstider =
     let
-        arbeidstid =
-            List.filter (\b -> List.member b arbeidstidValg) arbeidstider
+        arbeidstidspunkt =
+            List.filterMap
+                (\it ->
+                    case it of
+                        Arbeidstid value ->
+                            Just value
 
-        arbeidsdag =
-            List.filter (\b -> List.member b arbeidsdagValg) arbeidstider
+                        _ ->
+                            Nothing
+                )
+                arbeidstider
+
+        arbeidsdager =
+            List.filterMap
+                (\it ->
+                    case it of
+                        Arbeidsdager value ->
+                            Just value
+
+                        _ ->
+                            Nothing
+                )
+                arbeidstider
 
         arbeidtidsordning =
-            List.filter (\b -> List.member b arbeidstidsordningValg) arbeidstider
+            List.filterMap
+                (\it ->
+                    case it of
+                        ArbeidstidOrdning value ->
+                            Just value
+
+                        _ ->
+                            Nothing
+                )
+                arbeidstider
     in
-    [ ( "arbeidstidliste", Json.Encode.list Json.Encode.string (List.map arbeidstidTilBackendString arbeidstid) )
-    , ( "arbeidsdagerliste", Json.Encode.list Json.Encode.string (List.map arbeidstidTilBackendString arbeidsdag) )
-    , ( "arbeidstidsordningliste", Json.Encode.list Json.Encode.string (List.map arbeidstidTilBackendString arbeidtidsordning) )
+    [ ( "arbeidstidliste", Json.Encode.list Json.Encode.string (List.map arbeidstidspunktTilBackendString arbeidstidspunkt) )
+    , ( "arbeidsdagerliste", Json.Encode.list Json.Encode.string (List.map arbeidsdagTilBackendString arbeidsdager) )
+    , ( "arbeidstidsordningliste", Json.Encode.list Json.Encode.string (List.map arbeidstidOrdningTilBackendString arbeidtidsordning) )
     ]

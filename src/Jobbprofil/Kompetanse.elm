@@ -1,6 +1,14 @@
-module Jobbprofil.Kompetanse exposing (..)
+module Jobbprofil.Kompetanse exposing
+    ( Kompetanse
+    , decode
+    , decodeJobbprofilKompetanse
+    , encode
+    , konseptId
+    , label
+    )
 
-import Json.Decode exposing (Decoder, at, int, map, map2, map3, string)
+import Json.Decode exposing (..)
+import Json.Decode.Pipeline exposing (required)
 import Json.Encode
 
 
@@ -32,6 +40,14 @@ konseptId (Kompetanse info) =
     info.konseptid
 
 
+encode : Kompetanse -> Json.Encode.Value
+encode (Kompetanse info) =
+    Json.Encode.object
+        [ ( "konseptid", Json.Encode.int info.konseptid )
+        , ( "tittel", Json.Encode.string info.label )
+        ]
+
+
 decode : Decoder Kompetanse
 decode =
     decodeBackendData
@@ -40,14 +56,43 @@ decode =
 
 decodeBackendData : Decoder KompetanseInfo
 decodeBackendData =
-    map2 KompetanseInfo
-        (at [ "konseptId" ] int)
-        (at [ "label" ] string)
+    succeed KompetanseInfo
+        |> required "konseptId" int
+        |> required "label" string
 
 
-encode : Kompetanse -> Json.Encode.Value
-encode (Kompetanse info) =
-    Json.Encode.object
-        [ ( "konseptid", Json.Encode.int info.konseptid )
-        , ( "tittel", Json.Encode.string info.label )
-        ]
+
+--- Decode Jobbprofilkompetanse ---
+
+
+type alias JobbprofilKompetanseInfo =
+    { tittel : Maybe String
+    , konseptid : Maybe Int
+    }
+
+
+decodeJobbprofilKompetanse : Decoder Kompetanse
+decodeJobbprofilKompetanse =
+    decodeKompetanseInfo
+        |> Json.Decode.andThen jobbprofilTilKompetanseDecoder
+
+
+decodeKompetanseInfo : Decoder JobbprofilKompetanseInfo
+decodeKompetanseInfo =
+    succeed JobbprofilKompetanseInfo
+        |> required "tittel" (nullable string)
+        |> required "konseptid" (nullable int)
+
+
+jobbprofilTilKompetanseDecoder : JobbprofilKompetanseInfo -> Decoder Kompetanse
+jobbprofilTilKompetanseDecoder info =
+    case
+        Maybe.map2 fraEnkeltElementer
+            info.tittel
+            info.konseptid
+    of
+        Just value ->
+            succeed value
+
+        Nothing ->
+            fail "Decoding av kompetanse feilet."

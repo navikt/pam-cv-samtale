@@ -26,10 +26,10 @@ import Html exposing (Html, br, div, span, text)
 import Html.Attributes exposing (class)
 import Http
 import Jobbprofil.Jobbprofil exposing (Jobbprofil)
-import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (SeksjonValg(..), hentValg, labels)
+import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (AnsettelsesForm, Arbeidstider(..), Omfang, Oppstart(..), ansettelsesformValg, arbeidstidValg, omfangValg, oppstartValg)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, ansettelsesformSammendragFraSkjema, arbeidstidSammendragFraSkjema, geografiSammendragFraSkjema, kompetanseSammendragFraSkjema, omfangsSammendragFraSkjema, oppstartSammendragFraSkjema, tilUvalidertSkjema, tilValidertSkjema, yrkeSammendragFraSkjema)
+import Jobbprofil.Skjema as Skjema exposing (UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, oppstart, tilUvalidertSkjema)
 import Jobbprofil.StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
 import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingYrke)
 import LagreStatus exposing (LagreStatus)
@@ -106,13 +106,25 @@ meldingsLogg (Model info) =
     info.seksjonsMeldingsLogg
 
 
+kompetanseInfoTilSkjema : KompetanseStegInfo -> ValidertSkjema
+kompetanseInfoTilSkjema info =
+    Skjema.initValidertSkjema
+        { yrker = info.yrker
+        , omrader = info.omrader
+        , omfanger = info.omfanger
+        , arbeidstider = info.arbeidstider
+        , ansettelsesformer = info.ansettelsesformer
+        , oppstart = info.oppstart
+        , kompetanser = info.kompetanser
+        }
+
+
 
 --- UPDATE ---
 
 
 type Msg
     = JobbprofilHentet (Result Http.Error Jobbprofil)
-    | VilEndreJobbprofil UvalidertSkjema
     | VilBegynnePåJobbprofil
     | YrkeTypeaheadMsg (Typeahead.Msg Yrke)
     | HentetYrkeTypeahead Typeahead.Query (Result Http.Error (List Yrke))
@@ -133,7 +145,7 @@ type Msg
     | VilLeggeTilkompetanse Kompetanse
     | FjernValgtKompetanse Kompetanse
     | VilGåVidereFraKompetanse
-    | VilEndreOppsummering UvalidertSkjema
+    | VilEndreOppsummering
     | VilLagreOppsummering
     | JobbprofilEndret CheckboxSkjemaEndring
     | VilLagreJobbprofil
@@ -147,14 +159,14 @@ type Msg
 
 
 type CheckboxSkjemaEndring
-    = Omfang OmfangStegInfo String
-    | Arbeidstid ArbeidstidStegInfo String
-    | Ansettelsesform AnsettelsesformStegInfo String
-    | Oppstart OppstartStegInfo String
-    | EndreOmfang UvalidertSkjema TypeaheadOppsummeringInfo String
-    | EndreArbeidstid UvalidertSkjema TypeaheadOppsummeringInfo String
-    | EndreAnsettelsesform UvalidertSkjema TypeaheadOppsummeringInfo String
-    | EndreOppstart UvalidertSkjema TypeaheadOppsummeringInfo String
+    = Omfang OmfangStegInfo Omfang
+    | Arbeidstid ArbeidstidStegInfo Arbeidstider
+    | Ansettelsesform AnsettelsesformStegInfo AnsettelsesForm
+    | Oppstart OppstartStegInfo Oppstart
+    | EndreOmfang UvalidertSkjema TypeaheadOppsummeringInfo Omfang
+    | EndreArbeidstid UvalidertSkjema TypeaheadOppsummeringInfo Arbeidstider
+    | EndreAnsettelsesform UvalidertSkjema TypeaheadOppsummeringInfo AnsettelsesForm
+    | EndreOppstart UvalidertSkjema TypeaheadOppsummeringInfo Oppstart
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -244,7 +256,7 @@ update msg (Model model) =
                             |> IkkeFerdig
 
                     else
-                        ( tilValidertSkjema info
+                        ( kompetanseInfoTilSkjema info
                             |> VisOppsummering
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , lagtTilSpørsmålCmd model.debugStatus
@@ -509,14 +521,6 @@ update msg (Model model) =
                     ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
-        VilEndreJobbprofil skjema ->
-            ( { yrker = Tuple.first initYrkeTypeahead, omrader = Tuple.first initOmradeTypeahead, kompetanser = Tuple.first initKompetanseTypeahead }
-                |> EndreOppsummering skjema
-                |> oppdaterSamtale model IngenNyeMeldinger
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
-
         VilLagreJobbprofil ->
             case model.aktivSamtale of
                 VisOppsummering skjema ->
@@ -555,7 +559,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 Oppstart info verdi ->
-                    ( VelgOppstart { info | oppstart = verdi }
+                    ( VelgOppstart { info | oppstart = Just verdi }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -583,7 +587,7 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 EndreOppstart (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | oppstart = verdi }) typeaheadInfo
+                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | oppstart = Just verdi }) typeaheadInfo
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -618,7 +622,7 @@ update msg (Model model) =
         VilGåVidereFraAnsettelsesform ->
             case model.aktivSamtale of
                 LeggTilAnsettelsesform info ->
-                    ( VelgOppstart { oppstart = "", ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                    ( VelgOppstart { oppstart = Nothing, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -631,33 +635,41 @@ update msg (Model model) =
         VilGåVidereFraOppstart ->
             case model.aktivSamtale of
                 VelgOppstart info ->
-                    if isEmpty info.oppstart then
-                        ( VelgOppstart { info | oppstart = "" }
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
+                    case info.oppstart of
+                        Nothing ->
+                            ( VelgOppstart { info | oppstart = Nothing }
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
-                    else
-                        -- TODO - funksjoner for transformering av records i transisjonsfaser, f.eks. oppstartInfoTilKompetanseInfo : OppstartInfo -> KompetanseInfo
-                        ( initKompetanseTypeahead
-                            |> Tuple.first
-                            |> LeggTilKompetanser { kompetanser = [], oppstart = info.oppstart, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader, visFeilmelding = False }
-                            |> oppdaterSamtale model (SvarFraMsg msg)
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
-                            |> IkkeFerdig
+                        Just value ->
+                            -- TODO - funksjoner for transformering av records i transisjonsfaser, f.eks. oppstartInfoTilKompetanseInfo : OppstartInfo -> KompetanseInfo
+                            ( initKompetanseTypeahead
+                                |> Tuple.first
+                                |> LeggTilKompetanser { kompetanser = [], oppstart = value, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader, visFeilmelding = False }
+                                |> oppdaterSamtale model (SvarFraMsg msg)
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
                 _ ->
                     ( Model model, lagtTilSpørsmålCmd model.debugStatus )
                         |> IkkeFerdig
 
-        VilEndreOppsummering info ->
-            ( EndreOppsummering info { yrker = Tuple.first initYrkeTypeahead, omrader = Tuple.first initOmradeTypeahead, kompetanser = Tuple.first initKompetanseTypeahead }
-                |> oppdaterSamtale model (SvarFraMsg msg)
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
+        VilEndreOppsummering ->
+            case model.aktivSamtale of
+                VisOppsummering skjema ->
+                    updateEtterVilEndreSkjema model msg skjema
+
+                HarJobbprofilJobbsøker jobbprofil ->
+                    updateEtterVilEndreSkjema model msg (Skjema.fraJobbprofil jobbprofil)
+
+                HarJobbprofilUnderOppfølging jobbprofil ->
+                    updateEtterVilEndreSkjema model msg (Skjema.fraJobbprofil jobbprofil)
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         VilLagreOppsummering ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -690,7 +702,17 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
-leggTilEllerFjernFraListe : String -> List String -> List String
+updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertSkjema -> SamtaleStatus
+updateEtterVilEndreSkjema model msg skjema =
+    ( { yrker = Tuple.first initYrkeTypeahead, omrader = Tuple.first initOmradeTypeahead, kompetanser = Tuple.first initKompetanseTypeahead }
+        |> EndreOppsummering (Skjema.tilUvalidertSkjema skjema)
+        |> oppdaterSamtale model (SvarFraMsg msg)
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+        |> IkkeFerdig
+
+
+leggTilEllerFjernFraListe : a -> List a -> List a
 leggTilEllerFjernFraListe verdi liste =
     if List.member verdi liste then
         List.remove verdi liste
@@ -1043,7 +1065,7 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                       ]
                     , jobbprofil
                         |> Skjema.fraJobbprofil
-                        |> skjemaOppsummering
+                        |> oppsummering
                     , [ Melding.tomLinje
                       , "Er informasjonen riktig?"
                       ]
@@ -1059,7 +1081,7 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                       ]
                     , jobbprofil
                         |> Skjema.fraJobbprofil
-                        |> skjemaOppsummering
+                        |> oppsummering
                     , [ Melding.tomLinje
                       , "Er informasjonen riktig?"
                       ]
@@ -1127,27 +1149,15 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre jobbprofil" } ]
 
 
-oppsummering : Skjema.ValidertSkjema -> List String
-oppsummering (Skjema.ValidertSkjema info) =
-    [ "Stilling/yrke: " ++ String.join ", " (List.map Yrke.label info.yrker)
-    , "Område: " ++ String.join ", " (List.map Omrade.tittel info.omrader)
-    , "Heltid/deltid: " ++ String.join ", " (labels info.omfanger (hentValg OmfangValg))
-    , "Når kan du jobbe? " ++ String.join ", " (labels info.arbeidstider (hentValg ArbeidstidValg))
-    , "Hva slags ansettelse ønsker du? " ++ String.join ", " (labels info.ansettelsesformer (hentValg AnsettelsesformValg))
-    , "Når kan du begynne? " ++ String.join ", " (labels [ info.oppstart ] (hentValg OppstartValg))
-    , "Kompetanser: " ++ String.join ", " (List.map Kompetanse.label info.kompetanser)
-    ]
-
-
-skjemaOppsummering : UvalidertSkjema -> List String
-skjemaOppsummering skjema =
-    [ "Stilling/yrke: " ++ yrkeSammendragFraSkjema skjema
-    , "Område: " ++ geografiSammendragFraSkjema skjema
-    , "Heltid/deltid: " ++ omfangsSammendragFraSkjema skjema
-    , "Når kan du jobbe? " ++ arbeidstidSammendragFraSkjema skjema
-    , "Hva slags ansettelse ønsker du? " ++ ansettelsesformSammendragFraSkjema skjema
-    , "Når kan du begynne? " ++ oppstartSammendragFraSkjema skjema
-    , "Kompetanser: " ++ kompetanseSammendragFraSkjema skjema
+oppsummering : ValidertSkjema -> List String
+oppsummering skjema =
+    [ "Stilling/yrke: " ++ Skjema.yrke skjema
+    , "Område: " ++ Skjema.geografi skjema
+    , "Heltid/deltid: " ++ Skjema.omfangs skjema
+    , "Når kan du jobbe? " ++ Skjema.arbeidstid skjema
+    , "Hva slags ansettelse ønsker du? " ++ Skjema.ansettelsesform skjema
+    , "Når kan du begynne? " ++ Skjema.oppstart skjema
+    , "Kompetanser: " ++ Skjema.kompetanse skjema
     ]
 
 
@@ -1267,11 +1277,11 @@ modelTilBrukerInput model =
                         |> Knapp.withId (inputIdTilString BegynnPåJobbprofilId)
                     ]
 
-            HarJobbprofilJobbsøker jobbprofil ->
+            HarJobbprofilJobbsøker _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
                         |> Knapp.withId (inputIdTilString BekreftJobbprofilId)
-                    , Knapp.knapp (VilEndreJobbprofil (Skjema.fraJobbprofil jobbprofil)) "Nei, jeg vil endre"
+                    , Knapp.knapp VilEndreOppsummering "Nei, jeg vil endre"
                     ]
 
             HentingAvJobbprofilFeilet _ ->
@@ -1304,27 +1314,27 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraOmfang
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Omfang info (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) info.omfanger)
+                            Checkbox.checkbox (JobbprofilValg.omfangLabel it) (JobbprofilEndret (Omfang info it)) (List.member it info.omfanger)
                         )
-                        (hentValg OmfangValg)
+                        omfangValg
                     )
 
             LeggTilArbeidstid info ->
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraArbeidstid
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Arbeidstid info (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) info.arbeidstider)
+                            Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (JobbprofilEndret (Arbeidstid info it)) (List.member it info.arbeidstider)
                         )
-                        (hentValg ArbeidstidValg)
+                        arbeidstidValg
                     )
 
             LeggTilAnsettelsesform info ->
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraAnsettelsesform
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (Ansettelsesform info (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) info.ansettelsesformer)
+                            Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (JobbprofilEndret (Ansettelsesform info it)) (List.member it info.ansettelsesformer)
                         )
-                        (hentValg AnsettelsesformValg)
+                        ansettelsesformValg
                     )
 
             VelgOppstart info ->
@@ -1332,10 +1342,10 @@ modelTilBrukerInput model =
                     (List.map
                         (\it ->
                             info.oppstart
-                                == JobbprofilValg.value it
-                                |> Radio.radio (JobbprofilValg.label it) (JobbprofilValg.value it) (JobbprofilEndret (Oppstart info (JobbprofilValg.value it)))
+                                == Just it
+                                |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (JobbprofilEndret (Oppstart info it))
                         )
-                        (hentValg OppstartValg)
+                        oppstartValg
                     )
 
             LeggTilKompetanser info typeaheadModel ->
@@ -1348,10 +1358,10 @@ modelTilBrukerInput model =
                     )
                     (List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser)
 
-            VisOppsummering info ->
+            VisOppsummering _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
-                    , Knapp.knapp (VilEndreOppsummering (tilUvalidertSkjema info)) "Nei, jeg vil endre"
+                    , Knapp.knapp VilEndreOppsummering "Nei, jeg vil endre"
                     ]
 
             EndreOppsummering skjema typeaheadInfo ->
@@ -1410,30 +1420,30 @@ modelTilBrukerInput model =
                         (span [ class "skjemaelement__label" ] [ text "Vil du jobbe heltid eller deltid? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreOmfang skjema typeaheadInfo (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) omfanger)
+                                    Checkbox.checkbox (JobbprofilValg.omfangLabel it) (JobbprofilEndret (EndreOmfang skjema typeaheadInfo it)) (List.member it omfanger)
                                         |> Checkbox.toHtml
                                 )
-                                (hentValg OmfangValg)
+                                omfangValg
                         )
                     , br [] []
                     , div []
                         (span [ class "skjemaelement__label" ] [ text "Når kan du jobbe? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreArbeidstid skjema typeaheadInfo (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) arbeidstider)
+                                    Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (JobbprofilEndret (EndreArbeidstid skjema typeaheadInfo it)) (List.member it arbeidstider)
                                         |> Checkbox.toHtml
                                 )
-                                (hentValg ArbeidstidValg)
+                                arbeidstidValg
                         )
                     , br [] []
                     , div []
                         (span [ class "skjemaelement__label" ] [ text "Hva slags ansettelse ønsker du? " ]
                             :: List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.label it) (JobbprofilEndret (EndreAnsettelsesform skjema typeaheadInfo (JobbprofilValg.value it))) (List.member (JobbprofilValg.value it) ansettelsesformer)
+                                    Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (JobbprofilEndret (EndreAnsettelsesform skjema typeaheadInfo it)) (List.member it ansettelsesformer)
                                         |> Checkbox.toHtml
                                 )
-                                (hentValg AnsettelsesformValg)
+                                ansettelsesformValg
                         )
                     , br [] []
                     , div []
@@ -1441,11 +1451,11 @@ modelTilBrukerInput model =
                             :: List.map
                                 (\it ->
                                     oppstart
-                                        == JobbprofilValg.value it
-                                        |> Radio.radio (JobbprofilValg.label it) (JobbprofilValg.value it) (JobbprofilEndret (EndreOppstart skjema typeaheadInfo (JobbprofilValg.value it)))
+                                        == Just it
+                                        |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (JobbprofilEndret (EndreOppstart skjema typeaheadInfo it))
                                         |> Radio.toHtml
                                 )
-                                (hentValg OppstartValg)
+                                oppstartValg
                         )
                     , br [] []
                     , kompetanser
