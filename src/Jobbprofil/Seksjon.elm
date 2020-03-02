@@ -29,7 +29,7 @@ import Jobbprofil.Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (AnsettelsesForm, Arbeidstider(..), Omfang, Oppstart(..), ansettelsesformValg, arbeidstidValg, omfangValg, oppstartValg)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
-import Jobbprofil.Skjema as Skjema exposing (UvalidertSkjema, UvalidertSkjemaInfo, ValidertSkjema, oppstart, tilUvalidertSkjema)
+import Jobbprofil.Skjema as Skjema exposing (Felt(..), UvalidertSkjema, ValidertSkjema)
 import Jobbprofil.StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
 import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingYrke)
 import LagreStatus exposing (LagreStatus)
@@ -158,7 +158,9 @@ type Msg
     | TimeoutEtterAtFeltMistetFokus
 
 
-type CheckboxSkjemaEndring
+type
+    CheckboxSkjemaEndring
+    -- todo : splitt opp i samtale og skjema
     = Omfang OmfangStegInfo Omfang
     | Arbeidstid ArbeidstidStegInfo Arbeidstider
     | Ansettelsesform AnsettelsesformStegInfo AnsettelsesForm
@@ -276,9 +278,9 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering (Skjema.UvalidertSkjema skjema) typeaheadInfo ->
+                EndreOppsummering skjema typeaheadInfo ->
                     ( typeaheadInfo
-                        |> EndreOppsummering (Skjema.UvalidertSkjema { skjema | kompetanser = List.remove kompetanse skjema.kompetanser })
+                        |> EndreOppsummering (Skjema.fjernKompetanse skjema kompetanse)
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -310,7 +312,7 @@ update msg (Model model) =
                     let
                         resultWithoutSelected =
                             result
-                                |> Result.map (List.filter (\kompetanse_ -> List.notMember kompetanse_ (Skjema.kompetanserFraSkjema skjema)))
+                                |> Result.map (List.filter (\kompetanse_ -> List.notMember kompetanse_ (Skjema.kompetanser skjema)))
                     in
                     ( { typeaheadInfo | kompetanser = Typeahead.updateSuggestions Kompetanse.label typeaheadInfo.kompetanser query resultWithoutSelected }
                         |> EndreOppsummering skjema
@@ -347,9 +349,9 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering (Skjema.UvalidertSkjema skjema) typeaheadInfo ->
+                EndreOppsummering skjema typeaheadInfo ->
                     ( typeaheadInfo
-                        |> EndreOppsummering (Skjema.UvalidertSkjema { skjema | omrader = List.remove omrade skjema.omrader })
+                        |> EndreOppsummering (Skjema.fjernOmråde skjema omrade)
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -406,7 +408,7 @@ update msg (Model model) =
                     let
                         resultWithoutSelected =
                             result
-                                |> Result.map (List.filter (\omrade_ -> List.notMember omrade_ (Skjema.omraderFraSkjema skjema)))
+                                |> Result.map (List.filter (\omrade_ -> List.notMember omrade_ (Skjema.omrader skjema)))
                     in
                     ( { typeaheadInfo | omrader = Typeahead.updateSuggestions Omrade.tittel typeaheadInfo.omrader query resultWithoutSelected }
                         |> EndreOppsummering skjema
@@ -456,7 +458,7 @@ update msg (Model model) =
                     let
                         resultWithoutSelected =
                             result
-                                |> Result.map (List.filter (\yrke_ -> List.notMember yrke_ (Skjema.yrkerFraSkjema skjema)))
+                                |> Result.map (List.filter (\yrke_ -> List.notMember yrke_ (Skjema.yrker skjema)))
                     in
                     ( { typeaheadInfo | yrker = Typeahead.updateSuggestions Yrke.label typeaheadInfo.yrker query resultWithoutSelected }
                         |> EndreOppsummering skjema
@@ -485,9 +487,9 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOppsummering (Skjema.UvalidertSkjema skjema) typeaheadInfo ->
+                EndreOppsummering skjema typeaheadInfo ->
                     ( typeaheadInfo
-                        |> EndreOppsummering (Skjema.UvalidertSkjema { skjema | yrker = List.remove yrke skjema.yrker })
+                        |> EndreOppsummering (Skjema.fjernStillingYrke skjema yrke)
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -565,29 +567,29 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                EndreOmfang (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | omfanger = leggTilEllerFjernFraListe verdi skjema.omfanger }) typeaheadInfo
+                EndreOmfang skjema typeaheadInfo verdi ->
+                    ( EndreOppsummering (Skjema.leggTilEllerFjernOmfang skjema verdi) typeaheadInfo
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
-                EndreArbeidstid (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | arbeidstider = leggTilEllerFjernFraListe verdi skjema.arbeidstider }) typeaheadInfo
+                EndreArbeidstid skjema typeaheadInfo verdi ->
+                    ( EndreOppsummering (Skjema.leggTilEllerFjernArbeidstid skjema verdi) typeaheadInfo
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
-                EndreAnsettelsesform (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | ansettelsesformer = leggTilEllerFjernFraListe verdi skjema.ansettelsesformer }) typeaheadInfo
+                EndreAnsettelsesform skjema typeaheadInfo verdi ->
+                    ( EndreOppsummering (Skjema.leggTilEllerFjernAnsettelsesForm skjema verdi) typeaheadInfo
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
-                EndreOppstart (Skjema.UvalidertSkjema skjema) typeaheadInfo verdi ->
-                    ( EndreOppsummering (Skjema.UvalidertSkjema { skjema | oppstart = Just verdi }) typeaheadInfo
+                EndreOppstart skjema typeaheadInfo verdi ->
+                    ( EndreOppsummering (Skjema.oppdaterOppstart skjema verdi) typeaheadInfo
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -774,7 +776,7 @@ updateSamtaleKompetanseTypeahead model info msg typeaheadModel =
 
 
 updateEndreSamtaleKompetanseTypeahead : ModelInfo -> UvalidertSkjema -> Typeahead.Msg Kompetanse -> TypeaheadOppsummeringInfo -> SamtaleStatus
-updateEndreSamtaleKompetanseTypeahead model (Skjema.UvalidertSkjema info) msg typeaheadModel =
+updateEndreSamtaleKompetanseTypeahead model info msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
             Typeahead.update Kompetanse.label msg typeaheadModel.kompetanser
@@ -783,25 +785,25 @@ updateEndreSamtaleKompetanseTypeahead model (Skjema.UvalidertSkjema info) msg ty
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just kompetanse ->
-                    ( EndreOppsummering (Skjema.UvalidertSkjema { info | kompetanser = List.append info.kompetanser [ kompetanse ] }) { typeaheadModel | kompetanser = nyTypeaheadModel }
+                    ( EndreOppsummering (Skjema.leggTilKompetanse info kompetanse) { typeaheadModel | kompetanser = nyTypeaheadModel }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 Nothing ->
-                    visFeilmeldingForEndreYrke model (Skjema.UvalidertSkjema info) { typeaheadModel | kompetanser = nyTypeaheadModel }
+                    visFeilmeldingForEndreYrke model info { typeaheadModel | kompetanser = nyTypeaheadModel }
 
         Typeahead.InputBlurred ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | kompetanser = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | kompetanser = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , mistetFokusCmd
                 )
 
         Typeahead.NoChange ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | kompetanser = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | kompetanser = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput query ->
@@ -813,7 +815,7 @@ updateEndreSamtaleKompetanseTypeahead model (Skjema.UvalidertSkjema info) msg ty
 
         NewActiveElement ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | kompetanser = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | kompetanser = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , nyTypeaheadModel
                     |> Typeahead.scrollActiveSuggestionIntoView Kompetanse.label Nothing
@@ -874,7 +876,7 @@ updateSamtaleOmradeTypeahead model info msg typeaheadModel =
 
 
 updateEndreSamtaleOmradeTypeahead : ModelInfo -> UvalidertSkjema -> Typeahead.Msg Omrade -> TypeaheadOppsummeringInfo -> SamtaleStatus
-updateEndreSamtaleOmradeTypeahead model (Skjema.UvalidertSkjema info) msg typeaheadModel =
+updateEndreSamtaleOmradeTypeahead model info msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
             Typeahead.update Omrade.tittel msg typeaheadModel.omrader
@@ -883,25 +885,25 @@ updateEndreSamtaleOmradeTypeahead model (Skjema.UvalidertSkjema info) msg typeah
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just omrade ->
-                    ( EndreOppsummering (Skjema.UvalidertSkjema { info | omrader = List.append info.omrader [ omrade ] }) { typeaheadModel | omrader = nyTypeaheadModel }
+                    ( EndreOppsummering (Skjema.leggTilOmråde info omrade) { typeaheadModel | omrader = nyTypeaheadModel }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 Nothing ->
-                    visFeilmeldingForEndreOmrade model (Skjema.UvalidertSkjema info) { typeaheadModel | omrader = nyTypeaheadModel }
+                    visFeilmeldingForEndreOmrade model info { typeaheadModel | omrader = nyTypeaheadModel }
 
         Typeahead.InputBlurred ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | omrader = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | omrader = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , mistetFokusCmd
                 )
 
         Typeahead.NoChange ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | omrader = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | omrader = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput query ->
@@ -913,7 +915,7 @@ updateEndreSamtaleOmradeTypeahead model (Skjema.UvalidertSkjema info) msg typeah
 
         NewActiveElement ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | omrader = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | omrader = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , nyTypeaheadModel
                     |> Typeahead.scrollActiveSuggestionIntoView Omrade.tittel Nothing
@@ -974,7 +976,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
 
 
 updateEndreSamtaleYrkeTypeahead : ModelInfo -> UvalidertSkjema -> Typeahead.Msg Yrke -> TypeaheadOppsummeringInfo -> SamtaleStatus
-updateEndreSamtaleYrkeTypeahead model (Skjema.UvalidertSkjema info) msg typeaheadModel =
+updateEndreSamtaleYrkeTypeahead model info msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
             Typeahead.update Yrke.label msg typeaheadModel.yrker
@@ -983,25 +985,25 @@ updateEndreSamtaleYrkeTypeahead model (Skjema.UvalidertSkjema info) msg typeahea
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just yrke ->
-                    ( EndreOppsummering (Skjema.UvalidertSkjema { info | yrker = List.append info.yrker [ yrke ] }) { typeaheadModel | yrker = nyTypeaheadModel }
+                    ( EndreOppsummering (Skjema.leggTilStillingYrke info yrke) { typeaheadModel | yrker = nyTypeaheadModel }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 Nothing ->
-                    visFeilmeldingForEndreYrke model (Skjema.UvalidertSkjema info) { typeaheadModel | yrker = nyTypeaheadModel }
+                    visFeilmeldingForEndreYrke model info { typeaheadModel | yrker = nyTypeaheadModel }
 
         Typeahead.InputBlurred ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | yrker = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | yrker = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , mistetFokusCmd
                 )
 
         Typeahead.NoChange ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | yrker = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | yrker = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput query ->
@@ -1013,7 +1015,7 @@ updateEndreSamtaleYrkeTypeahead model (Skjema.UvalidertSkjema info) msg typeahea
 
         NewActiveElement ->
             IkkeFerdig
-                ( EndreOppsummering (Skjema.UvalidertSkjema info) { typeaheadModel | yrker = nyTypeaheadModel }
+                ( EndreOppsummering info { typeaheadModel | yrker = nyTypeaheadModel }
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , nyTypeaheadModel
                     |> Typeahead.scrollActiveSuggestionIntoView Yrke.label Nothing
@@ -1151,13 +1153,13 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
 
 oppsummering : ValidertSkjema -> List String
 oppsummering skjema =
-    [ "Stilling/yrke: " ++ Skjema.yrke skjema
-    , "Område: " ++ Skjema.geografi skjema
-    , "Heltid/deltid: " ++ Skjema.omfangs skjema
-    , "Når kan du jobbe? " ++ Skjema.arbeidstid skjema
-    , "Hva slags ansettelse ønsker du? " ++ Skjema.ansettelsesform skjema
-    , "Når kan du begynne? " ++ Skjema.oppstart skjema
-    , "Kompetanser: " ++ Skjema.kompetanse skjema
+    [ "Stilling/yrke: " ++ Skjema.oppsummeringInnhold StillingYrkeFelt skjema
+    , "Område: " ++ Skjema.oppsummeringInnhold GeografiFelt skjema
+    , "Heltid/deltid: " ++ Skjema.oppsummeringInnhold OmfangFelt skjema
+    , "Når kan du jobbe? " ++ Skjema.oppsummeringInnhold ArbeidstidFelt skjema
+    , "Hva slags ansettelse ønsker du? " ++ Skjema.oppsummeringInnhold AnsettelsesFormFelt skjema
+    , "Når kan du begynne? " ++ Skjema.oppsummeringInnhold OppstartFelt skjema
+    , "Kompetanser: " ++ Skjema.oppsummeringInnhold KompetanseFelt skjema
     ]
 
 
@@ -1367,25 +1369,25 @@ modelTilBrukerInput model =
             EndreOppsummering skjema typeaheadInfo ->
                 let
                     stillinger =
-                        Skjema.yrkerFraSkjema skjema
+                        Skjema.yrker skjema
 
                     omrader =
-                        Skjema.omraderFraSkjema skjema
+                        Skjema.omrader skjema
 
                     omfanger =
-                        Skjema.omfangerFraSkjema skjema
+                        Skjema.omfanger skjema
 
                     arbeidstider =
-                        Skjema.arbeidstiderFraSkjema skjema
+                        Skjema.arbeidstider skjema
 
                     ansettelsesformer =
-                        Skjema.ansettelsesformerFraSkjema skjema
+                        Skjema.ansettelsesformer skjema
 
                     oppstart =
-                        Skjema.oppstartFraSkjema skjema
+                        Skjema.oppstart skjema
 
                     kompetanser =
-                        Skjema.kompetanserFraSkjema skjema
+                        Skjema.kompetanser skjema
                 in
                 BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
                     [ stillinger
@@ -1535,8 +1537,8 @@ visFeilmeldingForYrke model info typeaheadModel =
 
 
 visFeilmeldingForEndreYrke : ModelInfo -> UvalidertSkjema -> TypeaheadOppsummeringInfo -> SamtaleStatus
-visFeilmeldingForEndreYrke model (Skjema.UvalidertSkjema info) typeaheadInfo =
-    ( EndreOppsummering (Skjema.UvalidertSkjema { info | visYrkerFeilmelding = True }) typeaheadInfo
+visFeilmeldingForEndreYrke model info typeaheadInfo =
+    ( EndreOppsummering (Skjema.gjørFeilmeldingYrkeSynlig True info) typeaheadInfo
         |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )
@@ -1544,8 +1546,8 @@ visFeilmeldingForEndreYrke model (Skjema.UvalidertSkjema info) typeaheadInfo =
 
 
 visFeilmeldingForEndreOmrade : ModelInfo -> UvalidertSkjema -> TypeaheadOppsummeringInfo -> SamtaleStatus
-visFeilmeldingForEndreOmrade model (Skjema.UvalidertSkjema info) typeaheadInfo =
-    ( EndreOppsummering (Skjema.UvalidertSkjema { info | visOmraderFeilmelding = True }) typeaheadInfo
+visFeilmeldingForEndreOmrade model info typeaheadInfo =
+    ( EndreOppsummering (Skjema.gjørFeilmeldingOmrådeSynlig True info) typeaheadInfo
         |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )

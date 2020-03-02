@@ -1,6 +1,7 @@
 module Jobbprofil.JobbprofilValg exposing (..)
 
 import Json.Decode exposing (..)
+import Json.Encode
 
 
 
@@ -414,3 +415,48 @@ decodeArbeidstiderString tid =
 
     else
         fail ("Decoding av enum Arbeitider feilet. Klarer ikke decode verdi: " ++ tid)
+
+
+encodeArbeidstider : List Arbeidstider -> List ( String, Json.Encode.Value )
+encodeArbeidstider arbeidstider =
+    let
+        arbeidstidspunkt =
+            List.filterMap
+                (\it ->
+                    case it of
+                        Arbeidstid value ->
+                            Just value
+
+                        _ ->
+                            Nothing
+                )
+                arbeidstider
+
+        arbeidsdager =
+            List.filterMap
+                (\it ->
+                    case it of
+                        Arbeidsdager value ->
+                            Just value
+
+                        _ ->
+                            Nothing
+                )
+                arbeidstider
+
+        arbeidtidsordning =
+            List.filterMap
+                (\it ->
+                    case it of
+                        ArbeidstidOrdning value ->
+                            Just value
+
+                        _ ->
+                            Nothing
+                )
+                arbeidstider
+    in
+    [ ( "arbeidstidliste", Json.Encode.list Json.Encode.string (List.map arbeidstidspunktTilBackendString arbeidstidspunkt) )
+    , ( "arbeidsdagerliste", Json.Encode.list Json.Encode.string (List.map arbeidsdagTilBackendString arbeidsdager) )
+    , ( "arbeidstidsordningliste", Json.Encode.list Json.Encode.string (List.map arbeidstidOrdningTilBackendString arbeidtidsordning) )
+    ]

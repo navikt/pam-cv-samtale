@@ -1,6 +1,35 @@
-module Jobbprofil.Skjema exposing (..)
-
---todo: expose bare det du trenger
+module Jobbprofil.Skjema exposing
+    ( Felt(..)
+    , UvalidertSkjema
+    , ValidertSkjema
+    , ansettelsesformer
+    , arbeidstider
+    , encode
+    , fjernAnsettelsesForm
+    , fjernKompetanse
+    , fjernOmfang
+    , fjernOmråde
+    , fjernStillingYrke
+    , fraJobbprofil
+    , gjørFeilmeldingOmrådeSynlig
+    , gjørFeilmeldingYrkeSynlig
+    , initValidertSkjema
+    , kompetanser
+    , leggTilEllerFjernAnsettelsesForm
+    , leggTilEllerFjernArbeidstid
+    , leggTilEllerFjernOmfang
+    , leggTilKompetanse
+    , leggTilOmfang
+    , leggTilOmråde
+    , leggTilStillingYrke
+    , omfanger
+    , omrader
+    , oppdaterOppstart
+    , oppstart
+    , oppsummeringInnhold
+    , tilUvalidertSkjema
+    , yrker
+    )
 
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
@@ -8,6 +37,7 @@ import Jobbprofil.JobbprofilValg exposing (..)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Json.Encode
+import List.Extra as List
 
 
 type ValidertSkjema
@@ -87,80 +117,90 @@ fraJobbprofil jobbprofil =
 --- Innhold UvalidertSkjema---
 
 
-yrkerFraSkjema : UvalidertSkjema -> List Yrke
-yrkerFraSkjema (UvalidertSkjema info) =
+yrker : UvalidertSkjema -> List Yrke
+yrker (UvalidertSkjema info) =
     info.yrker
 
 
-omraderFraSkjema : UvalidertSkjema -> List Omrade
-omraderFraSkjema (UvalidertSkjema info) =
+omrader : UvalidertSkjema -> List Omrade
+omrader (UvalidertSkjema info) =
     info.omrader
 
 
-omfangerFraSkjema : UvalidertSkjema -> List Omfang
-omfangerFraSkjema (UvalidertSkjema info) =
+omfanger : UvalidertSkjema -> List Omfang
+omfanger (UvalidertSkjema info) =
     info.omfanger
 
 
-arbeidstiderFraSkjema : UvalidertSkjema -> List Arbeidstider
-arbeidstiderFraSkjema (UvalidertSkjema info) =
+arbeidstider : UvalidertSkjema -> List Arbeidstider
+arbeidstider (UvalidertSkjema info) =
     info.arbeidstider
 
 
-ansettelsesformerFraSkjema : UvalidertSkjema -> List AnsettelsesForm
-ansettelsesformerFraSkjema (UvalidertSkjema info) =
+ansettelsesformer : UvalidertSkjema -> List AnsettelsesForm
+ansettelsesformer (UvalidertSkjema info) =
     info.ansettelsesformer
 
 
-oppstartFraSkjema : UvalidertSkjema -> Maybe Oppstart
-oppstartFraSkjema (UvalidertSkjema info) =
+oppstart : UvalidertSkjema -> Maybe Oppstart
+oppstart (UvalidertSkjema info) =
     info.oppstart
 
 
-kompetanserFraSkjema : UvalidertSkjema -> List Kompetanse
-kompetanserFraSkjema (UvalidertSkjema info) =
+kompetanser : UvalidertSkjema -> List Kompetanse
+kompetanser (UvalidertSkjema info) =
     info.kompetanser
 
 
-yrke : ValidertSkjema -> String
-yrke (ValidertSkjema info) =
-    List.map Yrke.label info.yrker
-        |> String.join ", "
+
+--- Oppsummering ---
 
 
-kompetanse : ValidertSkjema -> String
-kompetanse (ValidertSkjema info) =
-    info.kompetanser
-        |> List.map Kompetanse.label
-        |> String.join ", "
+type Felt
+    = StillingYrkeFelt
+    | KompetanseFelt
+    | GeografiFelt
+    | AnsettelsesFormFelt
+    | ArbeidstidFelt
+    | OmfangFelt
+    | OppstartFelt
 
 
-geografi : ValidertSkjema -> String
-geografi (ValidertSkjema info) =
-    info.omrader
-        |> List.map Omrade.tittel
-        |> String.join ", "
+oppsummeringInnhold : Felt -> ValidertSkjema -> String
+oppsummeringInnhold felt (ValidertSkjema info) =
+    case felt of
+        StillingYrkeFelt ->
+            List.map Yrke.label info.yrker
+                |> String.join ", "
 
+        KompetanseFelt ->
+            info.kompetanser
+                |> List.map Kompetanse.label
+                |> String.join ", "
 
-ansettelsesform : ValidertSkjema -> String
-ansettelsesform (ValidertSkjema info) =
-    info.ansettelsesformer
-        |> List.map ansettelsesFormLabel
-        |> listeSammendragFraSkjema " - "
+        GeografiFelt ->
+            info.omrader
+                |> List.map Omrade.tittel
+                |> String.join ", "
 
+        AnsettelsesFormFelt ->
+            info.ansettelsesformer
+                |> List.map ansettelsesFormLabel
+                |> listeSammendragFraSkjema " - "
 
-arbeidstid : ValidertSkjema -> String
-arbeidstid (ValidertSkjema info) =
-    info.arbeidstider
-        |> List.map arbeidstidLabel
-        |> listeSammendragFraSkjema ", "
+        ArbeidstidFelt ->
+            info.arbeidstider
+                |> List.map arbeidstidLabel
+                |> listeSammendragFraSkjema ", "
 
+        OmfangFelt ->
+            info.omfanger
+                |> List.map omfangLabel
+                |> listeSammendragFraSkjema " - "
 
-omfangs : ValidertSkjema -> String
-omfangs (ValidertSkjema info) =
-    info.omfanger
-        |> List.map omfangLabel
-        |> listeSammendragFraSkjema " - "
+        OppstartFelt ->
+            info.oppstart
+                |> oppstartLabel
 
 
 listeSammendragFraSkjema : String -> List String -> String
@@ -169,24 +209,18 @@ listeSammendragFraSkjema separator info =
         |> String.join separator
 
 
-oppstart : ValidertSkjema -> String
-oppstart (ValidertSkjema info) =
-    info.oppstart
-        |> oppstartLabel
-
-
 
 --- OPPDATERING ---
 
 
-leggTilStilling : UvalidertSkjema -> Yrke -> UvalidertSkjema
-leggTilStilling (UvalidertSkjema info) stilling =
+leggTilStillingYrke : UvalidertSkjema -> Yrke -> UvalidertSkjema
+leggTilStillingYrke (UvalidertSkjema info) stilling =
     UvalidertSkjema { info | yrker = List.append info.yrker [ stilling ] }
 
 
-fjernStilling : UvalidertSkjema -> Yrke -> UvalidertSkjema
-fjernStilling (UvalidertSkjema info) yrke_ =
-    UvalidertSkjema { info | yrker = List.filter (\it -> Yrke.konseptId it /= Yrke.konseptId yrke_) info.yrker }
+fjernStillingYrke : UvalidertSkjema -> Yrke -> UvalidertSkjema
+fjernStillingYrke (UvalidertSkjema info) yrke_ =
+    UvalidertSkjema { info | yrker = List.remove yrke_ info.yrker }
 
 
 leggTilKompetanse : UvalidertSkjema -> Kompetanse -> UvalidertSkjema
@@ -196,17 +230,17 @@ leggTilKompetanse (UvalidertSkjema info) kompetanse_ =
 
 fjernKompetanse : UvalidertSkjema -> Kompetanse -> UvalidertSkjema
 fjernKompetanse (UvalidertSkjema info) kompetanse_ =
-    UvalidertSkjema { info | kompetanser = List.filter (\it -> Kompetanse.konseptId it /= Kompetanse.konseptId kompetanse_) info.kompetanser }
+    UvalidertSkjema { info | kompetanser = List.remove kompetanse_ info.kompetanser }
 
 
-leggTilGeografi : UvalidertSkjema -> Omrade -> UvalidertSkjema
-leggTilGeografi (UvalidertSkjema info) geografi_ =
-    UvalidertSkjema { info | omrader = List.append info.omrader [ geografi_ ] }
+leggTilOmråde : UvalidertSkjema -> Omrade -> UvalidertSkjema
+leggTilOmråde (UvalidertSkjema info) omrade_ =
+    UvalidertSkjema { info | omrader = List.append info.omrader [ omrade_ ] }
 
 
-fjernGeografi : UvalidertSkjema -> Omrade -> UvalidertSkjema
-fjernGeografi (UvalidertSkjema info) omrade =
-    UvalidertSkjema { info | omrader = List.filter (\it -> Omrade.konseptId it /= Omrade.konseptId omrade) info.omrader }
+fjernOmråde : UvalidertSkjema -> Omrade -> UvalidertSkjema
+fjernOmråde (UvalidertSkjema info) omrade =
+    UvalidertSkjema { info | omrader = List.remove omrade info.omrader }
 
 
 leggTilOmfang : UvalidertSkjema -> Omfang -> UvalidertSkjema
@@ -216,7 +250,16 @@ leggTilOmfang (UvalidertSkjema info) omfang =
 
 fjernOmfang : UvalidertSkjema -> Omfang -> UvalidertSkjema
 fjernOmfang (UvalidertSkjema info) omfang =
-    UvalidertSkjema { info | omfanger = List.filter (\it -> it /= omfang) info.omfanger }
+    UvalidertSkjema { info | omfanger = List.remove omfang info.omfanger }
+
+
+leggTilEllerFjernOmfang : UvalidertSkjema -> Omfang -> UvalidertSkjema
+leggTilEllerFjernOmfang (UvalidertSkjema info) verdi =
+    if List.member verdi info.omfanger then
+        UvalidertSkjema { info | omfanger = List.remove verdi info.omfanger }
+
+    else
+        UvalidertSkjema { info | omfanger = List.append info.omfanger [ verdi ] }
 
 
 leggTilAnsettelsesForm : UvalidertSkjema -> AnsettelsesForm -> UvalidertSkjema
@@ -226,7 +269,16 @@ leggTilAnsettelsesForm (UvalidertSkjema info) ansettelsesForm =
 
 fjernAnsettelsesForm : UvalidertSkjema -> AnsettelsesForm -> UvalidertSkjema
 fjernAnsettelsesForm (UvalidertSkjema info) ansettelsesForm =
-    UvalidertSkjema { info | ansettelsesformer = List.filter (\it -> it /= ansettelsesForm) info.ansettelsesformer }
+    UvalidertSkjema { info | ansettelsesformer = List.remove ansettelsesForm info.ansettelsesformer }
+
+
+leggTilEllerFjernAnsettelsesForm : UvalidertSkjema -> AnsettelsesForm -> UvalidertSkjema
+leggTilEllerFjernAnsettelsesForm (UvalidertSkjema info) verdi =
+    if List.member verdi info.ansettelsesformer then
+        UvalidertSkjema { info | ansettelsesformer = List.remove verdi info.ansettelsesformer }
+
+    else
+        UvalidertSkjema { info | ansettelsesformer = List.append info.ansettelsesformer [ verdi ] }
 
 
 oppdaterOppstart : UvalidertSkjema -> Oppstart -> UvalidertSkjema
@@ -234,8 +286,32 @@ oppdaterOppstart (UvalidertSkjema info) oppstart_ =
     UvalidertSkjema { info | oppstart = Just oppstart_ }
 
 
+leggTilEllerFjernArbeidstid : UvalidertSkjema -> Arbeidstider -> UvalidertSkjema
+leggTilEllerFjernArbeidstid (UvalidertSkjema info) verdi =
+    if List.member verdi info.arbeidstider then
+        UvalidertSkjema { info | arbeidstider = List.remove verdi info.arbeidstider }
+
+    else
+        UvalidertSkjema { info | arbeidstider = List.append info.arbeidstider [ verdi ] }
+
+
 
 --- VALIDER ---
+
+
+gjørFeilmeldingYrkeSynlig : Bool -> UvalidertSkjema -> UvalidertSkjema
+gjørFeilmeldingYrkeSynlig synlig (UvalidertSkjema skjema) =
+    -- Skal alltid vises etter onBlur/onSubmit, så hvis den noen gang har vært True, skal den alltid fortsette å være True
+    UvalidertSkjema { skjema | visYrkerFeilmelding = synlig || skjema.visYrkerFeilmelding }
+
+
+gjørFeilmeldingOmrådeSynlig : Bool -> UvalidertSkjema -> UvalidertSkjema
+gjørFeilmeldingOmrådeSynlig synlig (UvalidertSkjema skjema) =
+    -- Skal alltid vises etter onBlur/onSubmit, så hvis den noen gang har vært True, skal den alltid fortsette å være True
+    UvalidertSkjema { skjema | visOmraderFeilmelding = synlig || skjema.visOmraderFeilmelding }
+
+
+
 --- ENCODE ---
 
 
@@ -254,48 +330,3 @@ encode (ValidertSkjema skjema) =
     ]
         |> List.concat
         |> Json.Encode.object
-
-
-encodeArbeidstider : List Arbeidstider -> List ( String, Json.Encode.Value )
-encodeArbeidstider arbeidstider =
-    let
-        arbeidstidspunkt =
-            List.filterMap
-                (\it ->
-                    case it of
-                        Arbeidstid value ->
-                            Just value
-
-                        _ ->
-                            Nothing
-                )
-                arbeidstider
-
-        arbeidsdager =
-            List.filterMap
-                (\it ->
-                    case it of
-                        Arbeidsdager value ->
-                            Just value
-
-                        _ ->
-                            Nothing
-                )
-                arbeidstider
-
-        arbeidtidsordning =
-            List.filterMap
-                (\it ->
-                    case it of
-                        ArbeidstidOrdning value ->
-                            Just value
-
-                        _ ->
-                            Nothing
-                )
-                arbeidstider
-    in
-    [ ( "arbeidstidliste", Json.Encode.list Json.Encode.string (List.map arbeidstidspunktTilBackendString arbeidstidspunkt) )
-    , ( "arbeidsdagerliste", Json.Encode.list Json.Encode.string (List.map arbeidsdagTilBackendString arbeidsdager) )
-    , ( "arbeidstidsordningliste", Json.Encode.list Json.Encode.string (List.map arbeidstidOrdningTilBackendString arbeidtidsordning) )
-    ]
