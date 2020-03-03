@@ -55,7 +55,14 @@ toHtml (Radio options) =
             |> Maybe.withDefault noAttribute
         ]
         [ input
-            (buildInputAttributes options.checked options.msg options.id)
+            [ type_ "checkbox"
+            , class "skjemaelement__input radioknapp"
+            , checked options.checked
+            , onClick options.msg
+            , options.id
+                |> Maybe.map id
+                |> Maybe.withDefault noAttribute
+            ]
             []
 
         --- TODO: htmlFor
@@ -76,25 +83,6 @@ isChecked (Radio options) =
 tekst : Radio msg -> String
 tekst (Radio options) =
     options.label
-
-
-buildInputAttributes : Bool -> msg -> Maybe String -> List (Attribute msg)
-buildInputAttributes checkedStatus onClickMsg inputId =
-    case inputId of
-        Nothing ->
-            [ type_ "checkbox"
-            , class "skjemaelement__input radioknapp"
-            , checked checkedStatus
-            , onClick onClickMsg
-            ]
-
-        Just verifiedInputId ->
-            [ type_ "checkbox"
-            , class "skjemaelement__input radioknapp"
-            , checked checkedStatus
-            , onClick onClickMsg
-            , id verifiedInputId
-            ]
 
 
 checkedRadioToString : List (Radio msg) -> String

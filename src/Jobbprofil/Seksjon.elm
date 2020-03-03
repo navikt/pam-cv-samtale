@@ -282,7 +282,7 @@ update msg (Model model) =
                     ( typeaheadInfo
                         |> EndreOppsummering (Skjema.fjernKompetanse skjema kompetanse)
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -353,7 +353,7 @@ update msg (Model model) =
                     ( typeaheadInfo
                         |> EndreOppsummering (Skjema.fjernOmråde skjema omrade)
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -491,7 +491,7 @@ update msg (Model model) =
                     ( typeaheadInfo
                         |> EndreOppsummering (Skjema.fjernStillingYrke skjema yrke)
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -544,28 +544,28 @@ update msg (Model model) =
                         OmfangEndret verdi ->
                             ( EndreOppsummering (Skjema.leggTilEllerFjernOmfang skjema verdi) typeaheadInfo
                                 |> oppdaterSamtale model IngenNyeMeldinger
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         ArbeidstidEndret verdi ->
                             ( EndreOppsummering (Skjema.leggTilEllerFjernArbeidstid skjema verdi) typeaheadInfo
                                 |> oppdaterSamtale model IngenNyeMeldinger
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         AnsettelsesformEndret verdi ->
                             ( EndreOppsummering (Skjema.leggTilEllerFjernAnsettelsesForm skjema verdi) typeaheadInfo
                                 |> oppdaterSamtale model IngenNyeMeldinger
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
                         OppstartEndret verdi ->
                             ( EndreOppsummering (Skjema.oppdaterOppstart skjema verdi) typeaheadInfo
                                 |> oppdaterSamtale model IngenNyeMeldinger
-                            , lagtTilSpørsmålCmd model.debugStatus
+                            , Cmd.none
                             )
                                 |> IkkeFerdig
 
@@ -616,7 +616,7 @@ update msg (Model model) =
                 LeggTilOmfang omfanginfo ->
                     ( LeggTilOmfang { omfanginfo | omfanger = leggTilEllerFjernFraListe endring omfanginfo.omfanger }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -628,7 +628,7 @@ update msg (Model model) =
                 LeggTilArbeidstid info ->
                     ( LeggTilArbeidstid { info | arbeidstider = leggTilEllerFjernFraListe endring info.arbeidstider }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -640,7 +640,7 @@ update msg (Model model) =
                 LeggTilAnsettelsesform info ->
                     ( LeggTilAnsettelsesform { info | ansettelsesformer = leggTilEllerFjernFraListe endring info.ansettelsesformer }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -652,7 +652,7 @@ update msg (Model model) =
                 VelgOppstart info ->
                     ( VelgOppstart { info | oppstart = Just endring }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -764,7 +764,7 @@ updateSamtaleKompetanseTypeahead model info msg typeaheadModel =
                     ( nyTypeaheadModel
                         |> LeggTilKompetanser { info | kompetanser = List.append info.kompetanser [ kompetanse ], visFeilmelding = False }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -815,7 +815,7 @@ updateEndreSamtaleKompetanseTypeahead model info msg typeaheadModel =
                 Just kompetanse ->
                     ( EndreOppsummering (Skjema.leggTilKompetanse info kompetanse) { typeaheadModel | kompetanser = nyTypeaheadModel }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -915,7 +915,7 @@ updateEndreSamtaleOmradeTypeahead model info msg typeaheadModel =
                 Just omrade ->
                     ( EndreOppsummering (Skjema.leggTilOmråde info omrade) { typeaheadModel | omrader = nyTypeaheadModel }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -964,7 +964,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
                     ( nyTypeaheadModel
                         |> LeggTilYrker { yrker = List.append info.yrker [ yrke ], underOppfølging = info.underOppfølging, visFeilmelding = False }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
@@ -1015,7 +1015,7 @@ updateEndreSamtaleYrkeTypeahead model info msg typeaheadModel =
                 Just yrke ->
                     ( EndreOppsummering (Skjema.leggTilStillingYrke info yrke) { typeaheadModel | yrker = nyTypeaheadModel }
                         |> oppdaterSamtale model IngenNyeMeldinger
-                    , lagtTilSpørsmålCmd model.debugStatus
+                    , Cmd.none
                     )
                         |> IkkeFerdig
 
