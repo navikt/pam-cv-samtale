@@ -11,6 +11,7 @@ module Jobbprofil.Seksjon exposing
 
 import Api
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
+import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering
@@ -160,6 +161,7 @@ type Msg
     | ErrorLogget
     | FeltMisterFokus
     | TimeoutEtterAtFeltMistetFokus
+    | FokusSatt (Result Dom.Error ())
 
 
 type CheckboxEndring
@@ -712,6 +714,9 @@ update msg (Model model) =
         FeltMisterFokus ->
             IkkeFerdig ( Model model, mistetFokusCmd )
 
+        FokusSatt _ ->
+            IkkeFerdig ( Model model, Cmd.none )
+
         TimeoutEtterAtFeltMistetFokus ->
             case model.aktivSamtale of
                 LeggTilYrker info typeaheadModel ->
@@ -1057,8 +1062,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
                     , Cmd.batch
                         [ Cmd.map SamtaleAnimasjonMsg cmd
-
-                        -- , settFokus model.aktivSamtale
+                        , settFokus model.aktivSamtale
                         ]
                     )
                         |> IkkeFerdig
@@ -1256,6 +1260,14 @@ type InputId
     | OmradeTypeaheadId
     | KompetanseTypeaheadId
     | LagreOppsummeringId
+    | OmfangCheckboxId
+    | OmfangCheckboxIdMedNummer
+    | ArbeidstidCheckboxId
+    | ArbeidstidCheckboxIdMedNummer
+    | AnsettelsesformCheckboxId
+    | AnsettelsesformCheckboxIdMedNummer
+    | OppstartCheckboxId
+    | OppstartCheckboxIdMedNummer
 
 
 inputIdTilString : InputId -> String
@@ -1278,6 +1290,68 @@ inputIdTilString inputId =
 
         LagreOppsummeringId ->
             "jobbprofil-lagre-oppsummering-id"
+
+        OmfangCheckboxId ->
+            "jobbprofil-omfang-checkbox-id"
+
+        OmfangCheckboxIdMedNummer ->
+            "jobbprofil-omfang-checkbox-id0"
+
+        ArbeidstidCheckboxId ->
+            "jobbprofil-arbeidstid-checkbox-id"
+
+        ArbeidstidCheckboxIdMedNummer ->
+            "jobbprofil-arbeidstid-checkbox-id0"
+
+        AnsettelsesformCheckboxId ->
+            "jobbprofil-ansettelsesform-checkbox-id"
+
+        AnsettelsesformCheckboxIdMedNummer ->
+            "jobbprofil-ansettelsesform-checkbox-id0"
+
+        OppstartCheckboxId ->
+            "jobbprofil-oppstart-checkbox-id"
+
+        OppstartCheckboxIdMedNummer ->
+            "jobbprofil-oppstart-checkbox-id0"
+
+
+settFokus : Samtale -> Cmd Msg
+settFokus samtale =
+    case samtale of
+        LeggTilYrker _ _ ->
+            settFokusCmd StillingYrkeTypeaheadId
+
+        LeggTilOmrader _ _ ->
+            settFokusCmd OmradeTypeaheadId
+
+        LeggTilKompetanser _ _ ->
+            settFokusCmd KompetanseTypeaheadId
+
+        EndreOppsummering _ _ ->
+            settFokusCmd StillingYrkeTypeaheadId
+
+        LeggTilOmfang _ ->
+            settFokusCmd OmfangCheckboxIdMedNummer
+
+        LeggTilArbeidstid _ ->
+            settFokusCmd ArbeidstidCheckboxIdMedNummer
+
+        LeggTilAnsettelsesform _ ->
+            settFokusCmd AnsettelsesformCheckboxIdMedNummer
+
+        VelgOppstart _ ->
+            settFokusCmd OppstartCheckboxIdMedNummer
+
+        _ ->
+            Cmd.none
+
+
+settFokusCmd : InputId -> Cmd Msg
+settFokusCmd inputId =
+    Process.sleep 200
+        |> Task.andThen (\_ -> (inputIdTilString >> Dom.focus) inputId)
+        |> Task.attempt FokusSatt
 
 
 maybeHvisTrue : Bool -> Maybe a -> Maybe a
@@ -1339,7 +1413,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraOmfang
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.omfangLabel it) (OppdatererOmfang it) (List.member it info.omfanger)
+                            Checkbox.withId (byggOmfangValgId it) (Checkbox.checkbox (JobbprofilValg.omfangLabel it) (OppdatererOmfang it) (List.member it info.omfanger))
                         )
                         omfangValg
                     )
@@ -1348,7 +1422,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraArbeidstid
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (OppdatererArbeidstid it) (List.member it info.arbeidstider)
+                            Checkbox.withId (byggArbeidstidValgId it) (Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (OppdatererArbeidstid it) (List.member it info.arbeidstider))
                         )
                         arbeidstidValg
                     )
@@ -1357,7 +1431,7 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraAnsettelsesform
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (OppdatererAnsettelsesform it) (List.member it info.ansettelsesformer)
+                            Checkbox.withId (byggAnsettelsesformValgId it) (Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (OppdatererAnsettelsesform it) (List.member it info.ansettelsesformer))
                         )
                         ansettelsesformValg
                     )
@@ -1369,6 +1443,7 @@ modelTilBrukerInput model =
                             info.oppstart
                                 == Just it
                                 |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (OppdatererOppstart it)
+                                |> Radio.withId (byggOppstartValgId it)
                         )
                         oppstartValg
                     )
@@ -1527,6 +1602,42 @@ modelTilBrukerInput model =
 
     else
         BrukerInput.utenInnhold
+
+
+byggOmfangValgId : Omfang -> String
+byggOmfangValgId omfang =
+    let
+        omfangIndex =
+            List.elemIndex omfang omfangValg
+    in
+    inputIdTilString OmfangCheckboxId ++ String.fromInt (Maybe.withDefault 1 omfangIndex)
+
+
+byggArbeidstidValgId : Arbeidstider -> String
+byggArbeidstidValgId arbeidstider =
+    let
+        arbeidstidIndex =
+            List.elemIndex arbeidstider arbeidstidValg
+    in
+    inputIdTilString ArbeidstidCheckboxId ++ String.fromInt (Maybe.withDefault 1 arbeidstidIndex)
+
+
+byggAnsettelsesformValgId : AnsettelsesForm -> String
+byggAnsettelsesformValgId ansettelsesform =
+    let
+        ansettelsesformIndex =
+            List.elemIndex ansettelsesform ansettelsesformValg
+    in
+    inputIdTilString AnsettelsesformCheckboxId ++ String.fromInt (Maybe.withDefault 1 ansettelsesformIndex)
+
+
+byggOppstartValgId : Oppstart -> String
+byggOppstartValgId oppstart =
+    let
+        oppstartIndex =
+            List.elemIndex oppstart oppstartValg
+    in
+    inputIdTilString OppstartCheckboxId ++ String.fromInt (Maybe.withDefault 1 oppstartIndex)
 
 
 visFeilmeldingForKompetanse : ModelInfo -> KompetanseStegInfo -> Typeahead.Model Kompetanse -> SamtaleStatus

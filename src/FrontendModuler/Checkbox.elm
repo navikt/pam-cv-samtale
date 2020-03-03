@@ -4,6 +4,7 @@ module FrontendModuler.Checkbox exposing
     , toHtml
     , toStringOfChecked
     , withClass
+    , withId
     )
 
 import Html exposing (..)
@@ -17,6 +18,7 @@ type Checkbox msg
         , msg : msg
         , checked : Bool
         , class : Maybe String
+        , id : Maybe String
         }
 
 
@@ -27,12 +29,18 @@ checkbox label msg checkboxChecked =
         , msg = msg
         , checked = checkboxChecked
         , class = Nothing
+        , id = Nothing
         }
 
 
 withClass : String -> Checkbox msg -> Checkbox msg
 withClass class (Checkbox options) =
     Checkbox { options | class = Just class }
+
+
+withId : String -> Checkbox msg -> Checkbox msg
+withId id (Checkbox options) =
+    Checkbox { options | id = Just id }
 
 
 toHtml : Checkbox msg -> Html msg
@@ -43,12 +51,7 @@ toHtml (Checkbox options) =
             |> Maybe.map class
             |> Maybe.withDefault noAttribute
         ]
-        [ input
-            [ type_ "checkbox"
-            , class "skjemaelement__input checkboks"
-            , checked options.checked
-            , onClick options.msg
-            ]
+        [ input (buildInputAttributes options.checked options.msg options.id)
             []
 
         --- TODO: htmlFor
@@ -69,6 +72,25 @@ innhold (Checkbox options) =
 isChecked : Checkbox msg -> Bool
 isChecked (Checkbox options) =
     options.checked
+
+
+buildInputAttributes : Bool -> msg -> Maybe String -> List (Attribute msg)
+buildInputAttributes checkedStatus onClickMsg inputId =
+    case inputId of
+        Nothing ->
+            [ type_ "checkbox"
+            , class "skjemaelement__input checkboks"
+            , checked checkedStatus
+            , onClick onClickMsg
+            ]
+
+        Just verifiedInputId ->
+            [ type_ "checkbox"
+            , class "skjemaelement__input checkboks"
+            , checked checkedStatus
+            , onClick onClickMsg
+            , id verifiedInputId
+            ]
 
 
 toStringOfChecked : List (Checkbox msg) -> String

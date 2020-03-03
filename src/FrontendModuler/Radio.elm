@@ -4,6 +4,7 @@ module FrontendModuler.Radio exposing
     , radio
     , toHtml
     , withClass
+    , withId
     )
 
 import Html exposing (..)
@@ -19,6 +20,7 @@ type Radio msg
         , msg : msg
         , checked : Bool
         , class : Maybe String
+        , id : Maybe String
         }
 
 
@@ -30,12 +32,18 @@ radio label value msg checked =
         , msg = msg
         , checked = checked
         , class = Nothing
+        , id = Nothing
         }
 
 
 withClass : String -> Radio msg -> Radio msg
 withClass class (Radio options) =
     Radio { options | class = Just class }
+
+
+withId : String -> Radio msg -> Radio msg
+withId id (Radio options) =
+    Radio { options | id = Just id }
 
 
 toHtml : Radio msg -> Html msg
@@ -47,11 +55,7 @@ toHtml (Radio options) =
             |> Maybe.withDefault noAttribute
         ]
         [ input
-            [ type_ "radio"
-            , class "skjemaelement__input radioknapp"
-            , checked options.checked
-            , onClick options.msg
-            ]
+            (buildInputAttributes options.checked options.msg options.id)
             []
 
         --- TODO: htmlFor
@@ -72,6 +76,25 @@ isChecked (Radio options) =
 tekst : Radio msg -> String
 tekst (Radio options) =
     options.label
+
+
+buildInputAttributes : Bool -> msg -> Maybe String -> List (Attribute msg)
+buildInputAttributes checkedStatus onClickMsg inputId =
+    case inputId of
+        Nothing ->
+            [ type_ "checkbox"
+            , class "skjemaelement__input radioknapp"
+            , checked checkedStatus
+            , onClick onClickMsg
+            ]
+
+        Just verifiedInputId ->
+            [ type_ "checkbox"
+            , class "skjemaelement__input radioknapp"
+            , checked checkedStatus
+            , onClick onClickMsg
+            , id verifiedInputId
+            ]
 
 
 checkedRadioToString : List (Radio msg) -> String
