@@ -1,6 +1,7 @@
-module Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingYrke)
+module Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingOppstart, feilmeldingYrke)
 
 import Arbeidserfaring.Yrke exposing (Yrke)
+import Jobbprofil.JobbprofilValg exposing (Oppstart)
 import Jobbprofil.Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade exposing (Omrade)
 
@@ -30,3 +31,13 @@ feilmeldingYrke yrker =
 
     else
         Nothing
+
+
+feilmeldingOppstart : Maybe Oppstart -> Maybe String
+feilmeldingOppstart oppstart =
+    case oppstart of
+        Just _ ->
+            Nothing
+
+        Nothing ->
+            Just "Velg når du kan begynne i ny jobb."

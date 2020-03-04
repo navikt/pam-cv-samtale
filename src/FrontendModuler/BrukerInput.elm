@@ -111,9 +111,10 @@ checkboxGruppeMedGåVidereKnapp gåVidereMsg checkboxer =
         |> brukerInputMedGåVidereKnapp
 
 
-radioGruppeMedGåVidereKnapp : msg -> List (Radio msg) -> BrukerInput msg
-radioGruppeMedGåVidereKnapp gåVidereMsg radioknapper =
-    BrukerInputMedGåVidereKnapp.radioGruppe gåVidereMsg radioknapper
+radioGruppeMedGåVidereKnapp : { onGåVidere : msg, feilmelding : Maybe String, legend : String } -> List (Radio msg) -> BrukerInput msg
+radioGruppeMedGåVidereKnapp { onGåVidere, feilmelding, legend } radioknapper =
+    BrukerInputMedGåVidereKnapp.radioGruppe onGåVidere legend radioknapper
+        |> BrukerInputMedGåVidereKnapp.withFeilmelding feilmelding
         |> brukerInputMedGåVidereKnapp
 
 

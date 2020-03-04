@@ -16,23 +16,23 @@ import List.Extra as List
 type Radio msg
     = Radio
         { label : String
-        , value : String
         , msg : msg
-        , checked : Bool
+        , name : String
         , class : Maybe String
         , id : Maybe String
+        , checked : Bool
         }
 
 
-radio : String -> String -> msg -> Bool -> Radio msg
-radio label value msg checked =
+radio : { gruppeNavn : String, label : String, onSelected : msg, selected : Bool } -> Radio msg
+radio { gruppeNavn, label, onSelected, selected } =
     Radio
         { label = label
-        , value = value
-        , msg = msg
-        , checked = checked
+        , msg = onSelected
+        , name = gruppeNavn
         , class = Nothing
         , id = Nothing
+        , checked = selected
         }
 
 
@@ -54,19 +54,21 @@ toHtml (Radio options) =
             |> Maybe.map class
             |> Maybe.withDefault noAttribute
         ]
-        [ input
-            [ type_ "checkbox"
-            , class "skjemaelement__input radioknapp"
-            , checked options.checked
-            , onClick options.msg
-            , options.id
-                |> Maybe.map id
-                |> Maybe.withDefault noAttribute
-            ]
+        [ label
             []
-
-        --- TODO: htmlFor
-        , label [ class "skjemaelement__label", class "skjemaelement--checkbox-label", onClick options.msg ] [ text options.label ]
+            [ input
+                [ type_ "radio"
+                , class "skjemaelement__input radioknapp"
+                , name options.name
+                , checked options.checked
+                , onClick options.msg
+                , options.id
+                    |> Maybe.map id
+                    |> Maybe.withDefault noAttribute
+                ]
+                []
+            , span [ class "skjemaelement__label skjemaelement--checkbox-label" ] [ text options.label ]
+            ]
         ]
 
 

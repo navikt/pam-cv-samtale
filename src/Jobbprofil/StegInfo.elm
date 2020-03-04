@@ -4,6 +4,7 @@ import Arbeidserfaring.Yrke exposing (Yrke)
 import Jobbprofil.JobbprofilValg exposing (AnsettelsesForm, Arbeidstider, Omfang, Oppstart)
 import Jobbprofil.Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade exposing (Omrade)
+import Jobbprofil.Skjema as Skjema exposing (ValidertSkjema)
 
 
 type alias YrkeStegInfo =
@@ -51,6 +52,7 @@ type alias OppstartStegInfo =
     , arbeidstider : List Arbeidstider
     , ansettelsesformer : List AnsettelsesForm
     , oppstart : Maybe Oppstart
+    , visFeilmelding : Bool
     }
 
 
@@ -64,3 +66,28 @@ type alias KompetanseStegInfo =
     , kompetanser : List Kompetanse
     , visFeilmelding : Bool
     }
+
+
+ansettelsesformTilOppstartInfo : AnsettelsesformStegInfo -> OppstartStegInfo
+ansettelsesformTilOppstartInfo info =
+    { yrker = info.yrker
+    , omrader = info.omrader
+    , omfanger = info.omfanger
+    , arbeidstider = info.arbeidstider
+    , ansettelsesformer = info.ansettelsesformer
+    , oppstart = Nothing
+    , visFeilmelding = False
+    }
+
+
+kompetanseInfoTilSkjema : KompetanseStegInfo -> ValidertSkjema
+kompetanseInfoTilSkjema info =
+    Skjema.initValidertSkjema
+        { yrker = info.yrker
+        , omrader = info.omrader
+        , omfanger = info.omfanger
+        , arbeidstider = info.arbeidstider
+        , ansettelsesformer = info.ansettelsesformer
+        , oppstart = info.oppstart
+        , kompetanser = info.kompetanser
+        }

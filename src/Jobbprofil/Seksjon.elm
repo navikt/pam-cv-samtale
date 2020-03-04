@@ -31,8 +31,8 @@ import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (AnsettelsesForm, Ar
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.Skjema as Skjema exposing (Felt(..), UvalidertSkjema, ValidertSkjema)
-import Jobbprofil.StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
-import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingYrke)
+import Jobbprofil.StegInfo as StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
+import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingOppstart, feilmeldingYrke)
 import LagreStatus exposing (LagreStatus)
 import List.Extra as List
 import Meldinger.Melding as Melding exposing (Melding)
@@ -105,19 +105,6 @@ type SamtaleStatus
 meldingsLogg : Model -> MeldingsLogg
 meldingsLogg (Model info) =
     info.seksjonsMeldingsLogg
-
-
-kompetanseInfoTilSkjema : KompetanseStegInfo -> ValidertSkjema
-kompetanseInfoTilSkjema info =
-    Skjema.initValidertSkjema
-        { yrker = info.yrker
-        , omrader = info.omrader
-        , omfanger = info.omfanger
-        , arbeidstider = info.arbeidstider
-        , ansettelsesformer = info.ansettelsesformer
-        , oppstart = info.oppstart
-        , kompetanser = info.kompetanser
-        }
 
 
 
@@ -258,7 +245,7 @@ update msg (Model model) =
                             |> IkkeFerdig
 
                     else
-                        ( kompetanseInfoTilSkjema info
+                        ( StegInfo.kompetanseInfoTilSkjema info
                             |> VisOppsummering
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , lagtTilSpørsmålCmd model.debugStatus
@@ -601,7 +588,8 @@ update msg (Model model) =
         VilGåVidereFraAnsettelsesform ->
             case model.aktivSamtale of
                 LeggTilAnsettelsesform info ->
-                    ( VelgOppstart { oppstart = Nothing, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                    ( StegInfo.ansettelsesformTilOppstartInfo info
+                        |> VelgOppstart
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -663,19 +651,20 @@ update msg (Model model) =
             case model.aktivSamtale of
                 VelgOppstart info ->
                     case info.oppstart of
-                        Nothing ->
-                            ( VelgOppstart { info | oppstart = Nothing }
-                                |> oppdaterSamtale model IngenNyeMeldinger
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
-
                         Just value ->
                             -- TODO - funksjoner for transformering av records i transisjonsfaser, f.eks. oppstartInfoTilKompetanseInfo : OppstartInfo -> KompetanseInfo
                             ( initKompetanseTypeahead
                                 |> Tuple.first
                                 |> LeggTilKompetanser { kompetanser = [], oppstart = value, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader, visFeilmelding = False }
                                 |> oppdaterSamtale model (SvarFraMsg msg)
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            ( { info | visFeilmelding = True }
+                                |> VelgOppstart
+                                |> oppdaterSamtale model IngenNyeMeldinger
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -1056,8 +1045,8 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                --VenterPåAnimasjonFørFullføring  _ ->
-                --  Ferdig (sistLagret (Model model)) ferdigAnimertSamtale
+                --    VenterPåAnimasjonFørFullføring  _ ->
+                --        Ferdig (sistLagret (Model model)) ferdigAnimertSamtale
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
                     , Cmd.batch
@@ -1437,13 +1426,26 @@ modelTilBrukerInput model =
                     )
 
             VelgOppstart info ->
-                BrukerInput.radioGruppeMedGåVidereKnapp VilGåVidereFraOppstart
+                let
+                    feilmelding =
+                        (feilmeldingOppstart >> maybeHvisTrue info.visFeilmelding) info.oppstart
+                in
+                BrukerInput.radioGruppeMedGåVidereKnapp
+                    { onGåVidere = VilGåVidereFraOppstart
+                    , feilmelding = feilmelding
+                    , legend = "Velg når du er ledig fra"
+                    }
                     (List.map
                         (\it ->
-                            info.oppstart
-                                == Just it
-                                |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (OppdatererOppstart it)
-                                |> Radio.withId (byggOppstartValgId it)
+                            Radio.radio
+                                { gruppeNavn = "Oppstart"
+                                , label = JobbprofilValg.oppstartLabel it
+                                , onSelected = OppdatererOppstart it
+                                , selected =
+                                    info.oppstart
+                                        == Just it
+                                }
+                         --       |> Radio.withId (byggOppstartValgId it)
                         )
                         oppstartValg
                     )
@@ -1550,9 +1552,14 @@ modelTilBrukerInput model =
                         (span [ class "skjemaelement__label" ] [ text "Når kan du begynne i ny jobb? " ]
                             :: List.map
                                 (\it ->
-                                    oppstart
-                                        == Just it
-                                        |> Radio.radio (JobbprofilValg.oppstartLabel it) (JobbprofilValg.oppstartLabel it) (SkjemaEndret (OppstartEndret it))
+                                    Radio.radio
+                                        { gruppeNavn = "Oppstart"
+                                        , label = JobbprofilValg.oppstartLabel it
+                                        , onSelected = SkjemaEndret (OppstartEndret it)
+                                        , selected =
+                                            oppstart
+                                                == Just it
+                                        }
                                         |> Radio.toHtml
                                 )
                                 oppstartValg

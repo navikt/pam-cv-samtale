@@ -10,6 +10,7 @@ module FrontendModuler.Checkbox exposing
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
+import String.Extra as String
 
 
 type Checkbox msg
@@ -51,19 +52,20 @@ toHtml (Checkbox options) =
             |> Maybe.map class
             |> Maybe.withDefault noAttribute
         ]
-        [ input
-            [ type_ "checkbox"
-            , class "skjemaelement__input checkboks"
-            , checked options.checked
-            , onClick options.msg
-            , options.id
-                |> Maybe.map id
-                |> Maybe.withDefault noAttribute
-            ]
+        [ label
             []
-
-        --- TODO: htmlFor
-        , label [ class "skjemaelement__label", class "skjemaelement--checkbox-label", onClick options.msg ] [ text options.label ]
+            [ input
+                [ type_ "checkbox"
+                , class "skjemaelement__input checkboks"
+                , checked options.checked
+                , onClick options.msg
+                , options.id
+                    |> Maybe.map id
+                    |> Maybe.withDefault noAttribute
+                ]
+                []
+            , span [ class "skjemaelement__label skjemaelement--checkbox-label" ] [ text options.label ]
+            ]
         ]
 
 
