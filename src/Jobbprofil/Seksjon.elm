@@ -85,7 +85,7 @@ type Samtale
     | LeggTilAnsettelsesform AnsettelsesformStegInfo
     | VelgOppstart OppstartStegInfo
     | LeggTilKompetanser KompetanseStegInfo (Typeahead.Model Kompetanse)
-    | VisOppsummering ValidertSkjema
+    | VisOppsummering Bool ValidertSkjema
     | EndreOppsummering UvalidertSkjema TypeaheadOppsummeringInfo
     | LagrerSkjema ValidertSkjema LagreStatus
     | LagringFeilet Http.Error ValidertSkjema
@@ -138,7 +138,7 @@ type Msg
     | FjernValgtKompetanse Kompetanse
     | VilGåVidereFraKompetanse
     | VilEndreOppsummering
-    | VilLagreOppsummering
+    | VilLagreOppsummering UvalidertSkjema
     | SkjemaEndret CheckboxEndring
     | VilLagreJobbprofil
     | JobbprofilLagret (Result Http.Error Jobbprofil)
@@ -161,6 +161,15 @@ type CheckboxEndring
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
+        JobbprofilLagret profil ->
+            case MeldingsLogg.ferdigAnimert model.seksjonsMeldingsLogg of
+                FerdigAnimert logg ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+                MeldingerGjenstår ->
+                    {- TODO fix denne også -}
+                    IkkeFerdig ( Model model, Cmd.none )
+
         JobbprofilHentet result ->
             let
                 underOppfølging =
@@ -246,7 +255,7 @@ update msg (Model model) =
 
                     else
                         ( StegInfo.kompetanseInfoTilSkjema info
-                            |> VisOppsummering
+                            |> VisOppsummering True
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
@@ -512,7 +521,7 @@ update msg (Model model) =
 
         VilLagreJobbprofil ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
+                VisOppsummering _ skjema ->
                     ( LagreStatus.init
                         |> LagrerSkjema skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
@@ -675,7 +684,7 @@ update msg (Model model) =
 
         VilEndreOppsummering ->
             case model.aktivSamtale of
-                VisOppsummering skjema ->
+                VisOppsummering _ skjema ->
                     updateEtterVilEndreSkjema model msg skjema
 
                 HarJobbprofilJobbsøker jobbprofil ->
@@ -687,8 +696,13 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilLagreOppsummering ->
-            IkkeFerdig ( Model model, Cmd.none )
+        VilLagreOppsummering uvalidertSkjema ->
+            ( Skjema.tilValidertSkjema uvalidertSkjema
+                |> VisOppsummering False
+                |> oppdaterSamtale model UtenSvar
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
@@ -714,9 +728,24 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        JobbprofilLagret result ->
-            IkkeFerdig ( Model model, Cmd.none )
+        {-
+           JobbprofilLagret result ->
+               case result of
+                   Ok _ ->
+                       IkkeFerdig ( Model model, Cmd.none )
 
+                   {-
+                      ( SkjemaLagret
+                          |> oppdaterSamtale model UtenSvar
+                      , lagtTilSpørsmålCmd model.debugStatus
+                      )
+                          Ferdig
+                          res
+                   -}
+                   Err _ ->
+                       {- TODO fix this shit -}
+                       IkkeFerdig ( Model model, Cmd.none )
+        -}
         VilGiOppLagring ->
             IkkeFerdig ( Model model, Cmd.none )
 
@@ -1142,16 +1171,24 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
         LeggTilKompetanser _ _ ->
             [ Melding.spørsmål [ "Tenk på kunnskapene og ferdighetene dine fra jobb eller utdanning." ] ]
 
-        VisOppsummering info ->
+        VisOppsummering forsteGang info ->
             [ Melding.spørsmål
                 (List.concat
-                    [ [ "Du har lagt inn dette:"
+                    [ [ if forsteGang then
+                            "Du har lagt inn dette:"
+
+                        else
+                            "Du har endret. Er det riktig nå?"
                       , Melding.tomLinje
                       ]
                     , info
                         |> oppsummering
                     , [ Melding.tomLinje
-                      , "Er informasjonen riktig?"
+                      , if forsteGang then
+                            "Er informasjonen riktig?"
+
+                        else
+                            "Er informasjonen riktig nå?"
                       ]
                     ]
                 )
@@ -1402,7 +1439,8 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraOmfang
                     (List.map
                         (\it ->
-                            Checkbox.withId (byggOmfangValgId it) (Checkbox.checkbox (JobbprofilValg.omfangLabel it) (OppdatererOmfang it) (List.member it info.omfanger))
+                            Checkbox.checkbox (JobbprofilValg.omfangLabel it) (OppdatererOmfang it) (List.member it info.omfanger)
+                                |> Checkbox.withId (byggOmfangValgId it)
                         )
                         omfangValg
                     )
@@ -1411,7 +1449,8 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraArbeidstid
                     (List.map
                         (\it ->
-                            Checkbox.withId (byggArbeidstidValgId it) (Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (OppdatererArbeidstid it) (List.member it info.arbeidstider))
+                            Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (OppdatererArbeidstid it) (List.member it info.arbeidstider)
+                                |> Checkbox.withId (byggArbeidstidValgId it)
                         )
                         arbeidstidValg
                     )
@@ -1420,7 +1459,8 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraAnsettelsesform
                     (List.map
                         (\it ->
-                            Checkbox.withId (byggAnsettelsesformValgId it) (Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (OppdatererAnsettelsesform it) (List.member it info.ansettelsesformer))
+                            Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (OppdatererAnsettelsesform it) (List.member it info.ansettelsesformer)
+                                |> Checkbox.withId (byggAnsettelsesformValgId it)
                         )
                         ansettelsesformValg
                     )
@@ -1445,7 +1485,7 @@ modelTilBrukerInput model =
                                     info.oppstart
                                         == Just it
                                 }
-                         --       |> Radio.withId (byggOppstartValgId it)
+                                |> Radio.withId (byggOppstartValgId it)
                         )
                         oppstartValg
                     )
@@ -1460,9 +1500,15 @@ modelTilBrukerInput model =
                     )
                     (List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser)
 
-            VisOppsummering _ ->
+            VisOppsummering forsteGang _ ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
+                    [ Knapp.knapp VilLagreJobbprofil
+                        (if forsteGang then
+                            "Ja, det er riktig"
+
+                         else
+                            "Ja, nå er det riktig"
+                        )
                     , Knapp.knapp VilEndreOppsummering "Nei, jeg vil endre"
                     ]
 
@@ -1489,7 +1535,7 @@ modelTilBrukerInput model =
                     kompetanser =
                         Skjema.kompetanser skjema
                 in
-                BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
+                BrukerInput.skjema { lagreMsg = VilLagreOppsummering skjema, lagreKnappTekst = "Lagre endringer" }
                     [ stillinger
                         |> feilmeldingYrke
                         |> Typeahead.view Yrke.label typeaheadInfo.yrker

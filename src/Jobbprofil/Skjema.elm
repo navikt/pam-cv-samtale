@@ -28,6 +28,7 @@ module Jobbprofil.Skjema exposing
     , oppstart
     , oppsummeringInnhold
     , tilUvalidertSkjema
+    , tilValidertSkjema
     , yrker
     )
 
@@ -81,6 +82,19 @@ type alias UvalidertSkjemaInfo =
 initValidertSkjema : ValidertSkjemaInfo -> ValidertSkjema
 initValidertSkjema info =
     ValidertSkjema info
+
+
+tilValidertSkjema : UvalidertSkjema -> ValidertSkjema
+tilValidertSkjema (UvalidertSkjema uvalidertSkjema) =
+    ValidertSkjema
+        { yrker = uvalidertSkjema.yrker
+        , omrader = uvalidertSkjema.omrader
+        , omfanger = uvalidertSkjema.omfanger
+        , arbeidstider = uvalidertSkjema.arbeidstider
+        , ansettelsesformer = uvalidertSkjema.ansettelsesformer
+        , oppstart = validertOppstart uvalidertSkjema.oppstart
+        , kompetanser = uvalidertSkjema.kompetanser
+        }
 
 
 tilUvalidertSkjema : ValidertSkjema -> UvalidertSkjema
@@ -145,6 +159,16 @@ ansettelsesformer (UvalidertSkjema info) =
 oppstart : UvalidertSkjema -> Maybe Oppstart
 oppstart (UvalidertSkjema info) =
     info.oppstart
+
+
+validertOppstart : Maybe Oppstart -> Oppstart
+validertOppstart uvalidert =
+    case uvalidert of
+        Nothing ->
+            EtterAvtale
+
+        Just validert ->
+            validert
 
 
 kompetanser : UvalidertSkjema -> List Kompetanse
