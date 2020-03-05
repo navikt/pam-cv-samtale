@@ -18,7 +18,6 @@ module FrontendModuler.BrukerInputMedGaVidereKnapp exposing
 
 import FrontendModuler.Checkbox as Checkbox exposing (Checkbox)
 import FrontendModuler.DatoInputEttFelt as DatoInputEttFelt exposing (DatoInputEttFelt)
-import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Type(..))
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
@@ -29,7 +28,7 @@ import FrontendModuler.Select as Select exposing (Select)
 import FrontendModuler.Textarea as Textarea exposing (Textarea)
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
 import Html exposing (..)
-import Html.Attributes exposing (class, classList)
+import Html.Attributes exposing (class)
 
 
 type BrukerInputMedGåVidereKnapp msg
