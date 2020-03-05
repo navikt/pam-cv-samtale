@@ -22,6 +22,7 @@ import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Type(..))
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
+import FrontendModuler.MerkelappGruppe as MerkelappGruppe exposing (MerkelappGruppe)
 import FrontendModuler.Radio as Radio exposing (Radio)
 import FrontendModuler.RadioGruppe as RadioGruppe exposing (RadioGruppe)
 import FrontendModuler.Select as Select exposing (Select)
@@ -49,7 +50,7 @@ type InputElement msg
     = InputElement (Input msg)
     | TextareaElement (Textarea msg)
     | TypeaheadElement (Typeahead msg)
-    | TypeaheadMedMerkelapper (Typeahead msg) (List (Merkelapp msg))
+    | TypeaheadMedMerkelapper (Typeahead msg) (MerkelappGruppe msg)
     | SelectElement (Select msg)
     | DatoInputEttFeltElement (DatoInputEttFelt msg)
     | CheckboxGruppe (List (Checkbox msg))
@@ -74,7 +75,7 @@ typeahead gåVidereMsg typeaheadElement =
         |> init gåVidereMsg
 
 
-typeaheadMedMerkelapper : msg -> Typeahead msg -> List (Merkelapp msg) -> BrukerInputMedGåVidereKnapp msg
+typeaheadMedMerkelapper : msg -> Typeahead msg -> MerkelappGruppe msg -> BrukerInputMedGåVidereKnapp msg
 typeaheadMedMerkelapper gåVidereMsg typeaheadElement merkelapper =
     TypeaheadMedMerkelapper typeaheadElement merkelapper
         |> init gåVidereMsg
@@ -186,7 +187,7 @@ toHtml (BrukerInputMedGåVidereKnapp options) =
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema typeahead-skjema-height-wrapper" ]
                     [ Typeahead.toHtml typeaheadElement
-                    , Merkelapp.toHtml merkelapper
+                    , MerkelappGruppe.toHtml merkelapper
                     , knapper options
                     ]
                 ]
@@ -317,7 +318,7 @@ inputElementInnhold inputElement_ =
             Typeahead.innhold typeaheadElement
 
         TypeaheadMedMerkelapper _ merkelapper ->
-            Merkelapp.listeTilString merkelapper
+            Merkelapp.listeTilString (MerkelappGruppe.merkelappListe merkelapper)
 
         SelectElement selectElement ->
             --- TODO: Fiks dette

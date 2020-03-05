@@ -1,6 +1,7 @@
 module FrontendModuler.Checkbox exposing
     ( Checkbox
     , checkbox
+    , fromCheckboxInfo
     , toHtml
     , toStringOfChecked
     , withClass
@@ -10,7 +11,6 @@ module FrontendModuler.Checkbox exposing
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import String.Extra as String
 
 
 type Checkbox msg
@@ -23,6 +23,13 @@ type Checkbox msg
         }
 
 
+type alias Info msg =
+    { label : String
+    , onClick : msg
+    , checked : Bool
+    }
+
+
 checkbox : String -> msg -> Bool -> Checkbox msg
 checkbox label msg checkboxChecked =
     Checkbox
@@ -32,6 +39,11 @@ checkbox label msg checkboxChecked =
         , class = Nothing
         , id = Nothing
         }
+
+
+fromCheckboxInfo : Info msg -> Checkbox msg
+fromCheckboxInfo { label, onClick, checked } =
+    checkbox label onClick checked
 
 
 withClass : String -> Checkbox msg -> Checkbox msg

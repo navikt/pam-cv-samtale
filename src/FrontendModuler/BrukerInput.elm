@@ -28,6 +28,7 @@ import FrontendModuler.Knapp as Knapp exposing (Knapp)
 import FrontendModuler.Lenke as Lenke exposing (Lenke)
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Merkelapp exposing (Merkelapp)
+import FrontendModuler.MerkelappGruppe exposing (MerkelappGruppe)
 import FrontendModuler.Radio exposing (Radio)
 import FrontendModuler.RadioGruppe exposing (RadioGruppe)
 import FrontendModuler.Select exposing (Select)
@@ -75,7 +76,7 @@ inputMedGåVidereKnapp { onGåVidere, onAvbryt } inputElement =
         |> brukerInputMedGåVidereKnapp
 
 
-typeaheadMedMerkelapperOgGåVidereKnapp : msg -> Typeahead msg -> List (Merkelapp msg) -> BrukerInput msg
+typeaheadMedMerkelapperOgGåVidereKnapp : msg -> Typeahead msg -> MerkelappGruppe msg -> BrukerInput msg
 typeaheadMedMerkelapperOgGåVidereKnapp gåVidereMsg typeaheadElement merkelapper =
     BrukerInputMedGåVidereKnapp.typeaheadMedMerkelapper gåVidereMsg typeaheadElement merkelapper
         |> brukerInputMedGåVidereKnapp

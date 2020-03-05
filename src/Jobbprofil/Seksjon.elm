@@ -18,9 +18,11 @@ import ErrorHandtering as ErrorHåndtering
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Checkbox as Checkbox
+import FrontendModuler.CheckboxGruppe as CheckboxGruppe
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
+import FrontendModuler.MerkelappGruppe as MerkelappGruppe
 import FrontendModuler.Radio as Radio
 import FrontendModuler.RadioGruppe as RadioGruppe
 import FrontendModuler.Typeahead
@@ -1417,6 +1419,10 @@ modelTilBrukerInput model =
                 BrukerInput.utenInnhold
 
             LeggTilOmrader info typeaheadModel ->
+                let
+                    merkelapper =
+                        List.map (\x -> Merkelapp.merkelapp (FjernValgtOmrade x) (Omrade.tittel x)) info.omrader
+                in
                 BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraOmrade
                     (info.omrader
                         |> feilmeldingOmråde
@@ -1424,7 +1430,9 @@ modelTilBrukerInput model =
                         |> Typeahead.toViewElement Omrade.tittel typeaheadModel
                         |> FrontendModuler.Typeahead.map OmradeTypeaheadMsg
                     )
-                    (List.map (\x -> Merkelapp.merkelapp (FjernValgtOmrade x) (Omrade.tittel x)) info.omrader)
+                    (merkelapper
+                        |> MerkelappGruppe.merkelappGruppe
+                    )
 
             LeggTilYrker info typeaheadModel ->
                 BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraYrke
@@ -1434,13 +1442,19 @@ modelTilBrukerInput model =
                         |> Typeahead.toViewElement Yrke.label typeaheadModel
                         |> FrontendModuler.Typeahead.map YrkeTypeaheadMsg
                     )
-                    (List.map (\x -> Merkelapp.merkelapp (FjernValgtYrke x) (Yrke.label x)) info.yrker)
+                    (List.map (\x -> Merkelapp.merkelapp (FjernValgtYrke x) (Yrke.label x)) info.yrker
+                        |> MerkelappGruppe.merkelappGruppe
+                    )
 
             LeggTilOmfang info ->
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraOmfang
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.omfangLabel it) (OppdatererOmfang it) (List.member it info.omfanger)
+                            Checkbox.fromCheckboxInfo
+                                { label = JobbprofilValg.omfangLabel it
+                                , onClick = OppdatererOmfang it
+                                , checked = List.member it info.omfanger
+                                }
                                 |> Checkbox.withId (byggOmfangValgId it)
                         )
                         omfangValg
@@ -1450,7 +1464,11 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraArbeidstid
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (OppdatererArbeidstid it) (List.member it info.arbeidstider)
+                            { label = JobbprofilValg.arbeidstidLabel it
+                            , onClick = OppdatererArbeidstid it
+                            , checked = List.member it info.arbeidstider
+                            }
+                                |> Checkbox.fromCheckboxInfo
                                 |> Checkbox.withId (byggArbeidstidValgId it)
                         )
                         arbeidstidValg
@@ -1460,7 +1478,11 @@ modelTilBrukerInput model =
                 BrukerInput.checkboxGruppeMedGåVidereKnapp VilGåVidereFraAnsettelsesform
                     (List.map
                         (\it ->
-                            Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (OppdatererAnsettelsesform it) (List.member it info.ansettelsesformer)
+                            { label = JobbprofilValg.ansettelsesFormLabel it
+                            , onClick = OppdatererAnsettelsesform it
+                            , checked = List.member it info.ansettelsesformer
+                            }
+                                |> Checkbox.fromCheckboxInfo
                                 |> Checkbox.withId (byggAnsettelsesformValgId it)
                         )
                         ansettelsesformValg
@@ -1502,7 +1524,9 @@ modelTilBrukerInput model =
                         |> Typeahead.toViewElement Kompetanse.label typeaheadModel
                         |> FrontendModuler.Typeahead.map KompetanseTypeaheadMsg
                     )
-                    (List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser)
+                    (List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) info.kompetanser
+                        |> MerkelappGruppe.merkelappGruppe
+                    )
 
             VisOppsummering forsteGang _ ->
                 BrukerInput.knapper Flytende
@@ -1544,60 +1568,67 @@ modelTilBrukerInput model =
                         |> feilmeldingYrke
                         |> Typeahead.view Yrke.label typeaheadInfo.yrker
                         |> Html.map YrkeTypeaheadMsg
-                    , if List.length stillinger > 0 then
-                        div []
-                            [ span [ class "skjemaelement__label" ] [ text "Dette har du valgt: " ]
-                            , List.map (\x -> Merkelapp.merkelapp (FjernValgtYrke x) (Yrke.label x)) stillinger
-                                |> Merkelapp.toHtml
-                            ]
-
-                      else
-                        text ""
-                    , br [] []
+                    , List.map (\x -> Merkelapp.merkelapp (FjernValgtYrke x) (Yrke.label x)) stillinger
+                        |> MerkelappGruppe.merkelappGruppe
+                        |> MerkelappGruppe.toHtml
                     , omrader
                         |> feilmeldingOmråde
                         |> Typeahead.view Omrade.tittel typeaheadInfo.omrader
                         |> Html.map OmradeTypeaheadMsg
-                    , if List.length omrader > 0 then
-                        div []
-                            [ span [ class "skjemaelement__label" ] [ text "Dette har du valgt: " ]
-                            , List.map (\x -> Merkelapp.merkelapp (FjernValgtOmrade x) (Omrade.tittel x)) omrader
-                                |> Merkelapp.toHtml
-                            ]
-
-                      else
-                        text ""
-                    , br [] []
-                    , div []
-                        (span [ class "skjemaelement__label" ] [ text "Vil du jobbe heltid eller deltid? " ]
-                            :: List.map
+                    , List.map (\x -> Merkelapp.merkelapp (FjernValgtOmrade x) (Omrade.tittel x)) omrader
+                        |> MerkelappGruppe.merkelappGruppe
+                        |> MerkelappGruppe.toHtml
+                    , let
+                        checkboxer =
+                            List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.omfangLabel it) (SkjemaEndret (OmfangEndret it)) (List.member it omfanger)
-                                        |> Checkbox.toHtml
+                                    Checkbox.fromCheckboxInfo
+                                        { label = JobbprofilValg.omfangLabel it
+                                        , onClick = SkjemaEndret (OmfangEndret it)
+                                        , checked = List.member it omfanger
+                                        }
                                 )
                                 omfangValg
-                        )
-                    , br [] []
-                    , div []
-                        (span [ class "skjemaelement__label" ] [ text "Når kan du jobbe? " ]
-                            :: List.map
+                      in
+                      { legend = "Vil du jobbe heltid eller deltid?"
+                      , checkboxer = checkboxer
+                      }
+                        |> CheckboxGruppe.checkboxGruppe
+                        |> CheckboxGruppe.toHtml
+                    , let
+                        checkboxer =
+                            List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.arbeidstidLabel it) (SkjemaEndret (ArbeidstidEndret it)) (List.member it arbeidstider)
-                                        |> Checkbox.toHtml
+                                    Checkbox.fromCheckboxInfo
+                                        { label = JobbprofilValg.arbeidstidLabel it
+                                        , onClick = SkjemaEndret (ArbeidstidEndret it)
+                                        , checked = List.member it arbeidstider
+                                        }
                                 )
                                 arbeidstidValg
-                        )
-                    , br [] []
-                    , div []
-                        (span [ class "skjemaelement__label" ] [ text "Hva slags ansettelse ønsker du? " ]
-                            :: List.map
+                      in
+                      { legend = "Når kan du jobbe?"
+                      , checkboxer = checkboxer
+                      }
+                        |> CheckboxGruppe.checkboxGruppe
+                        |> CheckboxGruppe.toHtml
+                    , let
+                        checkboxer =
+                            List.map
                                 (\it ->
-                                    Checkbox.checkbox (JobbprofilValg.ansettelsesFormLabel it) (SkjemaEndret (AnsettelsesformEndret it)) (List.member it ansettelsesformer)
-                                        |> Checkbox.toHtml
+                                    Checkbox.fromCheckboxInfo
+                                        { label = JobbprofilValg.ansettelsesFormLabel it
+                                        , onClick = SkjemaEndret (AnsettelsesformEndret it)
+                                        , checked = List.member it ansettelsesformer
+                                        }
                                 )
                                 ansettelsesformValg
-                        )
-                    , br [] []
+                      in
+                      { legend = "Hva slags ansettelse ønsker du?"
+                      , checkboxer = checkboxer
+                      }
+                        |> CheckboxGruppe.checkboxGruppe
+                        |> CheckboxGruppe.toHtml
                     , let
                         radioknapper =
                             List.map
@@ -1623,15 +1654,9 @@ modelTilBrukerInput model =
                         |> feilmeldingKompetanse
                         |> Typeahead.view Kompetanse.label typeaheadInfo.kompetanser
                         |> Html.map KompetanseTypeaheadMsg
-                    , if List.length kompetanser > 0 then
-                        div []
-                            [ span [ class "skjemaelement__label" ] [ text "Dette har du valgt: " ]
-                            , List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) kompetanser
-                                |> Merkelapp.toHtml
-                            ]
-
-                      else
-                        text ""
+                    , List.map (\x -> Merkelapp.merkelapp (FjernValgtKompetanse x) (Kompetanse.label x)) kompetanser
+                        |> MerkelappGruppe.merkelappGruppe
+                        |> MerkelappGruppe.toHtml
                     ]
 
             LagrerSkjema _ lagreStatus ->

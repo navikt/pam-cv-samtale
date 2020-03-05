@@ -24,12 +24,6 @@ merkelapp msg_ tekst_ =
         }
 
 
-toHtml : List (Merkelapp msg) -> Html msg
-toHtml merkelappListe =
-    div [ class "Merkelapp__wrapper" ]
-        (List.map merkelappToHtml merkelappListe)
-
-
 listeTilString : List (Merkelapp msg) -> String
 listeTilString merkelappListe =
     case merkelappListe of
@@ -64,8 +58,8 @@ innhold (Merkelapp options) =
     options.tekst
 
 
-merkelappToHtml : Merkelapp msg -> Html msg
-merkelappToHtml (Merkelapp options) =
+toHtml : Merkelapp msg -> Html msg
+toHtml (Merkelapp options) =
     button
         [ class "Merkelapp typo-element"
         , onClick options.msg

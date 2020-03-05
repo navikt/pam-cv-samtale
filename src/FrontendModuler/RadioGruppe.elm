@@ -4,7 +4,6 @@ import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import FrontendModuler.Radio as Radio exposing (Radio)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import List.Extra as List
 
 
 type RadioGruppe msg
@@ -52,7 +51,7 @@ withErObligatorisk (RadioGruppe options) =
 toHtml : RadioGruppe msg -> Html msg
 toHtml (RadioGruppe options) =
     fieldset
-        [ class "Radio-fieldset radio-checkbox-gruppe-wrapper"
+        [ class "radio-checkbox-fieldset radio-checkbox-gruppe-wrapper"
         ]
         [ legend [ class "skjemaelement__label" ]
             (if options.obligatorisk then
