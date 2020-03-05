@@ -1954,8 +1954,9 @@ getSistLagret extendedModel =
                         |> sistLagretToString extendedModel
 
                 JobbprofilSeksjon model ->
-                    -- todo: håndter sistlagret
-                    Nothing
+                    model
+                        |> Jobbprofil.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
 
         _ ->
             Nothing

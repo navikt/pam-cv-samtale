@@ -4,6 +4,7 @@ module Jobbprofil.Seksjon exposing
     , SamtaleStatus(..)
     , init
     , meldingsLogg
+    , sistLagret
     , subscriptions
     , update
     , viewBrukerInput
@@ -63,6 +64,7 @@ type alias ModelInfo =
     , aktivSamtale : Samtale
     , debugStatus : DebugStatus
     , sistLagretFraCV : Posix
+    , sistLagretJobbprofil : Maybe Posix
     , brukerInfo : BrukerInfo
     }
 
@@ -101,6 +103,16 @@ type SamtaleStatus
 meldingsLogg : Model -> MeldingsLogg
 meldingsLogg (Model info) =
     info.seksjonsMeldingsLogg
+
+
+sistLagret : Model -> Posix
+sistLagret (Model model) =
+    case model.sistLagretJobbprofil of
+        Nothing ->
+            model.sistLagretFraCV
+
+        Just sistLagretJobbprofil ->
+            sistLagretJobbprofil
 
 
 
@@ -1783,6 +1795,7 @@ init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
         , brukerInfo = brukerInfo
         , debugStatus = debugStatus
         , sistLagretFraCV = sistLagretFraCV
+        , sistLagretJobbprofil = Nothing
         }
     , Cmd.batch
         [ lagtTilSpørsmålCmd debugStatus
