@@ -23,6 +23,7 @@ import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Type(..))
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
 import FrontendModuler.Radio as Radio exposing (Radio)
+import FrontendModuler.RadioGruppe as RadioGruppe exposing (RadioGruppe)
 import FrontendModuler.Select as Select exposing (Select)
 import FrontendModuler.Textarea as Textarea exposing (Textarea)
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
@@ -52,7 +53,7 @@ type InputElement msg
     | SelectElement (Select msg)
     | DatoInputEttFeltElement (DatoInputEttFelt msg)
     | CheckboxGruppe (List (Checkbox msg))
-    | RadioGruppe String (List (Radio msg))
+    | RadioGruppe (RadioGruppe msg)
 
 
 input : msg -> Input msg -> BrukerInputMedGåVidereKnapp msg
@@ -91,9 +92,9 @@ checkboxGruppe gåVidereMsg checkboxer =
         |> init gåVidereMsg
 
 
-radioGruppe : msg -> String -> List (Radio msg) -> BrukerInputMedGåVidereKnapp msg
-radioGruppe gåVidereMsg legend radioknapper =
-    RadioGruppe legend radioknapper
+radioGruppe : msg -> RadioGruppe msg -> BrukerInputMedGåVidereKnapp msg
+radioGruppe gåVidereMsg radioGruppeElement =
+    RadioGruppe radioGruppeElement
         |> init gåVidereMsg
 
 
@@ -199,27 +200,10 @@ toHtml (BrukerInputMedGåVidereKnapp options) =
                     ]
                 ]
 
-        RadioGruppe legend_ radioknapper ->
+        RadioGruppe radiogruppe ->
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema auto-width" ]
-                    [ fieldset
-                        [ class "Radio-fieldset radio-checkbox-gruppe-wrapper"
-                        ]
-                        [ legend [ class "skjemaelement__label" ]
-                            [ text legend_
-                            , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
-                            ]
-                        , div
-                            [ classList
-                                [ ( "radio-gruppe-feilområde", options.feilmelding /= Nothing )
-                                ]
-                            ]
-                            (List.map
-                                Radio.toHtml
-                                radioknapper
-                            )
-                        , htmlFeilmelding options.feilmelding
-                        ]
+                    [ RadioGruppe.toHtml radiogruppe
                     , knapper options
                     ]
                 ]
@@ -346,5 +330,9 @@ inputElementInnhold inputElement_ =
         CheckboxGruppe checkboxer ->
             Checkbox.toStringOfChecked checkboxer
 
-        RadioGruppe _ radioknapper ->
-            Radio.checkedRadioToString radioknapper
+        RadioGruppe radiogruppeElement ->
+            Radio.checkedRadioToString (RadioGruppe.radioKnapper radiogruppeElement)
+
+
+
+--

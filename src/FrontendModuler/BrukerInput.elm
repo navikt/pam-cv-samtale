@@ -29,6 +29,7 @@ import FrontendModuler.Lenke as Lenke exposing (Lenke)
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Merkelapp exposing (Merkelapp)
 import FrontendModuler.Radio exposing (Radio)
+import FrontendModuler.RadioGruppe exposing (RadioGruppe)
 import FrontendModuler.Select exposing (Select)
 import FrontendModuler.Textarea exposing (Textarea)
 import FrontendModuler.Typeahead exposing (Typeahead)
@@ -111,10 +112,9 @@ checkboxGruppeMedGåVidereKnapp gåVidereMsg checkboxer =
         |> brukerInputMedGåVidereKnapp
 
 
-radioGruppeMedGåVidereKnapp : { onGåVidere : msg, feilmelding : Maybe String, legend : String } -> List (Radio msg) -> BrukerInput msg
-radioGruppeMedGåVidereKnapp { onGåVidere, feilmelding, legend } radioknapper =
-    BrukerInputMedGåVidereKnapp.radioGruppe onGåVidere legend radioknapper
-        |> BrukerInputMedGåVidereKnapp.withFeilmelding feilmelding
+radioGruppeMedGåVidereKnapp : msg -> RadioGruppe msg -> BrukerInput msg
+radioGruppeMedGåVidereKnapp gåVidereMsg radiogruppe =
+    BrukerInputMedGåVidereKnapp.radioGruppe gåVidereMsg radiogruppe
         |> brukerInputMedGåVidereKnapp
 
 

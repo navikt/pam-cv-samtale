@@ -22,6 +22,7 @@ import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
 import FrontendModuler.Radio as Radio
+import FrontendModuler.RadioGruppe as RadioGruppe
 import FrontendModuler.Typeahead
 import Html exposing (Html, br, div, span, text)
 import Html.Attributes exposing (class)
@@ -1429,25 +1430,28 @@ modelTilBrukerInput model =
                 let
                     feilmelding =
                         (feilmeldingOppstart >> maybeHvisTrue info.visFeilmelding) info.oppstart
+
+                    radioknapper =
+                        List.map
+                            (\it ->
+                                Radio.radio
+                                    { gruppeNavn = "Oppstart"
+                                    , label = JobbprofilValg.oppstartLabel it
+                                    , onSelected = OppdatererOppstart it
+                                    , selected =
+                                        info.oppstart
+                                            == Just it
+                                    }
+                                    |> Radio.withId (byggOppstartValgId it)
+                            )
+                            oppstartValg
                 in
-                BrukerInput.radioGruppeMedGåVidereKnapp
-                    { onGåVidere = VilGåVidereFraOppstart
-                    , feilmelding = feilmelding
-                    , legend = "Velg når du er ledig fra"
-                    }
-                    (List.map
-                        (\it ->
-                            Radio.radio
-                                { gruppeNavn = "Oppstart"
-                                , label = JobbprofilValg.oppstartLabel it
-                                , onSelected = OppdatererOppstart it
-                                , selected =
-                                    info.oppstart
-                                        == Just it
-                                }
-                         --       |> Radio.withId (byggOppstartValgId it)
-                        )
-                        oppstartValg
+                BrukerInput.radioGruppeMedGåVidereKnapp VilGåVidereFraOppstart
+                    ({ legend = "Når kan du begynne i ny jobb?"
+                     , radioknapper = radioknapper
+                     }
+                        |> RadioGruppe.radioGruppe
+                        |> RadioGruppe.withFeilmelding feilmelding
                     )
 
             LeggTilKompetanser info typeaheadModel ->
@@ -1548,9 +1552,9 @@ modelTilBrukerInput model =
                                 ansettelsesformValg
                         )
                     , br [] []
-                    , div []
-                        (span [ class "skjemaelement__label" ] [ text "Når kan du begynne i ny jobb? " ]
-                            :: List.map
+                    , let
+                        radioknapper =
+                            List.map
                                 (\it ->
                                     Radio.radio
                                         { gruppeNavn = "Oppstart"
@@ -1560,11 +1564,15 @@ modelTilBrukerInput model =
                                             oppstart
                                                 == Just it
                                         }
-                                        |> Radio.toHtml
                                 )
                                 oppstartValg
-                        )
-                    , br [] []
+                      in
+                      { legend = "Når kan du begynne i ny jobb?"
+                      , radioknapper = radioknapper
+                      }
+                        |> RadioGruppe.radioGruppe
+                        |> RadioGruppe.withFeilmelding (feilmeldingOppstart oppstart)
+                        |> RadioGruppe.toHtml
                     , kompetanser
                         |> feilmeldingKompetanse
                         |> Typeahead.view Kompetanse.label typeaheadInfo.kompetanser
