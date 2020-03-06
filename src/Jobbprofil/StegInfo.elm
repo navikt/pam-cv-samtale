@@ -9,7 +9,6 @@ import Jobbprofil.Skjema as Skjema exposing (ValidertSkjema)
 
 type alias YrkeStegInfo =
     { yrker : List Yrke
-    , underOppfølging : Bool -- todo: fjern underOppfølging herfra
     , visFeilmelding : Bool
     }
 
