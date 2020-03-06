@@ -1,7 +1,7 @@
 module Jobbprofil.StegInfo exposing (..)
 
 import Arbeidserfaring.Yrke exposing (Yrke)
-import Jobbprofil.JobbprofilValg exposing (AnsettelsesForm, Arbeidstider, Omfang, Oppstart)
+import Jobbprofil.JobbprofilValg exposing (AnsettelsesForm, Arbeidstider, Omfang, Oppstart(..))
 import Jobbprofil.Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade exposing (Omrade)
 import Jobbprofil.Skjema as Skjema exposing (ValidertSkjema)
@@ -67,14 +67,69 @@ type alias KompetanseStegInfo =
     }
 
 
-ansettelsesformTilOppstartInfo : AnsettelsesformStegInfo -> OppstartStegInfo
-ansettelsesformTilOppstartInfo info =
+yrkeStegInfo : YrkeStegInfo
+yrkeStegInfo =
+    { yrker = []
+    , visFeilmelding = False
+    }
+
+
+yrkerInfoTilOmradeInfo : YrkeStegInfo -> OmradeStegInfo
+yrkerInfoTilOmradeInfo info =
+    { yrker = info.yrker
+    , omrader = []
+    , visFeilmelding = False
+    }
+
+
+omraderInfoTilOmfangInfo : OmradeStegInfo -> OmfangStegInfo
+omraderInfoTilOmfangInfo info =
+    { yrker = info.yrker
+    , omrader = info.omrader
+    , omfanger = []
+    }
+
+
+omfangInfoTilArbeidstidInfo : OmfangStegInfo -> ArbeidstidStegInfo
+omfangInfoTilArbeidstidInfo info =
+    { yrker = info.yrker
+    , omrader = info.omrader
+    , omfanger = info.omfanger
+    , arbeidstider = []
+    }
+
+
+arbeidstidInfoTilAnsettelsesformInfo : ArbeidstidStegInfo -> AnsettelsesformStegInfo
+arbeidstidInfoTilAnsettelsesformInfo info =
+    { yrker = info.yrker
+    , omrader = info.omrader
+    , omfanger = info.omfanger
+    , arbeidstider = info.arbeidstider
+    , ansettelsesformer = []
+    }
+
+
+ansettelsesformInfoTilOppstartInfo : AnsettelsesformStegInfo -> OppstartStegInfo
+ansettelsesformInfoTilOppstartInfo info =
     { yrker = info.yrker
     , omrader = info.omrader
     , omfanger = info.omfanger
     , arbeidstider = info.arbeidstider
     , ansettelsesformer = info.ansettelsesformer
     , oppstart = Nothing
+    , visFeilmelding = False
+    }
+
+
+oppstartInfoTilKompetanseInfo : Oppstart -> OppstartStegInfo -> KompetanseStegInfo
+oppstartInfoTilKompetanseInfo oppstart info =
+    { yrker = info.yrker
+    , omrader = info.omrader
+    , omfanger = info.omfanger
+    , arbeidstider = info.arbeidstider
+    , ansettelsesformer = info.ansettelsesformer
+    , oppstart = oppstart
+    , kompetanser = []
     , visFeilmelding = False
     }
 

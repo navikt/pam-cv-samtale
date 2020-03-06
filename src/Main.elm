@@ -678,8 +678,9 @@ updateSuccess successMsg model =
                             )
 
                         Jobbprofil.Seksjon.Ferdig meldingsLogg ->
-                            --todo: gå til tilbakemelding
-                            ( model, Cmd.none )
+                            Debug.log "Ferdig med Jobbprofil seksjon"
+                                --todo: gå til tilbakemelding
+                                ( model, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )

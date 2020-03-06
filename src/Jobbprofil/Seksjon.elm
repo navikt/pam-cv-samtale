@@ -34,12 +34,12 @@ import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (AnsettelsesForm, Ar
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.Skjema as Skjema exposing (Felt(..), UvalidertSkjema, ValidertSkjema)
-import Jobbprofil.StegInfo as StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo)
+import Jobbprofil.StegInfo as StegInfo exposing (AnsettelsesformStegInfo, ArbeidstidStegInfo, KompetanseStegInfo, OmfangStegInfo, OmradeStegInfo, OppstartStegInfo, YrkeStegInfo, arbeidstidInfoTilAnsettelsesformInfo, omfangInfoTilArbeidstidInfo, omraderInfoTilOmfangInfo, oppstartInfoTilKompetanseInfo, yrkeStegInfo, yrkerInfoTilOmradeInfo)
 import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingOppstart, feilmeldingYrke)
 import LagreStatus exposing (LagreStatus)
 import List.Extra as List
 import Meldinger.Melding as Melding exposing (Melding)
-import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg)
+import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilFerdigAnimertMeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Person exposing (BrukerInfo(..))
@@ -196,7 +196,7 @@ update msg (Model model) =
                                     if underOppfølging model then
                                         initYrkeTypeahead
                                             |> Tuple.first
-                                            |> LeggTilYrker True { yrker = [], visFeilmelding = False }
+                                            |> LeggTilYrker True yrkeStegInfo
 
                                     else
                                         HarIkkeJobbprofilJobbsøker
@@ -213,7 +213,7 @@ update msg (Model model) =
         VilBegynnePåJobbprofil ->
             ( initYrkeTypeahead
                 |> Tuple.first
-                |> LeggTilYrker False { yrker = [], visFeilmelding = False }
+                |> LeggTilYrker False yrkeStegInfo
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -308,7 +308,7 @@ update msg (Model model) =
                     else
                         ( initOmradeTypeahead
                             |> Tuple.first
-                            |> LeggTilOmrader { yrker = info.yrker, omrader = [], visFeilmelding = False }
+                            |> LeggTilOmrader (yrkerInfoTilOmradeInfo info)
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
@@ -405,7 +405,8 @@ update msg (Model model) =
                             |> IkkeFerdig
 
                     else
-                        ( LeggTilOmfang { omfanger = [], yrker = info.yrker, omrader = info.omrader }
+                        ( omraderInfoTilOmfangInfo info
+                            |> LeggTilOmfang
                             |> oppdaterSamtale model (SvarFraMsg msg)
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
@@ -429,7 +430,8 @@ update msg (Model model) =
         VilGåVidereFraOmfang ->
             case model.aktivSamtale of
                 LeggTilOmfang info ->
-                    ( LeggTilArbeidstid { arbeidstider = [], omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                    ( omfangInfoTilArbeidstidInfo info
+                        |> LeggTilArbeidstid
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -454,7 +456,8 @@ update msg (Model model) =
         VilGåVidereFraArbeidstid ->
             case model.aktivSamtale of
                 LeggTilArbeidstid info ->
-                    ( LeggTilAnsettelsesform { ansettelsesformer = [], arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader }
+                    ( arbeidstidInfoTilAnsettelsesformInfo info
+                        |> LeggTilAnsettelsesform
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -479,7 +482,7 @@ update msg (Model model) =
         VilGåVidereFraAnsettelsesform ->
             case model.aktivSamtale of
                 LeggTilAnsettelsesform info ->
-                    ( StegInfo.ansettelsesformTilOppstartInfo info
+                    ( StegInfo.ansettelsesformInfoTilOppstartInfo info
                         |> VelgOppstart
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -507,10 +510,9 @@ update msg (Model model) =
                 VelgOppstart info ->
                     case info.oppstart of
                         Just value ->
-                            -- TODO - funksjoner for transformering av records i transisjonsfaser, f.eks. oppstartInfoTilKompetanseInfo : OppstartInfo -> KompetanseInfo
                             ( initKompetanseTypeahead
                                 |> Tuple.first
-                                |> LeggTilKompetanser { kompetanser = [], oppstart = value, ansettelsesformer = info.ansettelsesformer, arbeidstider = info.arbeidstider, omfanger = info.omfanger, yrker = info.yrker, omrader = info.omrader, visFeilmelding = False }
+                                |> LeggTilKompetanser (oppstartInfoTilKompetanseInfo value info)
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -789,7 +791,12 @@ update msg (Model model) =
                         |> IkkeFerdig
 
                 _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
+                    ( VenterPåAnimasjonFørFullføring
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> ferdigAnimertMeldingsLogg
+                        |> Ferdig
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
@@ -851,6 +858,11 @@ update msg (Model model) =
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
+
+
+ferdigAnimertMeldingsLogg : ( Model, Cmd Msg ) -> FerdigAnimertMeldingsLogg
+ferdigAnimertMeldingsLogg ( Model model, _ ) =
+    tilFerdigAnimertMeldingsLogg model.seksjonsMeldingsLogg
 
 
 updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertSkjema -> SamtaleStatus
@@ -1210,13 +1222,18 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
             []
 
         HarJobbprofil erUnderOppfølging jobbprofil ->
-            [ Melding.spørsmål
-                (List.concat
-                    [ [ if erUnderOppfølging then
+            let
+                setning =
+                    case erUnderOppfølging of
+                        True ->
                             "Nå gjenstår bare jobbprofilen. Jeg ser du har lagt inn dette tidligere:"
 
-                        else
+                        False ->
                             "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
+            in
+            [ Melding.spørsmål
+                (List.concat
+                    [ [ setning
                       , Melding.tomLinje
                       ]
                     , jobbprofil
@@ -1267,23 +1284,24 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
             [ Melding.spørsmål [ "Tenk på kunnskapene og ferdighetene dine fra jobb eller utdanning." ] ]
 
         VisOppsummering forsteGang info ->
+            let
+                ( startSetning, sluttSetning ) =
+                    case forsteGang of
+                        True ->
+                            ( "Du har lagt inn dette:", "Er informasjonen riktig?" )
+
+                        False ->
+                            ( "Du har endret. Er det riktig nå?", "Er informasjonen riktig nå?" )
+            in
             [ Melding.spørsmål
                 (List.concat
-                    [ [ if forsteGang then
-                            "Du har lagt inn dette:"
-
-                        else
-                            "Du har endret. Er det riktig nå?"
+                    [ [ startSetning
                       , Melding.tomLinje
                       ]
                     , info
                         |> oppsummering
                     , [ Melding.tomLinje
-                      , if forsteGang then
-                            "Er informasjonen riktig?"
-
-                        else
-                            "Er informasjonen riktig nå?"
+                      , sluttSetning
                       ]
                     ]
                 )
@@ -1528,7 +1546,7 @@ modelTilBrukerInput model =
 
             HarJobbprofil _ _ ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
+                    [ Knapp.knapp VilLagreJobbprofil "Ja, informasjonen er riktig"
                         |> Knapp.withId (inputIdTilString BekreftJobbprofilId)
                     , Knapp.knapp VilEndreOppsummering "Nei, jeg vil endre"
                     ]
@@ -1650,14 +1668,18 @@ modelTilBrukerInput model =
                     )
 
             VisOppsummering forsteGang _ ->
+                let
+                    setning =
+                        case forsteGang of
+                            True ->
+                                "Ja, det er riktig"
+
+                            False ->
+                                "Ja, nå er det riktig"
+                in
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilLagreJobbprofil
-                        (if forsteGang then
-                            "Ja, det er riktig"
-
-                         else
-                            "Ja, nå er det riktig"
-                        )
+                        setning
                         |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
                     , Knapp.knapp VilEndreOppsummering "Nei, jeg vil endre"
                     ]
@@ -1925,13 +1947,13 @@ init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
     )
 
 
-initKompetanseTypeahead : ( Typeahead.Model Kompetanse, Typeahead.Query )
-initKompetanseTypeahead =
+initYrkeTypeahead : ( Typeahead.Model Yrke, Typeahead.Query )
+initYrkeTypeahead =
     Typeahead.init
         { value = ""
-        , label = "Kompetanser"
-        , id = inputIdTilString KompetanseTypeaheadId
-        , toString = Kompetanse.label
+        , label = "Stillinger/yrker"
+        , id = inputIdTilString StillingYrkeTypeaheadId
+        , toString = Yrke.label
         }
         |> Tuple.mapFirst Typeahead.withSubmitOnElementSelected
 
@@ -1947,13 +1969,13 @@ initOmradeTypeahead =
         |> Tuple.mapFirst Typeahead.withSubmitOnElementSelected
 
 
-initYrkeTypeahead : ( Typeahead.Model Yrke, Typeahead.Query )
-initYrkeTypeahead =
+initKompetanseTypeahead : ( Typeahead.Model Kompetanse, Typeahead.Query )
+initKompetanseTypeahead =
     Typeahead.init
         { value = ""
-        , label = "Stillinger/yrker"
-        , id = inputIdTilString StillingYrkeTypeaheadId
-        , toString = Yrke.label
+        , label = "Kompetanser"
+        , id = inputIdTilString KompetanseTypeaheadId
+        , toString = Kompetanse.label
         }
         |> Tuple.mapFirst Typeahead.withSubmitOnElementSelected
 
