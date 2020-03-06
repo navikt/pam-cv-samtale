@@ -1,12 +1,14 @@
 module Jobbprofil.Jobbprofil exposing (..)
 
 import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
+import Iso8601
 import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (AnsettelsesForm, Arbeidsdag, ArbeidstidOrdning, Arbeidstider(..), Arbeidstidspunkt, Omfang, Oppstart, decodeAnsettelsesform, decodeArbeidstider, decodeOmfang, decodeOppstart)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
 import Jobbprofil.Stilling as Stilling
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
+import Time exposing (Posix)
 
 
 type Jobbprofil
@@ -23,6 +25,7 @@ type alias JobbprofilInfo =
     , arbeidstidsordninger : List Arbeidstider
     , omfangsliste : List Omfang
     , oppstart : Maybe Oppstart
+    , sistEndretDato : Maybe Posix
     }
 
 
@@ -62,6 +65,11 @@ oppstart (Jobbprofil info) =
     info.oppstart
 
 
+sistEndretDato : Jobbprofil -> Maybe Posix
+sistEndretDato (Jobbprofil info) =
+    info.sistEndretDato
+
+
 
 ---- Decoder ----
 
@@ -84,3 +92,4 @@ decodeJobbprofil =
         |> required "arbeidstidsordningliste" (list JobbprofilValg.decodeArbeidstider)
         |> required "omfangsliste" (list JobbprofilValg.decodeOmfang)
         |> required "oppstart" (nullable JobbprofilValg.decodeOppstart)
+        |> required "sistEndretDato" (nullable Iso8601.decoder)

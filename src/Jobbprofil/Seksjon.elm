@@ -29,7 +29,7 @@ import FrontendModuler.RadioGruppe as RadioGruppe
 import FrontendModuler.Typeahead
 import Html exposing (Html)
 import Http
-import Jobbprofil.Jobbprofil exposing (Jobbprofil)
+import Jobbprofil.Jobbprofil exposing (Jobbprofil, sistEndretDato)
 import Jobbprofil.JobbprofilValg as JobbprofilValg exposing (AnsettelsesForm, Arbeidstider(..), Omfang, Oppstart(..), ansettelsesformValg, arbeidstidValg, omfangValg, oppstartValg)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
@@ -191,7 +191,7 @@ update msg (Model model) =
                                 HarJobbprofilJobbsøker jobbprofil
                     in
                     ( nesteSamtaleSteg
-                        |> oppdaterSamtale model UtenSvar
+                        |> oppdaterSamtale { model | sistLagretJobbprofil = sistEndretDato jobbprofil } UtenSvar
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
@@ -749,7 +749,7 @@ update msg (Model model) =
                                         model.seksjonsMeldingsLogg
                             in
                             ( VenterPåAnimasjonFørFullføring
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg, sistLagretJobbprofil = sistEndretDato jobbprofil } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
