@@ -677,7 +677,7 @@ updateSuccess successMsg model =
                             , Cmd.map JobbprofilMsg cmd
                             )
 
-                        Jobbprofil.Seksjon.Ferdig _ meldingsLogg ->
+                        Jobbprofil.Seksjon.Ferdig meldingsLogg ->
                             --todo: gå til tilbakemelding
                             ( model, Cmd.none )
 

@@ -15,7 +15,7 @@ import Arbeidserfaring.Yrke as Yrke exposing (Yrke)
 import Browser.Dom as Dom
 import Browser.Events exposing (Visibility(..))
 import DebugStatus exposing (DebugStatus)
-import ErrorHandtering as ErrorHåndtering
+import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.Checkbox as Checkbox
@@ -93,11 +93,12 @@ type Samtale
     | EndreOppsummering UvalidertSkjema TypeaheadOppsummeringInfo
     | LagrerSkjema ValidertSkjema LagreStatus
     | LagringFeilet Http.Error ValidertSkjema
+    | VenterPåAnimasjonFørFullføring
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig Jobbprofil FerdigAnimertMeldingsLogg
+    | Ferdig FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -150,7 +151,7 @@ type Msg
     | VilLagreOppsummering
     | VilLagreJobbprofil
     | JobbprofilLagret (Result Http.Error Jobbprofil)
-    | VilGiOppLagring
+    | FerdigMedJobbprofil
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | WindowEndrerVisibility Visibility
     | ErrorLogget
@@ -705,6 +706,13 @@ update msg (Model model) =
 
         VilLagreJobbprofil ->
             case model.aktivSamtale of
+                HarJobbprofilJobbsøker _ ->
+                    ( VenterPåAnimasjonFørFullføring
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
                 VisOppsummering _ skjema ->
                     ( LagreStatus.init
                         |> LagrerSkjema skjema
@@ -730,26 +738,113 @@ update msg (Model model) =
             case model.aktivSamtale of
                 LagrerSkjema skjema lagreStatus ->
                     case result of
-                        Ok _ ->
-                            --todo: implementer
-                            IkkeFerdig ( Model model, Cmd.none )
+                        Ok jobbprofil ->
+                            let
+                                oppdatertMeldingslogg =
+                                    if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                        model.seksjonsMeldingsLogg
+                                            |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+
+                                    else
+                                        model.seksjonsMeldingsLogg
+                            in
+                            ( VenterPåAnimasjonFørFullføring
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
                         Err error ->
-                            --todo: implementer
-                            IkkeFerdig ( Model model, Cmd.none )
+                            if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                if LagreStatus.forsøkPåNytt lagreStatus then
+                                    ( LagreStatus.fraError error
+                                        |> LagrerSkjema skjema
+                                        |> oppdaterSamtale model IngenNyeMeldinger
+                                    , Api.opprettJobbprofil JobbprofilLagret skjema
+                                    )
+                                        |> IkkeFerdig
+
+                                else
+                                    ( skjema
+                                        |> LagringFeilet error
+                                        |> oppdaterSamtale model IngenNyeMeldinger
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre jobbprofil" error
+                                    )
+                                        |> IkkeFerdig
+
+                            else
+                                ( skjema
+                                    |> LagringFeilet error
+                                    |> oppdaterSamtale model UtenSvar
+                                , Cmd.batch
+                                    [ lagtTilSpørsmålCmd model.debugStatus
+                                    , skjema
+                                        |> Skjema.encode
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre jobbprofil" error
+                                    ]
+                                )
+                                    |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilGiOppLagring ->
-            IkkeFerdig ( Model model, Cmd.none )
+        FerdigMedJobbprofil ->
+            case model.aktivSamtale of
+                LagringFeilet _ _ ->
+                    ( VenterPåAnimasjonFørFullføring
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
                 |> updateEtterFullførtMelding model
 
-        WindowEndrerVisibility _ ->
-            IkkeFerdig ( Model model, Cmd.none )
+        WindowEndrerVisibility visibility ->
+            case visibility of
+                Visible ->
+                    case model.aktivSamtale of
+                        LagrerSkjema skjema lagreStatus ->
+                            let
+                                _ =
+                                    Debug.log "når er jeg her " lagreStatus
+                            in
+                            ( lagreStatus
+                                |> LagreStatus.setForsøkPåNytt
+                                |> LagrerSkjema skjema
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        LagringFeilet error skjema ->
+                            let
+                                _ =
+                                    Debug.log "når er jeg her feil " error
+                            in
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                IkkeFerdig
+                                    ( error
+                                        |> LagreStatus.fraError
+                                        |> LagrerSkjema skjema
+                                        |> oppdaterSamtale model IngenNyeMeldinger
+                                    , Api.opprettJobbprofil JobbprofilLagret skjema
+                                    )
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
+
+                Hidden ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         ErrorLogget ->
             IkkeFerdig ( Model model, Cmd.none )
@@ -1093,8 +1188,9 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                --    VenterPåAnimasjonFørFullføring  _ ->
-                --        Ferdig (sistLagret (Model model)) ferdigAnimertSamtale
+                VenterPåAnimasjonFørFullføring ->
+                    Ferdig ferdigAnimertSamtale
+
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
                     , Cmd.batch
@@ -1221,6 +1317,9 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
 
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre jobbprofil" } ]
+
+        VenterPåAnimasjonFørFullføring ->
+            []
 
 
 oppsummering : ValidertSkjema -> List String
@@ -1686,7 +1785,7 @@ modelTilBrukerInput model =
                 case ErrorHåndtering.operasjonEtterError error of
                     ErrorHåndtering.GiOpp ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp VilGiOppLagring "Gå videre"
+                            [ Knapp.knapp FerdigMedJobbprofil "Gå videre"
 
                             --    |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
@@ -1696,11 +1795,14 @@ modelTilBrukerInput model =
                             [ Knapp.knapp VilLagreJobbprofil "Prøv igjen"
 
                             -- |> Knapp.withId (inputIdTilString LagringFeiletActionId)
-                            , Knapp.knapp VilGiOppLagring "Gå videre"
+                            , Knapp.knapp FerdigMedJobbprofil "Gå videre"
                             ]
 
                     ErrorHåndtering.LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
+
+            VenterPåAnimasjonFørFullføring ->
+                BrukerInput.utenInnhold
 
     else
         BrukerInput.utenInnhold
