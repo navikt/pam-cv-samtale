@@ -79,10 +79,9 @@ type alias TypeaheadOppsummeringInfo =
 type Samtale
     = LasterJobbprofil
     | HentingAvJobbprofilFeilet Http.Error
-    | HarJobbprofilJobbsøker Jobbprofil
-    | HarJobbprofilUnderOppfølging Jobbprofil
+    | HarJobbprofil Bool Jobbprofil
     | HarIkkeJobbprofilJobbsøker
-    | LeggTilYrker YrkeStegInfo (Typeahead.Model Yrke)
+    | LeggTilYrker Bool YrkeStegInfo (Typeahead.Model Yrke)
     | LeggTilOmrader OmradeStegInfo (Typeahead.Model Omrade)
     | LeggTilOmfang OmfangStegInfo
     | LeggTilArbeidstid ArbeidstidStegInfo
@@ -114,6 +113,16 @@ sistLagret (Model model) =
 
         Just sistLagretJobbprofil ->
             sistLagretJobbprofil
+
+
+underOppfølging : ModelInfo -> Bool
+underOppfølging model =
+    case model.brukerInfo of
+        UnderOppfølging _ ->
+            True
+
+        JobbSkifter _ ->
+            False
 
 
 
@@ -171,26 +180,9 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         JobbprofilHentet result ->
-            let
-                underOppfølging =
-                    case model.brukerInfo of
-                        UnderOppfølging _ ->
-                            True
-
-                        JobbSkifter _ ->
-                            False
-            in
             case result of
                 Ok jobbprofil ->
-                    let
-                        nesteSamtaleSteg =
-                            if underOppfølging then
-                                HarJobbprofilUnderOppfølging jobbprofil
-
-                            else
-                                HarJobbprofilJobbsøker jobbprofil
-                    in
-                    ( nesteSamtaleSteg
+                    ( HarJobbprofil (underOppfølging model) jobbprofil
                         |> oppdaterSamtale model UtenSvar
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -201,10 +193,10 @@ update msg (Model model) =
                         Http.BadStatus 404 ->
                             let
                                 nesteSamtaleSteg =
-                                    if underOppfølging then
+                                    if underOppfølging model then
                                         initYrkeTypeahead
                                             |> Tuple.first
-                                            |> LeggTilYrker { yrker = [], underOppfølging = True, visFeilmelding = False }
+                                            |> LeggTilYrker True { yrker = [], visFeilmelding = False }
 
                                     else
                                         HarIkkeJobbprofilJobbsøker
@@ -221,7 +213,7 @@ update msg (Model model) =
         VilBegynnePåJobbprofil ->
             ( initYrkeTypeahead
                 |> Tuple.first
-                |> LeggTilYrker { yrker = [], underOppfølging = False, visFeilmelding = False }
+                |> LeggTilYrker False { yrker = [], visFeilmelding = False }
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -229,7 +221,7 @@ update msg (Model model) =
 
         YrkeTypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                LeggTilYrker info typeaheadModel ->
+                LeggTilYrker _ info typeaheadModel ->
                     updateSamtaleYrkeTypeahead model info typeaheadMsg typeaheadModel
 
                 EndreOppsummering info typeaheadInfo ->
@@ -240,7 +232,7 @@ update msg (Model model) =
 
         HentetYrkeTypeahead query result ->
             case model.aktivSamtale of
-                LeggTilYrker info typeaheadModel ->
+                LeggTilYrker erUnderOppfølging info typeaheadModel ->
                     let
                         resultWithoutSelected =
                             result
@@ -248,7 +240,7 @@ update msg (Model model) =
                     in
                     ( resultWithoutSelected
                         |> Typeahead.updateSuggestions Yrke.label typeaheadModel query
-                        |> LeggTilYrker info
+                        |> LeggTilYrker erUnderOppfølging info
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
                         |> Result.error
@@ -282,9 +274,9 @@ update msg (Model model) =
 
         FjernValgtYrke yrke ->
             case model.aktivSamtale of
-                LeggTilYrker info typeaheadModel ->
+                LeggTilYrker erUnderOppfølging info typeaheadModel ->
                     ( typeaheadModel
-                        |> LeggTilYrker { info | yrker = List.remove yrke info.yrker }
+                        |> LeggTilYrker erUnderOppfølging { info | yrker = List.remove yrke info.yrker }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -303,11 +295,11 @@ update msg (Model model) =
 
         VilGåVidereFraYrke ->
             case model.aktivSamtale of
-                LeggTilYrker info _ ->
+                LeggTilYrker erUnderOppfølging info _ ->
                     if List.isEmpty info.yrker then
                         ( initYrkeTypeahead
                             |> Tuple.first
-                            |> LeggTilYrker { info | visFeilmelding = True }
+                            |> LeggTilYrker erUnderOppfølging { info | visFeilmelding = True }
                             |> oppdaterSamtale model IngenNyeMeldinger
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
@@ -638,10 +630,7 @@ update msg (Model model) =
                 VisOppsummering _ skjema ->
                     updateEtterVilEndreSkjema model msg skjema
 
-                HarJobbprofilJobbsøker jobbprofil ->
-                    updateEtterVilEndreSkjema model msg (Skjema.fraJobbprofil jobbprofil)
-
-                HarJobbprofilUnderOppfølging jobbprofil ->
+                HarJobbprofil _ jobbprofil ->
                     updateEtterVilEndreSkjema model msg (Skjema.fraJobbprofil jobbprofil)
 
                 _ ->
@@ -706,7 +695,7 @@ update msg (Model model) =
 
         VilLagreJobbprofil ->
             case model.aktivSamtale of
-                HarJobbprofilJobbsøker _ ->
+                HarJobbprofil _ _ ->
                     ( VenterPåAnimasjonFørFullføring
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
@@ -857,7 +846,7 @@ update msg (Model model) =
 
         TimeoutEtterAtFeltMistetFokus ->
             case model.aktivSamtale of
-                LeggTilYrker info typeaheadModel ->
+                LeggTilYrker _ info typeaheadModel ->
                     visFeilmeldingForYrke model info typeaheadModel
 
                 _ ->
@@ -1088,13 +1077,16 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
             Typeahead.update Yrke.label msg typeaheadModel
+
+        erUnderOppfølging =
+            underOppfølging model
     in
     case Typeahead.inputStatus status of
         Typeahead.Submit ->
             case Typeahead.selected nyTypeaheadModel of
                 Just yrke ->
                     ( nyTypeaheadModel
-                        |> LeggTilYrker { yrker = List.append info.yrker [ yrke ], underOppfølging = info.underOppfølging, visFeilmelding = False }
+                        |> LeggTilYrker erUnderOppfølging { yrker = List.append info.yrker [ yrke ], visFeilmelding = False }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -1106,7 +1098,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
         Typeahead.InputBlurred ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> LeggTilYrker info
+                    |> LeggTilYrker erUnderOppfølging info
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , mistetFokusCmd
                 )
@@ -1114,7 +1106,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
         Typeahead.NoChange ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> LeggTilYrker info
+                    |> LeggTilYrker erUnderOppfølging info
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput query ->
@@ -1127,7 +1119,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
         NewActiveElement ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> LeggTilYrker info
+                    |> LeggTilYrker erUnderOppfølging info
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , nyTypeaheadModel
                     |> Typeahead.scrollActiveSuggestionIntoView Yrke.label Nothing
@@ -1217,26 +1209,14 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
             --todo: håndter feil
             []
 
-        HarJobbprofilJobbsøker jobbprofil ->
+        HarJobbprofil erUnderOppfølging jobbprofil ->
             [ Melding.spørsmål
                 (List.concat
-                    [ [ "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
-                      , Melding.tomLinje
-                      ]
-                    , jobbprofil
-                        |> Skjema.fraJobbprofil
-                        |> oppsummering
-                    , [ Melding.tomLinje
-                      , "Er informasjonen riktig?"
-                      ]
-                    ]
-                )
-            ]
+                    [ [ if erUnderOppfølging then
+                            "Nå gjenstår bare jobbprofilen. Jeg ser du har lagt inn dette tidligere:"
 
-        HarJobbprofilUnderOppfølging jobbprofil ->
-            [ Melding.spørsmål
-                (List.concat
-                    [ [ "Nå gjenstår bare jobbprofilen. Jeg ser du har lagt inn dette tidligere:"
+                        else
+                            "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
                       , Melding.tomLinje
                       ]
                     , jobbprofil
@@ -1255,8 +1235,8 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                 ]
             ]
 
-        LeggTilYrker info _ ->
-            if info.underOppfølging then
+        LeggTilYrker erUnderOppfølging _ _ ->
+            if erUnderOppfølging then
                 [ Melding.spørsmål [ "Nå gjenstår bare jobbprofilen." ]
                 , Melding.spørsmål [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider." ]
                 , Melding.spørsmål [ "Du kan legge til flere stillinger eller yrker" ]
@@ -1475,13 +1455,13 @@ inputIdTilString inputId =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
-        HarJobbprofilJobbsøker _ ->
+        HarJobbprofil _ _ ->
             settFokusCmd BekreftJobbprofilId
 
         HarIkkeJobbprofilJobbsøker ->
             settFokusCmd BegynnPåJobbprofilId
 
-        LeggTilYrker _ _ ->
+        LeggTilYrker _ _ _ ->
             settFokusCmd StillingYrkeTypeaheadId
 
         LeggTilOmrader _ _ ->
@@ -1546,15 +1526,12 @@ modelTilBrukerInput model =
             HentingAvJobbprofilFeilet _ ->
                 BrukerInput.utenInnhold
 
-            HarJobbprofilJobbsøker _ ->
+            HarJobbprofil _ _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilLagreJobbprofil "Ja, det er riktig"
                         |> Knapp.withId (inputIdTilString BekreftJobbprofilId)
                     , Knapp.knapp VilEndreOppsummering "Nei, jeg vil endre"
                     ]
-
-            HarJobbprofilUnderOppfølging _ ->
-                BrukerInput.utenInnhold
 
             HarIkkeJobbprofilJobbsøker ->
                 BrukerInput.knapper Flytende
@@ -1562,7 +1539,7 @@ modelTilBrukerInput model =
                         |> Knapp.withId (inputIdTilString BegynnPåJobbprofilId)
                     ]
 
-            LeggTilYrker info typeaheadModel ->
+            LeggTilYrker _ info typeaheadModel ->
                 BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraYrke
                     (info.yrker
                         |> feilmeldingYrke
@@ -1895,7 +1872,7 @@ visFeilmeldingForOmrade model info typeaheadModel =
 visFeilmeldingForYrke : ModelInfo -> YrkeStegInfo -> Typeahead.Model Yrke -> SamtaleStatus
 visFeilmeldingForYrke model info typeaheadModel =
     ( typeaheadModel
-        |> LeggTilYrker { info | visFeilmelding = True }
+        |> LeggTilYrker (underOppfølging model) { info | visFeilmelding = True }
         |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )
