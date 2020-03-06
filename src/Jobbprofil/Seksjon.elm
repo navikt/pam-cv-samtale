@@ -1399,6 +1399,7 @@ viewBrukerInput (Model model) =
 
 type InputId
     = BekreftJobbprofilId
+    | BekreftOppsummeringId
     | BegynnPåJobbprofilId
     | StillingYrkeTypeaheadId
     | OmradeTypeaheadId
@@ -1412,6 +1413,8 @@ type InputId
     | AnsettelsesformCheckboxIdMedNummer
     | OppstartCheckboxId
     | OppstartCheckboxIdMedNummer
+    | LagringFeiletProvIgjenId
+    | LagringFeiletGaVidereId
 
 
 inputIdTilString : InputId -> String
@@ -1419,6 +1422,9 @@ inputIdTilString inputId =
     case inputId of
         BekreftJobbprofilId ->
             "jobbprofil-bekreft-id"
+
+        BekreftOppsummeringId ->
+            "jobbprofil-bekreft-oppsummering-id"
 
         BegynnPåJobbprofilId ->
             "jobbprofil-begynn-id"
@@ -1459,10 +1465,22 @@ inputIdTilString inputId =
         OppstartCheckboxIdMedNummer ->
             "jobbprofil-oppstart-checkbox-id0"
 
+        LagringFeiletProvIgjenId ->
+            "jobbprofil-lagring-feilet-prov-igjen-id"
+
+        LagringFeiletGaVidereId ->
+            "jobbprofil-lagring-feilet-ga-videre-id"
+
 
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
+        HarJobbprofilJobbsøker _ ->
+            settFokusCmd BekreftJobbprofilId
+
+        HarIkkeJobbprofilJobbsøker ->
+            settFokusCmd BegynnPåJobbprofilId
+
         LeggTilYrker _ _ ->
             settFokusCmd StillingYrkeTypeaheadId
 
@@ -1486,6 +1504,17 @@ settFokus samtale =
 
         VelgOppstart _ ->
             settFokusCmd OppstartCheckboxIdMedNummer
+
+        VisOppsummering _ _ ->
+            settFokusCmd BekreftOppsummeringId
+
+        LagringFeilet error _ ->
+            case ErrorHåndtering.operasjonEtterError error of
+                ErrorHåndtering.GiOpp ->
+                    settFokusCmd LagringFeiletGaVidereId
+
+                _ ->
+                    settFokusCmd LagringFeiletProvIgjenId
 
         _ ->
             Cmd.none
@@ -1652,6 +1681,7 @@ modelTilBrukerInput model =
                          else
                             "Ja, nå er det riktig"
                         )
+                        |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
                     , Knapp.knapp VilEndreOppsummering "Nei, jeg vil endre"
                     ]
 
@@ -1786,15 +1816,13 @@ modelTilBrukerInput model =
                     ErrorHåndtering.GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedJobbprofil "Gå videre"
-
-                            --    |> Knapp.withId (inputIdTilString LagringFeiletActionId)
+                                |> Knapp.withId (inputIdTilString LagringFeiletGaVidereId)
                             ]
 
                     ErrorHåndtering.PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreJobbprofil "Prøv igjen"
-
-                            -- |> Knapp.withId (inputIdTilString LagringFeiletActionId)
+                                |> Knapp.withId (inputIdTilString LagringFeiletProvIgjenId)
                             , Knapp.knapp FerdigMedJobbprofil "Gå videre"
                             ]
 
