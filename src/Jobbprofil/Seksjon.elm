@@ -147,7 +147,7 @@ type Msg
     | VilGåVidereFraKompetanse
     | VilEndreOppsummering
     | SkjemaEndret CheckboxEndring
-    | VilLagreOppsummering UvalidertSkjema
+    | VilLagreOppsummering
     | VilLagreJobbprofil
     | JobbprofilLagret (Result Http.Error Jobbprofil)
     | VilGiOppLagring
@@ -681,13 +681,27 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilLagreOppsummering uvalidertSkjema ->
-            ( Skjema.tilValidertSkjema uvalidertSkjema
-                |> VisOppsummering False
-                |> oppdaterSamtale model UtenSvar
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
-                |> IkkeFerdig
+        VilLagreOppsummering ->
+            case model.aktivSamtale of
+                EndreOppsummering skjema typeaheadinfo ->
+                    case Skjema.valider skjema of
+                        Just validertSkjema ->
+                            ( Skjema.tilValidertSkjema skjema
+                                |> VisOppsummering False
+                                |> oppdaterSamtale model (ManueltSvar (Melding.svar (oppsummering validertSkjema)))
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
+
+                        Nothing ->
+                            ( EndreOppsummering (Skjema.tillatÅViseAlleFeilmeldinger skjema) typeaheadinfo
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         VilLagreJobbprofil ->
             case model.aktivSamtale of
@@ -1565,7 +1579,7 @@ modelTilBrukerInput model =
                     kompetanser =
                         Skjema.kompetanser skjema
                 in
-                BrukerInput.skjema { lagreMsg = VilLagreOppsummering skjema, lagreKnappTekst = "Lagre endringer" }
+                BrukerInput.skjema { lagreMsg = VilLagreOppsummering, lagreKnappTekst = "Lagre endringer" }
                     [ stillinger
                         |> feilmeldingYrke
                         |> Typeahead.view Yrke.label typeaheadInfo.yrker

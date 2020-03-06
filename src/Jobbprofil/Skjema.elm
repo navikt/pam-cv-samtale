@@ -29,6 +29,8 @@ module Jobbprofil.Skjema exposing
     , oppsummeringInnhold
     , tilUvalidertSkjema
     , tilValidertSkjema
+    , tillatÅViseAlleFeilmeldinger
+    , valider
     , yrker
     )
 
@@ -37,6 +39,7 @@ import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.JobbprofilValg exposing (..)
 import Jobbprofil.Kompetanse as Kompetanse exposing (Kompetanse)
 import Jobbprofil.Omrade as Omrade exposing (Omrade)
+import Jobbprofil.Validering exposing (feilmeldingKompetanse, feilmeldingOmråde, feilmeldingOppstart, feilmeldingYrke)
 import Json.Encode
 import List.Extra as List
 
@@ -71,7 +74,8 @@ type alias UvalidertSkjemaInfo =
     , visYrkerFeilmelding : Bool
     , visKompetanserFeilmelding : Bool
     , visOmraderFeilmelding : Bool
-    , visOppstartFeilmelding : Bool
+
+    --, visOppstartFeilmelding : Bool
     }
 
 
@@ -110,7 +114,8 @@ tilUvalidertSkjema (ValidertSkjema skjema) =
         , visYrkerFeilmelding = False
         , visKompetanserFeilmelding = False
         , visOmraderFeilmelding = False
-        , visOppstartFeilmelding = False
+
+        --       , visOppstartFeilmelding = False
         }
 
 
@@ -323,6 +328,37 @@ leggTilEllerFjernArbeidstid (UvalidertSkjema info) verdi =
 --- VALIDER ---
 
 
+valider : UvalidertSkjema -> Maybe ValidertSkjema
+valider (UvalidertSkjema info) =
+    if feilmeldingOmråde info.omrader /= Nothing then
+        Nothing
+
+    else if feilmeldingKompetanse info.kompetanser /= Nothing then
+        Nothing
+
+    else if feilmeldingYrke info.yrker /= Nothing then
+        Nothing
+
+    else
+        let
+            _ =
+                Debug.log "hmm" info.omrader
+        in
+        Maybe.map
+            (\oppstart_ ->
+                ValidertSkjema
+                    { yrker = info.yrker
+                    , omrader = info.omrader
+                    , omfanger = info.omfanger
+                    , arbeidstider = info.arbeidstider
+                    , ansettelsesformer = info.ansettelsesformer
+                    , oppstart = oppstart_
+                    , kompetanser = info.kompetanser
+                    }
+            )
+            info.oppstart
+
+
 gjørFeilmeldingYrkeSynlig : Bool -> UvalidertSkjema -> UvalidertSkjema
 gjørFeilmeldingYrkeSynlig synlig (UvalidertSkjema skjema) =
     -- Skal alltid vises etter onBlur/onSubmit, så hvis den noen gang har vært True, skal den alltid fortsette å være True
@@ -333,6 +369,20 @@ gjørFeilmeldingOmrådeSynlig : Bool -> UvalidertSkjema -> UvalidertSkjema
 gjørFeilmeldingOmrådeSynlig synlig (UvalidertSkjema skjema) =
     -- Skal alltid vises etter onBlur/onSubmit, så hvis den noen gang har vært True, skal den alltid fortsette å være True
     UvalidertSkjema { skjema | visOmraderFeilmelding = synlig || skjema.visOmraderFeilmelding }
+
+
+gjørFeilmeldingKompentanseSynlig : Bool -> UvalidertSkjema -> UvalidertSkjema
+gjørFeilmeldingKompentanseSynlig synlig (UvalidertSkjema skjema) =
+    -- Skal alltid vises etter onBlur/onSubmit, så hvis den noen gang har vært True, skal den alltid fortsette å være True
+    UvalidertSkjema { skjema | visKompetanserFeilmelding = synlig || skjema.visKompetanserFeilmelding }
+
+
+tillatÅViseAlleFeilmeldinger : UvalidertSkjema -> UvalidertSkjema
+tillatÅViseAlleFeilmeldinger skjema =
+    skjema
+        |> gjørFeilmeldingYrkeSynlig True
+        |> gjørFeilmeldingOmrådeSynlig True
+        |> gjørFeilmeldingKompentanseSynlig True
 
 
 
