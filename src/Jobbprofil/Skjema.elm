@@ -74,8 +74,6 @@ type alias UvalidertSkjemaInfo =
     , visYrkerFeilmelding : Bool
     , visKompetanserFeilmelding : Bool
     , visOmraderFeilmelding : Bool
-
-    --, visOppstartFeilmelding : Bool
     }
 
 
@@ -114,8 +112,6 @@ tilUvalidertSkjema (ValidertSkjema skjema) =
         , visYrkerFeilmelding = False
         , visKompetanserFeilmelding = False
         , visOmraderFeilmelding = False
-
-        --       , visOppstartFeilmelding = False
         }
 
 
