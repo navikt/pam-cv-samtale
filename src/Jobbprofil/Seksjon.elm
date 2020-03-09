@@ -1291,7 +1291,7 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
                             ( "Du har lagt inn dette:", "Er informasjonen riktig?" )
 
                         False ->
-                            ( "Du har endret. Er det riktig nå?", "Er informasjonen riktig nå?" )
+                            ( "Du har endret til dette:", "Er informasjonen riktig nå?" )
             in
             [ Melding.spørsmål
                 (List.concat
