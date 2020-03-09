@@ -336,10 +336,6 @@ valider (UvalidertSkjema info) =
         Nothing
 
     else
-        let
-            _ =
-                Debug.log "hmm" info.omrader
-        in
         Maybe.map
             (\oppstart_ ->
                 ValidertSkjema
@@ -393,7 +389,11 @@ encode (ValidertSkjema skjema) =
       , ( "kompetanseliste", Json.Encode.list Kompetanse.encode skjema.kompetanser )
       , ( "geografiliste", Json.Encode.list Omrade.encode skjema.omrader )
       , ( "oppstart", Json.Encode.string (oppstartTilBackendString skjema.oppstart) )
-      , ( "aktiv", Json.Encode.bool False )
+
+      --  , ( "omfangsliste", Json.Encode.list Json.Encode.string (List.map omfangTilBackendString skjema.omfanger) )
+      ]
+    , encodeArbeidspunkt skjema.arbeidstider
+    , [ ( "aktiv", Json.Encode.bool False )
       , ( "omfangsliste", Json.Encode.list Json.Encode.string (List.map omfangTilBackendString skjema.omfanger) )
       ]
     , encodeArbeidstider skjema.arbeidstider

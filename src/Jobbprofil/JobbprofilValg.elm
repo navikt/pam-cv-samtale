@@ -456,7 +456,25 @@ encodeArbeidstider arbeidstider =
                 )
                 arbeidstider
     in
-    [ ( "arbeidstidliste", Json.Encode.list Json.Encode.string (List.map arbeidstidspunktTilBackendString arbeidstidspunkt) )
-    , ( "arbeidsdagerliste", Json.Encode.list Json.Encode.string (List.map arbeidsdagTilBackendString arbeidsdager) )
+    [ ( "arbeidsdagerliste", Json.Encode.list Json.Encode.string (List.map arbeidsdagTilBackendString arbeidsdager) )
     , ( "arbeidstidsordningliste", Json.Encode.list Json.Encode.string (List.map arbeidstidOrdningTilBackendString arbeidtidsordning) )
+    ]
+
+
+encodeArbeidspunkt : List Arbeidstider -> List ( String, Json.Encode.Value )
+encodeArbeidspunkt arbeidstider =
+    let
+        arbeidstidspunkt =
+            List.filterMap
+                (\it ->
+                    case it of
+                        Arbeidstid value ->
+                            Just value
+
+                        _ ->
+                            Nothing
+                )
+                arbeidstider
+    in
+    [ ( "arbeidstidliste", Json.Encode.list Json.Encode.string (List.map arbeidstidspunktTilBackendString arbeidstidspunkt) )
     ]

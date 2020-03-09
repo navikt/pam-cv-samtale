@@ -42,7 +42,7 @@ import Meldinger.Melding as Melding exposing (Melding)
 import Meldinger.MeldingsLogg as MeldingsLogg exposing (FerdigAnimertMeldingsLogg, FerdigAnimertStatus(..), MeldingsLogg, tilFerdigAnimertMeldingsLogg)
 import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
-import Person exposing (BrukerInfo(..))
+import Person exposing (BrukerInfo(..), Synlighet(..))
 import Process
 import Result.Extra as Result
 import String
@@ -97,7 +97,7 @@ type Samtale
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig FerdigAnimertMeldingsLogg
+    | Ferdig Posix BrukerInfo FerdigAnimertMeldingsLogg
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -796,7 +796,7 @@ update msg (Model model) =
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> ferdigAnimertMeldingsLogg
-                        |> Ferdig
+                        |> Ferdig (sistLagret (Model model)) model.brukerInfo
 
         SamtaleAnimasjonMsg samtaleAnimasjonMsg ->
             SamtaleAnimasjon.update model.debugStatus samtaleAnimasjonMsg model.seksjonsMeldingsLogg
@@ -863,6 +863,31 @@ update msg (Model model) =
 ferdigAnimertMeldingsLogg : ( Model, Cmd Msg ) -> FerdigAnimertMeldingsLogg
 ferdigAnimertMeldingsLogg ( Model model, _ ) =
     tilFerdigAnimertMeldingsLogg model.seksjonsMeldingsLogg
+
+
+robotSvarEtterFullførtJobbprofil : BrukerInfo -> List Melding
+robotSvarEtterFullførtJobbprofil brukerInfo =
+    case brukerInfo of
+        JobbSkifter _ ->
+            [ Melding.spørsmål [ "Bra innsats! 👍👍 Nå er du søkbar." ] ]
+
+        UnderOppfølging IkkeSynlig ->
+            [ Melding.spørsmål
+                [ "Bra innsats! 👍👍 NAV-veiledere kan nå søke opp CV-en din. "
+                    ++ "Hvis du ønsker at arbeidsgivere skal kunne søke deg opp, må du kontakte NAV-veilederen din. "
+                ]
+            ]
+
+        UnderOppfølging Synlig ->
+            [ Melding.spørsmål
+                [ "Bra innsats! 👍👍 Arbeidsgivere og NAV-veiledere kan nå søke opp CV-din. "
+                    ++ "De kan kontakte deg hvis de har en jobb som passer for deg."
+                ]
+            ]
+
+
+
+--  UnderOppfølging Synlig ->
 
 
 updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertSkjema -> SamtaleStatus
@@ -1193,7 +1218,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
                 VenterPåAnimasjonFørFullføring ->
-                    Ferdig ferdigAnimertSamtale
+                    Ferdig (sistLagret (Model model)) model.brukerInfo ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }

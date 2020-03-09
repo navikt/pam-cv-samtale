@@ -677,10 +677,9 @@ updateSuccess successMsg model =
                             , Cmd.map JobbprofilMsg cmd
                             )
 
-                        Jobbprofil.Seksjon.Ferdig meldingsLogg ->
-                            Debug.log "Ferdig med Jobbprofil seksjon"
-                                --todo: gå til tilbakemelding
-                                ( model, Cmd.none )
+                        Jobbprofil.Seksjon.Ferdig sistLagret brukerInfo meldingsLogg ->
+                            --todo: send med sist lagret fra jobbprofil
+                            gåTilTilbakemelding sistLagret brukerInfo model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -829,6 +828,21 @@ gåTilSeksjonsValg sistLagret model ferdigAnimertMeldingsLogg =
             ferdigAnimertMeldingsLogg
                 |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg LeggTilAutorisasjoner)
+      , sistLagret = sistLagret
+      }
+        |> AndreSamtaleSteg
+        |> oppdaterSamtaleSeksjon model
+    , lagtTilSpørsmålCmd model.debugStatus
+    )
+
+
+gåTilTilbakemelding : Posix -> BrukerInfo -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilTilbakemelding sistLagret brukerInfo model ferdigAnimertMeldingsLogg =
+    ( { aktivSamtale = SpørOmTilbakemelding brukerInfo
+      , meldingsLogg =
+            ferdigAnimertMeldingsLogg
+                |> MeldingsLogg.tilMeldingsLogg
+                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg (SpørOmTilbakemelding brukerInfo))
       , sistLagret = sistLagret
       }
         |> AndreSamtaleSteg
