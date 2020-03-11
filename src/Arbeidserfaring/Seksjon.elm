@@ -187,12 +187,6 @@ type SkjemaEndring
     | TilÅrBlurred
 
 
-type alias RegistrerYrkeInfo =
-    { valgtYrke : Maybe Yrke
-    , feilmelding : Maybe String
-    }
-
-
 type alias JobbtittelInfo =
     { tidligereInfo : Yrke
     , jobbtittel : String

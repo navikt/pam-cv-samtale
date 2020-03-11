@@ -47,6 +47,16 @@ html {
   }
 }
 
+
+.onlyScreenReader {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 // HEADER
 
 .header {
@@ -626,6 +636,34 @@ html {
   }
 
 }
+
+
+.radio-checkbox-fieldset {
+  border: none;
+  padding: 0;
+
+  legend.skjemaelement__label {
+    margin-bottom: 1rem;
+  }
+}
+
+
+.radio-checkbox-gruppe-wrapper {
+  margin-bottom: 1rem;
+
+  .radio-gruppe-feilområde {
+    border: 1px solid #ba3a26;
+    border-radius: 4px;
+    background-color: #f3e3e3;
+    margin-bottom: .5rem;
+    padding: 0.5rem 1rem 0 0.5rem;
+  }
+}
+
+.auto-width {
+  width: auto;
+}
+
 
 .typeahead-skjema-height-wrapper {
   min-height: 12rem;

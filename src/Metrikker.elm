@@ -18,6 +18,7 @@ type Seksjon
     | LeggTilAnnet
     | Sammendrag
     | Synlighet
+    | Jobbprofil
     | Slutten
 
 
@@ -71,6 +72,9 @@ seksjonTilString seksjon =
 
         Synlighet ->
             "synlighet"
+
+        Jobbprofil ->
+            "jobbprofil"
 
         Slutten ->
             "slutten"

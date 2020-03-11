@@ -1,6 +1,10 @@
+-- TODO: flytte fila siden den også brukes i jobbprofiL?
+
+
 module Arbeidserfaring.Yrke exposing
     ( Yrke
     , decode
+    , encode
     , fraString
     , konseptId
     , label
@@ -8,6 +12,7 @@ module Arbeidserfaring.Yrke exposing
     )
 
 import Json.Decode exposing (Decoder, at, int, map, map3, string)
+import Json.Encode
 
 
 type Yrke
@@ -57,3 +62,16 @@ decodeBackendData =
         (at [ "konseptId" ] int)
         (at [ "label" ] string)
         (at [ "styrk08" ] string)
+
+
+
+--- ENCODE ---
+
+
+encode : Yrke -> Json.Encode.Value
+encode (Yrke info) =
+    Json.Encode.object
+        [ ( "styrk08", Json.Encode.string info.styrk08 )
+        , ( "konseptid", Json.Encode.int info.konseptId )
+        , ( "tittel", Json.Encode.string info.label )
+        ]

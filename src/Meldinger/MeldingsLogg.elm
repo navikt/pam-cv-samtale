@@ -24,6 +24,7 @@ module Meldinger.MeldingsLogg exposing
     , startAnimasjon
     , startScrollingTilInput
     , startÅSkrive
+    , tilFerdigAnimertMeldingsLogg
     , tilMeldingsLogg
     , visBrukerInput
     )
@@ -211,6 +212,11 @@ tilMeldingsLogg (FerdigAnimertMeldingsLogg ferdigAnimert_) =
         { ferdigAnimert = ferdigAnimert_
         , ikkeVist = AlleMeldingerFerdigAnimert
         }
+
+
+tilFerdigAnimertMeldingsLogg : MeldingsLogg -> FerdigAnimertMeldingsLogg
+tilFerdigAnimertMeldingsLogg (MeldingsLogg meldingsLogg_) =
+    FerdigAnimertMeldingsLogg meldingsLogg_.ferdigAnimert
 
 
 

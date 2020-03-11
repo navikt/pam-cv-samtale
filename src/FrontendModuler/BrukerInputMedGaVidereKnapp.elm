@@ -1,20 +1,29 @@
 module FrontendModuler.BrukerInputMedGaVidereKnapp exposing
     ( BrukerInputMedGåVidereKnapp
+    , checkboxGruppe
     , datoInput
     , input
+    , radioGruppe
     , select
     , textarea
     , tilString
     , toHtml
     , typeahead
+    , typeaheadMedMerkelapper
     , withAlternativKnappetekst
     , withAvbrytKnapp
+    , withFeilmelding
     , withVisEksempelKnapp
     )
 
+import FrontendModuler.Checkbox as Checkbox exposing (Checkbox)
 import FrontendModuler.DatoInputEttFelt as DatoInputEttFelt exposing (DatoInputEttFelt)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Type(..))
+import FrontendModuler.Merkelapp as Merkelapp exposing (Merkelapp)
+import FrontendModuler.MerkelappGruppe as MerkelappGruppe exposing (MerkelappGruppe)
+import FrontendModuler.Radio as Radio exposing (Radio)
+import FrontendModuler.RadioGruppe as RadioGruppe exposing (RadioGruppe)
 import FrontendModuler.Select as Select exposing (Select)
 import FrontendModuler.Textarea as Textarea exposing (Textarea)
 import FrontendModuler.Typeahead as Typeahead exposing (Typeahead)
@@ -32,6 +41,7 @@ type alias Options msg =
     , alternativKnappetekst : Maybe String
     , visEksempelMsg : Maybe msg
     , onAvbrytMsg : Maybe msg
+    , feilmelding : Maybe String
     }
 
 
@@ -39,8 +49,11 @@ type InputElement msg
     = InputElement (Input msg)
     | TextareaElement (Textarea msg)
     | TypeaheadElement (Typeahead msg)
+    | TypeaheadMedMerkelapper (Typeahead msg) (MerkelappGruppe msg)
     | SelectElement (Select msg)
     | DatoInputEttFeltElement (DatoInputEttFelt msg)
+    | CheckboxGruppe (List (Checkbox msg))
+    | RadioGruppe (RadioGruppe msg)
 
 
 input : msg -> Input msg -> BrukerInputMedGåVidereKnapp msg
@@ -61,9 +74,27 @@ typeahead gåVidereMsg typeaheadElement =
         |> init gåVidereMsg
 
 
+typeaheadMedMerkelapper : msg -> Typeahead msg -> MerkelappGruppe msg -> BrukerInputMedGåVidereKnapp msg
+typeaheadMedMerkelapper gåVidereMsg typeaheadElement merkelapper =
+    TypeaheadMedMerkelapper typeaheadElement merkelapper
+        |> init gåVidereMsg
+
+
 select : msg -> Select msg -> BrukerInputMedGåVidereKnapp msg
 select gåVidereMsg selectElement =
     SelectElement selectElement
+        |> init gåVidereMsg
+
+
+checkboxGruppe : msg -> List (Checkbox msg) -> BrukerInputMedGåVidereKnapp msg
+checkboxGruppe gåVidereMsg checkboxer =
+    CheckboxGruppe checkboxer
+        |> init gåVidereMsg
+
+
+radioGruppe : msg -> RadioGruppe msg -> BrukerInputMedGåVidereKnapp msg
+radioGruppe gåVidereMsg radioGruppeElement =
+    RadioGruppe radioGruppeElement
         |> init gåVidereMsg
 
 
@@ -81,6 +112,7 @@ init gåVidereMsg inputElement =
         , alternativKnappetekst = Nothing
         , visEksempelMsg = Nothing
         , onAvbrytMsg = Nothing
+        , feilmelding = Nothing
         }
 
 
@@ -105,6 +137,11 @@ withVisEksempelKnapp eksempelKnappSkalVises visEksempelMsg (BrukerInputMedGåVid
 withAvbrytKnapp : msg -> BrukerInputMedGåVidereKnapp msg -> BrukerInputMedGåVidereKnapp msg
 withAvbrytKnapp onAvbrytMsg (BrukerInputMedGåVidereKnapp options) =
     BrukerInputMedGåVidereKnapp { options | onAvbrytMsg = Just onAvbrytMsg }
+
+
+withFeilmelding : Maybe String -> BrukerInputMedGåVidereKnapp msg -> BrukerInputMedGåVidereKnapp msg
+withFeilmelding feilmelding (BrukerInputMedGåVidereKnapp options) =
+    BrukerInputMedGåVidereKnapp { options | feilmelding = feilmelding }
 
 
 
@@ -141,6 +178,32 @@ toHtml (BrukerInputMedGåVidereKnapp options) =
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema typeahead-skjema-height-wrapper" ]
                     [ Typeahead.toHtml typeaheadElement
+                    , knapper options
+                    ]
+                ]
+
+        TypeaheadMedMerkelapper typeaheadElement merkelapper ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema typeahead-skjema-height-wrapper" ]
+                    [ Typeahead.toHtml typeaheadElement
+                    , MerkelappGruppe.toHtml merkelapper
+                    , knapper options
+                    ]
+                ]
+
+        CheckboxGruppe checkboxer ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema auto-width" ]
+                    [ div [ class "radio-checkbox-gruppe-wrapper" ]
+                        (List.map Checkbox.toHtml checkboxer)
+                    , knapper options
+                    ]
+                ]
+
+        RadioGruppe radiogruppe ->
+            div [ class "skjema-wrapper" ]
+                [ div [ class "skjema auto-width" ]
+                    [ RadioGruppe.toHtml radiogruppe
                     , knapper options
                     ]
                 ]
@@ -253,6 +316,9 @@ inputElementInnhold inputElement_ =
         TypeaheadElement typeaheadElement ->
             Typeahead.innhold typeaheadElement
 
+        TypeaheadMedMerkelapper _ merkelapper ->
+            Merkelapp.listeTilString (MerkelappGruppe.merkelappListe merkelapper)
+
         SelectElement selectElement ->
             --- TODO: Fiks dette
             ""
@@ -260,3 +326,13 @@ inputElementInnhold inputElement_ =
         DatoInputEttFeltElement datoInputEttFelt ->
             --- TODO: Fiks dette
             ""
+
+        CheckboxGruppe checkboxer ->
+            Checkbox.toStringOfChecked checkboxer
+
+        RadioGruppe radiogruppeElement ->
+            Radio.checkedRadioToString (RadioGruppe.radioKnapper radiogruppeElement)
+
+
+
+--

@@ -2,27 +2,35 @@ module FrontendModuler.BrukerInput exposing
     ( BrukerInput
     , KnapperLayout(..)
     , brukerInputMedGåVidereKnapp
+    , checkboxGruppeMedGåVidereKnapp
     , datoInputMedGåVidereKnapp
     , inputMedGåVidereKnapp
     , knapper
     , lenke
     , månedKnapper
+    , radioGruppeMedGåVidereKnapp
     , selectMedGåVidereKnapp
     , skjema
     , textareaMedGåVidereKnapp
     , tilSvarMelding
     , toHtml
     , typeaheadMedGåVidereKnapp
+    , typeaheadMedMerkelapperOgGåVidereKnapp
     , utenInnhold
     )
 
 import Dato.Maned as Måned exposing (Måned)
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
+import FrontendModuler.Checkbox exposing (Checkbox)
 import FrontendModuler.DatoInputEttFelt exposing (DatoInputEttFelt)
 import FrontendModuler.Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Knapp)
 import FrontendModuler.Lenke as Lenke exposing (Lenke)
 import FrontendModuler.ManedKnapper as MånedKnapper
+import FrontendModuler.Merkelapp exposing (Merkelapp)
+import FrontendModuler.MerkelappGruppe exposing (MerkelappGruppe)
+import FrontendModuler.Radio exposing (Radio)
+import FrontendModuler.RadioGruppe exposing (RadioGruppe)
 import FrontendModuler.Select exposing (Select)
 import FrontendModuler.Textarea exposing (Textarea)
 import FrontendModuler.Typeahead exposing (Typeahead)
@@ -68,6 +76,12 @@ inputMedGåVidereKnapp { onGåVidere, onAvbryt } inputElement =
         |> brukerInputMedGåVidereKnapp
 
 
+typeaheadMedMerkelapperOgGåVidereKnapp : msg -> Typeahead msg -> MerkelappGruppe msg -> BrukerInput msg
+typeaheadMedMerkelapperOgGåVidereKnapp gåVidereMsg typeaheadElement merkelapper =
+    BrukerInputMedGåVidereKnapp.typeaheadMedMerkelapper gåVidereMsg typeaheadElement merkelapper
+        |> brukerInputMedGåVidereKnapp
+
+
 brukerInputMedGåVidereKnapp : BrukerInputMedGåVidereKnapp msg -> BrukerInput msg
 brukerInputMedGåVidereKnapp =
     BrukerInputMedGåVidereKnapp
@@ -90,6 +104,18 @@ selectMedGåVidereKnapp : { onGåVidere : msg, onAvbryt : msg } -> Select msg ->
 selectMedGåVidereKnapp { onGåVidere, onAvbryt } selectElement =
     BrukerInputMedGåVidereKnapp.select onGåVidere selectElement
         |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp onAvbryt
+        |> brukerInputMedGåVidereKnapp
+
+
+checkboxGruppeMedGåVidereKnapp : msg -> List (Checkbox msg) -> BrukerInput msg
+checkboxGruppeMedGåVidereKnapp gåVidereMsg checkboxer =
+    BrukerInputMedGåVidereKnapp.checkboxGruppe gåVidereMsg checkboxer
+        |> brukerInputMedGåVidereKnapp
+
+
+radioGruppeMedGåVidereKnapp : msg -> RadioGruppe msg -> BrukerInput msg
+radioGruppeMedGåVidereKnapp gåVidereMsg radiogruppe =
+    BrukerInputMedGåVidereKnapp.radioGruppe gåVidereMsg radiogruppe
         |> brukerInputMedGåVidereKnapp
 
 
