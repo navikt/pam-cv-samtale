@@ -77,11 +77,11 @@ type alias TypeaheadOppsummeringInfo =
 
 
 type Samtale
-    = LasterJobbprofil
+    = HenterJobbprofil HenteStatus
     | HentingAvJobbprofilFeilet Http.Error
-    | HarJobbprofil Bool Jobbprofil
+    | HarJobbprofil InitInfo Jobbprofil
     | HarIkkeJobbprofilJobbsøker
-    | LeggTilYrker Bool YrkeStegInfo (Typeahead.Model Yrke)
+    | LeggTilYrker YrkeStegInfo (Typeahead.Model Yrke)
     | LeggTilOmrader OmradeStegInfo (Typeahead.Model Omrade)
     | LeggTilOmfang OmfangStegInfo
     | LeggTilArbeidstid ArbeidstidStegInfo
@@ -92,12 +92,30 @@ type Samtale
     | EndreOppsummering UvalidertSkjema TypeaheadOppsummeringInfo
     | LagrerSkjema ValidertSkjema LagreStatus
     | LagringFeilet Http.Error ValidertSkjema
-    | VenterPåAnimasjonFørFullføring
+    | VenterPåAnimasjonFørFullføring FullføringStatus
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
     | Ferdig Posix BrukerInfo FerdigAnimertMeldingsLogg
+
+
+type FullføringStatus
+    = BekrefterOpprinnelig BrukerInfo
+    | LagringLyktes BrukerInfo
+    | BrukerGikkVidere
+
+
+type HenteStatus
+    = HentetFørsteGang
+    | HenterEtterUtlogging { forsøkPåNytt : Bool }
+    | HenterEtterError
+
+
+type alias InitInfo =
+    { underOppfølging : Bool
+    , henteStatus : HenteStatus
+    }
 
 
 meldingsLogg : Model -> MeldingsLogg
@@ -131,6 +149,7 @@ underOppfølging model =
 
 type Msg
     = JobbprofilHentet (Result Http.Error Jobbprofil)
+    | HentJobbprofilPåNytt
     | VilBegynnePåJobbprofil
     | YrkeTypeaheadMsg (Typeahead.Msg Yrke)
     | HentetYrkeTypeahead Typeahead.Query (Result Http.Error (List Yrke))
@@ -180,40 +199,101 @@ update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
         JobbprofilHentet result ->
-            case result of
-                Ok jobbprofil ->
-                    ( HarJobbprofil (underOppfølging model) jobbprofil
-                        |> oppdaterSamtale { model | sistLagretJobbprofil = sistEndretDato jobbprofil } UtenSvar
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
-
-                Err error ->
-                    case error of
-                        Http.BadStatus 404 ->
+            case model.aktivSamtale of
+                HenterJobbprofil henteStatus ->
+                    let
+                        initInfo =
+                            { underOppfølging = underOppfølging model, henteStatus = henteStatus }
+                    in
+                    case result of
+                        Ok jobbprofil ->
                             let
-                                nesteSamtaleSteg =
-                                    if underOppfølging model then
-                                        initYrkeTypeahead
-                                            |> Tuple.first
-                                            |> LeggTilYrker True yrkeStegInfo
+                                oppdatertMeldingslogg =
+                                    case henteStatus of
+                                        HenterEtterUtlogging _ ->
+                                            model.seksjonsMeldingsLogg
+                                                |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
 
-                                    else
-                                        HarIkkeJobbprofilJobbsøker
+                                        _ ->
+                                            model.seksjonsMeldingsLogg
                             in
-                            ( nesteSamtaleSteg
-                                |> oppdaterSamtale model UtenSvar
+                            ( HarJobbprofil initInfo jobbprofil
+                                |> oppdaterSamtale { model | sistLagretJobbprofil = sistEndretDato jobbprofil, seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
-                        _ ->
-                            IkkeFerdig ( Model model, logFeilmelding "Hente jobbprofil" error )
+                        Err error ->
+                            case error of
+                                Http.BadStatus 404 ->
+                                    -- "Feilen" er at bruker har ikke jobbprofil, gå til neste del av samtalen
+                                    let
+                                        nesteSamtaleSteg =
+                                            if initInfo.underOppfølging then
+                                                initYrkeTypeahead
+                                                    |> Tuple.first
+                                                    |> LeggTilYrker yrkeStegInfo
+
+                                            else
+                                                HarIkkeJobbprofilJobbsøker
+
+                                        oppdatertMeldingslogg =
+                                            meldingEtterHentingAvJobbprofil initInfo model
+                                    in
+                                    ( nesteSamtaleSteg
+                                        |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg } UtenSvar
+                                    , lagtTilSpørsmålCmd model.debugStatus
+                                    )
+                                        |> IkkeFerdig
+
+                                _ ->
+                                    -- Her er det en feil. Sjekk om det er pga utlogging eller annen grunn
+                                    case henteStatus of
+                                        HenterEtterUtlogging { forsøkPåNytt } ->
+                                            if forsøkPåNytt then
+                                                ( HenterEtterUtlogging { forsøkPåNytt = False }
+                                                    |> HenterJobbprofil
+                                                    |> oppdaterSamtale model (SvarFraMsg msg)
+                                                , Api.getJobbprofil JobbprofilHentet
+                                                )
+                                                    |> IkkeFerdig
+
+                                            else
+                                                ( HentingAvJobbprofilFeilet error
+                                                    |> oppdaterSamtale model IngenNyeMeldinger
+                                                , logFeilmelding "Hente jobbprofil" error
+                                                )
+                                                    |> IkkeFerdig
+
+                                        _ ->
+                                            ( HentingAvJobbprofilFeilet error
+                                                |> oppdaterSamtale model UtenSvar
+                                            , Cmd.batch
+                                                [ lagtTilSpørsmålCmd model.debugStatus
+                                                , logFeilmelding "Hente jobbprofil" error
+                                                ]
+                                            )
+                                                |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        HentJobbprofilPåNytt ->
+            case model.aktivSamtale of
+                HentingAvJobbprofilFeilet _ ->
+                    ( HenterJobbprofil HenterEtterError
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , Api.getJobbprofil JobbprofilHentet
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
 
         VilBegynnePåJobbprofil ->
             ( initYrkeTypeahead
                 |> Tuple.first
-                |> LeggTilYrker False yrkeStegInfo
+                |> LeggTilYrker yrkeStegInfo
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -221,7 +301,7 @@ update msg (Model model) =
 
         YrkeTypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                LeggTilYrker _ info typeaheadModel ->
+                LeggTilYrker info typeaheadModel ->
                     updateSamtaleYrkeTypeahead model info typeaheadMsg typeaheadModel
 
                 EndreOppsummering info typeaheadInfo ->
@@ -232,7 +312,7 @@ update msg (Model model) =
 
         HentetYrkeTypeahead query result ->
             case model.aktivSamtale of
-                LeggTilYrker erUnderOppfølging info typeaheadModel ->
+                LeggTilYrker info typeaheadModel ->
                     let
                         resultWithoutSelected =
                             result
@@ -240,7 +320,7 @@ update msg (Model model) =
                     in
                     ( resultWithoutSelected
                         |> Typeahead.updateSuggestions Yrke.label typeaheadModel query
-                        |> LeggTilYrker erUnderOppfølging info
+                        |> LeggTilYrker info
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
                         |> Result.error
@@ -274,9 +354,9 @@ update msg (Model model) =
 
         FjernValgtYrke yrke ->
             case model.aktivSamtale of
-                LeggTilYrker erUnderOppfølging info typeaheadModel ->
+                LeggTilYrker info typeaheadModel ->
                     ( typeaheadModel
-                        |> LeggTilYrker erUnderOppfølging { info | yrker = List.remove yrke info.yrker }
+                        |> LeggTilYrker { info | yrker = List.remove yrke info.yrker }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -295,11 +375,11 @@ update msg (Model model) =
 
         VilGåVidereFraYrke ->
             case model.aktivSamtale of
-                LeggTilYrker erUnderOppfølging info _ ->
+                LeggTilYrker info _ ->
                     if List.isEmpty info.yrker then
                         ( initYrkeTypeahead
                             |> Tuple.first
-                            |> LeggTilYrker erUnderOppfølging { info | visFeilmelding = True }
+                            |> LeggTilYrker { info | visFeilmelding = True }
                             |> oppdaterSamtale model IngenNyeMeldinger
                         , lagtTilSpørsmålCmd model.debugStatus
                         )
@@ -698,7 +778,7 @@ update msg (Model model) =
         VilLagreJobbprofil ->
             case model.aktivSamtale of
                 HarJobbprofil _ _ ->
-                    ( VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring (BekrefterOpprinnelig model.brukerInfo)
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -739,7 +819,7 @@ update msg (Model model) =
                                     else
                                         model.seksjonsMeldingsLogg
                             in
-                            ( VenterPåAnimasjonFørFullføring
+                            ( VenterPåAnimasjonFørFullføring (LagringLyktes model.brukerInfo)
                                 |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg, sistLagretJobbprofil = sistEndretDato jobbprofil } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -784,14 +864,21 @@ update msg (Model model) =
         FerdigMedJobbprofil ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring BrukerGikkVidere
+                        |> oppdaterSamtale model (SvarFraMsg msg)
+                    , lagtTilSpørsmålCmd model.debugStatus
+                    )
+                        |> IkkeFerdig
+
+                HentingAvJobbprofilFeilet _ ->
+                    ( VenterPåAnimasjonFørFullføring BrukerGikkVidere
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
                         |> IkkeFerdig
 
                 _ ->
-                    ( VenterPåAnimasjonFørFullføring
+                    ( VenterPåAnimasjonFørFullføring (LagringLyktes model.brukerInfo)
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -807,10 +894,6 @@ update msg (Model model) =
                 Visible ->
                     case model.aktivSamtale of
                         LagrerSkjema skjema lagreStatus ->
-                            let
-                                _ =
-                                    Debug.log "når er jeg her " lagreStatus
-                            in
                             ( lagreStatus
                                 |> LagreStatus.setForsøkPåNytt
                                 |> LagrerSkjema skjema
@@ -820,18 +903,45 @@ update msg (Model model) =
                                 |> IkkeFerdig
 
                         LagringFeilet error skjema ->
-                            let
-                                _ =
-                                    Debug.log "når er jeg her feil " error
-                            in
                             if ErrorHåndtering.operasjonEtterError error == LoggInn then
-                                IkkeFerdig
-                                    ( error
-                                        |> LagreStatus.fraError
-                                        |> LagrerSkjema skjema
-                                        |> oppdaterSamtale model IngenNyeMeldinger
-                                    , Api.opprettJobbprofil JobbprofilLagret skjema
-                                    )
+                                ( error
+                                    |> LagreStatus.fraError
+                                    |> LagrerSkjema skjema
+                                    |> oppdaterSamtale model IngenNyeMeldinger
+                                , Api.opprettJobbprofil JobbprofilLagret skjema
+                                )
+                                    |> IkkeFerdig
+
+                            else
+                                IkkeFerdig ( Model model, Cmd.none )
+
+                        HenterJobbprofil henteStatus ->
+                            let
+                                nyHenteStatus =
+                                    case henteStatus of
+                                        HentetFørsteGang ->
+                                            HentetFørsteGang
+
+                                        HenterEtterUtlogging record ->
+                                            HenterEtterUtlogging { forsøkPåNytt = True }
+
+                                        HenterEtterError ->
+                                            HenterEtterError
+                            in
+                            ( HenterJobbprofil nyHenteStatus
+                                |> oppdaterSamtale model IngenNyeMeldinger
+                            , Cmd.none
+                            )
+                                |> IkkeFerdig
+
+                        HentingAvJobbprofilFeilet error ->
+                            if ErrorHåndtering.operasjonEtterError error == LoggInn then
+                                ( HenterEtterUtlogging { forsøkPåNytt = False }
+                                    |> HenterJobbprofil
+                                    |> oppdaterSamtale model IngenNyeMeldinger
+                                , Api.getJobbprofil JobbprofilHentet
+                                )
+                                    |> IkkeFerdig
 
                             else
                                 IkkeFerdig ( Model model, Cmd.none )
@@ -853,7 +963,7 @@ update msg (Model model) =
 
         TimeoutEtterAtFeltMistetFokus ->
             case model.aktivSamtale of
-                LeggTilYrker _ info typeaheadModel ->
+                LeggTilYrker info typeaheadModel ->
                     visFeilmeldingForYrke model info typeaheadModel
 
                 _ ->
@@ -865,25 +975,57 @@ ferdigAnimertMeldingsLogg ( Model model, _ ) =
     tilFerdigAnimertMeldingsLogg model.seksjonsMeldingsLogg
 
 
-robotSvarEtterFullførtJobbprofil : BrukerInfo -> List Melding
-robotSvarEtterFullførtJobbprofil brukerInfo =
-    case brukerInfo of
-        JobbSkifter _ ->
-            [ Melding.spørsmål [ "Bra innsats! 👍👍 Nå er du søkbar." ] ]
+meldingEtterHentingAvJobbprofil : InitInfo -> ModelInfo -> MeldingsLogg
+meldingEtterHentingAvJobbprofil info model =
+    case info.henteStatus of
+        HenterEtterUtlogging _ ->
+            if info.underOppfølging then
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                    |> MeldingsLogg.leggTilSpørsmål
+                        [ Melding.spørsmål [ "Det ser ikke ut som at du har lagt inn noen jobbønsker enda, så da begynner vi med det." ]
+                        ]
 
-        UnderOppfølging IkkeSynlig ->
-            [ Melding.spørsmål
-                [ "Bra innsats! 👍👍 NAV-veiledere kan nå søke opp CV-en din. "
-                    ++ "Hvis du ønsker at arbeidsgivere skal kunne søke deg opp, må du kontakte NAV-veilederen din. "
-                ]
-            ]
+            else
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+                    |> MeldingsLogg.leggTilSpørsmål
+                        [ Melding.spørsmål
+                            [ "Det ser ikke ut som at du har lagt inn noen jobbønsker enda."
+                                ++ " Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
+                            ]
+                        ]
 
-        UnderOppfølging Synlig ->
-            [ Melding.spørsmål
-                [ "Bra innsats! 👍👍 Arbeidsgivere og NAV-veiledere kan nå søke opp CV-din. "
-                    ++ "De kan kontakte deg hvis de har en jobb som passer for deg."
-                ]
-            ]
+        HentetFørsteGang ->
+            if info.underOppfølging then
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSpørsmål
+                        [ Melding.spørsmål [ "Nå gjenstår bare jobbprofilen." ]
+                        ]
+
+            else
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSpørsmål
+                        [ Melding.spørsmål
+                            [ "Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
+                            ]
+                        ]
+
+        HenterEtterError ->
+            if info.underOppfølging then
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSpørsmål
+                        [ Melding.spørsmål [ "Nå fikk jeg det til! Det ser ikke ut som at du har lagt inn noen jobbønsker enda, så da begynner vi med det." ]
+                        ]
+
+            else
+                model.seksjonsMeldingsLogg
+                    |> MeldingsLogg.leggTilSpørsmål
+                        [ Melding.spørsmål
+                            [ "Nå fikk jeg det til! Det ser ikke ut som at du har lagt inn noen jobbønsker enda."
+                                ++ " Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
+                            ]
+                        ]
 
 
 
@@ -1123,7 +1265,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
             case Typeahead.selected nyTypeaheadModel of
                 Just yrke ->
                     ( nyTypeaheadModel
-                        |> LeggTilYrker erUnderOppfølging { yrker = List.append info.yrker [ yrke ], visFeilmelding = False }
+                        |> LeggTilYrker { yrker = List.append info.yrker [ yrke ], visFeilmelding = False }
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -1135,7 +1277,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
         Typeahead.InputBlurred ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> LeggTilYrker erUnderOppfølging info
+                    |> LeggTilYrker info
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , mistetFokusCmd
                 )
@@ -1143,7 +1285,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
         Typeahead.NoChange ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> LeggTilYrker erUnderOppfølging info
+                    |> LeggTilYrker info
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput query ->
@@ -1156,7 +1298,7 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
         NewActiveElement ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> LeggTilYrker erUnderOppfølging info
+                    |> LeggTilYrker info
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , nyTypeaheadModel
                     |> Typeahead.scrollActiveSuggestionIntoView Yrke.label Nothing
@@ -1217,7 +1359,7 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring ->
+                VenterPåAnimasjonFørFullføring _ ->
                     Ferdig (sistLagret (Model model)) model.brukerInfo ferdigAnimertSamtale
 
                 _ ->
@@ -1239,22 +1381,37 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg jobbprofilSamtale =
     case jobbprofilSamtale of
-        LasterJobbprofil ->
+        HenterJobbprofil _ ->
             []
 
         HentingAvJobbprofilFeilet error ->
-            --todo: håndter feil
-            []
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "se om du allerede har lagt inn noen jobbønsker" }
+            ]
 
-        HarJobbprofil erUnderOppfølging jobbprofil ->
+        HarJobbprofil info jobbprofil ->
             let
                 setning =
-                    case erUnderOppfølging of
-                        True ->
-                            "Nå gjenstår bare jobbprofilen. Jeg ser du har lagt inn dette tidligere:"
+                    case info.henteStatus of
+                        HenterEtterUtlogging _ ->
+                            if info.underOppfølging then
+                                "Jeg ser du har lagt inn dette tidligere:"
 
-                        False ->
-                            "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
+                            else
+                                " Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
+
+                        HentetFørsteGang ->
+                            if info.underOppfølging then
+                                "Nå gjenstår bare jobbprofilen. Jeg ser du har lagt inn dette tidligere:"
+
+                            else
+                                "Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
+
+                        HenterEtterError ->
+                            if info.underOppfølging then
+                                "Nå fikk jeg det til! Jeg ser du har lagt inn dette tidligere:"
+
+                            else
+                                "Nå fikk jeg det til! Jeg ser du har en jobbprofil fra før av. Du har lagt inn dette:"
             in
             [ Melding.spørsmål
                 (List.concat
@@ -1272,23 +1429,12 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
             ]
 
         HarIkkeJobbprofilJobbsøker ->
-            [ Melding.spørsmål
-                [ "Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
-                ]
+            []
+
+        LeggTilYrker _ _ ->
+            [ Melding.spørsmål [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider." ]
+            , Melding.spørsmål [ "Du kan legge til flere stillinger eller yrker" ]
             ]
-
-        LeggTilYrker erUnderOppfølging _ _ ->
-            if erUnderOppfølging then
-                [ Melding.spørsmål [ "Nå gjenstår bare jobbprofilen." ]
-                , Melding.spørsmål [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider." ]
-                , Melding.spørsmål [ "Du kan legge til flere stillinger eller yrker" ]
-                ]
-
-            else
-                [ Melding.spørsmål [ "Flott! Da begynner vi." ]
-                , Melding.spørsmål [ "Hva slags stillinger eller yrker ser du etter? For eksempel møbelsnekker eller butikkmedarbeider." ]
-                , Melding.spørsmål [ "Du kan legge til flere stillinger eller yrker" ]
-                ]
 
         LeggTilOmrader _ _ ->
             [ Melding.spørsmål [ "Hvor vil du jobbe? For eksempel Oslo eller Kristiansund." ] ]
@@ -1341,8 +1487,44 @@ samtaleTilMeldingsLogg jobbprofilSamtale =
         LagringFeilet error _ ->
             [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre jobbprofil" } ]
 
-        VenterPåAnimasjonFørFullføring ->
-            []
+        VenterPåAnimasjonFørFullføring fullføringStatus ->
+            case fullføringStatus of
+                BekrefterOpprinnelig brukerInfo ->
+                    robotSvarEtterFullførtJobbprofil True brukerInfo
+
+                LagringLyktes brukerInfo ->
+                    robotSvarEtterFullførtJobbprofil False brukerInfo
+
+                BrukerGikkVidere ->
+                    [ Melding.spørsmål [ "Da går vi videre." ] ]
+
+
+robotSvarEtterFullførtJobbprofil : Bool -> BrukerInfo -> List Melding
+robotSvarEtterFullførtJobbprofil bekreftOpprinnelig brukerInfo =
+    let
+        førsteSetning =
+            if bekreftOpprinnelig then
+                "Bra! 👍👍 "
+
+            else
+                "Bra innsats! 👍👍 "
+    in
+    case brukerInfo of
+        JobbSkifter IkkeSynlig ->
+            [ Melding.spørsmål [ førsteSetning ++ "For å bli synlig må du gjøre CV-en søkbar senere på Min side." ]
+            ]
+
+        JobbSkifter Synlig ->
+            [ Melding.spørsmål [ førsteSetning ++ "Nå er du søkbar 😊" ]
+            ]
+
+        UnderOppfølging IkkeSynlig ->
+            [ Melding.spørsmål [ førsteSetning ++ "NAV-veiledere kan nå søke opp CV-en din. Hvis du ønsker at arbeidsgivere skal kunne søke deg opp, må du kontakte NAV-veilederen din." ]
+            ]
+
+        UnderOppfølging Synlig ->
+            [ Melding.spørsmål [ førsteSetning ++ "Arbeidsgivere og NAV-veiledere kan nå søke opp CV-din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
+            ]
 
 
 oppsummering : ValidertSkjema -> List String
@@ -1504,7 +1686,7 @@ settFokus samtale =
         HarIkkeJobbprofilJobbsøker ->
             settFokusCmd BegynnPåJobbprofilId
 
-        LeggTilYrker _ _ _ ->
+        LeggTilYrker _ _ ->
             settFokusCmd StillingYrkeTypeaheadId
 
         LeggTilOmrader _ _ ->
@@ -1533,7 +1715,7 @@ settFokus samtale =
 
         LagringFeilet error _ ->
             case ErrorHåndtering.operasjonEtterError error of
-                ErrorHåndtering.GiOpp ->
+                GiOpp ->
                     settFokusCmd LagringFeiletGaVidereId
 
                 _ ->
@@ -1563,11 +1745,27 @@ modelTilBrukerInput : ModelInfo -> BrukerInput Msg
 modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
-            LasterJobbprofil ->
+            HenterJobbprofil _ ->
                 BrukerInput.utenInnhold
 
-            HentingAvJobbprofilFeilet _ ->
-                BrukerInput.utenInnhold
+            HentingAvJobbprofilFeilet error ->
+                case ErrorHåndtering.operasjonEtterError error of
+                    GiOpp ->
+                        --todo fokusid
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp FerdigMedJobbprofil "Gå videre"
+                            ]
+
+                    PrøvPåNytt ->
+                        --todo fokusid
+                        BrukerInput.knapper Flytende
+                            [ Knapp.knapp HentJobbprofilPåNytt "Prøv igjen"
+                            , Knapp.knapp VilBegynnePåJobbprofil "Legg inn jobbønsker på nytt"
+                            , Knapp.knapp FerdigMedJobbprofil "Gå videre"
+                            ]
+
+                    LoggInn ->
+                        LoggInnLenke.viewLoggInnLenke
 
             HarJobbprofil _ _ ->
                 BrukerInput.knapper Flytende
@@ -1582,7 +1780,7 @@ modelTilBrukerInput model =
                         |> Knapp.withId (inputIdTilString BegynnPåJobbprofilId)
                     ]
 
-            LeggTilYrker _ info typeaheadModel ->
+            LeggTilYrker info typeaheadModel ->
                 BrukerInput.typeaheadMedMerkelapperOgGåVidereKnapp VilGåVidereFraYrke
                     (info.yrker
                         |> feilmeldingYrke
@@ -1837,23 +2035,23 @@ modelTilBrukerInput model =
 
             LagringFeilet error _ ->
                 case ErrorHåndtering.operasjonEtterError error of
-                    ErrorHåndtering.GiOpp ->
+                    GiOpp ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedJobbprofil "Gå videre"
                                 |> Knapp.withId (inputIdTilString LagringFeiletGaVidereId)
                             ]
 
-                    ErrorHåndtering.PrøvPåNytt ->
+                    PrøvPåNytt ->
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp VilLagreJobbprofil "Prøv igjen"
                                 |> Knapp.withId (inputIdTilString LagringFeiletProvIgjenId)
                             , Knapp.knapp FerdigMedJobbprofil "Gå videre"
                             ]
 
-                    ErrorHåndtering.LoggInn ->
+                    LoggInn ->
                         LoggInnLenke.viewLoggInnLenke
 
-            VenterPåAnimasjonFørFullføring ->
+            VenterPåAnimasjonFørFullføring _ ->
                 BrukerInput.utenInnhold
 
     else
@@ -1919,7 +2117,7 @@ visFeilmeldingForOmrade model info typeaheadModel =
 visFeilmeldingForYrke : ModelInfo -> YrkeStegInfo -> Typeahead.Model Yrke -> SamtaleStatus
 visFeilmeldingForYrke model info typeaheadModel =
     ( typeaheadModel
-        |> LeggTilYrker (underOppfølging model) { info | visFeilmelding = True }
+        |> LeggTilYrker { info | visFeilmelding = True }
         |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )
@@ -1952,7 +2150,7 @@ init : DebugStatus -> Posix -> BrukerInfo -> FerdigAnimertMeldingsLogg -> ( Mode
 init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
     let
         aktivSamtale =
-            LasterJobbprofil
+            HenterJobbprofil HentetFørsteGang
     in
     ( Model
         { seksjonsMeldingsLogg =

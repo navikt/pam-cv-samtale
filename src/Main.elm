@@ -677,9 +677,18 @@ updateSuccess successMsg model =
                             , Cmd.map JobbprofilMsg cmd
                             )
 
-                        Jobbprofil.Seksjon.Ferdig sistLagret brukerInfo meldingsLogg ->
-                            --todo: send med sist lagret fra jobbprofil
-                            gåTilTilbakemelding sistLagret brukerInfo model meldingsLogg
+                        Jobbprofil.Seksjon.Ferdig sistLagret brukerInfo ferdigAnimertMeldingsLogg ->
+                            ( { aktivSamtale = SpørOmTilbakemelding True
+                              , meldingsLogg =
+                                    ferdigAnimertMeldingsLogg
+                                        |> MeldingsLogg.tilMeldingsLogg
+                                        |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg (SpørOmTilbakemelding True))
+                              , sistLagret = sistLagret
+                              }
+                                |> AndreSamtaleSteg
+                                |> oppdaterSamtaleSeksjon model
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
 
                 _ ->
                     ( model, Cmd.none )
@@ -836,21 +845,6 @@ gåTilSeksjonsValg sistLagret model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilTilbakemelding : Posix -> BrukerInfo -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilTilbakemelding sistLagret brukerInfo model ferdigAnimertMeldingsLogg =
-    ( { aktivSamtale = SpørOmTilbakemelding brukerInfo
-      , meldingsLogg =
-            ferdigAnimertMeldingsLogg
-                |> MeldingsLogg.tilMeldingsLogg
-                |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg (SpørOmTilbakemelding brukerInfo))
-      , sistLagret = sistLagret
-      }
-        |> AndreSamtaleSteg
-        |> oppdaterSamtaleSeksjon model
-    , lagtTilSpørsmålCmd model.debugStatus
-    )
-
-
 gåTilFlereSeksjonsValg : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
 gåTilFlereSeksjonsValg sistLagret model ferdigAnimertMeldingsLogg =
     ( { aktivSamtale = LeggTilFlereAutorisasjoner
@@ -950,7 +944,7 @@ type Samtale
     | VenterPåÅGåTilJobbprofil BrukerInfo
     | LagrerSynlighet Bool LagreStatus
     | LagringSynlighetFeilet Http.Error Bool
-    | SpørOmTilbakemelding BrukerInfo
+    | SpørOmTilbakemelding Bool
     | GiTilbakemelding
     | Avslutt Bool
 
@@ -974,7 +968,7 @@ type AndreSamtaleStegMsg
     | BrukerGodkjennerSynligCV
     | BrukerGodkjennerIkkeSynligCV
     | BrukerVilPrøveÅLagreSynlighetPåNytt
-    | BrukerGirOppÅLagre Bool
+    | BrukerGirOppÅLagreSynlighet Bool
     | VilGiTilbakemelding
     | VilIkkeGiTilbakemelding
     | SynlighetPostet (Result Http.Error Bool)
@@ -1344,16 +1338,25 @@ updateAndreSamtaleSteg model msg info =
                     case result of
                         Ok _ ->
                             if skalVæreSynlig then
-                                gåTilJobbprofil (Cv.sistEndretDato model.cv) (JobbSkifter Synlig) model info
+                                let
+                                    oppdatertMeldingsLogg =
+                                        if LagreStatus.lagrerEtterUtlogging lagreStatus then
+                                            info.meldingsLogg
+                                                |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
+
+                                        else
+                                            info.meldingsLogg
+                                in
+                                gåTilJobbprofil (Cv.sistEndretDato model.cv) (JobbSkifter Synlig) model { info | meldingsLogg = oppdatertMeldingsLogg }
 
                             else
                                 -- Kun jobbskiftere får valget om å velge synlighet, hvis de svarer nei, sender vi de til tilbakemelding
                                 ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                    SpørOmTilbakemelding (JobbSkifter IkkeSynlig)
+                                    SpørOmTilbakemelding False
                                         |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                                   else
-                                    SpørOmTilbakemelding (JobbSkifter IkkeSynlig)
+                                    SpørOmTilbakemelding False
                                         |> oppdaterSamtale model info UtenSvar
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -1407,13 +1410,18 @@ updateAndreSamtaleSteg model msg info =
                 _ ->
                     ( model, Cmd.none )
 
-        BrukerGirOppÅLagre skalVæreSynlig ->
+        BrukerGirOppÅLagreSynlighet skalVæreSynlig ->
             if skalVæreSynlig then
-                --todo : gi beskjed til bruker om at de må endre på min side, gå til jobbprofil
-                ( model, Cmd.none )
+                let
+                    oppdatertMeldingslogg =
+                        info.meldingsLogg
+                            |> MeldingsLogg.leggTilSvar (svarFraBrukerInput info msg)
+                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Ok. Du kan gjøre CV-en søkbar senere på Min side." ] ]
+                in
+                gåTilJobbprofil (Cv.sistEndretDato model.cv) (JobbSkifter IkkeSynlig) model { info | meldingsLogg = oppdatertMeldingslogg }
 
             else
-                ( SpørOmTilbakemelding (JobbSkifter IkkeSynlig)
+                ( SpørOmTilbakemelding False
                     |> oppdaterSamtale model info (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
@@ -1753,27 +1761,15 @@ samtaleTilMeldingsLogg samtale =
             , Melding.spørsmål [ "Vil du la arbeidsgivere søke opp CV-en din?" ]
             ]
 
-        SpørOmTilbakemelding brukerInfo ->
-            case brukerInfo of
-                JobbSkifter IkkeSynlig ->
-                    [ Melding.spørsmål [ "Ok. Du kan gjøre CV-en søkbar senere på Min side." ]
-                    , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
-                    ]
+        SpørOmTilbakemelding harLagtInnJobbprofil ->
+            if harLagtInnJobbprofil then
+                [ Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                ]
 
-                JobbSkifter Synlig ->
-                    [ Melding.spørsmål [ "Bra innsats! 👍👍 Nå er du søkbar 😊" ]
-                    , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
-                    ]
-
-                UnderOppfølging IkkeSynlig ->
-                    [ Melding.spørsmål [ "Bra innsats! 👍👍 NAV-veiledere kan nå søke opp CV-en din. Hvis du ønsker at arbeidsgivere skal kunne søke deg opp, må du kontakte NAV-veilederen din." ]
-                    , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
-                    ]
-
-                UnderOppfølging Synlig ->
-                    [ Melding.spørsmål [ "Bra innsats! 👍👍 Arbeidsgivere og NAV-veiledere kan nå søke opp CV-din. De kan kontakte deg hvis de har en jobb som passer for deg." ]
-                    , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
-                    ]
+            else
+                [ Melding.spørsmål [ "Ok. Du kan gjøre CV-en søkbar senere på Min side." ]
+                , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                ]
 
         GiTilbakemelding ->
             [ Melding.spørsmål [ "Så bra at du vil svare! Klikk på lenken." ]
@@ -2480,7 +2476,7 @@ andreSamtaleStegTilBrukerInput info =
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp (BrukerGirOppÅLagre skalVæreSynlig) "Gå videre"
+                            [ Knapp.knapp (BrukerGirOppÅLagreSynlighet skalVæreSynlig) "Gå videre"
                                 |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
@@ -2488,7 +2484,7 @@ andreSamtaleStegTilBrukerInput info =
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp BrukerVilPrøveÅLagreSynlighetPåNytt "Prøv på nytt"
                                 |> Knapp.withId (inputIdTilString LagringFeiletActionId)
-                            , Knapp.knapp (BrukerGirOppÅLagre skalVæreSynlig) "Gå videre"
+                            , Knapp.knapp (BrukerGirOppÅLagreSynlighet skalVæreSynlig) "Gå videre"
                             ]
 
                     LoggInn ->
