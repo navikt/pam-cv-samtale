@@ -1603,7 +1603,8 @@ viewBrukerInput (Model model) =
 
 
 type InputId
-    = BekreftJobbprofilId
+    = GiOppHentingId
+    | BekreftJobbprofilId
     | BekreftOppsummeringId
     | BegynnPåJobbprofilId
     | StillingYrkeTypeaheadId
@@ -1625,6 +1626,9 @@ type InputId
 inputIdTilString : InputId -> String
 inputIdTilString inputId =
     case inputId of
+        GiOppHentingId ->
+            "jobbprofil-gi-opp-henting-id"
+
         BekreftJobbprofilId ->
             "jobbprofil-bekreft-id"
 
@@ -1680,6 +1684,9 @@ inputIdTilString inputId =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
+        HentingAvJobbprofilFeilet _ ->
+            settFokusCmd GiOppHentingId
+
         HarJobbprofil _ _ ->
             settFokusCmd BekreftJobbprofilId
 
@@ -1751,15 +1758,15 @@ modelTilBrukerInput model =
             HentingAvJobbprofilFeilet error ->
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
-                        --todo fokusid
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp FerdigMedJobbprofil "Gå videre"
+                                |> Knapp.withId (inputIdTilString GiOppHentingId)
                             ]
 
                     PrøvPåNytt ->
-                        --todo fokusid
                         BrukerInput.knapper Flytende
                             [ Knapp.knapp HentJobbprofilPåNytt "Prøv igjen"
+                                |> Knapp.withId (inputIdTilString GiOppHentingId)
                             , Knapp.knapp VilBegynnePåJobbprofil "Legg inn jobbønsker på nytt"
                             , Knapp.knapp FerdigMedJobbprofil "Gå videre"
                             ]
