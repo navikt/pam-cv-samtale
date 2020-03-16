@@ -992,7 +992,7 @@ meldingEtterHentingAvJobbprofil info model =
                     |> MeldingsLogg.leggTilSpørsmål
                         [ Melding.spørsmål
                             [ "Det ser ikke ut som at du har lagt inn noen jobbønsker enda."
-                                ++ " Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
+                                ++ " Vi må vite litt mer om jobbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
                             ]
                         ]
 
@@ -1007,7 +1007,7 @@ meldingEtterHentingAvJobbprofil info model =
                 model.seksjonsMeldingsLogg
                     |> MeldingsLogg.leggTilSpørsmål
                         [ Melding.spørsmål
-                            [ "Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
+                            [ "Vi må vite litt mer om jobbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
                             ]
                         ]
 
@@ -1023,7 +1023,7 @@ meldingEtterHentingAvJobbprofil info model =
                     |> MeldingsLogg.leggTilSpørsmål
                         [ Melding.spørsmål
                             [ "Nå fikk jeg det til! Det ser ikke ut som at du har lagt inn noen jobbønsker enda."
-                                ++ " Vi må vite litt mer om jøbbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
+                                ++ " Vi må vite litt mer om jobbønskene dine for at CV-en skal bli søkbar. Er du klar til å begynne?"
                             ]
                         ]
 

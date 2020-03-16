@@ -1757,7 +1757,7 @@ samtaleTilMeldingsLogg samtale =
             []
 
         DelMedArbeidsgiver ->
-            [ Melding.spørsmål [ "Noen arbeidsgivere søker aktivt i CV-ene på Arbeidsplassen. Da kan de kokntakte deg direkte. " ]
+            [ Melding.spørsmål [ "Noen arbeidsgivere søker aktivt i CV-ene på Arbeidsplassen. Da kan de kontakte deg direkte. " ]
             , Melding.spørsmål [ "Vil du la arbeidsgivere søke opp CV-en din?" ]
             ]
 
