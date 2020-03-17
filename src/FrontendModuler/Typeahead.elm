@@ -18,6 +18,7 @@ module FrontendModuler.Typeahead exposing
     )
 
 import Browser.Dom as Dom
+import FrontendModuler.Alertstripe as Alertstripe
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -26,6 +27,8 @@ import Html.Events exposing (..)
 import Json.Decode
 import Json.Decode.Pipeline
 import List.Extra as List
+import Svg exposing (g, path, svg)
+import Svg.Attributes exposing (d, fill, viewBox)
 import Task exposing (Task)
 
 
@@ -151,7 +154,21 @@ toHtml : Typeahead msg -> Html msg
 toHtml (Typeahead options) =
     div [ class "typeahead-wrapper" ]
         [ div [ class "typeahead" ]
-            [ label
+            -- todo: RYDD_OPP_KORONA
+            [ case options.label of
+                "Kompetanser" ->
+                    div []
+                        [ Alertstripe.alertstripeInfo
+                            [ span
+                                [ style "font-weight" "600" ]
+                                [ text "Har du helsefaglig kompetanse? Legg inn kompetansen «Helsefag» i tillegg til din mer spesifikke kompetanse." ]
+                            ]
+                            |> Alertstripe.toHtml
+                        ]
+
+                _ ->
+                    text ""
+            , label
                 [ class "skjemaelement__label", for options.inputId ]
                 (if options.obligatorisk then
                     [ text options.label
