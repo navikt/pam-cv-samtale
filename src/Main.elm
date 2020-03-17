@@ -13,7 +13,7 @@ import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Fagdokumentasjon.Seksjon
 import Feilmelding
 import Forerkort.Seksjon
-import FrontendModuler.Alertstripe as Alertstripe
+import FrontendModuler.Alertstripe as Alertstripe exposing (..)
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.Header as Header
@@ -2009,7 +2009,7 @@ view extendedModel =
                 Failure error ->
                     div [ class "failure-wrapper" ]
                         [ div [ class "failure" ]
-                            [ Alertstripe.alertstripe
+                            [ Alertstripe.alertstripeFeil
                                 [ text (ErrorHåndtering.feilmeldingEtterErrorILoading error)
                                 ]
                                 |> Alertstripe.toHtml
@@ -2343,8 +2343,23 @@ viewBrukerInputForSeksjon aktivSeksjon =
                 |> Html.map (KursMsg >> SuccessMsg)
 
         AndreSamtaleSteg andreSamtaleStegInfo ->
-            viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
-                |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
+            case andreSamtaleStegInfo.aktivSamtale of
+                LeggTilAutorisasjoner ->
+                    -- todo: RYDD_OPP_KORONA
+                    div [ class "alertstripe--korona__container" ]
+                        [ Alertstripe.alertstripeInfo
+                            [ span
+                                [ style "font-weight" "600", style "text-align" "right" ]
+                                [ text "Har du fagbrev eller autorisasjon innen helsefag, legg det inn her. " ]
+                            ]
+                            |> Alertstripe.toHtml
+                        , viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
+                            |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
+                        ]
+
+                _ ->
+                    viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
+                        |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
 
         JobbprofilSeksjon jobbprofilSeksjon ->
             jobbprofilSeksjon
