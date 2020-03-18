@@ -151,7 +151,7 @@ server.use(
     '/cv-valg/skjema*',
     (req: express.Request, res: express.Response) => {
         loggMetrikkForCvValg('cv', req);
-        res.redirect(`https://${req.hostname}/cv/registrering`)
+        res.redirect(`https://${req.hostname}/jobbprofil`)
     }
 );
 
