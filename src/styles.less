@@ -973,7 +973,21 @@ a.avslutt-knapp.Knapp {
 .alertstripe--korona__container {
   padding-left: 50%;
 
+  .alertstripe {
+    padding-right : 0;
+    padding-bottom: 0;
+  }
+
   @media (max-width: 671px) {
     padding-left: unset;
+  }
+}
+
+
+.alertstripe.alertstripe--korona {
+  padding: 1rem 0;
+
+  .alertstripe__tekst {
+    font-weight: 600;
   }
 }

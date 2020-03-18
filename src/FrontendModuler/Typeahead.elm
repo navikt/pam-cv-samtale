@@ -159,10 +159,8 @@ toHtml (Typeahead options) =
                 "Kompetanser" ->
                     div []
                         [ Alertstripe.alertstripeInfo
-                            [ span
-                                [ style "font-weight" "600" ]
-                                [ text "Har du helsefaglig kompetanse? Legg inn kompetansen «Helsefag» i tillegg til din mer spesifikke kompetanse." ]
-                            ]
+                            [ text "Har du helsefaglig kompetanse? Legg inn kompetansen «Helsefag» i tillegg til din mer spesifikke kompetanse." ]
+                            |> Alertstripe.withClass "alertstripe--korona"
                             |> Alertstripe.toHtml
                         ]
 

@@ -1,14 +1,18 @@
-module FrontendModuler.Alertstripe exposing (Alertstripe, Variant, alertstripeFeil, alertstripeInfo, toHtml)
+module FrontendModuler.Alertstripe exposing (Alertstripe, Variant, alertstripeFeil, alertstripeInfo, toHtml, withClass)
 
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, kind)
+import Html.Attributes exposing (attribute, class, classList, kind)
 import Html.Attributes.Aria exposing (ariaLabel)
 import Svg exposing (..)
 import Svg.Attributes exposing (d, fill, viewBox)
 
 
 type Alertstripe msg
-    = Alertstripe { children : List (Html msg), variant : Variant }
+    = Alertstripe
+        { children : List (Html msg)
+        , variant : Variant
+        , class : Maybe String
+        }
 
 
 type Variant
@@ -18,12 +22,17 @@ type Variant
 
 alertstripeInfo : List (Html msg) -> Alertstripe msg
 alertstripeInfo children =
-    Alertstripe { children = children, variant = AlertStripeInfo }
+    Alertstripe { children = children, variant = AlertStripeInfo, class = Nothing }
 
 
 alertstripeFeil : List (Html msg) -> Alertstripe msg
 alertstripeFeil children =
-    Alertstripe { children = children, variant = AlertStripeFeil }
+    Alertstripe { children = children, variant = AlertStripeFeil, class = Nothing }
+
+
+withClass : String -> Alertstripe msg -> Alertstripe msg
+withClass class (Alertstripe options) =
+    Alertstripe { options | class = Just class }
 
 
 
@@ -59,7 +68,12 @@ toHtml (Alertstripe options) =
                 ]
 
         AlertStripeInfo ->
-            div [ class "alertstripe arbeidsplassen-alertstripe" ]
+            div
+                [ class "alertstripe arbeidsplassen-alertstripe"
+                , options.class
+                    |> Maybe.map class
+                    |> Maybe.withDefault (classList [])
+                ]
                 [ span [ ariaLabel "info", class "alertstripe__ikon" ]
                     [ svg [ attribute "focusable" "false", attribute "height" "1.5em", kind "advarsel-sirkel-fyll", viewBox "0 0 24 24", attribute "width" "1.5em" ]
                         [ g [ fill "none", attribute "fill-rule" "evenodd" ]
