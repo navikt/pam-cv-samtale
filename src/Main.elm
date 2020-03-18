@@ -2345,17 +2345,21 @@ viewBrukerInputForSeksjon aktivSeksjon =
         AndreSamtaleSteg andreSamtaleStegInfo ->
             case andreSamtaleStegInfo.aktivSamtale of
                 LeggTilAutorisasjoner ->
-                    -- todo: RYDD_OPP_KORONA
-                    div [ class "alertstripe--korona__container" ]
-                        [ Alertstripe.alertstripeInfo
-                            [ span
-                                [ style "font-weight" "600", style "text-align" "right" ]
-                                [ text "Har du fagbrev eller autorisasjon innen helsefag, legg det inn her. " ]
+                    if MeldingsLogg.visBrukerInput andreSamtaleStegInfo.meldingsLogg then
+                        -- todo: RYDD_OPP_KORONA
+                        div [ class "alertstripe--korona__container" ]
+                            [ Alertstripe.alertstripeInfo
+                                [ span
+                                    [ style "font-weight" "600", style "text-align" "right" ]
+                                    [ text "Har du fagbrev eller autorisasjon innen helsefag, legg det inn her. " ]
+                                ]
+                                |> Alertstripe.toHtml
+                            , viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
+                                |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
                             ]
-                            |> Alertstripe.toHtml
-                        , viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
-                            |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
-                        ]
+
+                    else
+                        text ""
 
                 _ ->
                     viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo

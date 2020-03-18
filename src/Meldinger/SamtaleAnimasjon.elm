@@ -32,7 +32,7 @@ type alias MeldingDimensjonInfo =
 
 startAnimasjon : DebugStatus -> Cmd Msg
 startAnimasjon debugStatus =
-    500
+    300
         |> DebugStatus.meldingsTimeout debugStatus
         |> Process.sleep
         |> Task.andThen (\_ -> getTimeViewportAndElement)
@@ -120,7 +120,7 @@ update debugStatus msg meldingsLogg =
 
             else
                 ( nyMeldingslogg
-                , 500
+                , 300
                     |> DebugStatus.meldingsTimeout debugStatus
                     |> Process.sleep
                     |> Task.andThen (\_ -> getTimeViewportAndElement)
@@ -169,37 +169,12 @@ update debugStatus msg meldingsLogg =
 
 lengdePåSkriveindikatorIMillisekunder : MeldingsLogg -> Float
 lengdePåSkriveindikatorIMillisekunder meldingsLogg =
-    case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
-        AlleMeldingerAnimert ->
-            300
-
-        FørsteMelding antallOrdNesteMelding ->
-            1000
-
-        FinnesEnForrigeMelding { forrige, neste } ->
-            let
-                gjennomsnitteligAntallOrd =
-                    (((forrige * 2) + neste) // 3)
-                        |> toFloat
-            in
-            gjennomsnitteligAntallOrd * 100
+    400
 
 
 ventetidFørBrukerinputScrollesInn : MeldingsLogg -> Float
 ventetidFørBrukerinputScrollesInn meldingsLogg =
-    case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
-        AlleMeldingerAnimert ->
-            400
-
-        FørsteMelding antallOrdNesteMelding ->
-            (antallOrdNesteMelding * 75)
-                |> toFloat
-                |> clamp 400 1000
-
-        FinnesEnForrigeMelding { neste } ->
-            (neste * 75)
-                |> toFloat
-                |> clamp 400 1000
+    400
 
 
 
@@ -373,15 +348,10 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
         avstand =
             sluttPosisjon - opprinneligViewport.viewport.y
 
-        animasjonsTid =
-            (avstand * 2)
-                |> round
-                |> clamp 200 400
-
         scrollTilPosisjon =
             scrollPosition
                 { easingFunction = Ease.bezier 0 0 0.58 1 }
-                { animasjonstidMs = animasjonsTid
+                { animasjonstidMs = 300
                 , opprinneligViewport = opprinneligViewport
                 , sluttPosisjon = sluttPosisjon
                 , tidNå = tidNå
