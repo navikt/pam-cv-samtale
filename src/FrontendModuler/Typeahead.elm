@@ -19,6 +19,7 @@ module FrontendModuler.Typeahead exposing
 
 import Browser.Dom as Dom
 import FrontendModuler.Alertstripe as Alertstripe
+import FrontendModuler.CoronaInfobox as CoronaInfobox
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -158,10 +159,9 @@ toHtml (Typeahead options) =
             [ case options.label of
                 "Kompetanser" ->
                     div []
-                        [ Alertstripe.alertstripeInfo
-                            [ text "Har du helsefaglig kompetanse? Legg inn kompetansen «Helsefag» i tillegg til din mer spesifikke kompetanse." ]
-                            |> Alertstripe.withClass "alertstripe--korona"
-                            |> Alertstripe.toHtml
+                        [ CoronaInfobox.coronaInfobox "Har du helsefaglig kompetanse?"
+                            "Legg inn alle typer kompetanser her, spesielt hvis du har kritisk kompetanse som samfunnet har bruk for akkurat nå, f.eks. “butikkarbeid” eller “helsefag”.  Har du fagbrev/svennebrev eller autorisasjoner legger du disse inn i CV-en din."
+                            |> CoronaInfobox.toHtml
                         ]
 
                 _ ->
