@@ -672,21 +672,22 @@ update msg (Model model) =
                 EndrerSkjema skjemaType skjema ->
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
-                            let
-                                oppsummeringstype =
-                                    case skjemaType of
-                                        NyUtdanning ->
-                                            FørsteGang
+                            case skjemaType of
+                                NyUtdanning ->
+                                    ( validertSkjema
+                                        |> Oppsummering FørsteGang
+                                        |> oppdaterSamtale model UtenSvar
+                                    , lagtTilSpørsmålCmd model.debugStatus
+                                    )
+                                        |> IkkeFerdig
 
-                                        _ ->
-                                            EtterEndring
-                            in
-                            ( validertSkjema
-                                |> Oppsummering oppsummeringstype
-                                |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
-                            , lagtTilSpørsmålCmd model.debugStatus
-                            )
-                                |> IkkeFerdig
+                                _ ->
+                                    ( validertSkjema
+                                        |> Oppsummering EtterEndring
+                                        |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
+                                    , lagtTilSpørsmålCmd model.debugStatus
+                                    )
+                                        |> IkkeFerdig
 
                         Nothing ->
                             IkkeFerdig
