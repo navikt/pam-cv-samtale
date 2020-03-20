@@ -15,6 +15,7 @@ module Arbeidserfaring.Skjema exposing
     , gjørFeilmeldingTilÅrSynlig
     , gjørFeilmeldingYrkeSynlig
     , id
+    , init
     , initValidertSkjema
     , innholdTekstFelt
     , nåværende
@@ -62,6 +63,26 @@ type alias SkjemaInfo =
 
 
 --- INIT ---
+
+
+init : ArbeidserfaringSkjema
+init =
+    ArbeidserfaringSkjema
+        { yrke = Nothing
+        , visYrkeFeilmelding = False
+        , jobbTittel = ""
+        , bedriftsnavn = ""
+        , sted = ""
+        , arbeidsoppgaver = ""
+        , fraMåned = Januar
+        , fraÅr = ""
+        , visFraÅrFeilmelding = False
+        , nåværende = False
+        , tilMåned = Januar
+        , tilÅr = ""
+        , visTilÅrFeilmelding = False
+        , id = Nothing
+        }
 
 
 initValidertSkjema : ValidertSkjemaInfo -> ValidertArbeidserfaringSkjema
