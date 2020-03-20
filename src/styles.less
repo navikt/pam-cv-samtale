@@ -1,5 +1,5 @@
 @import '../node_modules/pam-frontend-core/less/variables';
-
+@import '../node_modules/pam-frontend-core/less/skjema/mixins.less';
 
 @meldingBredde: 27rem;
 @meldingBreddeMedium: 21rem;
@@ -549,6 +549,7 @@ html {
   display: flex;
   align-self: flex-end;
   flex-direction: column;
+  .skjemaelement--pink();
 
   @media (min-width: @storSkjermSkjema) {
     width: @skjemaBredde;
