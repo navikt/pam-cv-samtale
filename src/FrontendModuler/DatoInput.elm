@@ -60,6 +60,22 @@ withOnBlurÅr onBlur (DatoInput info) =
     DatoInput { info | onBlurÅr = Just onBlur }
 
 
+datoSelectValg =
+    [ ( "Januar", "Januar" )
+    , ( "Februar", "Februar" )
+    , ( "Mars", "Mars" )
+    , ( "April", "April" )
+    , ( "Mai", "Mai" )
+    , ( "Juni", "Juni" )
+    , ( "Juli", "Juli" )
+    , ( "August", "August" )
+    , ( "September", "September" )
+    , ( "Oktober", "Oktober" )
+    , ( "November", "November" )
+    , ( "Desember", "Desember" )
+    ]
+
+
 toHtml : DatoInput msg -> Html msg
 toHtml (DatoInput options) =
     fieldset [ class "DatoInput-fieldset" ]
@@ -68,22 +84,9 @@ toHtml (DatoInput options) =
             , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
             ]
         , div [ class "DatoInput-wrapper" ]
-            [ Select.select
-                "Måned"
+            [ Select.select "Måned"
                 options.onMånedChange
-                [ ( "Januar", "Januar" )
-                , ( "Februar", "Februar" )
-                , ( "Mars", "Mars" )
-                , ( "April", "April" )
-                , ( "Mai", "Mai" )
-                , ( "Juni", "Juni" )
-                , ( "Juli", "Juli" )
-                , ( "August", "August" )
-                , ( "September", "September" )
-                , ( "Oktober", "Oktober" )
-                , ( "November", "November" )
-                , ( "Desember", "Desember" )
-                ]
+                datoSelectValg
                 |> Select.withSelected (Måned.tilString options.måned)
                 |> Select.withClass "DatoInput-måned"
                 |> Select.toHtml

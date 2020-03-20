@@ -11,6 +11,7 @@ module FrontendModuler.BrukerInput exposing
     , radioGruppeMedGåVidereKnapp
     , selectMedGåVidereKnapp
     , skjema
+    , skjemaMedAvbryt
     , textareaMedGåVidereKnapp
     , tilSvarMelding
     , toHtml
@@ -24,7 +25,7 @@ import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKna
 import FrontendModuler.Checkbox exposing (Checkbox)
 import FrontendModuler.DatoInputEttFelt exposing (DatoInputEttFelt)
 import FrontendModuler.Input exposing (Input)
-import FrontendModuler.Knapp as Knapp exposing (Knapp)
+import FrontendModuler.Knapp as Knapp exposing (Knapp, Type(..))
 import FrontendModuler.Lenke as Lenke exposing (Lenke)
 import FrontendModuler.ManedKnapper as MånedKnapper
 import FrontendModuler.Merkelapp exposing (Merkelapp)
@@ -44,7 +45,7 @@ type BrukerInput msg
     = Knapper KnapperLayout (List (Knapp msg))
     | BrukerInputMedGåVidereKnapp (BrukerInputMedGåVidereKnapp msg)
     | MånedKnapper { onMånedValg : Måned -> msg, onAvbryt : msg, fokusId : String }
-    | Skjema { lagreMsg : msg, lagreKnappTekst : String } (List (Html msg))
+    | Skjema { lagreMsg : msg, lagreKnappTekst : String, onAvbryt : Maybe msg } (List (Html msg))
     | Lenke (Lenke msg)
     | UtenInnhold
 
@@ -127,8 +128,13 @@ datoInputMedGåVidereKnapp { onGåVidere, onAvbryt } datoInputElement =
 
 
 skjema : { lagreMsg : msg, lagreKnappTekst : String } -> List (Html msg) -> BrukerInput msg
-skjema =
-    Skjema
+skjema { lagreMsg, lagreKnappTekst } inputelementer =
+    Skjema { lagreMsg = lagreMsg, lagreKnappTekst = lagreKnappTekst, onAvbryt = Nothing } inputelementer
+
+
+skjemaMedAvbryt : { lagreMsg : msg, lagreKnappTekst : String, onAvbryt : Maybe msg } -> List (Html msg) -> BrukerInput msg
+skjemaMedAvbryt { lagreMsg, lagreKnappTekst, onAvbryt } inputelementer =
+    Skjema { lagreMsg = lagreMsg, lagreKnappTekst = lagreKnappTekst, onAvbryt = onAvbryt } inputelementer
 
 
 lenke : Lenke msg -> BrukerInput msg
@@ -139,6 +145,14 @@ lenke =
 utenInnhold : BrukerInput msg
 utenInnhold =
     UtenInnhold
+
+
+avbrytKnapp : msg -> Html msg
+avbrytKnapp avbrytMsg =
+    Knapp.knapp avbrytMsg "Avbryt"
+        |> Knapp.withType Flat
+        |> Knapp.withMouseDown avbrytMsg
+        |> Knapp.toHtml
 
 
 
@@ -168,16 +182,28 @@ toHtml brukerInput =
                             (List.map Knapp.toHtml knappeElementer)
                         ]
 
-        Skjema { lagreMsg, lagreKnappTekst } skjemaelementer ->
+        Skjema { lagreMsg, lagreKnappTekst, onAvbryt } skjemaelementer ->
             div [ class "skjema-wrapper" ]
                 [ div [ class "skjema" ]
                     (List.concat
                         [ skjemaelementer
-                        , [ div []
-                                [ Knapp.knapp lagreMsg lagreKnappTekst
-                                    |> Knapp.toHtml
+                        , case onAvbryt of
+                            Just msg ->
+                                [ div [ class "knapperad skjemaKnapper" ]
+                                    [ div [ class "knapper--flytende" ]
+                                        [ avbrytKnapp msg
+                                        , Knapp.knapp lagreMsg lagreKnappTekst
+                                            |> Knapp.toHtml
+                                        ]
+                                    ]
                                 ]
-                          ]
+
+                            Nothing ->
+                                [ div []
+                                    [ Knapp.knapp lagreMsg lagreKnappTekst
+                                        |> Knapp.toHtml
+                                    ]
+                                ]
                         ]
                     )
                 ]
@@ -223,8 +249,12 @@ tilString msg brukerInput =
         BrukerInputMedGåVidereKnapp brukerInputMedGåVidereKnapp_ ->
             BrukerInputMedGåVidereKnapp.tilString msg brukerInputMedGåVidereKnapp_
 
-        Skjema _ _ ->
-            ""
+        Skjema { lagreMsg, lagreKnappTekst, onAvbryt } _ ->
+            if onAvbryt == Just msg then
+                "Avbryt"
+
+            else
+                ""
 
         Lenke lenke_ ->
             Lenke.tekst_ lenke_
