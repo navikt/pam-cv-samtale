@@ -13,6 +13,7 @@ module Utdanning.Skjema exposing
     , gjørFeilmeldingFraÅrSynlig
     , gjørFeilmeldingTilÅrSynlig
     , id
+    , init
     , initValidertSkjema
     , innholdTekstFelt
     , nivå
@@ -57,6 +58,24 @@ type alias UtdanningSkjemaInfo =
 
 
 --- INIT ---
+
+
+init : UtdanningSkjema
+init =
+    UtdanningSkjema
+        { nivå = Grunnskole
+        , studiested = ""
+        , utdanningsretning = ""
+        , beskrivelse = ""
+        , fraMåned = Januar
+        , fraÅr = ""
+        , visFraÅrFeilmelding = False
+        , nåværende = False
+        , tilMåned = Januar
+        , tilÅr = ""
+        , visTilÅrFeilmelding = False
+        , id = Nothing
+        }
 
 
 initValidertSkjema : ValidertUtdanningSkjemaInfo -> ValidertUtdanningSkjema
