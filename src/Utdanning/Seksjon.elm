@@ -57,6 +57,7 @@ type alias ModelInfo =
     , utdanningListe : List Utdanning
     , debugStatus : DebugStatus
     , sistLagretFraForrigeSeksjon : Posix
+    , harFullførtEnSamtale : Bool
     }
 
 
@@ -64,13 +65,18 @@ type AvsluttetGrunn
     = AvbruttPåbegynt
     | SlettetPåbegynt
     | EndretEksisterende
-    | AnnenAvslutning
+    | FullførtRegistrering
 
 
 type OppsummeringsType
     = FørsteGang
     | EtterEndring
     | AvbrøtSletting
+
+
+type SkjemaType
+    = OppsummertUtdanning
+    | NyUtdanning
 
 
 type NivåValg
@@ -92,7 +98,7 @@ type Samtale
     | RegistrereTilÅr TilÅrInfo
     | RegistrereTilMåned TilMånedInfo
     | Oppsummering OppsummeringsType ValidertUtdanningSkjema
-    | EndrerOppsummering UtdanningSkjema
+    | EndrerSkjema SkjemaType UtdanningSkjema
     | BekreftSlettingAvPåbegynt ValidertUtdanningSkjema
     | LagrerSkjema ValidertUtdanningSkjema LagreStatus
     | LagringFeilet Http.Error ValidertUtdanningSkjema
@@ -279,6 +285,7 @@ type Msg
     | BrukerVilAvbryteRegistreringen
     | BrukerBekrefterAvbrytingAvRegistrering
     | BrukerVilIkkeAvbryteRegistreringen
+    | VilRegistrereFlereUtdanninger
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
@@ -328,7 +335,7 @@ update msg (Model model) =
                 enesteUtdanning :: [] ->
                     ( enesteUtdanning
                         |> Skjema.fraUtdanning
-                        |> EndrerOppsummering
+                        |> EndrerSkjema OppsummertUtdanning
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -347,7 +354,7 @@ update msg (Model model) =
         BrukerHarValgtUtdanningÅRedigere utdanning ->
             ( utdanning
                 |> Skjema.fraUtdanning
-                |> EndrerOppsummering
+                |> EndrerSkjema OppsummertUtdanning
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -662,11 +669,20 @@ update msg (Model model) =
 
         OppsummeringSkjemaLagreknappTrykket ->
             case model.aktivSamtale of
-                EndrerOppsummering skjema ->
+                EndrerSkjema skjemaType skjema ->
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
+                            let
+                                oppsummeringstype =
+                                    case skjemaType of
+                                        NyUtdanning ->
+                                            FørsteGang
+
+                                        _ ->
+                                            EtterEndring
+                            in
                             ( validertSkjema
-                                |> Oppsummering EtterEndring
+                                |> Oppsummering oppsummeringstype
                                 |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -676,7 +692,7 @@ update msg (Model model) =
                             IkkeFerdig
                                 ( skjema
                                     |> Skjema.gjørAlleFeilmeldingerSynlig
-                                    |> EndrerOppsummering
+                                    |> EndrerSkjema skjemaType
                                     |> oppdaterSamtale model IngenNyeMeldinger
                                 , Cmd.none
                                 )
@@ -707,17 +723,24 @@ update msg (Model model) =
                                         EndretEksisterende
 
                                     else
-                                        AnnenAvslutning
+                                        FullførtRegistrering
+
+                                nyModel =
+                                    if List.length model.utdanningListe == List.length nyUtdanningsListe then
+                                        { model | utdanningListe = nyUtdanningsListe }
+
+                                    else
+                                        { model | utdanningListe = nyUtdanningsListe, harFullførtEnSamtale = True }
                             in
                             ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                 avsluttetGrunn
                                     |> LeggTilFlereUtdanninger nyUtdanningsListe
-                                    |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
+                                    |> oppdaterSamtale nyModel (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                               else
                                 avsluttetGrunn
                                     |> LeggTilFlereUtdanninger nyUtdanningsListe
-                                    |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } UtenSvar
+                                    |> oppdaterSamtale nyModel UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -765,11 +788,18 @@ update msg (Model model) =
                                         EndretEksisterende
 
                                     else
-                                        AnnenAvslutning
+                                        FullførtRegistrering
+
+                                nyModel =
+                                    if List.length model.utdanningListe == List.length nyUtdanningsListe then
+                                        { model | utdanningListe = nyUtdanningsListe }
+
+                                    else
+                                        { model | utdanningListe = nyUtdanningsListe, harFullførtEnSamtale = True }
                             in
                             ( avsluttetGrunn
                                 |> LeggTilFlereUtdanninger nyUtdanningsListe
-                                |> oppdaterSamtale { model | utdanningListe = nyUtdanningsListe } UtenSvar
+                                |> oppdaterSamtale nyModel UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -854,6 +884,14 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        VilRegistrereFlereUtdanninger ->
+            ( Skjema.init
+                |> EndrerSkjema NyUtdanning
+                |> oppdaterSamtale model (SvarFraMsg msg)
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+                |> IkkeFerdig
+
         WindowEndrerVisibility visibility ->
             case visibility of
                 Visible ->
@@ -892,10 +930,10 @@ update msg (Model model) =
 
         OppsummeringEndret skjemaEndring ->
             case model.aktivSamtale of
-                EndrerOppsummering skjema ->
+                EndrerSkjema skjemaType skjema ->
                     ( skjema
                         |> oppdaterSkjema skjemaEndring
-                        |> EndrerOppsummering
+                        |> EndrerSkjema skjemaType
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -1038,7 +1076,7 @@ settFokus samtale =
         RegistrereTilÅr _ ->
             settFokusCmd RegistrereTilÅrInput
 
-        EndrerOppsummering _ ->
+        EndrerSkjema _ _ ->
             settFokusCmd VelgNivåISkjemaId
 
         Oppsummering _ _ ->
@@ -1091,7 +1129,7 @@ updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertUtdanningSkjema -> Samta
 updateEtterVilEndreSkjema model msg skjema =
     ( skjema
         |> Skjema.tilUvalidertSkjema
-        |> EndrerOppsummering
+        |> EndrerSkjema OppsummertUtdanning
         |> oppdaterSamtale model (SvarFraMsg msg)
     , lagtTilSpørsmålCmd model.debugStatus
     )
@@ -1310,8 +1348,13 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                     [ oppsummeringsSpørsmål validertSkjema
                     ]
 
-        EndrerOppsummering _ ->
-            [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
+        EndrerSkjema skjemaType _ ->
+            case skjemaType of
+                OppsummertUtdanning ->
+                    [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
+
+                _ ->
+                    []
 
         BekreftSlettingAvPåbegynt _ ->
             [ Melding.spørsmål [ "Er du sikker på at du vil slette denne utdanningen?" ] ]
@@ -1327,7 +1370,7 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                 EndretEksisterende ->
                     Melding.spørsmål [ "Så bra! Nå er utdanningen endret👍" ]
 
-                AnnenAvslutning ->
+                FullførtRegistrering ->
                     Melding.spørsmål [ "Så bra! Nå er utdanningen lagret👍" ]
             , if List.isEmpty utdanninger then
                 Melding.spørsmål [ "Har du utdanning du vil legge inn i CV-en?" ]
@@ -1452,7 +1495,7 @@ modelTilBrukerInput model =
                     BrukerInput.knapper Flytende
                         [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
                             |> Knapp.withId (inputIdTilString HarUtdanningId)
-                        , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, jeg er ferdig"
+                        , Knapp.knapp (GåTilArbeidserfaring FullførtRegistrering) "Nei, jeg er ferdig"
                         , Knapp.knapp BrukerVilRedigereUtdanning "Nei, jeg vil endre det jeg har lagt inn"
                         ]
 
@@ -1460,7 +1503,7 @@ modelTilBrukerInput model =
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, det vil jeg"
                         |> Knapp.withId (inputIdTilString BekreftHarIkkeUtdanningId)
-                    , Knapp.knapp (GåTilArbeidserfaring AnnenAvslutning) "Nei, det vil jeg ikke"
+                    , Knapp.knapp (GåTilArbeidserfaring FullførtRegistrering) "Nei, det vil jeg ikke"
                     ]
 
             VelgEnUtdanningÅRedigere ->
@@ -1580,8 +1623,13 @@ modelTilBrukerInput model =
                     Nothing ->
                         viewBekreftOppsummering True
 
-            EndrerOppsummering utdanningsskjema ->
-                viewSkjema utdanningsskjema
+            EndrerSkjema skjemaType utdanningsskjema ->
+                case skjemaType of
+                    OppsummertUtdanning ->
+                        viewSkjema utdanningsskjema
+
+                    NyUtdanning ->
+                        viewNyUtdanningSkjema utdanningsskjema
 
             BekreftSlettingAvPåbegynt _ ->
                 BrukerInput.knapper Flytende
@@ -1591,8 +1639,16 @@ modelTilBrukerInput model =
                     ]
 
             LeggTilFlereUtdanninger utdanninger avsluttetGrunn ->
+                let
+                    nyUtdanningMsg =
+                        if model.harFullførtEnSamtale then
+                            VilRegistrereFlereUtdanninger
+
+                        else
+                            BrukerVilRegistrereUtdanning
+                in
                 BrukerInput.knapper Flytende
-                    ([ [ Knapp.knapp BrukerVilRegistrereUtdanning "Ja, legg til en utdanning"
+                    ([ [ Knapp.knapp nyUtdanningMsg "Ja, legg til en utdanning"
                             |> Knapp.withId (inputIdTilString LeggTilUtdanningId)
                        , Knapp.knapp (GåTilArbeidserfaring avsluttetGrunn) "Nei, jeg er ferdig"
                        ]
@@ -1794,6 +1850,63 @@ viewSkjema utdanningsskjema =
         ]
 
 
+viewNyUtdanningSkjema : UtdanningSkjema -> BrukerInput Msg
+viewNyUtdanningSkjema utdanningsskjema =
+    BrukerInput.skjemaMedAvbryt { lagreMsg = OppsummeringSkjemaLagreknappTrykket, lagreKnappTekst = "Lagre utdanning", onAvbryt = Just BrukerVilAvbryteRegistreringen }
+        [ ( tilNivåKey Grunnskole, "" )
+            :: selectNivåListe
+            |> Select.select "Utdanningsnivå" (Nivå >> OppsummeringEndret)
+            |> Select.withSelected ""
+            |> Select.withErObligatorisk
+            |> Select.withId (inputIdTilString VelgNivåISkjemaId)
+            |> Select.toHtml
+        , utdanningsskjema
+            |> Skjema.innholdTekstFelt Studiested
+            |> Input.input { label = "Skole/studiested", msg = Tekst Studiested >> OppsummeringEndret }
+            |> Input.toHtml
+        , utdanningsskjema
+            |> Skjema.innholdTekstFelt Utdanningsretning
+            |> Input.input { label = "Grad og utdanningsretning", msg = Tekst Utdanningsretning >> OppsummeringEndret }
+            |> Input.toHtml
+        , utdanningsskjema
+            |> Skjema.innholdTekstFelt Beskrivelse
+            |> Textarea.textarea { label = "Beskriv utdanningen", msg = Tekst Beskrivelse >> OppsummeringEndret }
+            |> Textarea.withFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Beskrivelse utdanningsskjema) maxLengthBeskrivelse)
+            |> Textarea.toHtml
+        , div [ class "DatoInput-fra-til-rad" ]
+            [ DatoInput.datoInput
+                { label = "Når startet du på utdanningen?"
+                , onMånedChange = FraMåned >> OppsummeringEndret
+                , måned = Skjema.fraMåned utdanningsskjema
+                , onÅrChange = Tekst FraÅr >> OppsummeringEndret
+                , år = Skjema.innholdTekstFelt FraÅr utdanningsskjema
+                }
+                |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFraÅr utdanningsskjema)
+                |> DatoInput.withOnBlurÅr (OppsummeringEndret FraÅrBlurred)
+                |> DatoInput.toHtml
+            , if not (Skjema.nåværende utdanningsskjema) then
+                DatoInput.datoInput
+                    { label = "Når avsluttet du utdanningen?"
+                    , onMånedChange = TilMåned >> OppsummeringEndret
+                    , måned = Skjema.tilMåned utdanningsskjema
+                    , onÅrChange = Tekst TilÅr >> OppsummeringEndret
+                    , år = Skjema.innholdTekstFelt TilÅr utdanningsskjema
+                    }
+                    |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingTilÅr utdanningsskjema)
+                    |> DatoInput.withOnBlurÅr (OppsummeringEndret TilÅrBlurred)
+                    |> DatoInput.toHtml
+
+              else
+                text ""
+            ]
+        , utdanningsskjema
+            |> Skjema.nåværende
+            |> Checkbox.checkbox "Jeg holder fortsatt på med utdanningen" (OppsummeringEndret NåværendeToggled)
+            |> Checkbox.withClass "blokk-m"
+            |> Checkbox.toHtml
+        ]
+
+
 viewBekreftOppsummering : Bool -> BrukerInput Msg
 viewBekreftOppsummering skalViseSlett =
     if skalViseSlett then
@@ -1892,6 +2005,7 @@ init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg utdanningListe =
         , utdanningListe = utdanningListe
         , debugStatus = debugStatus
         , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
+        , harFullførtEnSamtale = False
         }
     , lagtTilSpørsmålCmd debugStatus
     )
