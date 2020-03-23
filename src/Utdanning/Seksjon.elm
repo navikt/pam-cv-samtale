@@ -72,11 +72,12 @@ type OppsummeringsType
     = FørsteGang
     | EtterEndring
     | AvbrøtSletting
+    | NyUtdanning
 
 
 type SkjemaType
-    = OppsummertUtdanning
-    | NyUtdanning
+    = OppsummeringsSkjema
+    | NyUtdanningSkjema
 
 
 type NivåValg
@@ -335,7 +336,7 @@ update msg (Model model) =
                 enesteUtdanning :: [] ->
                     ( enesteUtdanning
                         |> Skjema.fraUtdanning
-                        |> EndrerSkjema OppsummertUtdanning
+                        |> EndrerSkjema OppsummeringsSkjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -354,7 +355,7 @@ update msg (Model model) =
         BrukerHarValgtUtdanningÅRedigere utdanning ->
             ( utdanning
                 |> Skjema.fraUtdanning
-                |> EndrerSkjema OppsummertUtdanning
+                |> EndrerSkjema OppsummeringsSkjema
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -672,22 +673,21 @@ update msg (Model model) =
                 EndrerSkjema skjemaType skjema ->
                     case Skjema.validerSkjema skjema of
                         Just validertSkjema ->
-                            case skjemaType of
-                                NyUtdanning ->
-                                    ( validertSkjema
-                                        |> Oppsummering FørsteGang
-                                        |> oppdaterSamtale model UtenSvar
-                                    , lagtTilSpørsmålCmd model.debugStatus
-                                    )
-                                        |> IkkeFerdig
+                            let
+                                oppsummeringstype =
+                                    case skjemaType of
+                                        NyUtdanningSkjema ->
+                                            NyUtdanning
 
-                                _ ->
-                                    ( validertSkjema
-                                        |> Oppsummering EtterEndring
-                                        |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
-                                    , lagtTilSpørsmålCmd model.debugStatus
-                                    )
-                                        |> IkkeFerdig
+                                        _ ->
+                                            EtterEndring
+                            in
+                            ( validertSkjema
+                                |> Oppsummering oppsummeringstype
+                                |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
                         Nothing ->
                             IkkeFerdig
@@ -887,7 +887,7 @@ update msg (Model model) =
 
         VilRegistrereFlereUtdanninger ->
             ( Skjema.init
-                |> EndrerSkjema NyUtdanning
+                |> EndrerSkjema NyUtdanningSkjema
                 |> oppdaterSamtale model (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -1130,7 +1130,7 @@ updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertUtdanningSkjema -> Samta
 updateEtterVilEndreSkjema model msg skjema =
     ( skjema
         |> Skjema.tilUvalidertSkjema
-        |> EndrerSkjema OppsummertUtdanning
+        |> EndrerSkjema OppsummeringsSkjema
         |> oppdaterSamtale model (SvarFraMsg msg)
     , lagtTilSpørsmålCmd model.debugStatus
     )
@@ -1349,13 +1349,16 @@ samtaleTilMeldingsLogg utdanningSeksjon =
                     [ oppsummeringsSpørsmål validertSkjema
                     ]
 
+                NyUtdanning ->
+                    [ Melding.spørsmål [ "Du har lagt til en utdanning. Er informasjonen riktig?" ] ]
+
         EndrerSkjema skjemaType _ ->
             case skjemaType of
-                OppsummertUtdanning ->
+                OppsummeringsSkjema ->
                     [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
                 _ ->
-                    []
+                    [ Melding.spørsmål [ "Legg inn utdanningen din under." ] ]
 
         BekreftSlettingAvPåbegynt _ ->
             [ Melding.spørsmål [ "Er du sikker på at du vil slette denne utdanningen?" ] ]
@@ -1626,10 +1629,10 @@ modelTilBrukerInput model =
 
             EndrerSkjema skjemaType utdanningsskjema ->
                 case skjemaType of
-                    OppsummertUtdanning ->
+                    OppsummeringsSkjema ->
                         viewSkjema utdanningsskjema
 
-                    NyUtdanning ->
+                    NyUtdanningSkjema ->
                         viewNyUtdanningSkjema utdanningsskjema
 
             BekreftSlettingAvPåbegynt _ ->

@@ -32,7 +32,7 @@ type alias MeldingDimensjonInfo =
 
 startAnimasjon : DebugStatus -> Cmd Msg
 startAnimasjon debugStatus =
-    300
+    100
         |> DebugStatus.meldingsTimeout debugStatus
         |> Process.sleep
         |> Task.andThen (\_ -> getTimeViewportAndElement)
@@ -120,7 +120,7 @@ update debugStatus msg meldingsLogg =
 
             else
                 ( nyMeldingslogg
-                , 300
+                , 100
                     |> DebugStatus.meldingsTimeout debugStatus
                     |> Process.sleep
                     |> Task.andThen (\_ -> getTimeViewportAndElement)
@@ -169,12 +169,42 @@ update debugStatus msg meldingsLogg =
 
 lengdePåSkriveindikatorIMillisekunder : MeldingsLogg -> Float
 lengdePåSkriveindikatorIMillisekunder meldingsLogg =
-    400
+    --
+    case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
+        AlleMeldingerAnimert ->
+            300
+
+        FørsteMelding _ ->
+            700
+
+        FinnesEnForrigeMelding { forrige, neste } ->
+            let
+                gjennomsnitteligAntallOrd =
+                    (((forrige * 2) + neste) // 3)
+                        |> toFloat
+            in
+            gjennomsnitteligAntallOrd
+                * 100
+                |> clamp 400 700
 
 
 ventetidFørBrukerinputScrollesInn : MeldingsLogg -> Float
 ventetidFørBrukerinputScrollesInn meldingsLogg =
-    400
+    {--Nå er det samme delay i alle tilfeller, men lar logikken så slik at man kan endre her hvis man vil
+     justere etter meldingslengde som det var tidligere--}
+    case MeldingsLogg.antallOrdForrigeOgNesteMelding meldingsLogg of
+        AlleMeldingerAnimert ->
+            300
+
+        FørsteMelding antallOrdNesteMelding ->
+            (antallOrdNesteMelding * 75)
+                |> toFloat
+                |> clamp 300 300
+
+        FinnesEnForrigeMelding { neste } ->
+            (neste * 75)
+                |> toFloat
+                |> clamp 300 300
 
 
 
@@ -348,10 +378,15 @@ scrollInnBrukerInput meldingsLogg { startTidForScrolling, opprinneligViewport, s
         avstand =
             sluttPosisjon - opprinneligViewport.viewport.y
 
+        animasjonsTid =
+            (avstand * 2)
+                |> round
+                |> clamp 200 400
+
         scrollTilPosisjon =
             scrollPosition
                 { easingFunction = Ease.bezier 0 0 0.58 1 }
-                { animasjonstidMs = 300
+                { animasjonstidMs = animasjonsTid
                 , opprinneligViewport = opprinneligViewport
                 , sluttPosisjon = sluttPosisjon
                 , tidNå = tidNå
