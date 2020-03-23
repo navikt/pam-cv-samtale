@@ -94,6 +94,7 @@ type OppsummeringsType
     = FørsteGang
     | EtterEndring
     | AvbrøtSletting
+    | NyArbeidserfaring
 
 
 type SkjemaType
@@ -853,22 +854,21 @@ update msg (Model model) =
                 RedigerSkjema skjemaType typeaheadModel skjema ->
                     case Skjema.valider skjema of
                         Just validertSkjema ->
-                            case skjemaType of
-                                NyArbeidserfaringsSkjema ->
-                                    ( validertSkjema
-                                        |> VisOppsummering FørsteGang
-                                        |> oppdaterSamtale model UtenSvar
-                                    , lagtTilSpørsmålCmd model.debugStatus
-                                    )
-                                        |> IkkeFerdig
+                            let
+                                oppsummeringstype =
+                                    case skjemaType of
+                                        NyArbeidserfaringsSkjema ->
+                                            NyArbeidserfaring
 
-                                _ ->
-                                    ( validertSkjema
-                                        |> VisOppsummering EtterEndring
-                                        |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
-                                    , lagtTilSpørsmålCmd model.debugStatus
-                                    )
-                                        |> IkkeFerdig
+                                        _ ->
+                                            EtterEndring
+                            in
+                            ( validertSkjema
+                                |> VisOppsummering oppsummeringstype
+                                |> oppdaterSamtale model (ManueltSvar (Melding.svar (validertSkjemaTilSetninger validertSkjema)))
+                            , lagtTilSpørsmålCmd model.debugStatus
+                            )
+                                |> IkkeFerdig
 
                         Nothing ->
                             ( skjema
@@ -1486,13 +1486,16 @@ samtaleTilMeldingsLogg personaliaSeksjon =
                         )
                     ]
 
+                NyArbeidserfaring ->
+                    [ Melding.spørsmål [ "Du har lagt til en arbeidserfaring. Er informasjonen riktig?" ] ]
+
         RedigerSkjema skjemaType _ _ ->
             case skjemaType of
                 OppsummeringsSkjema ->
                     [ Melding.spørsmål [ "Gå gjennom og endre det du ønsker." ] ]
 
                 _ ->
-                    []
+                    [ Melding.spørsmål [ "Legg inn arbeidserfaringen din under." ] ]
 
         BekreftSlettingAvPåbegynt _ ->
             [ Melding.spørsmål [ "Er du sikker på at du vil slette denne arbeidserfaringen?" ] ]
