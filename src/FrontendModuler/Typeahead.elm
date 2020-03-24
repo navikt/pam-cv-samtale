@@ -159,8 +159,8 @@ toHtml (Typeahead options) =
             [ case options.label of
                 "Kompetanser" ->
                     div []
-                        [ CoronaInfobox.coronaInfobox "Har du kritisk kompetanse?"
-                            "Legg inn alle typer kompetanser her, spesielt hvis du har kritisk kompetanse som samfunnet har bruk for akkurat nå, f.eks. “butikkarbeid” eller “helsefag”.  Har du fagbrev/svennebrev eller autorisasjoner legger du disse inn i CV-en din."
+                        [ CoronaInfobox.coronaInfobox "Har du viktig kompetanse?"
+                            "Har du kompetanse som samfunnet trenger akkurat nå? For eksempel gårdsdrift eller helsefag? Legg inn kompetansene. Også annen type kompetanse kan være aktuelt."
                             |> CoronaInfobox.toHtml
                         ]
 
