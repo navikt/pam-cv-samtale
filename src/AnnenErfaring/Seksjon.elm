@@ -1097,10 +1097,8 @@ type InputId
     | BeskrivelseId
     | LeggTilPeriodeId
     | FraMånedId
-    | FraÅrId
     | NåværendeId
     | TilMånedId
-    | TilÅrId
     | BekreftOppsummeringId
     | SlettePåbegyntId
     | LagringFeiletActionId
@@ -1122,17 +1120,11 @@ inputIdTilString inputId =
         FraMånedId ->
             "annenErfaring-fraMåned-id"
 
-        FraÅrId ->
-            "annenErfaring-fraÅr-id"
-
         NåværendeId ->
             "annenErfaring-nåværende-id"
 
         TilMånedId ->
             "annenErfaring-tilMåned-id"
-
-        TilÅrId ->
-            "annenErfaring-tilÅr-id"
 
         BekreftOppsummeringId ->
             "annenErfaring-bekreft-oppsummering-id"
