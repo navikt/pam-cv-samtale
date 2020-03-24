@@ -22,6 +22,7 @@ import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp exposing (BrukerInputMedGåVidereKnapp)
 import FrontendModuler.Checkbox as Checkbox
+import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
@@ -92,11 +93,9 @@ type Samtale
     = RegistrerRolle RolleInfo
     | RegistrerBeskrivelse Bool BeskrivelseInfo
     | SpørOmBrukerVilLeggeInnTidsperiode BeskrivelseInfo
-    | RegistrerFraÅr FraÅrInfo
-    | RegistrerFraMåned FraMånedInfo
+    | RegistrerFraDato FraDatoInfo
     | RegistrerNåværende NåværendeInfo
-    | RegistrerTilÅr TilÅrInfo
-    | RegistrerTilMåned TilMånedInfo
+    | RegistrerTilDato TilDatoInfo
     | VisOppsummering OppsummeringsType ValidertAnnenErfaringSkjema
     | EndreOpplysninger AnnenErfaringSkjema
     | BekreftSlettingAvPåbegynt ValidertAnnenErfaringSkjema
@@ -118,18 +117,12 @@ type alias BeskrivelseInfo =
     }
 
 
-type alias FraÅrInfo =
+type alias FraDatoInfo =
     { rolle : String
     , beskrivelse : String
     , fraÅr : String
+    , fraMåned : Måned
     , tillatÅViseFeilmeldingÅr : Bool
-    }
-
-
-type alias FraMånedInfo =
-    { rolle : String
-    , beskrivelse : String
-    , fraÅr : År
     }
 
 
@@ -141,22 +134,14 @@ type alias NåværendeInfo =
     }
 
 
-type alias TilÅrInfo =
+type alias TilDatoInfo =
     { rolle : String
     , beskrivelse : String
     , fraMåned : Måned
     , fraÅr : År
+    , tilMåned : Måned
     , tilÅr : String
     , tillatÅViseFeilmeldingÅr : Bool
-    }
-
-
-type alias TilMånedInfo =
-    { rolle : String
-    , beskrivelse : String
-    , fraMåned : Måned
-    , fraÅr : År
-    , tilÅr : År
     }
 
 
@@ -171,32 +156,34 @@ rolleTilBeskrivelseInfo rolle =
     }
 
 
-beskrivelseTilFraÅr : BeskrivelseInfo -> FraÅrInfo
-beskrivelseTilFraÅr info =
+beskrivelseTilFraDato : BeskrivelseInfo -> FraDatoInfo
+beskrivelseTilFraDato info =
     { rolle = info.rolle
     , beskrivelse = info.beskrivelse
     , fraÅr = ""
+    , fraMåned = Januar
     , tillatÅViseFeilmeldingÅr = False
     }
 
 
-nåværendeTilTilÅr : NåværendeInfo -> TilÅrInfo
-nåværendeTilTilÅr info =
+nåværendeTilTilDato : NåværendeInfo -> TilDatoInfo
+nåværendeTilTilDato info =
     { rolle = info.rolle
     , beskrivelse = info.beskrivelse
     , fraMåned = info.fraMåned
     , fraÅr = info.fraÅr
+    , tilMåned = Januar
     , tilÅr = ""
     , tillatÅViseFeilmeldingÅr = False
     }
 
 
-fraMånedTilNåværende : FraMånedInfo -> Måned -> NåværendeInfo
-fraMånedTilNåværende info fraMåned =
+fraDatoTilNåværende : FraDatoInfo -> År -> NåværendeInfo
+fraDatoTilNåværende info år =
     { rolle = info.rolle
     , beskrivelse = info.beskrivelse
-    , fraMåned = fraMåned
-    , fraÅr = info.fraÅr
+    , fraMåned = info.fraMåned
+    , fraÅr = år
     }
 
 
@@ -221,14 +208,14 @@ nåværendeInfoTilSkjema info =
         }
 
 
-tilMånedTilSkjema : TilMånedInfo -> Måned -> ValidertAnnenErfaringSkjema
-tilMånedTilSkjema info tilMåned =
+tilDatoTilSkjema : TilDatoInfo -> År -> ValidertAnnenErfaringSkjema
+tilDatoTilSkjema info tilÅr =
     Skjema.initValidertSkjema
         { rolle = info.rolle
         , beskrivelse = info.beskrivelse
         , fraMåned = info.fraMåned
         , fraÅr = info.fraÅr
-        , tilDato = Avsluttet tilMåned info.tilÅr
+        , tilDato = Avsluttet info.tilMåned tilÅr
         , id = Nothing
         }
 
@@ -245,14 +232,14 @@ type Msg
     | OppdatererBeskrivelse String
     | SvarerJaTilTidsperiode
     | SvarerNeiTilTidsperiode
-    | FraMånedValgt Måned
-    | VilRegistrereFraÅr
+    | OppdatererFraMåned String
     | OppdatererFraÅr String
+    | VilRegistrereFraDato
     | SvarerJaTilNåværende
     | SvarerNeiTilNåværende
-    | TilMånedValgt Måned
-    | VilRegistrereTilÅr
+    | OppdatererTilMåned String
     | OppdatererTilÅr String
+    | VilRegistrereTilDato
     | VilLagreAnnenErfaring
     | VilEndreOpplysninger
     | SkjemaEndret SkjemaEndring
@@ -378,8 +365,8 @@ update msg (Model model) =
             case model.aktivSamtale of
                 SpørOmBrukerVilLeggeInnTidsperiode info ->
                     ( info
-                        |> beskrivelseTilFraÅr
-                        |> RegistrerFraÅr
+                        |> beskrivelseTilFraDato
+                        |> RegistrerFraDato
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -402,11 +389,11 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdatererFraÅr string ->
+        OppdatererFraMåned string ->
             case model.aktivSamtale of
-                RegistrerFraÅr fraÅrInfo ->
-                    ( { fraÅrInfo | fraÅr = string }
-                        |> RegistrerFraÅr
+                RegistrerFraDato fraDatoInfo ->
+                    ( { fraDatoInfo | fraMåned = Måned.stringTilMåned string }
+                        |> RegistrerFraDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -415,16 +402,27 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilRegistrereFraÅr ->
+        OppdatererFraÅr string ->
             case model.aktivSamtale of
-                RegistrerFraÅr info ->
+                RegistrerFraDato fraDatoInfo ->
+                    ( { fraDatoInfo | fraÅr = string }
+                        |> RegistrerFraDato
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilRegistrereFraDato ->
+            case model.aktivSamtale of
+                RegistrerFraDato info ->
                     case Dato.stringTilÅr info.fraÅr of
                         Just fraÅr ->
-                            ( { rolle = info.rolle
-                              , beskrivelse = info.beskrivelse
-                              , fraÅr = fraÅr
-                              }
-                                |> RegistrerFraMåned
+                            ( fraÅr
+                                |> fraDatoTilNåværende info
+                                |> RegistrerNåværende
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -432,25 +430,11 @@ update msg (Model model) =
 
                         Nothing ->
                             ( { info | tillatÅViseFeilmeldingÅr = True }
-                                |> RegistrerFraÅr
+                                |> RegistrerFraDato
                                 |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        FraMånedValgt måned ->
-            case model.aktivSamtale of
-                RegistrerFraMåned fraMånedInfo ->
-                    ( måned
-                        |> fraMånedTilNåværende fraMånedInfo
-                        |> RegistrerNåværende
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -473,8 +457,8 @@ update msg (Model model) =
             case model.aktivSamtale of
                 RegistrerNåværende nåværendeInfo ->
                     ( nåværendeInfo
-                        |> nåværendeTilTilÅr
-                        |> RegistrerTilÅr
+                        |> nåværendeTilTilDato
+                        |> RegistrerTilDato
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -483,11 +467,11 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdatererTilÅr string ->
+        OppdatererTilMåned string ->
             case model.aktivSamtale of
-                RegistrerTilÅr tilÅrInfo ->
-                    ( { tilÅrInfo | tilÅr = string }
-                        |> RegistrerTilÅr
+                RegistrerTilDato tilDatoInfo ->
+                    ( { tilDatoInfo | tilMåned = Måned.stringTilMåned string }
+                        |> RegistrerTilDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -496,44 +480,39 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilRegistrereTilÅr ->
+        OppdatererTilÅr string ->
             case model.aktivSamtale of
-                RegistrerTilÅr tilÅrInfo ->
-                    case Dato.stringTilÅr tilÅrInfo.tilÅr of
+                RegistrerTilDato tilDatoInfo ->
+                    ( { tilDatoInfo | tilÅr = string }
+                        |> RegistrerTilDato
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilRegistrereTilDato ->
+            case model.aktivSamtale of
+                RegistrerTilDato tilDatoInfo ->
+                    case Dato.stringTilÅr tilDatoInfo.tilÅr of
                         Just tilÅr ->
-                            ( { rolle = tilÅrInfo.rolle
-                              , beskrivelse = tilÅrInfo.beskrivelse
-                              , fraMåned = tilÅrInfo.fraMåned
-                              , fraÅr = tilÅrInfo.fraÅr
-                              , tilÅr = tilÅr
-                              }
-                                |> RegistrerTilMåned
+                            ( tilÅr
+                                |> tilDatoTilSkjema tilDatoInfo
+                                |> VisOppsummering FørsteGang
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
 
                         Nothing ->
-                            ( { tilÅrInfo | tillatÅViseFeilmeldingÅr = True }
-                                |> RegistrerTilÅr
+                            ( { tilDatoInfo | tillatÅViseFeilmeldingÅr = True }
+                                |> RegistrerTilDato
                                 |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        TilMånedValgt måned ->
-            case model.aktivSamtale of
-                RegistrerTilMåned tilMånedInfo ->
-                    ( måned
-                        |> tilMånedTilSkjema tilMånedInfo
-                        |> VisOppsummering FørsteGang
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -543,17 +522,17 @@ update msg (Model model) =
 
         TimeoutEtterAtFeltMistetFokus ->
             case model.aktivSamtale of
-                RegistrerFraÅr info ->
+                RegistrerFraDato info ->
                     ( { info | tillatÅViseFeilmeldingÅr = True }
-                        |> RegistrerFraÅr
+                        |> RegistrerFraDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
                         |> IkkeFerdig
 
-                RegistrerTilÅr tilÅrInfo ->
-                    ( { tilÅrInfo | tillatÅViseFeilmeldingÅr = True }
-                        |> RegistrerTilÅr
+                RegistrerTilDato info ->
+                    ( { info | tillatÅViseFeilmeldingÅr = True }
+                        |> RegistrerTilDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -969,23 +948,15 @@ samtaleTilMeldingsLogg annenErfaringSeksjon =
             [ Melding.spørsmål [ "Det kan være nyttig for en arbeidsgiver å vite hvor lenge du har hatt rollen. Vil du legge inn tidsperiode?" ]
             ]
 
-        RegistrerFraMåned _ ->
-            [ Melding.spørsmål [ "Hvilken måned begynte du?" ]
-            ]
-
-        RegistrerFraÅr _ ->
-            [ Melding.spørsmål [ "Hvilket år begynte du?" ]
+        RegistrerFraDato _ ->
+            [ Melding.spørsmål [ "Når begynte du?" ]
             ]
 
         RegistrerNåværende info ->
             [ Melding.spørsmål [ "Jobber du fremdeles som «" ++ info.rolle ++ "»?" ] ]
 
-        RegistrerTilMåned _ ->
-            [ Melding.spørsmål [ "Hvilken måned sluttet du?" ]
-            ]
-
-        RegistrerTilÅr _ ->
-            [ Melding.spørsmål [ "Hvilket år sluttet du?" ]
+        RegistrerTilDato _ ->
+            [ Melding.spørsmål [ "Når sluttet du?" ]
             ]
 
         VisOppsummering oppsummeringsType skjema ->
@@ -1074,20 +1045,14 @@ settFokus samtale =
         SpørOmBrukerVilLeggeInnTidsperiode _ ->
             settFokusCmd LeggTilPeriodeId
 
-        RegistrerFraMåned _ ->
+        RegistrerFraDato _ ->
             settFokusCmd FraMånedId
-
-        RegistrerFraÅr _ ->
-            settFokusCmd FraÅrId
 
         RegistrerNåværende _ ->
             settFokusCmd NåværendeId
 
-        RegistrerTilMåned _ ->
+        RegistrerTilDato _ ->
             settFokusCmd TilMånedId
-
-        RegistrerTilÅr _ ->
-            settFokusCmd TilÅrId
 
         EndreOpplysninger _ ->
             settFokusCmd RolleId
@@ -1225,29 +1190,23 @@ modelTilBrukerInput model =
                     , Knapp.knapp SvarerNeiTilTidsperiode "Nei, det vil jeg ikke"
                     ]
 
-            RegistrerFraMåned _ ->
-                BrukerInput.månedKnapper
-                    { onAvbryt = VilAvbryteRegistreringen
-                    , onMånedValg = FraMånedValgt
-                    , fokusId = inputIdTilString FraMånedId
+            RegistrerFraDato info ->
+                DatoInput.datoInput
+                    { onMånedChange = OppdatererFraMåned
+                    , måned = info.fraMåned
+                    , onÅrChange = OppdatererFraÅr
+                    , år = info.fraÅr
                     }
-
-            RegistrerFraÅr info ->
-                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFraÅr }
-                    (info.fraÅr
-                        |> Input.input { label = "År", msg = OppdatererFraÅr }
-                        |> Input.withClass "aar"
-                        |> Input.withWrapperClass "år-wrapper"
-                        |> Input.withOnEnter VilRegistrereFraÅr
-                        |> Input.withOnBlur FeltMisterFokus
-                        |> Input.withId (inputIdTilString FraÅrId)
-                        |> Input.withFeilmelding
-                            (info.fraÅr
-                                |> Dato.feilmeldingÅr
-                                |> maybeHvisTrue info.tillatÅViseFeilmeldingÅr
-                            )
-                        |> Input.withErObligatorisk
-                    )
+                    |> DatoInput.withFeilmeldingÅr
+                        (info.fraÅr
+                            |> Dato.feilmeldingÅr
+                            |> maybeHvisTrue info.tillatÅViseFeilmeldingÅr
+                        )
+                    |> DatoInput.withFokusId (inputIdTilString FraMånedId)
+                    |> DatoInput.withOnBlurÅr FeltMisterFokus
+                    |> BrukerInputMedGåVidereKnapp.datoMånedÅr VilRegistrereFraDato
+                    |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp VilAvbryteRegistreringen
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             RegistrerNåværende _ ->
                 BrukerInput.knapper Flytende
@@ -1256,25 +1215,23 @@ modelTilBrukerInput model =
                     , Knapp.knapp SvarerNeiTilNåværende "Nei"
                     ]
 
-            RegistrerTilMåned _ ->
-                BrukerInput.månedKnapper
-                    { onAvbryt = VilAvbryteRegistreringen
-                    , onMånedValg = TilMånedValgt
-                    , fokusId = inputIdTilString TilMånedId
+            RegistrerTilDato info ->
+                DatoInput.datoInput
+                    { onMånedChange = OppdatererTilMåned
+                    , måned = info.tilMåned
+                    , onÅrChange = OppdatererTilÅr
+                    , år = info.tilÅr
                     }
-
-            RegistrerTilÅr tilÅrInfo ->
-                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereTilÅr }
-                    (tilÅrInfo.tilÅr
-                        |> Input.input { label = "År", msg = OppdatererTilÅr }
-                        |> Input.withClass "aar"
-                        |> Input.withWrapperClass "år-wrapper"
-                        |> Input.withOnEnter VilRegistrereTilÅr
-                        |> Input.withOnBlur FeltMisterFokus
-                        |> Input.withId (inputIdTilString TilÅrId)
-                        |> Input.withFeilmelding ((Dato.feilmeldingÅr >> maybeHvisTrue tilÅrInfo.tillatÅViseFeilmeldingÅr) tilÅrInfo.tilÅr)
-                        |> Input.withErObligatorisk
-                    )
+                    |> DatoInput.withFeilmeldingÅr
+                        (info.tilÅr
+                            |> Dato.feilmeldingÅr
+                            |> maybeHvisTrue info.tillatÅViseFeilmeldingÅr
+                        )
+                    |> DatoInput.withFokusId (inputIdTilString TilMånedId)
+                    |> DatoInput.withOnBlurÅr FeltMisterFokus
+                    |> BrukerInputMedGåVidereKnapp.datoMånedÅr VilRegistrereTilDato
+                    |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp VilAvbryteRegistreringen
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             VisOppsummering _ _ ->
                 viewBekreftOppsummering

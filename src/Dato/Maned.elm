@@ -1,4 +1,4 @@
-module Dato.Maned exposing (Måned(..), fraNummer, fraString, måneder, stringTilMåned, tilNummer, tilString)
+module Dato.Maned exposing (Måned(..), fraNummer, fraString, måneder, stringTilMåned, tilNummer, tilSelectboxOptions, tilString)
 
 
 type Måned
@@ -30,6 +30,23 @@ måneder =
     , Oktober
     , November
     , Desember
+    ]
+
+
+tilSelectboxOptions : List ( String, String )
+tilSelectboxOptions =
+    [ ( "Januar", "Januar" )
+    , ( "Februar", "Februar" )
+    , ( "Mars", "Mars" )
+    , ( "April", "April" )
+    , ( "Mai", "Mai" )
+    , ( "Juni", "Juni" )
+    , ( "Juli", "Juli" )
+    , ( "August", "August" )
+    , ( "September", "September" )
+    , ( "Oktober", "Oktober" )
+    , ( "November", "November" )
+    , ( "Desember", "Desember" )
     ]
 
 

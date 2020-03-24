@@ -1822,23 +1822,23 @@ viewSkjema utdanningsskjema =
             |> Textarea.toHtml
         , div [ class "DatoInput-fra-til-rad" ]
             [ DatoInput.datoInput
-                { label = "Når startet du på utdanningen?"
-                , onMånedChange = FraMåned >> OppsummeringEndret
+                { onMånedChange = FraMåned >> OppsummeringEndret
                 , måned = Skjema.fraMåned utdanningsskjema
                 , onÅrChange = Tekst FraÅr >> OppsummeringEndret
                 , år = Skjema.innholdTekstFelt FraÅr utdanningsskjema
                 }
+                |> DatoInput.withLabel "Når startet du på utdanningen?"
                 |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFraÅr utdanningsskjema)
                 |> DatoInput.withOnBlurÅr (OppsummeringEndret FraÅrBlurred)
                 |> DatoInput.toHtml
             , if not (Skjema.nåværende utdanningsskjema) then
                 DatoInput.datoInput
-                    { label = "Når avsluttet du utdanningen?"
-                    , onMånedChange = TilMåned >> OppsummeringEndret
+                    { onMånedChange = TilMåned >> OppsummeringEndret
                     , måned = Skjema.tilMåned utdanningsskjema
                     , onÅrChange = Tekst TilÅr >> OppsummeringEndret
                     , år = Skjema.innholdTekstFelt TilÅr utdanningsskjema
                     }
+                    |> DatoInput.withLabel "Når avsluttet du utdanningen?"
                     |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingTilÅr utdanningsskjema)
                     |> DatoInput.withOnBlurÅr (OppsummeringEndret TilÅrBlurred)
                     |> DatoInput.toHtml
@@ -1879,23 +1879,23 @@ viewNyUtdanningSkjema utdanningsskjema =
             |> Textarea.toHtml
         , div [ class "DatoInput-fra-til-rad" ]
             [ DatoInput.datoInput
-                { label = "Når startet du på utdanningen?"
-                , onMånedChange = FraMåned >> OppsummeringEndret
+                { onMånedChange = FraMåned >> OppsummeringEndret
                 , måned = Skjema.fraMåned utdanningsskjema
                 , onÅrChange = Tekst FraÅr >> OppsummeringEndret
                 , år = Skjema.innholdTekstFelt FraÅr utdanningsskjema
                 }
+                |> DatoInput.withLabel "Når startet du på utdanningen?"
                 |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFraÅr utdanningsskjema)
                 |> DatoInput.withOnBlurÅr (OppsummeringEndret FraÅrBlurred)
                 |> DatoInput.toHtml
             , if not (Skjema.nåværende utdanningsskjema) then
                 DatoInput.datoInput
-                    { label = "Når avsluttet du utdanningen?"
-                    , onMånedChange = TilMåned >> OppsummeringEndret
+                    { onMånedChange = TilMåned >> OppsummeringEndret
                     , måned = Skjema.tilMåned utdanningsskjema
                     , onÅrChange = Tekst TilÅr >> OppsummeringEndret
                     , år = Skjema.innholdTekstFelt TilÅr utdanningsskjema
                     }
+                    |> DatoInput.withLabel "Når avsluttet du utdanningen?"
                     |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingTilÅr utdanningsskjema)
                     |> DatoInput.withOnBlurÅr (OppsummeringEndret TilÅrBlurred)
                     |> DatoInput.toHtml
