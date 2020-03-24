@@ -18,6 +18,8 @@ import Dato.Maned as Måned exposing (Måned(..))
 import DebugStatus exposing (DebugStatus)
 import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
+import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
+import FrontendModuler.DatoInput as DatoInput
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp exposing (Knapp)
 import FrontendModuler.LoggInnLenke as LoggInnLenke
@@ -89,8 +91,7 @@ type Samtale
     = RegistrerKursnavn KursnavnInfo
     | RegistrerKursholder KursholderInfo
     | SpørOmBrukerVilLeggeInnFullførtDato KursholderInfo
-    | RegistrerFullførtÅr FullførtÅrInfo
-    | RegistrerFullførtMåned FullførtMånedInfo
+    | RegistrerFullførtDato FullførtDatoInfo
     | RegistrerVarighetEnhet VarighetInfo
     | RegistrerVarighet VarighetInfo
     | VisOppsummering OppsummeringsType ValidertKursSkjema
@@ -114,18 +115,12 @@ type alias KursholderInfo =
     }
 
 
-type alias FullførtÅrInfo =
+type alias FullførtDatoInfo =
     { kursnavn : String
     , kursholder : String
     , fullførtÅr : String
+    , fullførtMåned : Måned
     , tillatÅViseFeilmeldingÅr : Bool
-    }
-
-
-type alias FullførtMånedInfo =
-    { kursnavn : String
-    , kursholder : String
-    , fullførtÅr : År
     }
 
 
@@ -146,11 +141,12 @@ kursnavnTilKursholder kursnavn =
     }
 
 
-kursholderTilFullførtÅr : KursholderInfo -> FullførtÅrInfo
-kursholderTilFullførtÅr input =
+kursholderTilFullførtDato : KursholderInfo -> FullførtDatoInfo
+kursholderTilFullførtDato input =
     { kursnavn = input.kursnavn
     , kursholder = input.kursholder
     , fullførtÅr = ""
+    , fullførtMåned = Januar
     , tillatÅViseFeilmeldingÅr = False
     }
 
@@ -166,11 +162,11 @@ kursholderTilVarighet input =
     }
 
 
-fullførtMånedTilVarighet : FullførtMånedInfo -> Måned -> VarighetInfo
-fullførtMånedTilVarighet input måned =
+fullførtDatoTilVarighet : FullførtDatoInfo -> År -> VarighetInfo
+fullførtDatoTilVarighet input år =
     { kursnavn = input.kursnavn
     , kursholder = input.kursholder
-    , fullførtDato = Oppgitt måned input.fullførtÅr
+    , fullførtDato = Oppgitt input.fullførtMåned år
     , varighet = ""
     , varighetEnhet = Time
     , tillatÅViseFeilmeldingVarighet = False
@@ -200,9 +196,9 @@ type Msg
     | OppdatererKursholder String
     | SvarerJaTilFullførtDato
     | SvarerNeiTilFullførtDato
-    | FullførtMånedValgt Måned
-    | VilRegistrereFullførtÅr
+    | OppdatererFullførtMåned String
     | OppdatererFullførtÅr String
+    | VilRegistrereFullførtDato
     | VarighetEnhetValgt VarighetEnhet
     | VilRegistrereVarighet
     | OppdatererVarighet String
@@ -310,8 +306,8 @@ update msg (Model model) =
             case model.aktivSamtale of
                 SpørOmBrukerVilLeggeInnFullførtDato info ->
                     ( info
-                        |> kursholderTilFullførtÅr
-                        |> RegistrerFullførtÅr
+                        |> kursholderTilFullførtDato
+                        |> RegistrerFullførtDato
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -334,11 +330,11 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        OppdatererFullførtÅr string ->
+        OppdatererFullførtMåned månedString ->
             case model.aktivSamtale of
-                RegistrerFullførtÅr fullførtDatoInfo ->
-                    ( { fullførtDatoInfo | fullførtÅr = string }
-                        |> RegistrerFullførtÅr
+                RegistrerFullførtDato fullførtDatoInfo ->
+                    ( { fullførtDatoInfo | fullførtMåned = Måned.stringTilMåned månedString }
+                        |> RegistrerFullførtDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -347,16 +343,27 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilRegistrereFullførtÅr ->
+        OppdatererFullførtÅr år ->
             case model.aktivSamtale of
-                RegistrerFullførtÅr fullførtDatoInfo ->
+                RegistrerFullførtDato fullførtDatoInfo ->
+                    ( { fullførtDatoInfo | fullførtÅr = år }
+                        |> RegistrerFullførtDato
+                        |> oppdaterSamtale model IngenNyeMeldinger
+                    , Cmd.none
+                    )
+                        |> IkkeFerdig
+
+                _ ->
+                    IkkeFerdig ( Model model, Cmd.none )
+
+        VilRegistrereFullførtDato ->
+            case model.aktivSamtale of
+                RegistrerFullførtDato fullførtDatoInfo ->
                     case Dato.stringTilÅr fullførtDatoInfo.fullførtÅr of
                         Just fullførtÅr ->
-                            ( { kursnavn = fullførtDatoInfo.kursnavn
-                              , kursholder = fullførtDatoInfo.kursholder
-                              , fullførtÅr = fullførtÅr
-                              }
-                                |> RegistrerFullførtMåned
+                            ( fullførtÅr
+                                |> fullførtDatoTilVarighet fullførtDatoInfo
+                                |> RegistrerVarighetEnhet
                                 |> oppdaterSamtale model (SvarFraMsg msg)
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
@@ -364,25 +371,11 @@ update msg (Model model) =
 
                         Nothing ->
                             ( { fullførtDatoInfo | tillatÅViseFeilmeldingÅr = True }
-                                |> RegistrerFullførtÅr
+                                |> RegistrerFullførtDato
                                 |> oppdaterSamtale model IngenNyeMeldinger
                             , Cmd.none
                             )
                                 |> IkkeFerdig
-
-                _ ->
-                    IkkeFerdig ( Model model, Cmd.none )
-
-        FullførtMånedValgt måned ->
-            case model.aktivSamtale of
-                RegistrerFullførtMåned fullførtDatoInfo ->
-                    ( måned
-                        |> fullførtMånedTilVarighet fullførtDatoInfo
-                        |> RegistrerVarighetEnhet
-                        |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagtTilSpørsmålCmd model.debugStatus
-                    )
-                        |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -450,9 +443,9 @@ update msg (Model model) =
                     )
                         |> IkkeFerdig
 
-                RegistrerFullførtÅr fullførtDatoInfo ->
+                RegistrerFullførtDato fullførtDatoInfo ->
                     ( { fullførtDatoInfo | tillatÅViseFeilmeldingÅr = True }
-                        |> RegistrerFullførtÅr
+                        |> RegistrerFullførtDato
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , Cmd.none
                     )
@@ -863,12 +856,8 @@ samtaleTilMeldingsLogg kursSeksjon =
             [ Melding.spørsmål [ "Det kan være nyttig for en arbeidsgiver å vite når du fullførte kurset. Vil du legge inn det?" ]
             ]
 
-        RegistrerFullførtMåned _ ->
-            [ Melding.spørsmål [ "Hvilken måned var du ferdig med kurset?" ]
-            ]
-
-        RegistrerFullførtÅr _ ->
-            [ Melding.spørsmål [ "Hvilket år var du ferdig med kurset?" ]
+        RegistrerFullførtDato _ ->
+            [ Melding.spørsmål [ "Når var du ferdig med kurset?" ]
             ]
 
         RegistrerVarighetEnhet _ ->
@@ -964,11 +953,8 @@ settFokus samtale =
         SpørOmBrukerVilLeggeInnFullførtDato _ ->
             settFokusCmd LeggTilFullførtId
 
-        RegistrerFullførtMåned _ ->
+        RegistrerFullførtDato _ ->
             settFokusCmd FullførtMånedId
-
-        RegistrerFullførtÅr _ ->
-            settFokusCmd FullførtÅrId
 
         RegistrerVarighetEnhet _ ->
             settFokusCmd VarighetEnhetId
@@ -1103,29 +1089,23 @@ modelTilBrukerInput model =
                     , Knapp.knapp SvarerNeiTilFullførtDato "Nei, det vil jeg ikke"
                     ]
 
-            RegistrerFullførtMåned _ ->
-                BrukerInput.månedKnapper
-                    { onAvbryt = VilAvbryteRegistreringen
-                    , onMånedValg = FullførtMånedValgt
-                    , fokusId = inputIdTilString FullførtMånedId
+            RegistrerFullførtDato fullførtDatoInfo ->
+                DatoInput.datoInput
+                    { onMånedChange = OppdatererFullførtMåned
+                    , måned = fullførtDatoInfo.fullførtMåned
+                    , onÅrChange = OppdatererFullførtÅr
+                    , år = fullførtDatoInfo.fullførtÅr
                     }
-
-            RegistrerFullførtÅr fullførtDatoInfo ->
-                BrukerInput.inputMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereFullførtÅr }
-                    (fullførtDatoInfo.fullførtÅr
-                        |> Input.input { label = "År", msg = OppdatererFullførtÅr }
-                        |> Input.withClass "aar"
-                        |> Input.withWrapperClass "år-wrapper"
-                        |> Input.withOnEnter VilRegistrereFullførtÅr
-                        |> Input.withOnBlur FeltMisterFokus
-                        |> Input.withId (inputIdTilString FullførtÅrId)
-                        |> Input.withFeilmelding
-                            (fullførtDatoInfo.fullførtÅr
-                                |> Dato.feilmeldingÅr
-                                |> maybeHvisTrue fullførtDatoInfo.tillatÅViseFeilmeldingÅr
-                            )
-                        |> Input.withErObligatorisk
-                    )
+                    |> DatoInput.withFokusId (inputIdTilString FullførtMånedId)
+                    |> DatoInput.withFeilmeldingÅr
+                        (fullførtDatoInfo.fullførtÅr
+                            |> Dato.feilmeldingÅr
+                            |> maybeHvisTrue fullførtDatoInfo.tillatÅViseFeilmeldingÅr
+                        )
+                    |> DatoInput.withOnBlurÅr FeltMisterFokus
+                    |> BrukerInputMedGåVidereKnapp.datoMånedÅr VilRegistrereFullførtDato
+                    |> BrukerInputMedGåVidereKnapp.withAvbrytKnapp VilAvbryteRegistreringen
+                    |> BrukerInput.brukerInputMedGåVidereKnapp
 
             RegistrerVarighetEnhet _ ->
                 varighetEnhetKnapper

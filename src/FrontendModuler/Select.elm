@@ -6,6 +6,7 @@ module FrontendModuler.Select exposing
     , withErObligatorisk
     , withFeilmelding
     , withId
+    , withMaybeId
     , withMaybeSelected
     , withSelected
     )
@@ -53,6 +54,11 @@ select label msg listOfOptions =
 withId : String -> Select msg -> Select msg
 withId id (Select options) =
     Select { options | id = Just id }
+
+
+withMaybeId : Maybe String -> Select msg -> Select msg
+withMaybeId id (Select options) =
+    Select { options | id = id }
 
 
 withSelected : String -> Select msg -> Select msg

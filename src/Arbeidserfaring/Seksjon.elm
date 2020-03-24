@@ -1848,23 +1848,23 @@ skjemaInnhold skjema typeaheadModel =
         |> Textarea.toHtml
     , div [ class "DatoInput-fra-til-rad" ]
         [ DatoInput.datoInput
-            { label = "Når begynte du i jobbben?"
-            , onMånedChange = FraMåned >> SkjemaEndret
+            { onMånedChange = FraMåned >> SkjemaEndret
             , måned = Skjema.fraMåned skjema
             , onÅrChange = Tekst FraÅr >> SkjemaEndret
             , år = Skjema.innholdTekstFelt FraÅr skjema
             }
+            |> DatoInput.withLabel "Når begynte du i jobbben?"
             |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFraÅr skjema)
             |> DatoInput.withOnBlurÅr (SkjemaEndret FraÅrBlurred)
             |> DatoInput.toHtml
         , if not (Skjema.nåværende skjema) then
             DatoInput.datoInput
-                { label = "Når sluttet du i jobben?"
-                , onMånedChange = TilMåned >> SkjemaEndret
+                { onMånedChange = TilMåned >> SkjemaEndret
                 , måned = Skjema.tilMåned skjema
                 , onÅrChange = Tekst TilÅr >> SkjemaEndret
                 , år = Skjema.innholdTekstFelt TilÅr skjema
                 }
+                |> DatoInput.withLabel "Når sluttet du i jobbben?"
                 |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingTilÅr skjema)
                 |> DatoInput.withOnBlurÅr (SkjemaEndret TilÅrBlurred)
                 |> DatoInput.toHtml

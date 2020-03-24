@@ -1415,23 +1415,23 @@ modelTilBrukerInput model =
                         |> Input.toHtml
                     , div [ class "DatoInput-fra-til-rad" ]
                         [ DatoInput.datoInput
-                            { label = "Når fullførte du sertifiseringen?"
-                            , onMånedChange = FullførtMåned >> SkjemaEndret
+                            { onMånedChange = FullførtMåned >> SkjemaEndret
                             , måned = Skjema.fullførtMåned skjema
                             , onÅrChange = FullførtÅr >> SkjemaEndret
                             , år = Skjema.fullførtÅr skjema
                             }
+                            |> DatoInput.withLabel "Når fullførte du sertifiseringen?"
                             |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
                             |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
                             |> DatoInput.toHtml
                         , if not (Skjema.utløperIkke skjema) then
                             DatoInput.datoInput
-                                { label = "Når utløper sertifiseringen?"
-                                , onMånedChange = UtløperMåned >> SkjemaEndret
+                                { onMånedChange = UtløperMåned >> SkjemaEndret
                                 , måned = Skjema.utløperMåned skjema
                                 , onÅrChange = UtløperÅr >> SkjemaEndret
                                 , år = Skjema.utløperÅr skjema
                                 }
+                                |> DatoInput.withLabel "Når utløper sertifiseringen?"
                                 |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
                                 |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
                                 |> DatoInput.toHtml

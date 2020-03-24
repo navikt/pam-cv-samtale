@@ -2,6 +2,7 @@ module FrontendModuler.BrukerInputMedGaVidereKnapp exposing
     ( BrukerInputMedGåVidereKnapp
     , checkboxGruppe
     , datoInput
+    , datoMånedÅr
     , input
     , radioGruppe
     , select
@@ -16,7 +17,9 @@ module FrontendModuler.BrukerInputMedGaVidereKnapp exposing
     , withVisEksempelKnapp
     )
 
+import Dato.Dato as Dato
 import FrontendModuler.Checkbox as Checkbox exposing (Checkbox)
+import FrontendModuler.DatoInput as DatoInput exposing (DatoInput)
 import FrontendModuler.DatoInputEttFelt as DatoInputEttFelt exposing (DatoInputEttFelt)
 import FrontendModuler.Input as Input exposing (Input)
 import FrontendModuler.Knapp as Knapp exposing (Type(..))
@@ -52,6 +55,7 @@ type InputElement msg
     | TypeaheadMedMerkelapper (Typeahead msg) (MerkelappGruppe msg)
     | SelectElement (Select msg)
     | DatoInputEttFeltElement (DatoInputEttFelt msg)
+    | DatoMånedÅr (DatoInput msg)
     | CheckboxGruppe (List (Checkbox msg))
     | RadioGruppe (RadioGruppe msg)
 
@@ -101,6 +105,12 @@ radioGruppe gåVidereMsg radioGruppeElement =
 datoInput : msg -> DatoInputEttFelt msg -> BrukerInputMedGåVidereKnapp msg
 datoInput gåVidereMsg datoInputEttFeltElement =
     DatoInputEttFeltElement datoInputEttFeltElement
+        |> init gåVidereMsg
+
+
+datoMånedÅr : msg -> DatoInput msg -> BrukerInputMedGåVidereKnapp msg
+datoMånedÅr gåVidereMsg datoInputElement =
+    DatoMånedÅr datoInputElement
         |> init gåVidereMsg
 
 
@@ -167,6 +177,13 @@ toHtml (BrukerInputMedGåVidereKnapp options) =
         DatoInputEttFeltElement datoInputElement ->
             datoInputElement
                 |> DatoInputEttFelt.toHtml
+                |> gåVidereHtml options
+
+        DatoMånedÅr datoInputElement ->
+            (datoInputElement
+                |> DatoInput.withWrapperClass "datoMånedÅr-samtale-wrapper"
+                |> DatoInput.månedÅrToHtml
+            )
                 |> gåVidereHtml options
 
         TextareaElement textareaElement ->
@@ -326,6 +343,9 @@ inputElementInnhold inputElement_ =
         DatoInputEttFeltElement datoInputEttFelt ->
             --- TODO: Fiks dette
             ""
+
+        DatoMånedÅr datoInputElement ->
+            DatoInput.tilString datoInputElement
 
         CheckboxGruppe checkboxer ->
             Checkbox.toStringOfChecked checkboxer
