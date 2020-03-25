@@ -996,7 +996,6 @@ type InputId
     = KursnavnId
     | KursholderId
     | FullførtMånedId
-    | FullførtÅrId
     | LeggTilFullførtId
     | VarighetId
     | VarighetEnhetId
@@ -1018,9 +1017,6 @@ inputIdTilString inputId =
 
         FullførtMånedId ->
             "kurs-fullførtMåned-id"
-
-        FullførtÅrId ->
-            "kurs-fullførtÅr-id"
 
         LeggTilFullførtId ->
             "kurs-kursholder-id"
