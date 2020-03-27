@@ -1878,7 +1878,7 @@ modelTilBrukerInput model =
                             oppstartValg
                 in
                 BrukerInput.radioGruppeMedGåVidereKnapp VilGåVidereFraOppstart
-                    ({ legend = "Når kan du begynne i ny jobb?"
+                    ({ legend = "Velg når du er ledig fra"
                      , radioknapper = radioknapper
                      }
                         |> RadioGruppe.radioGruppe
