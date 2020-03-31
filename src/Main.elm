@@ -16,6 +16,7 @@ import Forerkort.Seksjon
 import FrontendModuler.Alertstripe as Alertstripe exposing (..)
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
+import FrontendModuler.CoronaInfobox as CoronaInfobox
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..), Knapp)
 import FrontendModuler.Lenke as Lenke
@@ -2346,14 +2347,9 @@ viewBrukerInputForSeksjon aktivSeksjon =
             case andreSamtaleStegInfo.aktivSamtale of
                 LeggTilAutorisasjoner ->
                     if MeldingsLogg.visBrukerInput andreSamtaleStegInfo.meldingsLogg then
-                        -- todo: RYDD_OPP_KORONA
-                        div [ class "alertstripe--korona__container" ]
-                            [ Alertstripe.alertstripeInfo
-                                [ span
-                                    [ style "font-weight" "600", style "text-align" "right" ]
-                                    [ text "Har du fagbrev eller autorisasjon innen helsefag, legg det inn her. " ]
-                                ]
-                                |> Alertstripe.toHtml
+                        div [ class "corona-infobox__container" ]
+                            [ CoronaInfobox.coronaInfobox "Har du viktig kompetanse?" "Har du fagbrev eller autorisasjon innen helsefag, legg det inn her."
+                                |> CoronaInfobox.toHtml
                             , viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
                                 |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
                             ]
