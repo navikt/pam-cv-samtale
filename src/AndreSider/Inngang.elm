@@ -128,7 +128,7 @@ view model =
                             [ div [ class "inngang-header-logo-wrapper" ]
                                 [ i [ class "Robotlogo-inngang-header" ] [] ]
                             , div [ class "inngang-header" ]
-                                [ h1 [] [ text "Lag en CV" ]
+                                [ h1 [] [ text "Lag CV og Jobbprofil" ]
                                 ]
                             ]
                         , div [ class "samtale-wrapper" ]
