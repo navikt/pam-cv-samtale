@@ -92,6 +92,7 @@ justerDatoFormat input =
             let
                 elementList =
                     datoStringToList input
+                        |> List.map String.trim
             in
             case elementList of
                 dag :: måned :: år :: [] ->
