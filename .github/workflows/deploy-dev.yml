@@ -14,6 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - uses: actions/setup-node@v1
+        with:
+          node-version: '10.x'
       - uses: actions/cache@v1
         with:
           path: ~/.npm
@@ -22,8 +24,9 @@ jobs:
             ${{ runner.os }}-node-
       - name: build and test
         run: |
-          npm install
+          npm ci
           npm run build
+          npm run build:server
       - name: pre-deploy
         uses: navikt/pam-deploy/actions/pre-deploy@v1
         env:
