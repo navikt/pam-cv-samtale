@@ -19,6 +19,8 @@ type Seksjon
     | Sammendrag
     | Synlighet
     | Jobbprofil
+    | Eures
+    | Tilbakemelding
     | Slutten
 
 
@@ -75,6 +77,12 @@ seksjonTilString seksjon =
 
         Jobbprofil ->
             "jobbprofil"
+
+        Eures ->
+            "eures"
+
+        Tilbakemelding ->
+            "tilbakemelding"
 
         Slutten ->
             "slutten"
