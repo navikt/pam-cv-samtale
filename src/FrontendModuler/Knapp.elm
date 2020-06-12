@@ -9,6 +9,7 @@ module FrontendModuler.Knapp exposing
     , withAttribute
     , withEnabled
     , withId
+    , withLink
     , withMouseDown
     , withType
     )
@@ -30,6 +31,7 @@ type alias Options msg =
     , onMouseDown : Maybe msg
     , extraAttributes : List (Html.Attribute msg)
     , id : Maybe String
+    , link : Maybe String
     }
 
 
@@ -54,12 +56,18 @@ knapp msg_ innhold_ =
         , onMouseDown = Nothing
         , extraAttributes = []
         , id = Nothing
+        , link = Nothing
         }
 
 
 withId : String -> Knapp msg -> Knapp msg
 withId id (Knapp options) =
     Knapp { options | id = Just id }
+
+
+withLink : String -> Knapp msg -> Knapp msg
+withLink link (Knapp options) =
+    Knapp { options | link = Just link }
 
 
 withEnabled : Enabled -> Knapp msg -> Knapp msg
@@ -84,42 +92,84 @@ withAttribute attribute (Knapp options) =
 
 toHtml : Knapp msg -> Html msg
 toHtml (Knapp options) =
-    case options.enabled of
-        Enabled ->
-            button
-                (List.concat
-                    [ options.extraAttributes
-                    , [ classList
-                            [ ( "Knapp", True )
-                            , ( "Knapp--hoved", options.knappeType == Hoved )
-                            , ( "Knapp--flat", options.knappeType == Flat )
+    case options.link of
+        Just url ->
+            case options.enabled of
+                Enabled ->
+                    a
+                        (List.concat
+                            [ options.extraAttributes
+                            , [ classList
+                                    [ ( "Knapp", True )
+                                    , ( "Knapp--hoved", options.knappeType == Hoved )
+                                    , ( "Knapp--flat", options.knappeType == Flat )
+                                    ]
+                              , onClick options.msg
+                              , options.onMouseDown
+                                    |> Maybe.map onMouseDown
+                                    |> Maybe.withDefault noAttribute
+                              , options.id
+                                    |> Maybe.map id
+                                    |> Maybe.withDefault noAttribute
+                              , href url
+                              , target "_blank"
+                              ]
                             ]
-                      , onClick options.msg
-                      , options.onMouseDown
-                            |> Maybe.map onMouseDown
-                            |> Maybe.withDefault noAttribute
-                      , options.id
-                            |> Maybe.map id
-                            |> Maybe.withDefault noAttribute
-                      ]
-                    ]
-                )
-                [ text options.innhold ]
+                        )
+                        [ text options.innhold ]
 
-        Disabled ->
-            button
-                (List.concat
-                    [ options.extraAttributes
-                    , [ classList
-                            [ ( "Knapp", True )
-                            , ( "Knapp--disabled", True )
-                            , ( "Knapp--hoved", options.knappeType == Hoved )
+                Disabled ->
+                    a
+                        (List.concat
+                            [ options.extraAttributes
+                            , [ classList
+                                    [ ( "Knapp", True )
+                                    , ( "Knapp--disabled", True )
+                                    , ( "Knapp--hoved", options.knappeType == Hoved )
+                                    ]
+                              , disabled True
+                              ]
                             ]
-                      , disabled True
-                      ]
-                    ]
-                )
-                [ text options.innhold ]
+                        )
+                        [ text options.innhold ]
+
+        _ ->
+            case options.enabled of
+                Enabled ->
+                    button
+                        (List.concat
+                            [ options.extraAttributes
+                            , [ classList
+                                    [ ( "Knapp", True )
+                                    , ( "Knapp--hoved", options.knappeType == Hoved )
+                                    , ( "Knapp--flat", options.knappeType == Flat )
+                                    ]
+                              , onClick options.msg
+                              , options.onMouseDown
+                                    |> Maybe.map onMouseDown
+                                    |> Maybe.withDefault noAttribute
+                              , options.id
+                                    |> Maybe.map id
+                                    |> Maybe.withDefault noAttribute
+                              ]
+                            ]
+                        )
+                        [ text options.innhold ]
+
+                Disabled ->
+                    button
+                        (List.concat
+                            [ options.extraAttributes
+                            , [ classList
+                                    [ ( "Knapp", True )
+                                    , ( "Knapp--disabled", True )
+                                    , ( "Knapp--hoved", options.knappeType == Hoved )
+                                    ]
+                              , disabled True
+                              ]
+                            ]
+                        )
+                        [ text options.innhold ]
 
 
 msg : Knapp msg -> msg

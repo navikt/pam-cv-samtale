@@ -27,7 +27,6 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
 import Http
-import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Seksjon
 import Kurs.Seksjon
 import LagreStatus exposing (LagreStatus)
@@ -679,11 +678,11 @@ updateSuccess successMsg model =
                             )
 
                         Jobbprofil.Seksjon.Ferdig sistLagret brukerInfo ferdigAnimertMeldingsLogg ->
-                            ( { aktivSamtale = SpørOmTilbakemelding True
+                            ( { aktivSamtale = InformerOmEures True
                               , meldingsLogg =
                                     ferdigAnimertMeldingsLogg
                                         |> MeldingsLogg.tilMeldingsLogg
-                                        |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg (SpørOmTilbakemelding True))
+                                        |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg (InformerOmEures True))
                               , sistLagret = sistLagret
                               }
                                 |> AndreSamtaleSteg
@@ -876,6 +875,12 @@ gåTilFlereAnnetValg sistLagret model ferdigAnimertMeldingsLogg =
     )
 
 
+navigerTilEures : Samtale -> Samtale
+navigerTilEures msg =
+    Navigation.load "https://ec.europa.eu/eures/public/no/homepage"
+        |> (\_ -> msg)
+
+
 successModelTilMetrikkSeksjon : SuccessModel -> Metrikker.Seksjon
 successModelTilMetrikkSeksjon { aktivSeksjon } =
     case aktivSeksjon of
@@ -945,8 +950,8 @@ type Samtale
     | VenterPåÅGåTilJobbprofil BrukerInfo
     | LagrerSynlighet Bool LagreStatus
     | LagringSynlighetFeilet Http.Error Bool
-    | SpørOmTilbakemelding Bool
-    | GiTilbakemelding
+    | InformerOmEures Bool
+    | SpørOmTilbakemelding
     | Avslutt Bool
 
 
@@ -970,6 +975,8 @@ type AndreSamtaleStegMsg
     | BrukerGodkjennerIkkeSynligCV
     | BrukerVilPrøveÅLagreSynlighetPåNytt
     | BrukerGirOppÅLagreSynlighet Bool
+    | HarSvartJaTilEures
+    | HarSvartNeiTilEures
     | VilGiTilbakemelding
     | VilIkkeGiTilbakemelding
     | SynlighetPostet (Result Http.Error Bool)
@@ -995,6 +1002,7 @@ type InputId
     | BekreftSammendragId
     | SammendragId
     | DelMedArbeidsgiverId
+    | VidereforTilEuresId
     | GiTilbakemeldingId
     | TilbakemeldingLenkeId
     | LagringFeiletActionId
@@ -1024,6 +1032,9 @@ inputIdTilString inputId =
 
         DelMedArbeidsgiverId ->
             "del-med-arbeidsgiver-id"
+
+        VidereforTilEuresId ->
+            "viderefor-til-eures-id"
 
         GiTilbakemeldingId ->
             "gi-tilbakemelding-id"
@@ -1068,11 +1079,11 @@ settFokus samtale =
         DelMedArbeidsgiver ->
             settFokusCmd DelMedArbeidsgiverId
 
-        SpørOmTilbakemelding _ ->
-            settFokusCmd GiTilbakemeldingId
+        InformerOmEures _ ->
+            settFokusCmd VidereforTilEuresId
 
-        GiTilbakemelding ->
-            settFokusCmd TilbakemeldingLenkeId
+        SpørOmTilbakemelding ->
+            settFokusCmd GiTilbakemeldingId
 
         Avslutt _ ->
             settFokusCmd AvsluttId
@@ -1321,8 +1332,20 @@ updateAndreSamtaleSteg model msg info =
                 ]
             )
 
+        HarSvartJaTilEures ->
+            ( SpørOmTilbakemelding
+                |> oppdaterSamtale model info (SvarFraMsg msg)
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+
+        HarSvartNeiTilEures ->
+            ( SpørOmTilbakemelding
+                |> oppdaterSamtale model info (SvarFraMsg msg)
+            , lagtTilSpørsmålCmd model.debugStatus
+            )
+
         VilGiTilbakemelding ->
-            ( GiTilbakemelding
+            ( Avslutt True
                 |> oppdaterSamtale model info (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
@@ -1353,11 +1376,11 @@ updateAndreSamtaleSteg model msg info =
                             else
                                 -- Kun jobbskiftere får valget om å velge synlighet, hvis de svarer nei, sender vi de til tilbakemelding
                                 ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                    SpørOmTilbakemelding False
+                                    InformerOmEures False
                                         |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                                   else
-                                    SpørOmTilbakemelding False
+                                    InformerOmEures False
                                         |> oppdaterSamtale model info UtenSvar
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -1422,7 +1445,7 @@ updateAndreSamtaleSteg model msg info =
                 gåTilJobbprofil (Cv.sistEndretDato model.cv) (JobbSkifter IkkeSynlig) model { info | meldingsLogg = oppdatertMeldingslogg }
 
             else
-                ( SpørOmTilbakemelding False
+                ( InformerOmEures False
                     |> oppdaterSamtale model info (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
@@ -1471,12 +1494,6 @@ updateAndreSamtaleSteg model msg info =
                                 |> LagrerSynlighet skalVæreSynlig
                                 |> oppdaterSamtale model info IngenNyeMeldinger
                             , Cmd.none
-                            )
-
-                        GiTilbakemelding ->
-                            ( Avslutt True
-                                |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ "Gi tilbakemelding" ]))
-                            , lagtTilSpørsmålCmd model.debugStatus
                             )
 
                         _ ->
@@ -1758,22 +1775,22 @@ samtaleTilMeldingsLogg samtale =
             []
 
         DelMedArbeidsgiver ->
-            [ Melding.spørsmål [ "Noen arbeidsgivere søker aktivt i CV-ene på Arbeidsplassen. Da kan de kontakte deg direkte. " ]
+            [ Melding.spørsmål [ "Noen arbeidsgivere søker aktivt i CV-ene på Arbeidsplassen. Da kan de kontakte deg direkte." ]
             , Melding.spørsmål [ "Vil du la arbeidsgivere søke opp CV-en din?" ]
             ]
 
-        SpørOmTilbakemelding harLagtInnJobbprofil ->
+        InformerOmEures harLagtInnJobbprofil ->
             if harLagtInnJobbprofil then
-                [ Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                [ Melding.spørsmål [ "Kunne du tenkt deg å jobbe utenfor Norge? Legger du også inn din CV på EURES-portalen kan du bli funnet av arbeidsgivere fra flere Europeiske land." ]
                 ]
 
             else
                 [ Melding.spørsmål [ "Ok. Du kan gjøre CV-en søkbar senere på Min side." ]
-                , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                , Melding.spørsmål [ "Kunne du tenkt deg å jobbe utenfor Norge? Legger du også inn din CV på EURES-portalen kan du bli funnet av arbeidsgivere fra flere Europeiske land." ]
                 ]
 
-        GiTilbakemelding ->
-            [ Melding.spørsmål [ "Så bra at du vil svare! Klikk på lenken." ]
+        SpørOmTilbakemelding ->
+            [ Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
             ]
 
         Avslutt harGittTilbakemelding ->
@@ -1863,11 +1880,11 @@ andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
         LagringSynlighetFeilet _ _ ->
             Metrikker.Synlighet
 
-        SpørOmTilbakemelding _ ->
-            Metrikker.Slutten
+        InformerOmEures _ ->
+            Metrikker.Eures
 
-        GiTilbakemelding ->
-            Metrikker.Slutten
+        SpørOmTilbakemelding ->
+            Metrikker.Tilbakemelding
 
         Avslutt _ ->
             Metrikker.Slutten
@@ -2455,19 +2472,21 @@ andreSamtaleStegTilBrukerInput info =
                     , Knapp.knapp BrukerGodkjennerIkkeSynligCV "Nei, CV-en min skal ikke være søkbar"
                     ]
 
-            SpørOmTilbakemelding _ ->
+            InformerOmEures _ ->
+                BrukerInput.knapper Flytende
+                    [ Knapp.knapp HarSvartJaTilEures "Ja, ta meg dit"
+                        |> Knapp.withLink "https://ec.europa.eu/eures/public/no/homepage"
+                        |> Knapp.withId (inputIdTilString VidereforTilEuresId)
+                    , Knapp.knapp HarSvartNeiTilEures "Nei takk"
+                    ]
+
+            SpørOmTilbakemelding ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
+                        |> Knapp.withLink "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585"
                         |> Knapp.withId (inputIdTilString GiTilbakemeldingId)
                     , Knapp.knapp VilIkkeGiTilbakemelding "Nei, jeg vil ikke svare"
                     ]
-
-            GiTilbakemelding ->
-                BrukerInput.lenke
-                    (Lenke.lenke { tekst = "Gi tilbakemelding", url = "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585" }
-                        |> Lenke.withTargetBlank
-                        |> Lenke.withId (inputIdTilString TilbakemeldingLenkeId)
-                    )
 
             Avslutt _ ->
                 BrukerInput.lenke
