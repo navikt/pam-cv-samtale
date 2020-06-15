@@ -8,24 +8,33 @@ import * as request from 'request';
 import { RequestOptions } from 'http';
 import { Response } from 'express';
 import { NextFunction } from 'express';
+import session from "express-session";
+import logAmplitudeEvent from "./AmplitudeTracker";
 
-const getMiljovariabel = (key) => {
+const getEnvironmentVariable = (key) => {
     if (!process.env[key]) {
         throw new Error(`Miljøvariabel ${key} er ikke satt`);
     }
     return process.env[key];
 };
 
-const MILJOVARIABLER = {
-    API_GATEWAY_HOST: getMiljovariabel('API_GATEWAY_HOST'),
-    PROXY_API_KEY: getMiljovariabel('PAM_CV_API_PROXY_KEY'),
-    LOGINSERVICE_URL: getMiljovariabel('LOGINSERVICE_URL'),
-    LOGOUTSERVICE_URL: getMiljovariabel('LOGOUTSERVICE_URL')
+const ENVIRONMENT_VARIABLES = {
+    API_GATEWAY_HOST: getEnvironmentVariable('API_GATEWAY_HOST'),
+    PROXY_API_KEY: getEnvironmentVariable('PAM_CV_API_PROXY_KEY'),
+    LOGINSERVICE_URL: getEnvironmentVariable('LOGINSERVICE_URL'),
+    LOGOUTSERVICE_URL: getEnvironmentVariable('LOGOUTSERVICE_URL'),
+    AMPLITUDE_TOKEN: getEnvironmentVariable('AMPLITUDE_TOKEN')
 };
 
-console.log(`API_GATEWAY_HOST: ${MILJOVARIABLER.API_GATEWAY_HOST}`);
+console.log(`API_GATEWAY_HOST: ${ENVIRONMENT_VARIABLES.API_GATEWAY_HOST}`);
+
 
 const server = express();
+
+server.use(session({
+    secret: 'for statistics only',
+    cookie: { maxAge: 60000 }
+}));
 
 server.use(compression());
 
@@ -45,14 +54,14 @@ const getCookie = (name: string, cookie: string) => {
 
 server.get('/cv-samtale/login', (req, res) => {
     if (req.query.redirect) {
-        res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}${req.query.redirect}`);
+        res.redirect(`${ENVIRONMENT_VARIABLES.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}${req.query.redirect}`);
     } else {
-        res.redirect(`${MILJOVARIABLER.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}/cv-samtale`);
+        res.redirect(`${ENVIRONMENT_VARIABLES.LOGINSERVICE_URL}?level=Level3&redirect=https://${req.hostname}/cv-samtale`);
     }
 });
 
 server.get('/cv-samtale/logout', (req, res) => {
-    res.redirect(MILJOVARIABLER.LOGOUTSERVICE_URL);
+    res.redirect(ENVIRONMENT_VARIABLES.LOGOUTSERVICE_URL);
 });
 
 server.post('/cv-samtale/log', express.json(), (req, res) => {
@@ -65,14 +74,14 @@ server.post('/cv-samtale/log', express.json(), (req, res) => {
 
 server.use(
     '/cv-samtale/api',
-    proxy(MILJOVARIABLER.API_GATEWAY_HOST, {
+    proxy(ENVIRONMENT_VARIABLES.API_GATEWAY_HOST, {
         https: true,
         proxyReqOptDecorator: (proxyReqOpts: RequestOptions, srcReq: Request) => ({
             ...proxyReqOpts,
             headers: {
                 ...proxyReqOpts.headers,
                 'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', srcReq.header('Cookie')),
-                'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY,
+                'x-nav-apiKey': ENVIRONMENT_VARIABLES.PROXY_API_KEY,
                 'kilde': 'cv-samtale'
             }
         }),
@@ -103,12 +112,12 @@ server.use('/cv-samtale/static', express.static(path.resolve(__dirname, 'dist'))
 
 const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
     request({
-        url: `${MILJOVARIABLER.API_GATEWAY_HOST}/pam-cv-api/pam-cv-api/rest/cv/registreringstype`,
+        url: `${ENVIRONMENT_VARIABLES.API_GATEWAY_HOST}/pam-cv-api/pam-cv-api/rest/cv/registreringstype`,
         method: 'POST',
         headers: {
             'Cookie': req.header('Cookie') || '',
             'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', req.header('Cookie')),
-            'x-nav-apiKey': MILJOVARIABLER.PROXY_API_KEY,
+            'x-nav-apiKey': ENVIRONMENT_VARIABLES.PROXY_API_KEY,
             'kilde': kilde
         }
     }, (error, response) => {
@@ -159,6 +168,19 @@ server.use(
     '/cv-valg*',
     (req: express.Request, res: express.Response) => {
         res.sendFile(path.resolve(__dirname, 'dist', 'inngang.html'));
+    }
+);
+
+server.get(
+    '/cv-samtale/eures-redirect',
+    (req: express.Request, res: express.Response) => {
+        logAmplitudeEvent(
+            req.sessionID,
+            'EURES Redirect',
+            {source: 'cv-samtale'},
+            ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN
+        );
+        res.redirect('https://ec.europa.eu/eures/public/no/homepage');
     }
 );
 
