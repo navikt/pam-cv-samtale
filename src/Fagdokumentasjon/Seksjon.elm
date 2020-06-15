@@ -22,10 +22,8 @@ import Fagdokumentasjon.Konsept as Konsept exposing (Konsept)
 import Fagdokumentasjon.Skjema as Skjema exposing (FagdokumentasjonSkjema, ValidertFagdokumentasjonSkjema)
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
-import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
-import FrontendModuler.Textarea as Textarea
 import FrontendModuler.Typeahead
 import Html exposing (Html)
 import Http exposing (Error(..))
@@ -36,6 +34,7 @@ import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Result.Extra as Result
 import Task
+import Throttle exposing (Throttle)
 import Tid exposing (nyesteSistLagretVerdi)
 import Time exposing (Posix)
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
@@ -56,6 +55,7 @@ type alias ModelInfo =
     , fagdokumentasjonType : FagdokumentasjonType
     , debugStatus : DebugStatus
     , sistLagretFraForrigeSeksjon : Posix
+    , throttle : Throttle Msg
     }
 
 
@@ -130,6 +130,7 @@ type Msg
     | WindowEndrerVisibility Visibility
     | FokusSatt (Result Dom.Error ())
     | ErrorLogget (Result Http.Error ())
+    | UpdateThrottle Posix
 
 
 update : Msg -> Model -> SamtaleStatus
@@ -145,22 +146,37 @@ update msg (Model model) =
                         ( nyTypeaheadModel, status ) =
                             Typeahead.update Konsept.label typeaheadMsg typeaheadModel
                     in
-                    IkkeFerdig
-                        ( nyTypeaheadModel
-                            |> Typeahead.selected
-                            |> Skjema.oppdaterKonsept skjema
-                            |> Skjema.gjørFeilmeldingKonseptSynlig (Typeahead.inputStatus status == InputBlurred)
-                            |> EndrerOppsummering nyTypeaheadModel
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , case Typeahead.getSuggestionsStatus status of
-                            GetSuggestionsForInput query ->
-                                skjema
-                                    |> Skjema.fagdokumentasjonType
-                                    |> hentTypeaheadSuggestions query
+                    case Typeahead.getSuggestionsStatus status of
+                        GetSuggestionsForInput query ->
+                            let
+                                ( newThrottle, throttledCmd ) =
+                                    Throttle.try
+                                        (skjema
+                                            |> Skjema.fagdokumentasjonType
+                                            |> hentTypeaheadSuggestions query
+                                        )
+                                        model.throttle
+                            in
+                            IkkeFerdig
+                                ( nyTypeaheadModel
+                                    |> Typeahead.selected
+                                    |> Skjema.oppdaterKonsept skjema
+                                    |> Skjema.gjørFeilmeldingKonseptSynlig (Typeahead.inputStatus status == InputBlurred)
+                                    |> EndrerOppsummering nyTypeaheadModel
+                                    |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                                , throttledCmd
+                                )
 
-                            DoNothing ->
-                                Cmd.none
-                        )
+                        DoNothing ->
+                            IkkeFerdig
+                                ( nyTypeaheadModel
+                                    |> Typeahead.selected
+                                    |> Skjema.oppdaterKonsept skjema
+                                    |> Skjema.gjørFeilmeldingKonseptSynlig (Typeahead.inputStatus status == InputBlurred)
+                                    |> EndrerOppsummering nyTypeaheadModel
+                                    |> oppdaterSamtale model IngenNyeMeldinger
+                                , Cmd.none
+                                )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -430,6 +446,13 @@ update msg (Model model) =
         ErrorLogget _ ->
             IkkeFerdig ( Model model, Cmd.none )
 
+        UpdateThrottle _ ->
+            let
+                ( newThrottle, cmd ) =
+                    Throttle.update model.throttle
+            in
+            IkkeFerdig ( Model { model | throttle = newThrottle }, cmd )
+
 
 avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
 avbrytRegistrering model msg =
@@ -523,17 +546,28 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
                 )
 
         Typeahead.NoChange ->
-            IkkeFerdig
-                ( nyTypeaheadModel
-                    |> RegistrerKonsept visFeilmelding
-                    |> oppdaterSamtale model IngenNyeMeldinger
-                , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput query ->
-                        hentTypeaheadSuggestions query model.fagdokumentasjonType
+            case Typeahead.getSuggestionsStatus status of
+                GetSuggestionsForInput query ->
+                    let
+                        ( newThrottle, throttledCmd ) =
+                            Throttle.try
+                                (hentTypeaheadSuggestions query model.fagdokumentasjonType)
+                                model.throttle
+                    in
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> RegistrerKonsept visFeilmelding
+                            |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                        , throttledCmd
+                        )
 
-                    DoNothing ->
-                        Cmd.none
-                )
+                DoNothing ->
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> RegistrerKonsept visFeilmelding
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
         NewActiveElement ->
             IkkeFerdig
@@ -1093,6 +1127,7 @@ init fagdokumentasjonType debugStatus sistLagretFraForrigeSeksjon gammelMeldings
         , fagdokumentasjonType = fagdokumentasjonType
         , debugStatus = debugStatus
         , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
+        , throttle = Throttle.create 1
         }
     , lagtTilSpørsmålCmd debugStatus
     )
@@ -1120,4 +1155,7 @@ subscriptions (Model model) =
         , model.seksjonsMeldingsLogg
             |> SamtaleAnimasjon.subscriptions
             |> Sub.map SamtaleAnimasjonMsg
+        , Throttle.ifNeeded
+            (Time.every 200 UpdateThrottle)
+            model.throttle
         ]
