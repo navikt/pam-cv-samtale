@@ -10,7 +10,6 @@ app.ports.amplitudeEvent.subscribe(function (data) {
     fetch('/cv-samtale/amplitudeToken')
         .then((res) => res.text())
         .then((amplitudeToken) => {
-            console.log(amplitudeToken);
             if (amplitudeToken) {
                 amplitude.getInstance();
                 amplitude.init(
