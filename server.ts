@@ -9,7 +9,7 @@ import { RequestOptions } from 'http';
 import { Response } from 'express';
 import { NextFunction } from 'express';
 import session from "express-session";
-import logAmplitudeEvent from "./AmplitudeTracker";
+import amplitude from "amplitude-js";
 
 const getEnvironmentVariable = (key) => {
     if (!process.env[key]) {
@@ -28,6 +28,28 @@ const ENVIRONMENT_VARIABLES = {
 
 console.log(`API_GATEWAY_HOST: ${ENVIRONMENT_VARIABLES.API_GATEWAY_HOST}`);
 
+// ----- Amplitude
+const amplitudeTracker = (amplitudeToken, userId = null) => {
+    let amplitudeClient;
+    if (amplitudeToken) {
+        amplitudeClient = amplitude.getInstance();
+        amplitudeClient.init(
+            amplitudeToken, userId   , {
+                apiEndpoint: 'amplitude.nav.no/collect',
+                batchEvents: false,
+                includeReferrer: true,
+                includeUtm: true,
+                saveEvents: false
+            }
+        );
+    }
+    return amplitudeClient;
+};
+
+const logAmplitudeEvent = (sessionID, eventName, eventPayload, amplitudeToken) => {
+    amplitudeTracker(amplitudeToken, sessionID).logEvent(eventName, eventPayload);
+};
+// -----
 
 const server = express();
 
