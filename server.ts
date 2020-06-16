@@ -8,7 +8,7 @@ import * as request from 'request';
 import { RequestOptions } from 'http';
 import { Response } from 'express';
 import { NextFunction } from 'express';
-import session from "express-session";
+import * as session from 'express-session';
 import * as amplitude from '@amplitude/node';
 
 const getEnvironmentVariable = (key) => {
