@@ -16,7 +16,6 @@ import Forerkort.Seksjon
 import FrontendModuler.Alertstripe as Alertstripe exposing (..)
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
-import FrontendModuler.CoronaInfobox as CoronaInfobox
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..), Knapp)
 import FrontendModuler.Lenke as Lenke
@@ -765,19 +764,6 @@ gåTilMesterbrev sistLagret model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilAutorisasjon : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilAutorisasjon sistLagret model ferdigAnimertMeldingsLogg =
-    let
-        ( fagbrevModel, fagbrevCmd ) =
-            Fagdokumentasjon.Seksjon.initAutorisasjon model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
-    in
-    ( { model
-        | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
-      }
-    , Cmd.map FagdokumentasjonMsg fagbrevCmd
-    )
-
-
 gåTilSertifisering : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
 gåTilSertifisering sistLagret model ferdigAnimertMeldingsLogg =
     let
@@ -988,7 +974,7 @@ type AndreSamtaleStegMsg
 type ValgtSeksjon
     = FagbrevSvennebrevValgt
     | MesterbrevValgt
-    | AutorisasjonValgt
+      --| AutorisasjonValgt
     | SertifiseringValgt
     | AnnenErfaringValgt
     | KursValgt
@@ -1555,9 +1541,9 @@ gåTilValgtSeksjon model info msg valgtSeksjon =
                 MesterbrevValgt ->
                     gåTilMesterbrev sistLagret model ferdigAnimertMeldingsLogg
 
-                AutorisasjonValgt ->
-                    gåTilAutorisasjon sistLagret model ferdigAnimertMeldingsLogg
-
+                {- AutorisasjonValgt ->
+                   gåTilAutorisasjon sistLagret model ferdigAnimertMeldingsLogg
+                -}
                 SertifiseringValgt ->
                     gåTilSertifisering sistLagret model ferdigAnimertMeldingsLogg
 
@@ -2364,10 +2350,8 @@ viewBrukerInputForSeksjon aktivSeksjon =
             case andreSamtaleStegInfo.aktivSamtale of
                 LeggTilAutorisasjoner ->
                     if MeldingsLogg.visBrukerInput andreSamtaleStegInfo.meldingsLogg then
-                        div [ class "corona-infobox__container" ]
-                            [ CoronaInfobox.coronaInfobox "Har du viktig kompetanse?" "Har du fagbrev eller autorisasjon innen helsefag, legg det inn her."
-                                |> CoronaInfobox.toHtml
-                            , viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
+                        div []
+                            [ viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
                                 |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
                             ]
 
@@ -2534,7 +2518,6 @@ viewLeggTilAutorisasjoner =
         [ seksjonsvalgKnapp FagbrevSvennebrevValgt
             |> Knapp.withId (inputIdTilString LeggTilAutorisasjonerId)
         , seksjonsvalgKnapp MesterbrevValgt
-        , seksjonsvalgKnapp AutorisasjonValgt
         , Knapp.knapp IngenAvAutorisasjonSeksjoneneValgt "Nei, gå videre"
         ]
 
@@ -2582,9 +2565,6 @@ seksjonsvalgTilString seksjonsvalg =
 
         MesterbrevValgt ->
             "Mesterbrev"
-
-        AutorisasjonValgt ->
-            "Autorisasjon"
 
         SertifiseringValgt ->
             "Sertifisering/sertifikat"

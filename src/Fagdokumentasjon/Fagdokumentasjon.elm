@@ -31,7 +31,6 @@ type alias FagdokumentasjonInfo =
 type FagdokumentasjonType
     = SvennebrevFagbrev
     | Mesterbrev
-    | Autorisasjon
 
 
 id : Fagdokumentasjon -> String
@@ -103,9 +102,6 @@ decodeFagdokument fd =
 
     else if fd == "MESTERBREV" then
         succeed Mesterbrev
-
-    else if fd == "AUTORISASJON" then
-        succeed Autorisasjon
 
     else
         fail ("Decoding av enum Fagdokumentype feilet. Klarer ikke decode verdi: " ++ fd)

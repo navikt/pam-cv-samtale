@@ -112,9 +112,6 @@ feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType_ =
         Mesterbrev ->
             "Velg et mesterbrev fra listen med forslag som kommer opp"
 
-        Autorisasjon ->
-            "Velg en autorisasjon fra listen med forslag som kommer opp"
-
 
 gjørFeilmeldingKonseptSynlig : Bool -> FagdokumentasjonSkjema -> FagdokumentasjonSkjema
 gjørFeilmeldingKonseptSynlig synlig (UvalidertSkjema info) =
@@ -177,6 +174,3 @@ encodeFagdokumentasjonType fagtype =
 
         Mesterbrev ->
             Json.Encode.string "MESTERBREV"
-
-        Autorisasjon ->
-            Json.Encode.string "AUTORISASJON"
