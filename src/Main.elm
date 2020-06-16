@@ -2475,7 +2475,7 @@ andreSamtaleStegTilBrukerInput info =
             InformerOmEures _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp HarSvartJaTilEures "Ja, ta meg dit"
-                        |> Knapp.withLink "https://ec.europa.eu/eures/public/no/homepage"
+                        |> Knapp.withLink "/cv-samtale/eures-redirect"
                         |> Knapp.withId (inputIdTilString VidereforTilEuresId)
                     , Knapp.knapp HarSvartNeiTilEures "Nei takk"
                     ]

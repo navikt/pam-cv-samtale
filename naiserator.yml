@@ -41,3 +41,5 @@ spec:
       value: {{ loginservice }}
     - name: LOGOUTSERVICE_URL
       value: {{ logoutservice }}
+    - name: AMPLITUDE_TOKEN
+      value: {{ amplitudetoken }}

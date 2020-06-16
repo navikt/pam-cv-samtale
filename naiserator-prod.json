@@ -8,5 +8,6 @@
   ],
   "apiGatewayHost": "https://api-gw.oera.no",
   "loginservice": "https://loginservice.nav.no/login",
-  "logoutservice": "https://loginservice.nav.no/slo"
+  "logoutservice": "https://loginservice.nav.no/slo",
+  "amplitudetoken": "6be27fdbdc689cec2885954380c5964d"
 }
