@@ -9,7 +9,7 @@ import { RequestOptions } from 'http';
 import { Response } from 'express';
 import { NextFunction } from 'express';
 import session from "express-session";
-import amplitude from "amplitude-js";
+import * as amplitude from '@amplitude/node';
 
 const getEnvironmentVariable = (key) => {
     if (!process.env[key]) {
@@ -29,25 +29,22 @@ const ENVIRONMENT_VARIABLES = {
 console.log(`API_GATEWAY_HOST: ${ENVIRONMENT_VARIABLES.API_GATEWAY_HOST}`);
 
 // ----- Amplitude
-const amplitudeTracker = (amplitudeToken, userId = null) => {
+const amplitudeTracker = () => {
     let amplitudeClient;
-    if (amplitudeToken) {
-        amplitudeClient = amplitude.getInstance();
-        amplitudeClient.init(
-            amplitudeToken, userId   , {
-                apiEndpoint: 'amplitude.nav.no/collect',
-                batchEvents: false,
-                includeReferrer: true,
-                includeUtm: true,
-                saveEvents: false
-            }
-        );
+    if (ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN) {
+        amplitudeClient = amplitude.init(ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN, {
+            serverUrl: 'amplitude.nav.no/collect'
+        });
     }
     return amplitudeClient;
 };
 
-const logAmplitudeEvent = (sessionID, eventName, eventPayload, amplitudeToken) => {
-    amplitudeTracker(amplitudeToken, sessionID).logEvent(eventName, eventPayload);
+const logAmplitudeEvent = (sessionID, eventName, eventPayload) => {
+    amplitudeTracker().logEvent({
+        event_type: eventName,
+        user_id: sessionID,
+        event_properties: eventPayload
+    });
 };
 // -----
 
@@ -199,8 +196,7 @@ server.get(
         logAmplitudeEvent(
             req.sessionID,
             'EURES Redirect',
-            {source: 'cv-samtale'},
-            ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN
+            {source: 'cv-samtale'}
         );
         res.redirect('https://ec.europa.eu/eures/public/no/homepage');
     }
