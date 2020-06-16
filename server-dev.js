@@ -5,20 +5,10 @@ const path = require('path');
 
 const server = express();
 
-server.get(
-    '/cv-samtale/eures-redirect',
-    (req, res) => {
-        console.log('Mock call to Amplitude', {
-            sessionId: 'testId',
-            eventName: 'EURES Redirect',
-            eventPayload: {
-                source: 'cv-samtale'
-            },
-            amplitudeToken: 'TOKEN_X'
-        });
-        res.redirect('https://ec.europa.eu/eures/public/no/homepage');
-    }
-);
+server.get('/cv-samtale/amplitudeToken', (req, res) => {
+    res.send('b6143dedf1d17c3e73d3ad440bf54e8b');
+});
+
 
 server.get('/cv-samtale/login', (req, res) => {
     if (req.query.redirect) {

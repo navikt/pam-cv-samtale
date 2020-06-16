@@ -1,4 +1,4 @@
-module Main exposing (main, viewMeldingsLogg)
+port module Main exposing (main, viewMeldingsLogg)
 
 import AnnenErfaring.Seksjon
 import Api
@@ -51,6 +51,9 @@ import Time exposing (Posix)
 import Url
 import Utdanning.Seksjon
 import Validering
+
+
+port amplitudeEvent : String -> Cmd msg
 
 
 
@@ -875,12 +878,6 @@ gåTilFlereAnnetValg sistLagret model ferdigAnimertMeldingsLogg =
     )
 
 
-navigerTilEures : Samtale -> Samtale
-navigerTilEures msg =
-    Navigation.load "https://ec.europa.eu/eures/public/no/homepage"
-        |> (\_ -> msg)
-
-
 successModelTilMetrikkSeksjon : SuccessModel -> Metrikker.Seksjon
 successModelTilMetrikkSeksjon { aktivSeksjon } =
     case aktivSeksjon of
@@ -976,6 +973,7 @@ type AndreSamtaleStegMsg
     | BrukerVilPrøveÅLagreSynlighetPåNytt
     | BrukerGirOppÅLagreSynlighet Bool
     | HarSvartJaTilEures
+    | LoggEuresMetrikk
     | HarSvartNeiTilEures
     | VilGiTilbakemelding
     | VilIkkeGiTilbakemelding
@@ -1337,6 +1335,9 @@ updateAndreSamtaleSteg model msg info =
                 |> oppdaterSamtale model info (SvarFraMsg msg)
             , lagtTilSpørsmålCmd model.debugStatus
             )
+
+        LoggEuresMetrikk ->
+            ( model, amplitudeEvent "EURES Redirect" )
 
         HarSvartNeiTilEures ->
             ( SpørOmTilbakemelding
@@ -2475,8 +2476,9 @@ andreSamtaleStegTilBrukerInput info =
             InformerOmEures _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp HarSvartJaTilEures "Ja, ta meg dit"
-                        |> Knapp.withLink "/cv-samtale/eures-redirect"
+                        |> Knapp.withLink "https://ec.europa.eu/eures/public/no/homepage"
                         |> Knapp.withId (inputIdTilString VidereforTilEuresId)
+                        |> Knapp.withMouseDown LoggEuresMetrikk
                     , Knapp.knapp HarSvartNeiTilEures "Nei takk"
                     ]
 

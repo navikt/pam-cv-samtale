@@ -8,8 +8,6 @@ import * as request from 'request';
 import { RequestOptions } from 'http';
 import { Response } from 'express';
 import { NextFunction } from 'express';
-import * as session from 'express-session';
-import * as amplitude from '@amplitude/node';
 
 const getEnvironmentVariable = (key) => {
     if (!process.env[key]) {
@@ -28,33 +26,7 @@ const ENVIRONMENT_VARIABLES = {
 
 console.log(`API_GATEWAY_HOST: ${ENVIRONMENT_VARIABLES.API_GATEWAY_HOST}`);
 
-// ----- Amplitude
-const amplitudeTracker = () => {
-    let amplitudeClient;
-    if (ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN) {
-        // TODO - Add NAV amplitude proxy. Currently Ok since it only sends an anonymous event.
-        amplitudeClient = amplitude.init(ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN);
-    }
-    return amplitudeClient;
-};
-
-const logAmplitudeEvent = (sessionID, eventName, eventPayload) => {
-    amplitudeTracker().logEvent({
-        event_type: eventName,
-        user_id: sessionID,
-        event_properties: eventPayload
-    });
-};
-// -----
-
 const server = express();
-
-server.use(session({
-    secret: 'for statistics only',
-    cookie: { maxAge: 60000 },
-    resave: false,
-    saveUninitialized: false
-}));
 
 server.use(compression());
 
@@ -71,6 +43,11 @@ const getCookie = (name: string, cookie: string) => {
     const match = re.exec(cookie);
     return match !== null ? match[1] : '';
 };
+
+
+server.get('/cv-samtale/amplitudeToken', (req, res) => {
+    res.send(ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN);
+});
 
 server.get('/cv-samtale/login', (req, res) => {
     if (req.query.redirect) {
@@ -191,17 +168,6 @@ server.use(
     }
 );
 
-server.get(
-    '/cv-samtale/eures-redirect',
-    (req: express.Request, res: express.Response) => {
-        logAmplitudeEvent(
-            req.sessionID,
-            'EURES Redirect',
-            {source: 'cv-samtale'}
-        );
-        res.redirect('https://ec.europa.eu/eures/public/no/homepage');
-    }
-);
 
 server.use(
     '/cv-samtale/goto/forsiden*',
