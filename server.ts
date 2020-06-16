@@ -32,9 +32,8 @@ console.log(`API_GATEWAY_HOST: ${ENVIRONMENT_VARIABLES.API_GATEWAY_HOST}`);
 const amplitudeTracker = () => {
     let amplitudeClient;
     if (ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN) {
-        amplitudeClient = amplitude.init(ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN, {
-            serverUrl: 'amplitude.nav.no/collect'
-        });
+        // TODO - Add NAV amplitude proxy. Currently Ok since it only sends an anonymous event.
+        amplitudeClient = amplitude.init(ENVIRONMENT_VARIABLES.AMPLITUDE_TOKEN);
     }
     return amplitudeClient;
 };
@@ -52,7 +51,9 @@ const server = express();
 
 server.use(session({
     secret: 'for statistics only',
-    cookie: { maxAge: 60000 }
+    cookie: { maxAge: 60000 },
+    resave: false,
+    saveUninitialized: false
 }));
 
 server.use(compression());
