@@ -1,6 +1,7 @@
 module Api exposing
     ( endreAnnenErfaring
     , endreArbeidserfaring
+    , endreGodkjenning
     , endrePersonalia
     , endreSammendrag
     , endreSertifikat
@@ -10,6 +11,7 @@ module Api exposing
     , getAutorisasjonTypeahead
     , getCv
     , getFagbrevTypeahead
+    , getGodkjenningTypeahead
     , getHeaderInfo
     , getJobbprofil
     , getKompetanseJobbprofilTypeahead
@@ -29,6 +31,7 @@ module Api exposing
     , opprettCv
     , opprettFagdokumentasjon
     , opprettFørerkort
+    , opprettGodkjenning
     , opprettJobbprofil
     , opprettKurs
     , opprettPerson
@@ -51,6 +54,9 @@ import Fagdokumentasjon.Skjema
 import Feilmelding exposing (Feilmelding)
 import Forerkort.Forerkort as Førerkort exposing (Førerkort)
 import Forerkort.Skjema
+import Godkjenning.Godkjenning as Godkjenning exposing (Godkjenning)
+import Godkjenning.GodkjenningTypeahead as GodkjenningTypeahead exposing (GodkjenningTypeahead)
+import Godkjenning.Skjema
 import Http exposing (..)
 import Jobbprofil.Jobbprofil as Jobbprofil exposing (Jobbprofil)
 import Jobbprofil.Kompetanse as KompetanseTypeahead exposing (Kompetanse)
@@ -290,6 +296,24 @@ endreSertifikat msgConstructor skjema id =
         }
 
 
+opprettGodkjenning : (Result Error (List Godkjenning) -> msg) -> Godkjenning.Skjema.ValidertGodkjenningSkjema -> Cmd msg
+opprettGodkjenning msgConstructor skjema =
+    Http.post
+        { url = "/cv-samtale/api/rest/cv/godkjenninger"
+        , expect = expectJson msgConstructor (Json.Decode.list Godkjenning.decode)
+        , body = Godkjenning.Skjema.encode skjema |> jsonBody
+        }
+
+
+endreGodkjenning : (Result Error (List Godkjenning) -> msg) -> Godkjenning.Skjema.ValidertGodkjenningSkjema -> String -> Cmd msg
+endreGodkjenning msgConstructor skjema id =
+    put
+        { url = "/cv-samtale/api/rest/cv/godkjenninger/" ++ id
+        , expect = expectJson msgConstructor (Json.Decode.list Godkjenning.decode)
+        , body = Godkjenning.Skjema.encode skjema |> jsonBody
+        }
+
+
 getYrkeTypeahead : (Typeahead.Query -> Result Error (List Yrke) -> msg) -> Typeahead.Query -> Cmd msg
 getYrkeTypeahead msgConstructor query =
     Http.get
@@ -386,8 +410,16 @@ getAutorisasjonTypeahead msgConstructor query =
 getSertifikatTypeahead : (Typeahead.Query -> Result Error (List SertifikatTypeahead) -> msg) -> Typeahead.Query -> Cmd msg
 getSertifikatTypeahead msgConstructor query =
     Http.get
-        { url = "/cv-samtale/api/rest/typeahead/autorisasjon" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
+        { url = "/cv-samtale/api/rest/typeahead/andregodkjennninger" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
         , expect = expectJson (msgConstructor query) (Json.Decode.list SertifikatTypeahead.decode)
+        }
+
+
+getGodkjenningTypeahead : (Typeahead.Query -> Result Error (List GodkjenningTypeahead) -> msg) -> Typeahead.Query -> Cmd msg
+getGodkjenningTypeahead msgConstructor query =
+    Http.get
+        { url = "/cv-samtale/api/rest/typeahead/autorisasjon" ++ Url.Builder.toQuery [ Url.Builder.string "q" (Typeahead.queryToString query) ]
+        , expect = expectJson (msgConstructor query) (Json.Decode.list GodkjenningTypeahead.decode)
         }
 
 
