@@ -1090,7 +1090,7 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
     case sertifikatSeksjon of
         RegistrerSertifikatFelt _ _ ->
             [ Melding.spørsmål [ "Hva slags sertifikat eller sertifisering har du?" ]
-            , Melding.spørsmål [ "Kanskje du har truckførerbevis T1, eller noe helt annet? 😊" ]
+            , Melding.spørsmål [ "Kanskje du har sveisesertifikat, PRINCE2, eller noe helt annet? 😊" ]
             ]
 
         RegistrerUtsteder _ ->

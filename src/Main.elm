@@ -603,8 +603,8 @@ updateSuccess successMsg model =
                             , Cmd.map GodkjenningMsg cmd
                             )
 
-                        Godkjenning.Seksjon.Ferdig sistLagret godkjenningListe meldingsLogg ->
-                            gåTilSertifisering sistLagret model meldingsLogg
+                        Godkjenning.Seksjon.Ferdig sistLagret _ meldingsLogg ->
+                            gåTilFlereAnnetValg sistLagret model meldingsLogg
 
                 _ ->
                     ( model, Cmd.none )
@@ -620,7 +620,7 @@ updateSuccess successMsg model =
                             , Cmd.map SertifikatMsg cmd
                             )
 
-                        Sertifikat.Seksjon.Ferdig sistLagret sertifikatListe meldingsLogg ->
+                        Sertifikat.Seksjon.Ferdig sistLagret _ meldingsLogg ->
                             gåTilFlereAnnetValg sistLagret model meldingsLogg
 
                 _ ->

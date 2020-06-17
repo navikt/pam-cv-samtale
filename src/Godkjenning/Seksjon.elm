@@ -782,7 +782,7 @@ initSamtaleTypeahead : ( Typeahead.Model GodkjenningTypeahead, Typeahead.Query )
 initSamtaleTypeahead =
     Typeahead.init
         { value = ""
-        , label = "Godkjenning"
+        , label = "Godkjenninger i lovregulerte yrker"
         , id = inputIdTilString GodkjenningTypeaheadId
         , toString = GodkjenningTypeahead.label
         }
@@ -794,7 +794,7 @@ initSkjemaTypeahead skjema =
         GodkjenningFraTypeahead godkjenningTypeahead ->
             Typeahead.initWithSelected
                 { selected = godkjenningTypeahead
-                , label = "Sertifisering eller godkjenning"
+                , label = "Godkjenninger i lovregulerte yrker"
                 , id = inputIdTilString GodkjenningTypeaheadId
                 , toString = GodkjenningTypeahead.label
                 }
@@ -802,7 +802,7 @@ initSkjemaTypeahead skjema =
         Egendefinert inputValue ->
             Typeahead.init
                 { value = inputValue
-                , label = "Sertifisering eller godkjenning"
+                , label = "Godkjenninger i lovregulerte yrker"
                 , id = inputIdTilString GodkjenningTypeaheadId
                 , toString = GodkjenningTypeahead.label
                 }
@@ -1095,11 +1095,11 @@ samtaleTilMeldingsLogg godkjenningSeksjon =
 
         RegistrerUtsteder _ ->
             [ Melding.spørsmål [ "Hvilken organisasjon har utstedt godkjenningen?" ]
-            , Melding.spørsmål [ "Er du usikker på hvem som har ansvar for ? Det står ofte på beviset ditt." ]
+            , Melding.spørsmål [ "Er du usikker på hvem som har ansvar for? Det står ofte på beviset ditt." ]
             ]
 
         RegistrerFullførtDato _ ->
-            [ Melding.spørsmål [ "Når fullførte du godkjenningen?" ]
+            [ Melding.spørsmål [ "Når ble godkjenningen utstedt?" ]
             ]
 
         SpørOmUtløpsdatoFinnes _ ->
