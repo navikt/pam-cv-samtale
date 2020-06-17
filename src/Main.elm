@@ -681,11 +681,11 @@ updateSuccess successMsg model =
                             )
 
                         Jobbprofil.Seksjon.Ferdig sistLagret brukerInfo ferdigAnimertMeldingsLogg ->
-                            ( { aktivSamtale = InformerOmEures True
+                            ( { aktivSamtale = SpørOmTilbakemelding True
                               , meldingsLogg =
                                     ferdigAnimertMeldingsLogg
                                         |> MeldingsLogg.tilMeldingsLogg
-                                        |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg (InformerOmEures True))
+                                        |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg (SpørOmTilbakemelding True))
                               , sistLagret = sistLagret
                               }
                                 |> AndreSamtaleSteg
@@ -948,7 +948,7 @@ type Samtale
     | LagrerSynlighet Bool LagreStatus
     | LagringSynlighetFeilet Http.Error Bool
     | InformerOmEures Bool
-    | SpørOmTilbakemelding
+    | SpørOmTilbakemelding Bool
     | Avslutt Bool
 
 
@@ -1080,7 +1080,7 @@ settFokus samtale =
         InformerOmEures _ ->
             settFokusCmd VidereforTilEuresId
 
-        SpørOmTilbakemelding ->
+        SpørOmTilbakemelding _ ->
             settFokusCmd GiTilbakemeldingId
 
         Avslutt _ ->
@@ -1331,19 +1331,23 @@ updateAndreSamtaleSteg model msg info =
             )
 
         HarSvartJaTilEures ->
-            ( SpørOmTilbakemelding
-                |> oppdaterSamtale model info (SvarFraMsg msg)
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
+            {- ( SpørOmTilbakemelding
+                   |> oppdaterSamtale model info (SvarFraMsg msg)
+               , lagtTilSpørsmålCmd model.debugStatus
+               )
+            -}
+            ( model, Cmd.none )
 
         LoggEuresMetrikk ->
             ( model, amplitudeEvent "EURES Redirect" )
 
         HarSvartNeiTilEures ->
-            ( SpørOmTilbakemelding
-                |> oppdaterSamtale model info (SvarFraMsg msg)
-            , lagtTilSpørsmålCmd model.debugStatus
-            )
+            {- ( SpørOmTilbakemelding
+                   |> oppdaterSamtale model info (SvarFraMsg msg)
+               , lagtTilSpørsmålCmd model.debugStatus
+               )
+            -}
+            ( model, Cmd.none )
 
         VilGiTilbakemelding ->
             ( Avslutt True
@@ -1377,11 +1381,11 @@ updateAndreSamtaleSteg model msg info =
                             else
                                 -- Kun jobbskiftere får valget om å velge synlighet, hvis de svarer nei, sender vi de til tilbakemelding
                                 ( if LagreStatus.lagrerEtterUtlogging lagreStatus then
-                                    InformerOmEures False
+                                    SpørOmTilbakemelding False
                                         |> oppdaterSamtale model info (ManueltSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ]))
 
                                   else
-                                    InformerOmEures False
+                                    SpørOmTilbakemelding False
                                         |> oppdaterSamtale model info UtenSvar
                                 , lagtTilSpørsmålCmd model.debugStatus
                                 )
@@ -1446,7 +1450,7 @@ updateAndreSamtaleSteg model msg info =
                 gåTilJobbprofil (Cv.sistEndretDato model.cv) (JobbSkifter IkkeSynlig) model { info | meldingsLogg = oppdatertMeldingslogg }
 
             else
-                ( InformerOmEures False
+                ( SpørOmTilbakemelding False
                     |> oppdaterSamtale model info (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
@@ -1790,9 +1794,15 @@ samtaleTilMeldingsLogg samtale =
                 , Melding.spørsmål [ "Kunne du tenkt deg å jobbe utenfor Norge? Legger du også inn din CV på EURES-portalen kan du bli funnet av arbeidsgivere fra flere Europeiske land." ]
                 ]
 
-        SpørOmTilbakemelding ->
-            [ Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
-            ]
+        SpørOmTilbakemelding harLagtInnJobbprofil ->
+            if harLagtInnJobbprofil then
+                [ Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                ]
+
+            else
+                [ Melding.spørsmål [ "Ok. Du kan gjøre CV-en søkbar senere på Min side." ]
+                , Melding.spørsmål [ "Hvis du har tid, vil jeg gjerne vite hvordan du synes det var å lage CV-en. Du kan svare på 3 spørsmål, og du er anonym 😊 Vil du svare (det er frivillig)?" ]
+                ]
 
         Avslutt harGittTilbakemelding ->
             if harGittTilbakemelding then
@@ -1884,7 +1894,7 @@ andreSamtaleStegTilMetrikkSeksjon { aktivSamtale } =
         InformerOmEures _ ->
             Metrikker.Eures
 
-        SpørOmTilbakemelding ->
+        SpørOmTilbakemelding _ ->
             Metrikker.Tilbakemelding
 
         Avslutt _ ->
@@ -2482,7 +2492,7 @@ andreSamtaleStegTilBrukerInput info =
                     , Knapp.knapp HarSvartNeiTilEures "Nei takk"
                     ]
 
-            SpørOmTilbakemelding ->
+            SpørOmTilbakemelding _ ->
                 BrukerInput.knapper Flytende
                     [ Knapp.knapp VilGiTilbakemelding "Ja, jeg vil svare"
                         |> Knapp.withLink "https://surveys.hotjar.com/s?siteId=118350&surveyId=144585"
