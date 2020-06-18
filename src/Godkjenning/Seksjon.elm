@@ -841,16 +841,6 @@ avbrytRegistrering model msg =
         |> IkkeFerdig
 
 
-brukerVilRegistrereFritekstGodkjenning : ModelInfo -> Typeahead.Model GodkjenningTypeahead -> SamtaleStatus
-brukerVilRegistrereFritekstGodkjenning model typeaheadModel =
-    case godkjenningFeltFraTypeaheadModel typeaheadModel of
-        Just godkjenningFelt ->
-            brukerVelgerGodkjenningFelt model godkjenningFelt
-
-        Nothing ->
-            visFeilmeldingRegistrerGodkjenning model typeaheadModel
-
-
 visFeilmeldingRegistrerGodkjenning : ModelInfo -> Typeahead.Model GodkjenningTypeahead -> SamtaleStatus
 visFeilmeldingRegistrerGodkjenning model typeaheadModel =
     ( typeaheadModel
