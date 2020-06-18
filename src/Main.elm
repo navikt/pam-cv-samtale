@@ -2576,9 +2576,9 @@ viewLeggTilAnnet =
     BrukerInput.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
             |> Knapp.withId (inputIdTilString LeggTilAnnetId)
-        , seksjonsvalgKnapp KursValgt
         , seksjonsvalgKnapp GodkjenningValgt
         , seksjonsvalgKnapp SertifiseringValgt
+        , seksjonsvalgKnapp KursValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
         ]
 
@@ -2617,10 +2617,10 @@ seksjonsvalgTilString seksjonsvalg =
             "Mesterbrev"
 
         GodkjenningValgt ->
-            "Godkjenninger i lovregulerte yrker"
+            "Godkjenninger i lovregulerte yrker - autorisasjoner, førerbevis m.m."
 
         SertifiseringValgt ->
-            "Andre godkjenninger"
+            "Andre godkjenninger - sertifiseringer"
 
         AnnenErfaringValgt ->
             "Annen erfaring"
