@@ -319,7 +319,7 @@ update msg (Model model) =
                                 |> brukerVelgerGodkjenningFelt model
 
                         Nothing ->
-                            brukerVilRegistrereFritekstGodkjenning model typeaheadModel
+                            visFeilmeldingRegistrerGodkjenning model typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -920,12 +920,12 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
 
 feilmeldingTypeahead : Typeahead.Model GodkjenningTypeahead -> Maybe String
 feilmeldingTypeahead typeaheadModel =
-    case godkjenningFeltFraTypeaheadModel typeaheadModel of
+    case Typeahead.selected typeaheadModel of
         Just _ ->
             Nothing
 
         Nothing ->
-            Just "Velg eller skriv inn godkjenning"
+            Just "Velg en godkjenning fra listen med forslag som kommer opp"
 
 
 oppdaterSkjema : SkjemaEndring -> GodkjenningSkjema -> GodkjenningSkjema
