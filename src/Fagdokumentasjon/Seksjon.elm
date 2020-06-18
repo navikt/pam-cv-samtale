@@ -2,7 +2,6 @@ module Fagdokumentasjon.Seksjon exposing
     ( Model
     , Msg
     , SamtaleStatus(..)
-    , initAutorisasjon
     , initFagbrev
     , initMesterbrev
     , meldingsLogg
@@ -610,9 +609,6 @@ feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType =
         Mesterbrev ->
             "Velg et mesterbrev fra listen med forslag som kommer opp"
 
-        Autorisasjon ->
-            "Velg en autorisasjon fra listen med forslag som kommer opp"
-
 
 hentTypeaheadSuggestions : Typeahead.Query -> FagdokumentasjonType -> Cmd Msg
 hentTypeaheadSuggestions query fagdokumentasjonType =
@@ -622,9 +618,6 @@ hentTypeaheadSuggestions query fagdokumentasjonType =
 
         Mesterbrev ->
             Api.getMesterbrevTypeahead HentetTypeahead query
-
-        Autorisasjon ->
-            Api.getAutorisasjonTypeahead HentetTypeahead query
 
 
 updateEtterLagreKnappTrykket : ModelInfo -> Msg -> ValidertFagdokumentasjonSkjema -> LagreStatus -> SamtaleStatus
@@ -655,8 +648,11 @@ meldingForLagringSuccess skjema =
         Mesterbrev ->
             Melding.spørsmål [ "Nå er det lagret! Så bra at du har mesterbrev, det er mangel på jobbsøkere med mesterbrev." ]
 
-        Autorisasjon ->
-            Melding.spørsmål [ "Nå er det lagret. Så bra at du har autorisasjon!" ]
+
+
+{- Autorisasjon ->
+   Melding.spørsmål [ "Nå er det lagret. Så bra at du har autorisasjon!" ]
+-}
 
 
 lagringFeiletTidligerePåGrunnAvInnlogging : LagreStatus -> Bool
@@ -767,11 +763,6 @@ samtaleTilMeldingsLogg fagdokumentasjonType fagbrevSeksjon =
                     , Melding.spørsmål [ "Begynn å skriv inn mesterbrevet. Velg fra listen med forslag som kommer opp." ]
                     ]
 
-                Autorisasjon ->
-                    [ Melding.spørsmål [ "Hva er navnet på autorisasjonen din?" ]
-                    , Melding.spørsmål [ "Begynn å skriv inn autorisasjonen din. Velg fra listen med forslag som kommer opp." ]
-                    ]
-
         Oppsummering oppsummeringsType validertSkjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
@@ -783,11 +774,6 @@ samtaleTilMeldingsLogg fagdokumentasjonType fagbrevSeksjon =
 
                         Mesterbrev ->
                             [ Melding.spørsmål [ "Ok, da lar jeg mesterbrevet stå." ]
-                            , oppsummeringsSpørsmål validertSkjema
-                            ]
-
-                        Autorisasjon ->
-                            [ Melding.spørsmål [ "Ok, da lar jeg autorisasjonen stå." ]
                             , oppsummeringsSpørsmål validertSkjema
                             ]
 
@@ -806,9 +792,6 @@ samtaleTilMeldingsLogg fagdokumentasjonType fagbrevSeksjon =
                 Mesterbrev ->
                     [ Melding.spørsmål [ "Nå kan du endre i feltene under." ] ]
 
-                Autorisasjon ->
-                    [ Melding.spørsmål [ "Gjør endringene du ønsker." ] ]
-
         BekreftSlettingAvPåbegynt skjema ->
             case Skjema.fagdokumentasjonType (Skjema.tilUvalidertSkjema skjema) of
                 SvennebrevFagbrev ->
@@ -816,9 +799,6 @@ samtaleTilMeldingsLogg fagdokumentasjonType fagbrevSeksjon =
 
                 Mesterbrev ->
                     [ Melding.spørsmål [ "Er du sikker på at du vil slette dette mesterbrevet?" ] ]
-
-                Autorisasjon ->
-                    [ Melding.spørsmål [ "Er du sikker på at du vil slette denne autorisasjonen?" ] ]
 
         --todo: legg inn
         LagringFeilet validertSkjema error ->
@@ -832,9 +812,6 @@ samtaleTilMeldingsLogg fagdokumentasjonType fagbrevSeksjon =
                 Mesterbrev ->
                     [ Melding.spørsmål [ "Hvis du avbryter, blir ikke mesterbrevet lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
 
-                Autorisasjon ->
-                    [ Melding.spørsmål [ "Hvis du avbryter, blir ikke autorisasjonen lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
-
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
                 AvbruttPåbegynt ->
@@ -847,9 +824,6 @@ samtaleTilMeldingsLogg fagdokumentasjonType fagbrevSeksjon =
 
                         Mesterbrev ->
                             [ Melding.spørsmål [ "Nå har jeg slettet mesterbrevet. Vil du legge inn flere kategorier?" ] ]
-
-                        Autorisasjon ->
-                            [ Melding.spørsmål [ "Nå har jeg slettet autorisasjonen. Vil du legge inn flere kategorier?" ] ]
 
                 AnnenAvslutning ->
                     [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
@@ -874,9 +848,6 @@ lagreOperasjonStringFraFagdokumentasjonType fagdokumentasjonType =
 
         Mesterbrev ->
             "lagre mesterbrevet"
-
-        Autorisasjon ->
-            "lagre autorisasjonen"
 
 
 settFokus : Samtale -> Cmd Msg
@@ -934,10 +905,6 @@ eksemplerPåFagdokumentasjon fagdokumentasjonType =
 
         Mesterbrev ->
             [ Melding.eksempel [ "Tok mesterbrev som herrefrisør i 1994." ]
-            ]
-
-        Autorisasjon ->
-            [ Melding.eksempel [ "Har norsk autorisasjon som sykepleier fra 2012." ]
             ]
 
 
@@ -1101,9 +1068,6 @@ typeaheadLabel fagdokumentasjonType =
         Mesterbrev ->
             "Mesterbrev"
 
-        Autorisasjon ->
-            "Autorisasjon"
-
 
 
 --- INIT ---
@@ -1141,11 +1105,6 @@ initFagbrev =
 initMesterbrev : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
 initMesterbrev =
     init Mesterbrev
-
-
-initAutorisasjon : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Fagdokumentasjon -> ( Model, Cmd Msg )
-initAutorisasjon =
-    init Autorisasjon
 
 
 subscriptions : Model -> Sub Msg

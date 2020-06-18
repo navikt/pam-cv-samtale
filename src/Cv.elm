@@ -5,6 +5,7 @@ module Cv exposing
     , decode
     , fagdokumentasjoner
     , førerkort
+    , godkjenninger
     , kurs
     , oppdaterFørerkort
     , sammendrag
@@ -18,6 +19,7 @@ import AnnenErfaring.AnnenErfaring as AnnenErfaring exposing (AnnenErfaring)
 import Arbeidserfaring.Arbeidserfaring as Arbeidserfaring exposing (Arbeidserfaring)
 import Fagdokumentasjon.Fagdokumentasjon as Fagdokumentasjon exposing (Fagdokumentasjon)
 import Forerkort.Forerkort as Forerkort exposing (Førerkort)
+import Godkjenning.Godkjenning as Godkjenning exposing (Godkjenning)
 import Iso8601
 import Json.Decode exposing (..)
 import Json.Decode.Pipeline exposing (..)
@@ -40,6 +42,7 @@ type alias CvInfo =
     , sistEndretAvNav : Bool
     , arbeidserfaring : List Arbeidserfaring
     , utdanningListe : List Utdanning
+    , godkjenninger : List Godkjenning
     , sertifikater : List Sertifikat
     , førerkort : List Førerkort
     , annenErfaring : List AnnenErfaring
@@ -77,6 +80,11 @@ arbeidserfaring (Cv info) =
 utdanning : Cv -> List Utdanning
 utdanning (Cv info) =
     info.utdanningListe
+
+
+godkjenninger : Cv -> List Godkjenning
+godkjenninger (Cv info) =
+    info.godkjenninger
 
 
 sertifikater : Cv -> List Sertifikat
@@ -142,6 +150,7 @@ decodeBackendData =
         |> required "sistEndretAvNav" bool
         |> required "arbeidsErfaring" (list Arbeidserfaring.decode)
         |> required "utdanninger" (list Utdanning.decode)
+        |> required "godkjenninger" (list Godkjenning.decode)
         |> required "sertifikater" (list Sertifikat.decode)
         |> required "forerkort" (list Forerkort.decode)
         |> required "annenErfaring" (list AnnenErfaring.decode)

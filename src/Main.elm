@@ -16,13 +16,13 @@ import Forerkort.Seksjon
 import FrontendModuler.Alertstripe as Alertstripe exposing (..)
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
-import FrontendModuler.CoronaInfobox as CoronaInfobox
 import FrontendModuler.Header as Header
 import FrontendModuler.Knapp as Knapp exposing (Enabled(..), Knapp)
 import FrontendModuler.Lenke as Lenke
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Spinner as Spinner
 import FrontendModuler.Textarea as Textarea exposing (Textarea)
+import Godkjenning.Seksjon
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Attributes.Aria exposing (ariaHidden, ariaLabel, ariaLive)
@@ -478,6 +478,7 @@ type SamtaleSeksjon
     | ArbeidsErfaringSeksjon Arbeidserfaring.Seksjon.Model
     | SpråkSeksjon Sprak.Seksjon.Model
     | FagdokumentasjonSeksjon Fagdokumentasjon.Seksjon.Model
+    | GodkjenningSeksjon Godkjenning.Seksjon.Model
     | SertifikatSeksjon Sertifikat.Seksjon.Model
     | AnnenErfaringSeksjon AnnenErfaring.Seksjon.Model
     | FørerkortSeksjon Forerkort.Seksjon.Model
@@ -496,6 +497,7 @@ type SuccessMsg
     | ArbeidserfaringsMsg Arbeidserfaring.Seksjon.Msg
     | SpråkMsg Sprak.Seksjon.Msg
     | FagdokumentasjonMsg Fagdokumentasjon.Seksjon.Msg
+    | GodkjenningMsg Godkjenning.Seksjon.Msg
     | SertifikatMsg Sertifikat.Seksjon.Msg
     | AnnenErfaringMsg AnnenErfaring.Seksjon.Msg
     | FørerkortMsg Forerkort.Seksjon.Msg
@@ -593,6 +595,23 @@ updateSuccess successMsg model =
                 _ ->
                     ( model, Cmd.none )
 
+        GodkjenningMsg msg ->
+            case model.aktivSeksjon of
+                GodkjenningSeksjon godkjenningModel ->
+                    case Godkjenning.Seksjon.update msg godkjenningModel of
+                        Godkjenning.Seksjon.IkkeFerdig ( nyModel, cmd ) ->
+                            ( nyModel
+                                |> GodkjenningSeksjon
+                                |> oppdaterSamtaleSeksjon model
+                            , Cmd.map GodkjenningMsg cmd
+                            )
+
+                        Godkjenning.Seksjon.Ferdig sistLagret _ meldingsLogg ->
+                            gåTilFlereAnnetValg sistLagret model meldingsLogg
+
+                _ ->
+                    ( model, Cmd.none )
+
         SertifikatMsg msg ->
             case model.aktivSeksjon of
                 SertifikatSeksjon sertifikatModel ->
@@ -604,7 +623,7 @@ updateSuccess successMsg model =
                             , Cmd.map SertifikatMsg cmd
                             )
 
-                        Sertifikat.Seksjon.Ferdig sistLagret sertifikatListe meldingsLogg ->
+                        Sertifikat.Seksjon.Ferdig sistLagret _ meldingsLogg ->
                             gåTilFlereAnnetValg sistLagret model meldingsLogg
 
                 _ ->
@@ -768,16 +787,16 @@ gåTilMesterbrev sistLagret model ferdigAnimertMeldingsLogg =
     )
 
 
-gåTilAutorisasjon : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
-gåTilAutorisasjon sistLagret model ferdigAnimertMeldingsLogg =
+gåTilGodkjenning : Posix -> SuccessModel -> FerdigAnimertMeldingsLogg -> ( SuccessModel, Cmd SuccessMsg )
+gåTilGodkjenning sistLagret model ferdigAnimertMeldingsLogg =
     let
-        ( fagbrevModel, fagbrevCmd ) =
-            Fagdokumentasjon.Seksjon.initAutorisasjon model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.fagdokumentasjoner model.cv)
+        ( godkjenningModel, godkjenningCmd ) =
+            Godkjenning.Seksjon.init model.debugStatus sistLagret ferdigAnimertMeldingsLogg (Cv.godkjenninger model.cv)
     in
     ( { model
-        | aktivSeksjon = FagdokumentasjonSeksjon fagbrevModel
+        | aktivSeksjon = GodkjenningSeksjon godkjenningModel
       }
-    , Cmd.map FagdokumentasjonMsg fagbrevCmd
+    , Cmd.map GodkjenningMsg godkjenningCmd
     )
 
 
@@ -896,6 +915,9 @@ successModelTilMetrikkSeksjon { aktivSeksjon } =
         FagdokumentasjonSeksjon _ ->
             Metrikker.Fagdokumentasjon
 
+        GodkjenningSeksjon _ ->
+            Metrikker.Godkjenning
+
         SertifikatSeksjon _ ->
             Metrikker.Sertifikat
 
@@ -986,7 +1008,7 @@ type AndreSamtaleStegMsg
 type ValgtSeksjon
     = FagbrevSvennebrevValgt
     | MesterbrevValgt
-    | AutorisasjonValgt
+    | GodkjenningValgt
     | SertifiseringValgt
     | AnnenErfaringValgt
     | KursValgt
@@ -1560,8 +1582,8 @@ gåTilValgtSeksjon model info msg valgtSeksjon =
                 MesterbrevValgt ->
                     gåTilMesterbrev sistLagret model ferdigAnimertMeldingsLogg
 
-                AutorisasjonValgt ->
-                    gåTilAutorisasjon sistLagret model ferdigAnimertMeldingsLogg
+                GodkjenningValgt ->
+                    gåTilGodkjenning sistLagret model ferdigAnimertMeldingsLogg
 
                 SertifiseringValgt ->
                     gåTilSertifisering sistLagret model ferdigAnimertMeldingsLogg
@@ -1973,6 +1995,11 @@ getSistLagret extendedModel =
                         |> Fagdokumentasjon.Seksjon.sistLagret
                         |> sistLagretToString extendedModel
 
+                GodkjenningSeksjon model ->
+                    model
+                        |> Godkjenning.Seksjon.sistLagret
+                        |> sistLagretToString extendedModel
+
                 SertifikatSeksjon model ->
                     model
                         |> Sertifikat.Seksjon.sistLagret
@@ -2074,6 +2101,9 @@ meldingsLoggFraSeksjon aktivSeksjon =
 
         FagdokumentasjonSeksjon model ->
             Fagdokumentasjon.Seksjon.meldingsLogg model
+
+        GodkjenningSeksjon model ->
+            Godkjenning.Seksjon.meldingsLogg model
 
         SertifikatSeksjon model ->
             Sertifikat.Seksjon.meldingsLogg model
@@ -2351,6 +2381,11 @@ viewBrukerInputForSeksjon aktivSeksjon =
                 |> Fagdokumentasjon.Seksjon.viewBrukerInput
                 |> Html.map (FagdokumentasjonMsg >> SuccessMsg)
 
+        GodkjenningSeksjon godkjenningSeksjon ->
+            godkjenningSeksjon
+                |> Godkjenning.Seksjon.viewBrukerInput
+                |> Html.map (GodkjenningMsg >> SuccessMsg)
+
         SertifikatSeksjon sertifikatSeksjon ->
             sertifikatSeksjon
                 |> Sertifikat.Seksjon.viewBrukerInput
@@ -2375,10 +2410,8 @@ viewBrukerInputForSeksjon aktivSeksjon =
             case andreSamtaleStegInfo.aktivSamtale of
                 LeggTilAutorisasjoner ->
                     if MeldingsLogg.visBrukerInput andreSamtaleStegInfo.meldingsLogg then
-                        div [ class "corona-infobox__container" ]
-                            [ CoronaInfobox.coronaInfobox "Har du viktig kompetanse?" "Har du fagbrev eller autorisasjon innen helsefag, legg det inn her."
-                                |> CoronaInfobox.toHtml
-                            , viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
+                        div []
+                            [ viewBrukerInputForAndreSamtaleSteg andreSamtaleStegInfo
                                 |> Html.map (AndreSamtaleStegMsg >> SuccessMsg)
                             ]
 
@@ -2546,7 +2579,6 @@ viewLeggTilAutorisasjoner =
         [ seksjonsvalgKnapp FagbrevSvennebrevValgt
             |> Knapp.withId (inputIdTilString LeggTilAutorisasjonerId)
         , seksjonsvalgKnapp MesterbrevValgt
-        , seksjonsvalgKnapp AutorisasjonValgt
         , Knapp.knapp IngenAvAutorisasjonSeksjoneneValgt "Nei, gå videre"
         ]
 
@@ -2556,8 +2588,9 @@ viewLeggTilAnnet =
     BrukerInput.knapper Kolonne
         [ seksjonsvalgKnapp AnnenErfaringValgt
             |> Knapp.withId (inputIdTilString LeggTilAnnetId)
-        , seksjonsvalgKnapp KursValgt
+        , seksjonsvalgKnapp GodkjenningValgt
         , seksjonsvalgKnapp SertifiseringValgt
+        , seksjonsvalgKnapp KursValgt
         , Knapp.knapp IngenAvDeAndreSeksjoneneValgt "Nei, gå videre"
         ]
 
@@ -2595,17 +2628,17 @@ seksjonsvalgTilString seksjonsvalg =
         MesterbrevValgt ->
             "Mesterbrev"
 
-        AutorisasjonValgt ->
-            "Autorisasjon"
+        GodkjenningValgt ->
+            "Godkjenninger i lovregulerte yrker - autorisasjoner, førerbevis m.m."
 
         SertifiseringValgt ->
-            "Sertifisering/sertifikat"
+            "Andre godkjenninger - sertifiseringer"
 
         AnnenErfaringValgt ->
             "Annen erfaring"
 
         KursValgt ->
-            "Kurs"
+            "Kurs jeg har tatt"
 
         FørerkortValgt ->
             "Førerkort"
@@ -2696,6 +2729,11 @@ seksjonSubscriptions model =
                     fagdokumentasjonModel
                         |> Fagdokumentasjon.Seksjon.subscriptions
                         |> Sub.map (FagdokumentasjonMsg >> SuccessMsg)
+
+                GodkjenningSeksjon godkjenningModel ->
+                    godkjenningModel
+                        |> Godkjenning.Seksjon.subscriptions
+                        |> Sub.map (GodkjenningMsg >> SuccessMsg)
 
                 SertifikatSeksjon sertifikatModel ->
                     sertifikatModel

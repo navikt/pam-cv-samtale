@@ -1,4 +1,4 @@
-module Sertifikat.Seksjon exposing
+module Godkjenning.Seksjon exposing
     ( Model
     , Msg
     , SamtaleStatus(..)
@@ -26,6 +26,9 @@ import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
 import FrontendModuler.Typeahead
+import Godkjenning.Godkjenning as Godkjenning exposing (Godkjenning)
+import Godkjenning.GodkjenningTypeahead as GodkjenningTypeahead exposing (GodkjenningTypeahead)
+import Godkjenning.Skjema as Skjema exposing (GodkjenningFelt(..), GodkjenningSkjema, Utløpsdato(..), ValidertGodkjenningSkjema)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http exposing (Error)
@@ -36,9 +39,6 @@ import Meldinger.SamtaleAnimasjon as SamtaleAnimasjon
 import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Result.Extra as Result
-import Sertifikat.Sertifikat as Sertifikat exposing (Sertifikat)
-import Sertifikat.SertifikatTypeahead as SertifikatTypeahead exposing (SertifikatTypeahead)
-import Sertifikat.Skjema as Skjema exposing (SertifikatFelt(..), SertifikatSkjema, Utløpsdato(..), ValidertSertifikatSkjema)
 import Task
 import Tid exposing (nyesteSistLagretVerdi)
 import Time exposing (Posix)
@@ -56,7 +56,7 @@ type Model
 type alias ModelInfo =
     { seksjonsMeldingsLogg : MeldingsLogg
     , aktivSamtale : Samtale
-    , sertifikatListe : List Sertifikat
+    , godkjenningListe : List Godkjenning
     , debugStatus : DebugStatus
     , sistLagretFraForrigeSeksjon : Posix
     }
@@ -69,14 +69,14 @@ meldingsLogg (Model model) =
 
 sistLagret : Model -> Posix
 sistLagret (Model model) =
-    model.sertifikatListe
-        |> List.map Sertifikat.sistEndretDato
+    model.godkjenningListe
+        |> List.map Godkjenning.sistEndretDato
         |> nyesteSistLagretVerdi model.sistLagretFraForrigeSeksjon
 
 
 type SamtaleStatus
     = IkkeFerdig ( Model, Cmd Msg )
-    | Ferdig Posix (List Sertifikat) FerdigAnimertMeldingsLogg
+    | Ferdig Posix (List Godkjenning) FerdigAnimertMeldingsLogg
 
 
 type AvsluttetGrunn
@@ -92,28 +92,28 @@ type OppsummeringsType
 
 
 type Samtale
-    = RegistrerSertifikatFelt Bool (Typeahead.Model SertifikatTypeahead)
+    = RegistrerGodkjenningFelt Bool (Typeahead.Model GodkjenningTypeahead)
     | RegistrerUtsteder UtstederInfo
     | RegistrerFullførtDato FullførtDatoInfo
     | SpørOmUtløpsdatoFinnes SpørOmUtløpsdatoInfo
     | RegistrerUtløpsdato UtløpsdatoInfo
-    | VisOppsummering OppsummeringsType ValidertSertifikatSkjema
-    | EndreOpplysninger (Typeahead.Model SertifikatTypeahead) SertifikatSkjema
-    | BekreftSlettingAvPåbegynt ValidertSertifikatSkjema
-    | LagrerSkjema ValidertSertifikatSkjema LagreStatus
-    | LagringFeilet Http.Error ValidertSertifikatSkjema
+    | VisOppsummering OppsummeringsType ValidertGodkjenningSkjema
+    | EndreOpplysninger (Typeahead.Model GodkjenningTypeahead) GodkjenningSkjema
+    | BekreftSlettingAvPåbegynt ValidertGodkjenningSkjema
+    | LagrerSkjema ValidertGodkjenningSkjema LagreStatus
+    | LagringFeilet Http.Error ValidertGodkjenningSkjema
     | BekreftAvbrytingAvRegistreringen Samtale
-    | VenterPåAnimasjonFørFullføring (List Sertifikat) AvsluttetGrunn
+    | VenterPåAnimasjonFørFullføring (List Godkjenning) AvsluttetGrunn
 
 
 type alias UtstederInfo =
-    { sertifikat : SertifikatFelt
+    { godkjenning : GodkjenningFelt
     , utsteder : String
     }
 
 
 type alias FullførtDatoInfo =
-    { sertifikat : SertifikatFelt
+    { godkjenning : GodkjenningFelt
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : String
@@ -122,7 +122,7 @@ type alias FullførtDatoInfo =
 
 
 type alias SpørOmUtløpsdatoInfo =
-    { sertifikat : SertifikatFelt
+    { godkjenning : GodkjenningFelt
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : År
@@ -130,7 +130,7 @@ type alias SpørOmUtløpsdatoInfo =
 
 
 type alias UtløpsdatoInfo =
-    { sertifikat : SertifikatFelt
+    { godkjenning : GodkjenningFelt
     , utsteder : String
     , fullførtMåned : Måned
     , fullførtÅr : År
@@ -140,16 +140,16 @@ type alias UtløpsdatoInfo =
     }
 
 
-sertifikatFeltTilUtsteder : SertifikatFelt -> UtstederInfo
-sertifikatFeltTilUtsteder sertifikatFelt =
-    { sertifikat = sertifikatFelt
+godkjenningFeltTilUtsteder : GodkjenningFelt -> UtstederInfo
+godkjenningFeltTilUtsteder godkjenningFelt =
+    { godkjenning = godkjenningFelt
     , utsteder = ""
     }
 
 
 utstederTilFullførtDato : UtstederInfo -> FullførtDatoInfo
 utstederTilFullførtDato input =
-    { sertifikat = input.sertifikat
+    { godkjenning = input.godkjenning
     , utsteder = input.utsteder
     , fullførtÅr = ""
     , fullførtMåned = Januar
@@ -159,7 +159,7 @@ utstederTilFullførtDato input =
 
 fullførtDatoTilSpørOmUtløpsdato : FullførtDatoInfo -> År -> SpørOmUtløpsdatoInfo
 fullførtDatoTilSpørOmUtløpsdato input år =
-    { sertifikat = input.sertifikat
+    { godkjenning = input.godkjenning
     , utsteder = input.utsteder
     , fullførtMåned = input.fullførtMåned
     , fullførtÅr = år
@@ -168,7 +168,7 @@ fullførtDatoTilSpørOmUtløpsdato input år =
 
 spørOmUtløpsdatoInfoTilUtløpsdato : SpørOmUtløpsdatoInfo -> UtløpsdatoInfo
 spørOmUtløpsdatoInfoTilUtløpsdato input =
-    { sertifikat = input.sertifikat
+    { godkjenning = input.godkjenning
     , utsteder = input.utsteder
     , fullførtÅr = input.fullførtÅr
     , fullførtMåned = input.fullførtMåned
@@ -178,10 +178,10 @@ spørOmUtløpsdatoInfoTilUtløpsdato input =
     }
 
 
-spørOmUtløpsdatoInfoTilSkjema : SpørOmUtløpsdatoInfo -> ValidertSertifikatSkjema
+spørOmUtløpsdatoInfoTilSkjema : SpørOmUtløpsdatoInfo -> ValidertGodkjenningSkjema
 spørOmUtløpsdatoInfoTilSkjema input =
     Skjema.initValidertSkjema
-        { sertifikatFelt = input.sertifikat
+        { godkjenningFelt = input.godkjenning
         , utsteder = input.utsteder
         , fullførtMåned = input.fullførtMåned
         , fullførtÅr = input.fullførtÅr
@@ -190,10 +190,10 @@ spørOmUtløpsdatoInfoTilSkjema input =
         }
 
 
-utløpsdatoInfoTilSkjema : UtløpsdatoInfo -> År -> ValidertSertifikatSkjema
+utløpsdatoInfoTilSkjema : UtløpsdatoInfo -> År -> ValidertGodkjenningSkjema
 utløpsdatoInfoTilSkjema info år =
     Skjema.initValidertSkjema
-        { sertifikatFelt = info.sertifikat
+        { godkjenningFelt = info.godkjenning
         , utsteder = info.utsteder
         , fullførtMåned = info.fullførtMåned
         , fullførtÅr = info.fullførtÅr
@@ -207,9 +207,9 @@ utløpsdatoInfoTilSkjema info år =
 
 
 type Msg
-    = TypeaheadMsg (Typeahead.Msg SertifikatTypeahead)
-    | HentetTypeahead Typeahead.Query (Result Http.Error (List SertifikatTypeahead))
-    | VilRegistrereSertifikat
+    = TypeaheadMsg (Typeahead.Msg GodkjenningTypeahead)
+    | HentetTypeahead Typeahead.Query (Result Http.Error (List GodkjenningTypeahead))
+    | VilRegistrereGodkjenning
     | OppdatererUtsteder String
     | VilRegistrereUtsteder
     | OppdatererFullførtMåned String
@@ -220,18 +220,18 @@ type Msg
     | OppdatererUtløperMåned String
     | OppdatererUtløperÅr String
     | VilRegistrereUtløpsdato
-    | VilLagreSertifikat
+    | VilLagreGodkjenning
     | VilEndreOpplysninger
     | SkjemaEndret SkjemaEndring
     | VilSlettePåbegynt
     | BekrefterSlettPåbegynt
     | AngrerSlettPåbegynt
     | VilLagreEndretSkjema
-    | SertifikatLagret (Result Http.Error (List Sertifikat))
+    | GodkjenningLagret (Result Http.Error (List Godkjenning))
     | VilAvbryteRegistreringen
     | BekrefterAvbrytingAvRegistrering
     | VilIkkeAvbryteRegistreringen
-    | FerdigMedSertifikat
+    | FerdigMedGodkjenning
     | WindowEndrerVisibility Visibility
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
@@ -256,24 +256,24 @@ update msg (Model model) =
     case msg of
         TypeaheadMsg typeaheadMsg ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
+                RegistrerGodkjenningFelt visFeilmelding typeaheadModel ->
                     updateSamtaleTypeahead model visFeilmelding typeaheadMsg typeaheadModel
 
                 EndreOpplysninger typeaheadModel skjema ->
                     let
                         ( nyTypeaheadModel, status ) =
-                            Typeahead.update SertifikatTypeahead.label typeaheadMsg typeaheadModel
+                            Typeahead.update GodkjenningTypeahead.label typeaheadMsg typeaheadModel
                     in
                     IkkeFerdig
                         ( nyTypeaheadModel
-                            |> tilSertifikatFelt
-                            |> Skjema.oppdaterSertifikat skjema
-                            |> Skjema.visFeilmeldingSertifikatFelt (Typeahead.inputStatus status == InputBlurred)
+                            |> tilGodkjenningFelt
+                            |> Skjema.oppdaterGodkjenning skjema
+                            |> Skjema.visFeilmeldingGodkjenningFelt (Typeahead.inputStatus status == InputBlurred)
                             |> EndreOpplysninger nyTypeaheadModel
                             |> oppdaterSamtale model IngenNyeMeldinger
                         , case Typeahead.getSuggestionsStatus status of
                             GetSuggestionsForInput query ->
-                                Api.getSertifikatTypeahead HentetTypeahead query
+                                Api.getGodkjenningTypeahead HentetTypeahead query
 
                             DoNothing ->
                                 Cmd.none
@@ -284,24 +284,24 @@ update msg (Model model) =
 
         HentetTypeahead query result ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
+                RegistrerGodkjenningFelt visFeilmelding typeaheadModel ->
                     ( result
-                        |> Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel query
-                        |> RegistrerSertifikatFelt visFeilmelding
+                        |> Typeahead.updateSuggestions GodkjenningTypeahead.label typeaheadModel query
+                        |> RegistrerGodkjenningFelt visFeilmelding
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
                         |> Result.error
-                        |> Maybe.map (logFeilmelding "Hent SertifikatTypeahead")
+                        |> Maybe.map (logFeilmelding "Hent GodkjenningTypeahead")
                         |> Maybe.withDefault Cmd.none
                     )
                         |> IkkeFerdig
 
                 EndreOpplysninger typeaheadModel skjema ->
-                    ( EndreOpplysninger (Typeahead.updateSuggestions SertifikatTypeahead.label typeaheadModel query result) skjema
+                    ( EndreOpplysninger (Typeahead.updateSuggestions GodkjenningTypeahead.label typeaheadModel query result) skjema
                         |> oppdaterSamtale model IngenNyeMeldinger
                     , result
                         |> Result.error
-                        |> Maybe.map (logFeilmelding "Hent SertifikatTypeahead")
+                        |> Maybe.map (logFeilmelding "Hent GodkjenningTypeahead")
                         |> Maybe.withDefault Cmd.none
                     )
                         |> IkkeFerdig
@@ -309,17 +309,17 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilRegistrereSertifikat ->
+        VilRegistrereGodkjenning ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt _ typeaheadModel ->
+                RegistrerGodkjenningFelt _ typeaheadModel ->
                     case Typeahead.selected typeaheadModel of
-                        Just sertifikat ->
-                            sertifikat
-                                |> SertifikatFraTypeahead
-                                |> brukerVelgerSertifikatFelt model
+                        Just godkjenning ->
+                            godkjenning
+                                |> GodkjenningFraTypeahead
+                                |> brukerVelgerGodkjenningFelt model
 
                         Nothing ->
-                            brukerVilRegistrereFritekstSertifikat model typeaheadModel
+                            visFeilmeldingRegistrerGodkjenning model typeaheadModel
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -492,8 +492,8 @@ update msg (Model model) =
 
         TimeoutEtterAtFeltMistetFokus ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt _ typeaheadModel ->
-                    visFeilmeldingRegistrerSertifikat model typeaheadModel
+                RegistrerGodkjenningFelt _ typeaheadModel ->
+                    visFeilmeldingRegistrerGodkjenning model typeaheadModel
 
                 RegistrerFullførtDato fullførtDatoInfo ->
                     ( { fullførtDatoInfo | visFeilmeldingFullførtÅr = True }
@@ -517,16 +517,16 @@ update msg (Model model) =
 
         VilEndreOpplysninger ->
             case model.aktivSamtale of
-                VisOppsummering _ validertSertifikatSkjema ->
-                    updateEtterVilEndreSkjema model msg validertSertifikatSkjema
+                VisOppsummering _ validertGodkjenningSkjema ->
+                    updateEtterVilEndreSkjema model msg validertGodkjenningSkjema
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
         SkjemaEndret skjemaEndring ->
             case model.aktivSamtale of
-                EndreOpplysninger typeaheadModel sertifikatSkjema ->
-                    ( sertifikatSkjema
+                EndreOpplysninger typeaheadModel godkjenningSkjema ->
+                    ( godkjenningSkjema
                         |> oppdaterSkjema skjemaEndring
                         |> EndreOpplysninger typeaheadModel
                         |> oppdaterSamtale model IngenNyeMeldinger
@@ -553,7 +553,7 @@ update msg (Model model) =
         BekrefterSlettPåbegynt ->
             case model.aktivSamtale of
                 BekreftSlettingAvPåbegynt _ ->
-                    ( VenterPåAnimasjonFørFullføring model.sertifikatListe SlettetPåbegynt
+                    ( VenterPåAnimasjonFørFullføring model.godkjenningListe SlettetPåbegynt
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -598,7 +598,7 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        VilLagreSertifikat ->
+        VilLagreGodkjenning ->
             case model.aktivSamtale of
                 VisOppsummering _ skjema ->
                     updateEtterLagreKnappTrykket model msg skjema
@@ -608,31 +608,31 @@ update msg (Model model) =
                         |> LagreStatus.fraError
                         |> LagrerSkjema skjema
                         |> oppdaterSamtale model (SvarFraMsg msg)
-                    , lagreSertifikat SertifikatLagret skjema
+                    , lagreGodkjenning GodkjenningLagret skjema
                     )
                         |> IkkeFerdig
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        SertifikatLagret result ->
+        GodkjenningLagret result ->
             case model.aktivSamtale of
                 LagrerSkjema skjema lagreStatus ->
                     case result of
-                        Ok sertifikater ->
+                        Ok godkjenninger ->
                             let
                                 oppdatertMeldingslogg =
                                     if LagreStatus.lagrerEtterUtlogging lagreStatus then
                                         model.seksjonsMeldingsLogg
                                             |> MeldingsLogg.leggTilSvar (Melding.svar [ LoggInnLenke.loggInnLenkeTekst ])
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen lagret 👍" ] ]
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er godkjenningen lagret 👍" ] ]
 
                                     else
                                         model.seksjonsMeldingsLogg
-                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er sertifiseringen lagret 👍" ] ]
+                                            |> MeldingsLogg.leggTilSpørsmål [ Melding.spørsmål [ "Nå er godkjenningen lagret 👍" ] ]
                             in
-                            ( VenterPåAnimasjonFørFullføring sertifikater AnnenAvslutning
-                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg, sertifikatListe = sertifikater } UtenSvar
+                            ( VenterPåAnimasjonFørFullføring godkjenninger AnnenAvslutning
+                                |> oppdaterSamtale { model | seksjonsMeldingsLogg = oppdatertMeldingslogg, godkjenningListe = godkjenninger } UtenSvar
                             , lagtTilSpørsmålCmd model.debugStatus
                             )
                                 |> IkkeFerdig
@@ -643,7 +643,7 @@ update msg (Model model) =
                                     ( LagreStatus.fraError error
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , lagreSertifikat SertifikatLagret skjema
+                                    , lagreGodkjenning GodkjenningLagret skjema
                                     )
                                         |> IkkeFerdig
 
@@ -653,7 +653,7 @@ update msg (Model model) =
                                         |> oppdaterSamtale model IngenNyeMeldinger
                                     , skjema
                                         |> Skjema.encode
-                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre sertifikat" error
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre godkjenning" error
                                     )
                                         |> IkkeFerdig
 
@@ -665,7 +665,7 @@ update msg (Model model) =
                                     [ lagtTilSpørsmålCmd model.debugStatus
                                     , skjema
                                         |> Skjema.encode
-                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre sertifikat" error
+                                        |> Api.logErrorWithRequestBody ErrorLogget "Lagre godkjenning" error
                                     ]
                                 )
                                     |> IkkeFerdig
@@ -676,7 +676,7 @@ update msg (Model model) =
 
         VilAvbryteRegistreringen ->
             case model.aktivSamtale of
-                RegistrerSertifikatFelt _ _ ->
+                RegistrerGodkjenningFelt _ _ ->
                     avbrytRegistrering model msg
 
                 _ ->
@@ -713,10 +713,10 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
-        FerdigMedSertifikat ->
+        FerdigMedGodkjenning ->
             case model.aktivSamtale of
                 LagringFeilet _ _ ->
-                    ( VenterPåAnimasjonFørFullføring model.sertifikatListe AnnenAvslutning
+                    ( VenterPåAnimasjonFørFullføring model.godkjenningListe AnnenAvslutning
                         |> oppdaterSamtale model (SvarFraMsg msg)
                     , lagtTilSpørsmålCmd model.debugStatus
                     )
@@ -746,7 +746,7 @@ update msg (Model model) =
                                         |> LagreStatus.fraError
                                         |> LagrerSkjema skjema
                                         |> oppdaterSamtale model IngenNyeMeldinger
-                                    , lagreSertifikat SertifikatLagret skjema
+                                    , lagreGodkjenning GodkjenningLagret skjema
                                     )
 
                             else
@@ -778,41 +778,41 @@ update msg (Model model) =
             IkkeFerdig ( Model model, Cmd.none )
 
 
-initSamtaleTypeahead : ( Typeahead.Model SertifikatTypeahead, Typeahead.Query )
+initSamtaleTypeahead : ( Typeahead.Model GodkjenningTypeahead, Typeahead.Query )
 initSamtaleTypeahead =
     Typeahead.init
         { value = ""
-        , label = "Sertifisering eller sertifikat"
-        , id = inputIdTilString SertifikatTypeaheadId
-        , toString = SertifikatTypeahead.label
+        , label = "Godkjenninger i lovregulerte yrker"
+        , id = inputIdTilString GodkjenningTypeaheadId
+        , toString = GodkjenningTypeahead.label
         }
 
 
-initSkjemaTypeahead : ValidertSertifikatSkjema -> ( Typeahead.Model SertifikatTypeahead, Typeahead.Query )
+initSkjemaTypeahead : ValidertGodkjenningSkjema -> ( Typeahead.Model GodkjenningTypeahead, Typeahead.Query )
 initSkjemaTypeahead skjema =
-    case Skjema.sertifikatFeltValidert skjema of
-        SertifikatFraTypeahead sertifikatTypeahead ->
+    case Skjema.godkjenningFeltValidert skjema of
+        GodkjenningFraTypeahead godkjenningTypeahead ->
             Typeahead.initWithSelected
-                { selected = sertifikatTypeahead
-                , label = "Sertifisering eller sertifikat"
-                , id = inputIdTilString SertifikatTypeaheadId
-                , toString = SertifikatTypeahead.label
+                { selected = godkjenningTypeahead
+                , label = "Godkjenninger i lovregulerte yrker"
+                , id = inputIdTilString GodkjenningTypeaheadId
+                , toString = GodkjenningTypeahead.label
                 }
 
         Egendefinert inputValue ->
             Typeahead.init
                 { value = inputValue
-                , label = "Sertifisering eller sertifikat"
-                , id = inputIdTilString SertifikatTypeaheadId
-                , toString = SertifikatTypeahead.label
+                , label = "Godkjenninger i lovregulerte yrker"
+                , id = inputIdTilString GodkjenningTypeaheadId
+                , toString = GodkjenningTypeahead.label
                 }
 
 
-sertifikatFeltFraTypeaheadModel : Typeahead.Model SertifikatTypeahead -> Maybe SertifikatFelt
-sertifikatFeltFraTypeaheadModel typeaheadModel =
+godkjenningFeltFraTypeaheadModel : Typeahead.Model GodkjenningTypeahead -> Maybe GodkjenningFelt
+godkjenningFeltFraTypeaheadModel typeaheadModel =
     case Typeahead.selected typeaheadModel of
-        Just sertifikat ->
-            Just (SertifikatFraTypeahead sertifikat)
+        Just godkjenning ->
+            Just (GodkjenningFraTypeahead godkjenning)
 
         Nothing ->
             let
@@ -834,62 +834,52 @@ sertifikatFeltFraTypeaheadModel typeaheadModel =
 avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
 avbrytRegistrering model msg =
     ( AvbruttPåbegynt
-        |> VenterPåAnimasjonFørFullføring model.sertifikatListe
+        |> VenterPåAnimasjonFørFullføring model.godkjenningListe
         |> oppdaterSamtale model (SvarFraMsg msg)
     , lagtTilSpørsmålCmd model.debugStatus
     )
         |> IkkeFerdig
 
 
-brukerVilRegistrereFritekstSertifikat : ModelInfo -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
-brukerVilRegistrereFritekstSertifikat model typeaheadModel =
-    case sertifikatFeltFraTypeaheadModel typeaheadModel of
-        Just sertifikatFelt ->
-            brukerVelgerSertifikatFelt model sertifikatFelt
-
-        Nothing ->
-            visFeilmeldingRegistrerSertifikat model typeaheadModel
-
-
-visFeilmeldingRegistrerSertifikat : ModelInfo -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
-visFeilmeldingRegistrerSertifikat model typeaheadModel =
+visFeilmeldingRegistrerGodkjenning : ModelInfo -> Typeahead.Model GodkjenningTypeahead -> SamtaleStatus
+visFeilmeldingRegistrerGodkjenning model typeaheadModel =
     ( typeaheadModel
-        |> RegistrerSertifikatFelt True
+        |> RegistrerGodkjenningFelt True
         |> oppdaterSamtale model IngenNyeMeldinger
     , Cmd.none
     )
         |> IkkeFerdig
 
 
-tilSertifikatFelt : Typeahead.Model SertifikatTypeahead -> SertifikatFelt
-tilSertifikatFelt typeaheadModel =
+tilGodkjenningFelt : Typeahead.Model GodkjenningTypeahead -> GodkjenningFelt
+tilGodkjenningFelt typeaheadModel =
     case Typeahead.selected typeaheadModel of
-        Just sertifikatTypeahead ->
-            SertifikatFraTypeahead sertifikatTypeahead
+        Just godkjenningTypeahead ->
+            GodkjenningFraTypeahead godkjenningTypeahead
 
         Nothing ->
             Egendefinert (Typeahead.inputValue typeaheadModel)
 
 
-updateSamtaleTypeahead : ModelInfo -> Bool -> Typeahead.Msg SertifikatTypeahead -> Typeahead.Model SertifikatTypeahead -> SamtaleStatus
+updateSamtaleTypeahead : ModelInfo -> Bool -> Typeahead.Msg GodkjenningTypeahead -> Typeahead.Model GodkjenningTypeahead -> SamtaleStatus
 updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
     let
         ( nyTypeaheadModel, status ) =
-            Typeahead.update SertifikatTypeahead.label msg typeaheadModel
+            Typeahead.update GodkjenningTypeahead.label msg typeaheadModel
     in
     case Typeahead.inputStatus status of
         Typeahead.Submit ->
-            case sertifikatFeltFraTypeaheadModel nyTypeaheadModel of
-                Just sertifikatFelt ->
-                    brukerVelgerSertifikatFelt model sertifikatFelt
+            case godkjenningFeltFraTypeaheadModel nyTypeaheadModel of
+                Just godkjenningFelt ->
+                    brukerVelgerGodkjenningFelt model godkjenningFelt
 
                 Nothing ->
-                    visFeilmeldingRegistrerSertifikat model nyTypeaheadModel
+                    visFeilmeldingRegistrerGodkjenning model nyTypeaheadModel
 
         Typeahead.InputBlurred ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> RegistrerSertifikatFelt visFeilmelding
+                    |> RegistrerGodkjenningFelt visFeilmelding
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , mistetFokusCmd
                 )
@@ -897,11 +887,11 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
         Typeahead.NoChange ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> RegistrerSertifikatFelt visFeilmelding
+                    |> RegistrerGodkjenningFelt visFeilmelding
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , case Typeahead.getSuggestionsStatus status of
                     GetSuggestionsForInput string ->
-                        Api.getSertifikatTypeahead HentetTypeahead string
+                        Api.getGodkjenningTypeahead HentetTypeahead string
 
                     DoNothing ->
                         Cmd.none
@@ -910,25 +900,25 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
         NewActiveElement ->
             IkkeFerdig
                 ( nyTypeaheadModel
-                    |> RegistrerSertifikatFelt visFeilmelding
+                    |> RegistrerGodkjenningFelt visFeilmelding
                     |> oppdaterSamtale model IngenNyeMeldinger
                 , nyTypeaheadModel
-                    |> Typeahead.scrollActiveSuggestionIntoView SertifikatTypeahead.label Nothing
+                    |> Typeahead.scrollActiveSuggestionIntoView GodkjenningTypeahead.label Nothing
                     |> Cmd.map TypeaheadMsg
                 )
 
 
-feilmeldingTypeahead : Typeahead.Model SertifikatTypeahead -> Maybe String
+feilmeldingTypeahead : Typeahead.Model GodkjenningTypeahead -> Maybe String
 feilmeldingTypeahead typeaheadModel =
-    case sertifikatFeltFraTypeaheadModel typeaheadModel of
+    case Typeahead.selected typeaheadModel of
         Just _ ->
             Nothing
 
         Nothing ->
-            Just "Velg eller skriv inn sertifisering eller sertifikat"
+            Just "Velg en godkjenning fra listen med forslag som kommer opp"
 
 
-oppdaterSkjema : SkjemaEndring -> SertifikatSkjema -> SertifikatSkjema
+oppdaterSkjema : SkjemaEndring -> GodkjenningSkjema -> GodkjenningSkjema
 oppdaterSkjema endring skjema =
     case endring of
         Utsteder string ->
@@ -965,8 +955,8 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
     case MeldingsLogg.ferdigAnimert nyMeldingsLogg of
         FerdigAnimert ferdigAnimertSamtale ->
             case model.aktivSamtale of
-                VenterPåAnimasjonFørFullføring sertifikatListe _ ->
-                    Ferdig (sistLagret (Model model)) sertifikatListe ferdigAnimertSamtale
+                VenterPåAnimasjonFørFullføring godkjenningListe _ ->
+                    Ferdig (sistLagret (Model model)) godkjenningListe ferdigAnimertSamtale
 
                 _ ->
                     ( Model { model | seksjonsMeldingsLogg = nyMeldingsLogg }
@@ -984,28 +974,28 @@ updateEtterFullførtMelding model ( nyMeldingsLogg, cmd ) =
                 |> IkkeFerdig
 
 
-brukerVelgerSertifikatFelt : ModelInfo -> SertifikatFelt -> SamtaleStatus
-brukerVelgerSertifikatFelt info sertifikatFelt =
-    ( sertifikatFelt
-        |> sertifikatFeltTilUtsteder
+brukerVelgerGodkjenningFelt : ModelInfo -> GodkjenningFelt -> SamtaleStatus
+brukerVelgerGodkjenningFelt info godkjenningFelt =
+    ( godkjenningFelt
+        |> godkjenningFeltTilUtsteder
         |> RegistrerUtsteder
-        |> oppdaterSamtale info (ManueltSvar (Melding.svar [ sertifikatFeltTilString sertifikatFelt ]))
+        |> oppdaterSamtale info (ManueltSvar (Melding.svar [ godkjenningFeltTilString godkjenningFelt ]))
     , lagtTilSpørsmålCmd info.debugStatus
     )
         |> IkkeFerdig
 
 
-sertifikatFeltTilString : SertifikatFelt -> String
-sertifikatFeltTilString sertifikatFelt =
-    case sertifikatFelt of
-        SertifikatFraTypeahead sertifikatTypeahead ->
-            SertifikatTypeahead.label sertifikatTypeahead
+godkjenningFeltTilString : GodkjenningFelt -> String
+godkjenningFeltTilString godkjenningFelt =
+    case godkjenningFelt of
+        GodkjenningFraTypeahead godkjenningTypeahead ->
+            GodkjenningTypeahead.label godkjenningTypeahead
 
         Egendefinert inputValue ->
             inputValue
 
 
-updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertSertifikatSkjema -> SamtaleStatus
+updateEtterVilEndreSkjema : ModelInfo -> Msg -> ValidertGodkjenningSkjema -> SamtaleStatus
 updateEtterVilEndreSkjema model msg skjema =
     let
         ( typeaheadModel, query ) =
@@ -1017,18 +1007,18 @@ updateEtterVilEndreSkjema model msg skjema =
         |> oppdaterSamtale model (SvarFraMsg msg)
     , Cmd.batch
         [ lagtTilSpørsmålCmd model.debugStatus
-        , Api.getSertifikatTypeahead HentetTypeahead query
+        , Api.getGodkjenningTypeahead HentetTypeahead query
         ]
     )
         |> IkkeFerdig
 
 
-updateEtterLagreKnappTrykket : ModelInfo -> Msg -> ValidertSertifikatSkjema -> SamtaleStatus
+updateEtterLagreKnappTrykket : ModelInfo -> Msg -> ValidertGodkjenningSkjema -> SamtaleStatus
 updateEtterLagreKnappTrykket model msg skjema =
     ( LagreStatus.init
         |> LagrerSkjema skjema
         |> oppdaterSamtale model (SvarFraMsg msg)
-    , lagreSertifikat SertifikatLagret skjema
+    , lagreGodkjenning GodkjenningLagret skjema
     )
         |> IkkeFerdig
 
@@ -1086,34 +1076,34 @@ oppdaterSamtale model meldingsoppdatering samtale =
 
 
 samtaleTilMeldingsLogg : Samtale -> List Melding
-samtaleTilMeldingsLogg sertifikatSeksjon =
-    case sertifikatSeksjon of
-        RegistrerSertifikatFelt _ _ ->
-            [ Melding.spørsmål [ "Hva slags sertifikat eller sertifisering har du?" ]
-            , Melding.spørsmål [ "Kanskje du har sveisesertifikat, PRINCE2, eller noe helt annet? 😊" ]
+samtaleTilMeldingsLogg godkjenningSeksjon =
+    case godkjenningSeksjon of
+        RegistrerGodkjenningFelt _ _ ->
+            [ Melding.spørsmål [ "Hva slags godkjenning har du?" ]
+            , Melding.spørsmål [ "Kanskje du har truckførerbevis T1, eller noe helt annet? 😊" ]
             ]
 
         RegistrerUtsteder _ ->
-            [ Melding.spørsmål [ "Hvilken organisasjon sertifiserte deg?" ]
-            , Melding.spørsmål [ "Er du usikker på hvem som har ansvar for sertifiseringen? Det står ofte på beviset ditt." ]
+            [ Melding.spørsmål [ "Hvilken organisasjon har utstedt godkjenningen?" ]
+            , Melding.spørsmål [ "Er du usikker på hvem som har ansvar for? Det står ofte på beviset ditt." ]
             ]
 
         RegistrerFullførtDato _ ->
-            [ Melding.spørsmål [ "Når fullførte du sertifiseringen?" ]
+            [ Melding.spørsmål [ "Når ble godkjenningen utstedt?" ]
             ]
 
         SpørOmUtløpsdatoFinnes _ ->
-            [ Melding.spørsmål [ "Har sertifiseringen en utløpsdato?" ]
+            [ Melding.spørsmål [ "Har godkjenningen en utløpsdato?" ]
             ]
 
         RegistrerUtløpsdato _ ->
-            [ Melding.spørsmål [ "Når utløper sertifiseringen din?" ]
+            [ Melding.spørsmål [ "Når utløper godkjenningen din?" ]
             ]
 
         VisOppsummering oppsummeringsType skjema ->
             case oppsummeringsType of
                 AvbrøtSletting ->
-                    [ Melding.spørsmål [ "Ok, da lar jeg sertifiseringen/sertifikatet stå." ]
+                    [ Melding.spørsmål [ "Ok, da lar jeg godkjenningen stå." ]
                     , oppsummeringsSpørsmål skjema
                     ]
 
@@ -1127,16 +1117,16 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
             [ Melding.spørsmål [ "Endre informasjonen i feltene under." ] ]
 
         BekreftSlettingAvPåbegynt _ ->
-            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne sertifiseringen/sertifikatet?" ] ]
+            [ Melding.spørsmål [ "Er du sikker på at du vil slette denne godkjenningen?" ] ]
 
         LagrerSkjema _ _ ->
             []
 
         LagringFeilet error _ ->
-            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre sertifikat/sertifisering" } ]
+            [ ErrorHåndtering.errorMelding { error = error, operasjon = "lagre godkjenning" } ]
 
         BekreftAvbrytingAvRegistreringen _ ->
-            [ Melding.spørsmål [ "Hvis du avbryter, blir ikke sertifikatet/sertifiseringen lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
+            [ Melding.spørsmål [ "Hvis du avbryter, blir ikke godkjenningen lagret på CV-en din. Er du sikker på at du vil avbryte?" ] ]
 
         VenterPåAnimasjonFørFullføring _ avsluttetGrunn ->
             case avsluttetGrunn of
@@ -1144,26 +1134,26 @@ samtaleTilMeldingsLogg sertifikatSeksjon =
                     [ Melding.spørsmål [ "Nå har jeg avbrutt. Vil du legge inn flere kategorier?" ] ]
 
                 SlettetPåbegynt ->
-                    [ Melding.spørsmål [ "Nå har jeg slettet sertifiseringen/sertifikatet. Vil du legge inn flere kategorier?" ] ]
+                    [ Melding.spørsmål [ "Nå har jeg slettet godkjenningen. Vil du legge inn flere kategorier?" ] ]
 
                 AnnenAvslutning ->
                     [ Melding.spørsmål [ "Vil du legge inn flere kategorier?" ] ]
 
 
-validertSkjemaTilSetninger : ValidertSertifikatSkjema -> List String
+validertSkjemaTilSetninger : ValidertGodkjenningSkjema -> List String
 validertSkjemaTilSetninger validertSkjema =
     let
         skjema =
             Skjema.tilUvalidertSkjema validertSkjema
     in
-    [ "Sertifisering/sertifikat: " ++ (validertSkjema |> Skjema.sertifikatString)
+    [ "Godkjenning: " ++ (validertSkjema |> Skjema.godkjenningString)
     , "Utsteder: " ++ Skjema.utsteder skjema
     , "Fullført: " ++ Dato.datoTilString (Skjema.fullførtMåned skjema) (Skjema.fullførtÅrValidert validertSkjema)
     , "Utløper: " ++ utløpsdatoTilString (Skjema.utløpsdatoValidert validertSkjema)
     ]
 
 
-oppsummeringsSpørsmål : ValidertSertifikatSkjema -> Melding
+oppsummeringsSpørsmål : ValidertGodkjenningSkjema -> Melding
 oppsummeringsSpørsmål skjema =
     Melding.spørsmål
         ([ "Du har lagt inn dette:"
@@ -1190,8 +1180,8 @@ utløpsdatoTilString utløpsdato =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
-        RegistrerSertifikatFelt _ _ ->
-            settFokusCmd SertifikatTypeaheadId
+        RegistrerGodkjenningFelt _ _ ->
+            settFokusCmd GodkjenningTypeaheadId
 
         RegistrerUtsteder _ ->
             settFokusCmd UtstederId
@@ -1209,7 +1199,7 @@ settFokus samtale =
             settFokusCmd BekreftOppsummeringId
 
         EndreOpplysninger _ _ ->
-            settFokusCmd SertifikatTypeaheadId
+            settFokusCmd GodkjenningTypeaheadId
 
         LagringFeilet _ _ ->
             settFokusCmd LagringFeiletActionId
@@ -1236,7 +1226,7 @@ settFokusCmd inputId =
 
 
 type InputId
-    = SertifikatTypeaheadId
+    = GodkjenningTypeaheadId
     | UtstederId
     | FullførtMånedId
     | LeggTilUtløperId
@@ -1251,31 +1241,31 @@ inputIdTilString : InputId -> String
 inputIdTilString inputId =
     case inputId of
         UtstederId ->
-            "sertifikat-utsteder-id"
+            "godkjenning-utsteder-id"
 
-        SertifikatTypeaheadId ->
-            "sertifikat-typeahead-id"
+        GodkjenningTypeaheadId ->
+            "godkjenning-typeahead-id"
 
         FullførtMånedId ->
-            "sertifikat-fullførtmåned-id"
+            "godkjenning-fullførtmåned-id"
 
         LeggTilUtløperId ->
-            "sertifikat-legg-til-utløper-id"
+            "godkjenning-legg-til-utløper-id"
 
         UtløperMånedId ->
-            "sertifikat-utløpermåned-id"
+            "godkjenning-utløpermåned-id"
 
         BekreftOppsummeringId ->
-            "sertifikat-bekreft-oppsummering-id"
+            "godkjenning-bekreft-oppsummering-id"
 
         SlettePåbegyntId ->
-            "sertifikat-slett-påbegynt-id"
+            "godkjenning-slett-påbegynt-id"
 
         LagringFeiletActionId ->
-            "sertifikat-lagring-feilet-id"
+            "godkjenning-lagring-feilet-id"
 
         AvbrytSlettingId ->
-            "sertifikat-avbrytt-slett-id"
+            "godkjenning-avbrytt-slett-id"
 
 
 viewBrukerInput : Model -> Html Msg
@@ -1289,12 +1279,12 @@ modelTilBrukerInput : ModelInfo -> BrukerInput Msg
 modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
-            RegistrerSertifikatFelt visFeilmelding typeaheadModel ->
-                BrukerInput.typeaheadMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereSertifikat }
+            RegistrerGodkjenningFelt visFeilmelding typeaheadModel ->
+                BrukerInput.typeaheadMedGåVidereKnapp { onAvbryt = VilAvbryteRegistreringen, onGåVidere = VilRegistrereGodkjenning }
                     (typeaheadModel
                         |> feilmeldingTypeahead
                         |> maybeHvisTrue visFeilmelding
-                        |> Typeahead.toViewElement SertifikatTypeahead.label typeaheadModel
+                        |> Typeahead.toViewElement GodkjenningTypeahead.label typeaheadModel
                         |> FrontendModuler.Typeahead.map TypeaheadMsg
                     )
 
@@ -1326,9 +1316,9 @@ modelTilBrukerInput model =
 
             SpørOmUtløpsdatoFinnes _ ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp SvarerJaTilUtløpsdato "Ja, sertifiseringen utløper"
+                    [ Knapp.knapp SvarerJaTilUtløpsdato "Ja, godkjenningen utløper"
                         |> Knapp.withId (inputIdTilString LeggTilUtløperId)
-                    , Knapp.knapp SvarerNeiTilUtløpsdato "Nei, sertifiseringen utløper ikke"
+                    , Knapp.knapp SvarerNeiTilUtløpsdato "Nei, godkjenningen utløper ikke"
                     ]
 
             RegistrerUtløpsdato utløpsdatoInfo ->
@@ -1355,8 +1345,8 @@ modelTilBrukerInput model =
             EndreOpplysninger typeaheadModel skjema ->
                 BrukerInput.skjema { lagreMsg = VilLagreEndretSkjema, lagreKnappTekst = "Lagre endringer" }
                     [ skjema
-                        |> Skjema.feilmeldingSertifikatFelt
-                        |> Typeahead.view SertifikatTypeahead.label typeaheadModel
+                        |> Skjema.feilmeldingGodkjenningFelt
+                        |> Typeahead.view GodkjenningTypeahead.label typeaheadModel
                         |> Html.map TypeaheadMsg
                     , skjema
                         |> Skjema.utsteder
@@ -1369,7 +1359,7 @@ modelTilBrukerInput model =
                             , onÅrChange = FullførtÅr >> SkjemaEndret
                             , år = Skjema.fullførtÅr skjema
                             }
-                            |> DatoInput.withLabel "Når fullførte du sertifiseringen?"
+                            |> DatoInput.withLabel "Når fullførte du godkjenningen?"
                             |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingFullførtÅr skjema)
                             |> DatoInput.withOnBlurÅr (SkjemaEndret FullførtÅrMistetFokus)
                             |> DatoInput.toHtml
@@ -1380,7 +1370,7 @@ modelTilBrukerInput model =
                                 , onÅrChange = UtløperÅr >> SkjemaEndret
                                 , år = Skjema.utløperÅr skjema
                                 }
-                                |> DatoInput.withLabel "Når utløper sertifiseringen?"
+                                |> DatoInput.withLabel "Når utløper godkjenningen?"
                                 |> DatoInput.withFeilmeldingÅr (Skjema.feilmeldingUtløperÅr skjema)
                                 |> DatoInput.withOnBlurÅr (SkjemaEndret UtløperÅrMistetFokus)
                                 |> DatoInput.toHtml
@@ -1390,7 +1380,7 @@ modelTilBrukerInput model =
                         ]
                     , skjema
                         |> Skjema.utløperIkke
-                        |> Checkbox.checkbox "Sertifiseringen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
+                        |> Checkbox.checkbox "Godkjenningen utløper ikke" (SkjemaEndret UtløperIkkeToggled)
                         |> Checkbox.withClass "blokk-m"
                         |> Checkbox.toHtml
                     ]
@@ -1413,15 +1403,15 @@ modelTilBrukerInput model =
                 case ErrorHåndtering.operasjonEtterError error of
                     GiOpp ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp FerdigMedSertifikat "Gå videre"
+                            [ Knapp.knapp FerdigMedGodkjenning "Gå videre"
                                 |> Knapp.withId (inputIdTilString LagringFeiletActionId)
                             ]
 
                     PrøvPåNytt ->
                         BrukerInput.knapper Flytende
-                            [ Knapp.knapp VilLagreSertifikat "Prøv igjen"
+                            [ Knapp.knapp VilLagreGodkjenning "Prøv igjen"
                                 |> Knapp.withId (inputIdTilString LagringFeiletActionId)
-                            , Knapp.knapp FerdigMedSertifikat "Gå videre"
+                            , Knapp.knapp FerdigMedGodkjenning "Gå videre"
                             ]
 
                     LoggInn ->
@@ -1444,7 +1434,7 @@ modelTilBrukerInput model =
 viewBekreftOppsummering : BrukerInput Msg
 viewBekreftOppsummering =
     BrukerInput.knapper Kolonne
-        [ Knapp.knapp VilLagreSertifikat "Ja, det er riktig"
+        [ Knapp.knapp VilLagreGodkjenning "Ja, det er riktig"
             |> Knapp.withId (inputIdTilString BekreftOppsummeringId)
         , Knapp.knapp VilEndreOpplysninger "Nei, jeg vil endre"
         , Knapp.knapp VilSlettePåbegynt "Nei, jeg vil slette"
@@ -1460,27 +1450,27 @@ maybeHvisTrue bool maybe =
         Nothing
 
 
-lagreSertifikat : (Result Error (List Sertifikat) -> msg) -> Skjema.ValidertSertifikatSkjema -> Cmd msg
-lagreSertifikat msgConstructor skjema =
+lagreGodkjenning : (Result Error (List Godkjenning) -> msg) -> Skjema.ValidertGodkjenningSkjema -> Cmd msg
+lagreGodkjenning msgConstructor skjema =
     case Skjema.id skjema of
         Just id ->
-            Api.endreSertifikat msgConstructor skjema id
+            Api.endreGodkjenning msgConstructor skjema id
 
         Nothing ->
-            Api.opprettSertifikat msgConstructor skjema
+            Api.opprettGodkjenning msgConstructor skjema
 
 
 
 --- INIT ---
 
 
-init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Sertifikat -> ( Model, Cmd Msg )
-init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg sertifikatListe =
+init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Godkjenning -> ( Model, Cmd Msg )
+init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg godkjenningListe =
     let
         aktivSamtale =
             initSamtaleTypeahead
                 |> Tuple.first
-                |> RegistrerSertifikatFelt False
+                |> RegistrerGodkjenningFelt False
     in
     ( Model
         { seksjonsMeldingsLogg =
@@ -1488,7 +1478,7 @@ init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg sertifikatListe 
                 |> MeldingsLogg.tilMeldingsLogg
                 |> MeldingsLogg.leggTilSpørsmål (samtaleTilMeldingsLogg aktivSamtale)
         , aktivSamtale = aktivSamtale
-        , sertifikatListe = sertifikatListe
+        , godkjenningListe = godkjenningListe
         , debugStatus = debugStatus
         , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
         }

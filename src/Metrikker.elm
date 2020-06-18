@@ -10,6 +10,7 @@ type Seksjon
     | Arbeidserfaring
     | Språk
     | Fagdokumentasjon
+    | Godkjenning
     | Sertifikat
     | AnnenErfaring
     | Førerkort
@@ -50,6 +51,9 @@ seksjonTilString seksjon =
 
         Fagdokumentasjon ->
             "fagdokumentasjon"
+
+        Godkjenning ->
+            "godkjenning"
 
         Sertifikat ->
             "sertifikat"
