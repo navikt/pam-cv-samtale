@@ -2626,7 +2626,7 @@ seksjonsvalgTilString seksjonsvalg =
             "Annen erfaring"
 
         KursValgt ->
-            "Kurs"
+            "Kurs jeg har tatt"
 
         FørerkortValgt ->
             "Førerkort"
