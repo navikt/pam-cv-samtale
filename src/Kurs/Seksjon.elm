@@ -845,7 +845,7 @@ samtaleTilMeldingsLogg kursSeksjon =
         RegistrerKursnavn _ ->
             [ Melding.spørsmål [ "Hva heter kurset du vil legge inn?" ]
             , Melding.spørsmål
-                [ "Har du førstehjelpskurs, kanskje et språkkurs, eller noe helt annet?" ]
+                [ "Har du førstehjelpskurs, kanskje et kurs i legemiddelhåndtering, eller noe helt annet?" ]
             ]
 
         RegistrerKursholder _ ->

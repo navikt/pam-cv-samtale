@@ -1733,7 +1733,7 @@ samtaleTilMeldingsLogg samtale =
     case samtale of
         Introduksjon personalia ->
             [ Melding.spørsmål [ "Hei, " ++ (Personalia.fornavn personalia |> Maybe.withDefault "") ++ ", nå starter vi på CV-en din!" ]
-            , Melding.spørsmål [ "Først legger du inn utdanning, arbeidserfaring, språk og førerkort. Etter det kan du legge inn fagbrev, kurs, sertifisering og sammendrag." ]
+            , Melding.spørsmål [ "Først legger du inn utdanning, arbeidserfaring, språk og førerkort. Etter det kan du legge til fagbrev, annen erfaring, godkjenninger i lovregulerte yrker, sertifiseringer, kurs og sammendrag." ]
             , Melding.spørsmål [ "Du skal ikke skrive inn noe om helse, religion eller politiske oppfatning." ]
             , Melding.spørsmål [ "Er du klar til å begynne?" ]
             ]
