@@ -1749,7 +1749,8 @@ samtaleTilMeldingsLogg samtale =
         LeggTilAnnet ->
             [ Melding.spørsmål [ "Det er viktig å få med alt du kan på CV-en." ]
             , Melding.spørsmål [ "Har du jobbet som frivillig eller har hatt verv? Legg til annen erfaring." ]
-            , Melding.spørsmål [ "Har du tatt norskprøve? Legg til kurs." ]
+            , Melding.spørsmål [ "Har du en autorisasjon eller et førerbevis? Legg til offentlig godkjenning" ]
+            , Melding.spørsmål [ "Har du en sertifisering? Legg til annen godkjenning" ]
             , Melding.spørsmål [ "Vil du legge til noen av disse kategoriene?" ]
             ]
 
