@@ -42,6 +42,7 @@ import Meldinger.SamtaleOppdatering exposing (SamtaleOppdatering(..))
 import Process
 import Result.Extra as Result
 import Task
+import Throttle exposing (Throttle)
 import Tid exposing (nyesteSistLagretVerdi)
 import Time exposing (Posix)
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
@@ -63,6 +64,7 @@ type alias ModelInfo =
     , debugStatus : DebugStatus
     , sistLagretFraForrigeSeksjon : Posix
     , harFullførtEnSamtale : Bool
+    , throttle : Throttle Msg
     }
 
 
@@ -176,6 +178,7 @@ type Msg
     | SamtaleAnimasjonMsg SamtaleAnimasjon.Msg
     | FokusSatt (Result Dom.Error ())
     | ErrorLogget
+    | UpdateThrottle Posix
 
 
 type SkjemaEndring
@@ -380,20 +383,34 @@ update msg (Model model) =
                         ( nyTypeaheadModel, status ) =
                             Typeahead.update Yrke.label typeaheadMsg gammelTypeaheadModel
                     in
-                    IkkeFerdig
-                        ( nyTypeaheadModel
-                            |> Typeahead.selected
-                            |> Skjema.oppdaterYrke skjema
-                            |> Skjema.gjørFeilmeldingYrkeSynlig (Typeahead.inputStatus status == InputBlurred)
-                            |> RedigerSkjema skjemaType nyTypeaheadModel
-                            |> oppdaterSamtale model IngenNyeMeldinger
-                        , case Typeahead.getSuggestionsStatus status of
-                            GetSuggestionsForInput query ->
-                                Api.getYrkeTypeahead HentetYrkeTypeahead query
+                    case Typeahead.getSuggestionsStatus status of
+                        GetSuggestionsForInput query ->
+                            let
+                                ( newThrottle, throttledCmd ) =
+                                    Throttle.try
+                                        (Api.getYrkeTypeahead HentetYrkeTypeahead query)
+                                        model.throttle
+                            in
+                            IkkeFerdig
+                                ( nyTypeaheadModel
+                                    |> Typeahead.selected
+                                    |> Skjema.oppdaterYrke skjema
+                                    |> Skjema.gjørFeilmeldingYrkeSynlig (Typeahead.inputStatus status == InputBlurred)
+                                    |> RedigerSkjema skjemaType nyTypeaheadModel
+                                    |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                                , throttledCmd
+                                )
 
-                            DoNothing ->
-                                Cmd.none
-                        )
+                        DoNothing ->
+                            IkkeFerdig
+                                ( nyTypeaheadModel
+                                    |> Typeahead.selected
+                                    |> Skjema.oppdaterYrke skjema
+                                    |> Skjema.gjørFeilmeldingYrkeSynlig (Typeahead.inputStatus status == InputBlurred)
+                                    |> RedigerSkjema skjemaType nyTypeaheadModel
+                                    |> oppdaterSamtale model IngenNyeMeldinger
+                                , Cmd.none
+                                )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -1075,6 +1092,13 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        UpdateThrottle _ ->
+            let
+                ( newThrottle, cmd ) =
+                    Throttle.update model.throttle
+            in
+            IkkeFerdig ( Model { model | throttle = newThrottle }, cmd )
+
 
 avbrytRegistrering : ModelInfo -> Msg -> SamtaleStatus
 avbrytRegistrering model msg =
@@ -1110,17 +1134,28 @@ updateSamtaleTypeahead model visFeilmelding msg typeaheadModel =
                 )
 
         Typeahead.NoChange ->
-            IkkeFerdig
-                ( nyTypeaheadModel
-                    |> RegistrerYrke visFeilmelding
-                    |> oppdaterSamtale model IngenNyeMeldinger
-                , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput query ->
-                        Api.getYrkeTypeahead HentetYrkeTypeahead query
+            case Typeahead.getSuggestionsStatus status of
+                GetSuggestionsForInput query ->
+                    let
+                        ( newThrottle, throttledCmd ) =
+                            Throttle.try
+                                (Api.getYrkeTypeahead HentetYrkeTypeahead query)
+                                model.throttle
+                    in
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> RegistrerYrke visFeilmelding
+                            |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                        , throttledCmd
+                        )
 
-                    DoNothing ->
-                        Cmd.none
-                )
+                DoNothing ->
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> RegistrerYrke visFeilmelding
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
         NewActiveElement ->
             IkkeFerdig
@@ -2045,6 +2080,7 @@ init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg arbeidserfarings
         , debugStatus = debugStatus
         , sistLagretFraForrigeSeksjon = sistLagretFraForrigeSeksjon
         , harFullførtEnSamtale = False
+        , throttle = Throttle.create 1
         }
     , lagtTilSpørsmålCmd debugStatus
     )
@@ -2057,4 +2093,7 @@ subscriptions (Model model) =
         , model.seksjonsMeldingsLogg
             |> SamtaleAnimasjon.subscriptions
             |> Sub.map SamtaleAnimasjonMsg
+        , Throttle.ifNeeded
+            (Time.every 200 UpdateThrottle)
+            model.throttle
         ]

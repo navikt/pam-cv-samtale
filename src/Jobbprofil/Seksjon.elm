@@ -47,6 +47,7 @@ import Process
 import Result.Extra as Result
 import String
 import Task
+import Throttle exposing (Throttle)
 import Time exposing (Posix)
 import Typeahead.Typeahead as Typeahead exposing (GetSuggestionStatus(..), InputStatus(..))
 
@@ -66,6 +67,7 @@ type alias ModelInfo =
     , sistLagretFraCV : Posix
     , sistLagretJobbprofil : Maybe Posix
     , brukerInfo : BrukerInfo
+    , throttle : Throttle Msg
     }
 
 
@@ -186,6 +188,7 @@ type Msg
     | FeltMisterFokus
     | TimeoutEtterAtFeltMistetFokus
     | FokusSatt (Result Dom.Error ())
+    | UpdateThrottle Posix
 
 
 type CheckboxEndring
@@ -969,6 +972,13 @@ update msg (Model model) =
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
 
+        UpdateThrottle _ ->
+            let
+                ( newThrottle, cmd ) =
+                    Throttle.update model.throttle
+            in
+            IkkeFerdig ( Model { model | throttle = newThrottle }, cmd )
+
 
 ferdigAnimertMeldingsLogg : ( Model, Cmd Msg ) -> FerdigAnimertMeldingsLogg
 ferdigAnimertMeldingsLogg ( Model model, _ ) =
@@ -1080,17 +1090,28 @@ updateSamtaleKompetanseTypeahead model info msg typeaheadModel =
                 )
 
         Typeahead.NoChange ->
-            IkkeFerdig
-                ( nyTypeaheadModel
-                    |> LeggTilKompetanser info
-                    |> oppdaterSamtale model IngenNyeMeldinger
-                , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput query ->
-                        Api.getKompetanseJobbprofilTypeahead HentetKompetanseTypeahead query
+            case Typeahead.getSuggestionsStatus status of
+                GetSuggestionsForInput query ->
+                    let
+                        ( newThrottle, throttledCmd ) =
+                            Throttle.try
+                                (Api.getKompetanseJobbprofilTypeahead HentetKompetanseTypeahead query)
+                                model.throttle
+                    in
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> LeggTilKompetanser info
+                            |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                        , throttledCmd
+                        )
 
-                    DoNothing ->
-                        Cmd.none
-                )
+                DoNothing ->
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> LeggTilKompetanser info
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
         NewActiveElement ->
             IkkeFerdig
@@ -1130,16 +1151,26 @@ updateEndreSamtaleKompetanseTypeahead model info msg typeaheadModel =
                 )
 
         Typeahead.NoChange ->
-            IkkeFerdig
-                ( EndreOppsummering info { typeaheadModel | kompetanser = nyTypeaheadModel }
-                    |> oppdaterSamtale model IngenNyeMeldinger
-                , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput query ->
-                        Api.getKompetanseJobbprofilTypeahead HentetKompetanseTypeahead query
+            case Typeahead.getSuggestionsStatus status of
+                GetSuggestionsForInput query ->
+                    let
+                        ( newThrottle, throttledCmd ) =
+                            Throttle.try
+                                (Api.getKompetanseJobbprofilTypeahead HentetKompetanseTypeahead query)
+                                model.throttle
+                    in
+                    IkkeFerdig
+                        ( EndreOppsummering info { typeaheadModel | kompetanser = nyTypeaheadModel }
+                            |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                        , throttledCmd
+                        )
 
-                    DoNothing ->
-                        Cmd.none
-                )
+                DoNothing ->
+                    IkkeFerdig
+                        ( EndreOppsummering info { typeaheadModel | kompetanser = nyTypeaheadModel }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
         NewActiveElement ->
             IkkeFerdig
@@ -1180,17 +1211,28 @@ updateSamtaleOmradeTypeahead model info msg typeaheadModel =
                 )
 
         Typeahead.NoChange ->
-            IkkeFerdig
-                ( nyTypeaheadModel
-                    |> LeggTilOmrader info
-                    |> oppdaterSamtale model IngenNyeMeldinger
-                , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput query ->
-                        Api.getOmradeJobbprofilTypeahead HentetOmradeTypeahead query
+            case Typeahead.getSuggestionsStatus status of
+                GetSuggestionsForInput query ->
+                    let
+                        ( newThrottle, throttledCmd ) =
+                            Throttle.try
+                                (Api.getOmradeJobbprofilTypeahead HentetOmradeTypeahead query)
+                                model.throttle
+                    in
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> LeggTilOmrader info
+                            |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                        , throttledCmd
+                        )
 
-                    DoNothing ->
-                        Cmd.none
-                )
+                DoNothing ->
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> LeggTilOmrader info
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
         NewActiveElement ->
             IkkeFerdig
@@ -1230,16 +1272,26 @@ updateEndreSamtaleOmradeTypeahead model info msg typeaheadModel =
                 )
 
         Typeahead.NoChange ->
-            IkkeFerdig
-                ( EndreOppsummering info { typeaheadModel | omrader = nyTypeaheadModel }
-                    |> oppdaterSamtale model IngenNyeMeldinger
-                , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput query ->
-                        Api.getOmradeJobbprofilTypeahead HentetOmradeTypeahead query
+            case Typeahead.getSuggestionsStatus status of
+                GetSuggestionsForInput query ->
+                    let
+                        ( newThrottle, throttledCmd ) =
+                            Throttle.try
+                                (Api.getOmradeJobbprofilTypeahead HentetOmradeTypeahead query)
+                                model.throttle
+                    in
+                    IkkeFerdig
+                        ( EndreOppsummering info { typeaheadModel | omrader = nyTypeaheadModel }
+                            |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                        , throttledCmd
+                        )
 
-                    DoNothing ->
-                        Cmd.none
-                )
+                DoNothing ->
+                    IkkeFerdig
+                        ( EndreOppsummering info { typeaheadModel | omrader = nyTypeaheadModel }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
         NewActiveElement ->
             IkkeFerdig
@@ -1283,17 +1335,28 @@ updateSamtaleYrkeTypeahead model info msg typeaheadModel =
                 )
 
         Typeahead.NoChange ->
-            IkkeFerdig
-                ( nyTypeaheadModel
-                    |> LeggTilYrker info
-                    |> oppdaterSamtale model IngenNyeMeldinger
-                , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput query ->
-                        Api.getYrkeJobbprofilTypeahead HentetYrkeTypeahead query
+            case Typeahead.getSuggestionsStatus status of
+                GetSuggestionsForInput query ->
+                    let
+                        ( newThrottle, throttledCmd ) =
+                            Throttle.try
+                                (Api.getYrkeJobbprofilTypeahead HentetYrkeTypeahead query)
+                                model.throttle
+                    in
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> LeggTilYrker info
+                            |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                        , throttledCmd
+                        )
 
-                    DoNothing ->
-                        Cmd.none
-                )
+                DoNothing ->
+                    IkkeFerdig
+                        ( nyTypeaheadModel
+                            |> LeggTilYrker info
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
         NewActiveElement ->
             IkkeFerdig
@@ -1333,16 +1396,26 @@ updateEndreSamtaleYrkeTypeahead model info msg typeaheadModel =
                 )
 
         Typeahead.NoChange ->
-            IkkeFerdig
-                ( EndreOppsummering info { typeaheadModel | yrker = nyTypeaheadModel }
-                    |> oppdaterSamtale model IngenNyeMeldinger
-                , case Typeahead.getSuggestionsStatus status of
-                    GetSuggestionsForInput query ->
-                        Api.getYrkeJobbprofilTypeahead HentetYrkeTypeahead query
+            case Typeahead.getSuggestionsStatus status of
+                GetSuggestionsForInput query ->
+                    let
+                        ( newThrottle, throttledCmd ) =
+                            Throttle.try
+                                (Api.getYrkeJobbprofilTypeahead HentetYrkeTypeahead query)
+                                model.throttle
+                    in
+                    IkkeFerdig
+                        ( EndreOppsummering info { typeaheadModel | yrker = nyTypeaheadModel }
+                            |> oppdaterSamtale { model | throttle = newThrottle } IngenNyeMeldinger
+                        , throttledCmd
+                        )
 
-                    DoNothing ->
-                        Cmd.none
-                )
+                DoNothing ->
+                    IkkeFerdig
+                        ( EndreOppsummering info { typeaheadModel | yrker = nyTypeaheadModel }
+                            |> oppdaterSamtale model IngenNyeMeldinger
+                        , Cmd.none
+                        )
 
         NewActiveElement ->
             IkkeFerdig
@@ -2169,6 +2242,7 @@ init debugStatus sistLagretFraCV brukerInfo gammelMeldingsLogg =
         , debugStatus = debugStatus
         , sistLagretFraCV = sistLagretFraCV
         , sistLagretJobbprofil = Nothing
+        , throttle = Throttle.create 1
         }
     , Cmd.batch
         [ lagtTilSpørsmålCmd debugStatus
@@ -2217,4 +2291,7 @@ subscriptions (Model model) =
         , model.seksjonsMeldingsLogg
             |> SamtaleAnimasjon.subscriptions
             |> Sub.map SamtaleAnimasjonMsg
+        , Throttle.ifNeeded
+            (Time.every 200 UpdateThrottle)
+            model.throttle
         ]
