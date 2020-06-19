@@ -2629,10 +2629,10 @@ seksjonsvalgTilString seksjonsvalg =
             "Mesterbrev"
 
         GodkjenningValgt ->
-            "Godkjenninger i lovregulerte yrker - autorisasjoner, førerbevis m.m."
+            "Offentlige godkjenninger"
 
         SertifiseringValgt ->
-            "Andre godkjenninger - sertifiseringer"
+            "Andre godkjenninger"
 
         AnnenErfaringValgt ->
             "Annen erfaring"
