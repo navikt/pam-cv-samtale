@@ -558,6 +558,10 @@ html {
     margin-top: 0;
   }
 
+  .skjemaelement {
+    margin-bottom: 1rem;
+  }
+
   @media (min-width: @storSkjermSkjema) {
     width: @skjemaBredde;
   }
@@ -659,13 +663,6 @@ html {
 .radio-checkbox-gruppe-wrapper {
   margin-bottom: 1rem;
 
-  .radio-gruppe-feilområde {
-    border: 1px solid #ba3a26;
-    border-radius: 4px;
-    background-color: #f3e3e3;
-    margin-bottom: .5rem;
-    padding: 0.5rem 1rem 0 0.5rem;
-  }
 }
 
 .auto-width {
@@ -693,6 +690,7 @@ a.avslutt-knapp.Knapp {
 .skjemaelement__måFyllesUt {
   font-size: 14px;
   color: #78706a;
+  font-weight: normal;
 }
 
 .skjemaelement--checkbox-label {
@@ -717,12 +715,16 @@ a.avslutt-knapp.Knapp {
   margin: 1rem 0 0;
 
   legend.skjemaelement__label {
-    font-weight: bold;
+    font-weight: 600;
   }
 
-  .skjemaelement__måFyllesUt {
+  .skjemaelement__måFyllesUt, .skjemaelement__label {
     font-weight: normal;
   }
+}
+
+.Varighet-fieldset {
+  margin-bottom: 1rem;
 }
 
 
@@ -774,6 +776,9 @@ a.avslutt-knapp.Knapp {
 
 .Varighet-wrapper {
   display: flex;
+  .skjemaelement {
+    margin-bottom: 0;
+  }
 
 
   .selectContainer {

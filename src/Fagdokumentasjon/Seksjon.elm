@@ -604,7 +604,7 @@ feilmeldingstekstIkkeValgtKonsept : FagdokumentasjonType -> String
 feilmeldingstekstIkkeValgtKonsept fagdokumentasjonType =
     case fagdokumentasjonType of
         SvennebrevFagbrev ->
-            "Velg et svennebrev/fagbrev fra listen med forslag som kommer opp"
+            "Velg et fagbrev/svennebrev fra listen med forslag som kommer opp"
 
         Mesterbrev ->
             "Velg et mesterbrev fra listen med forslag som kommer opp"
