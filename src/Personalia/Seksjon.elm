@@ -18,6 +18,7 @@ import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import Feilmelding
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
+import FrontendModuler.Feilmelding as Feilmelding
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp
 import FrontendModuler.LoggInnLenke as LoggInnLenke
@@ -954,12 +955,8 @@ viewTelefonISkjema personaliaSkjema =
                     ]
                     []
                 ]
-            , case Skjema.telefonFeilmelding personaliaSkjema of
-                Just feilmelding ->
-                    div [ class "skjemaelement__feilmelding" ] [ text feilmelding ]
-
-                Nothing ->
-                    text ""
+            , Skjema.telefonFeilmelding personaliaSkjema
+                |> Feilmelding.htmlFeilmelding
             ]
         ]
 

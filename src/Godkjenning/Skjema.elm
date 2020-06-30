@@ -207,7 +207,7 @@ feilmeldingGodkjenningFelt (UvalidertSkjema skjema) =
                 Nothing
 
             Nothing ->
-                Just "Velg eller skriv inn godkjenning"
+                Just "Velg en godkjenning fra listen med forslag som kommer opp"
 
     else
         Nothing

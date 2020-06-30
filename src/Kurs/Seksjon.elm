@@ -20,6 +20,7 @@ import ErrorHandtering as ErrorHåndtering exposing (OperasjonEtterError(..))
 import FrontendModuler.BrukerInput as BrukerInput exposing (BrukerInput, KnapperLayout(..))
 import FrontendModuler.BrukerInputMedGaVidereKnapp as BrukerInputMedGåVidereKnapp
 import FrontendModuler.DatoInput as DatoInput
+import FrontendModuler.Feilmelding as Feilmelding
 import FrontendModuler.Input as Input
 import FrontendModuler.Knapp as Knapp exposing (Knapp)
 import FrontendModuler.LoggInnLenke as LoggInnLenke
@@ -1230,15 +1231,23 @@ viewBekreftOppsummering =
 
 viewVarighet : KursSkjema -> Html Msg
 viewVarighet skjema =
-    fieldset [ class "DatoInput-fieldset" ]
+    fieldset [ class "DatoInput-fieldset Varighet-fieldset" ]
         [ legend [ class "skjemaelement__label" ]
             [ text "Hvor lenge varte kurset?" ]
-        , div [ class "Varighet-wrapper skjemaelement" ]
+        , div [ class "Varighet-wrapper" ]
             [ Skjema.innholdTekstFelt Varighet skjema
                 |> Input.input { label = "Antall", msg = Tekst Varighet >> SkjemaEndret }
-                |> Input.withClass "Varighet-antall"
+                |> Input.withClass
+                    ("Varighet-antall"
+                        ++ (case Skjema.feilmeldingVarighetHvisSynlig skjema of
+                                Just _ ->
+                                    " skjemaelement__input--harFeil"
+
+                                Nothing ->
+                                    ""
+                           )
+                    )
                 |> Input.withOnBlur (SkjemaEndret VarighetBlurred)
-                |> Input.withFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
                 |> Input.toHtml
             , Select.select
                 "Timer/dager/uker/måneder"
@@ -1253,6 +1262,7 @@ viewVarighet skjema =
                 |> Select.withClass "Varighet-enhet"
                 |> Select.toHtml
             ]
+        , Feilmelding.htmlFeilmelding (Skjema.feilmeldingVarighetHvisSynlig skjema)
         ]
 
 

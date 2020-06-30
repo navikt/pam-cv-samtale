@@ -53,26 +53,21 @@ toHtml (RadioGruppe options) =
     fieldset
         [ class "radio-checkbox-fieldset radio-checkbox-gruppe-wrapper"
         ]
-        [ legend [ class "skjemaelement__label" ]
-            (if options.obligatorisk then
-                [ text options.legend
-                , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
-                ]
+        (List.concat
+            [ [ legend [ class "skjemaelement__label" ]
+                    (if options.obligatorisk then
+                        [ text options.legend
+                        , span [ class "skjemaelement__måFyllesUt" ] [ text " - må fylles ut" ]
+                        ]
 
-             else
-                [ text options.legend ]
-            )
-        , div
-            [ classList
-                [ ( "radio-gruppe-feilområde", options.feilmelding /= Nothing )
-                ]
+                     else
+                        [ text options.legend ]
+                    )
+              ]
+            , List.map Radio.toHtml options.radioknapper
+            , [ htmlFeilmelding options.feilmelding ]
             ]
-            (List.map
-                Radio.toHtml
-                options.radioknapper
-            )
-        , htmlFeilmelding options.feilmelding
-        ]
+        )
 
 
 radioKnapper : RadioGruppe msg -> List (Radio msg)

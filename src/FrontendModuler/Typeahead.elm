@@ -20,6 +20,7 @@ module FrontendModuler.Typeahead exposing
 import Browser.Dom as Dom
 import FrontendModuler.Alertstripe as Alertstripe
 import FrontendModuler.CoronaInfobox as CoronaInfobox
+import FrontendModuler.Feilmelding exposing (htmlFeilmelding)
 import FrontendModuler.Knapp as Knapp
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -244,12 +245,9 @@ toHtml (Typeahead options) =
                                     |> Maybe.withDefault noAttribute
                                 ]
             ]
-        , case ( options.feilmelding, options.errorMelding ) of
-            ( Just feilmelding, Nothing ) ->
-                div [ role "alert", ariaLive "assertive" ]
-                    [ div [ class "skjemaelement__feilmelding" ]
-                        [ text feilmelding ]
-                    ]
+        , case options.errorMelding of
+            Nothing ->
+                htmlFeilmelding options.feilmelding
 
             _ ->
                 text ""
