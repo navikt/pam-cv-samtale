@@ -77,7 +77,7 @@ server.use(
             ...proxyReqOpts,
             headers: {
                 ...proxyReqOpts.headers,
-                'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', srcReq.header('Cookie')),
+                'XSRF-TOKEN-ARBEIDSPLASSEN': getCookie('XSRF-TOKEN', srcReq.header('Cookie')),
                 'x-nav-apiKey': ENVIRONMENT_VARIABLES.PROXY_API_KEY,
                 'kilde': 'cv-samtale'
             }
@@ -113,7 +113,7 @@ const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
         method: 'POST',
         headers: {
             'Cookie': req.header('Cookie') || '',
-            'X-XSRF-TOKEN': getCookie('XSRF-TOKEN', req.header('Cookie')),
+            'XSRF-TOKEN-ARBEIDSPLASSEN': getCookie('XSRF-TOKEN', req.header('Cookie')),
             'x-nav-apiKey': ENVIRONMENT_VARIABLES.PROXY_API_KEY,
             'kilde': kilde
         }
