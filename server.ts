@@ -77,7 +77,7 @@ server.use(
             ...proxyReqOpts,
             headers: {
                 ...proxyReqOpts.headers,
-                'XSRF-TOKEN-ARBEIDSPLASSEN': getCookie('XSRF-TOKEN', srcReq.header('Cookie')),
+                'X-XSRF-TOKEN-ARBEIDSPLASSEN': getCookie('XSRF-TOKEN-ARBEIDSPLASSEN', srcReq.header('Cookie')),
                 'x-nav-apiKey': ENVIRONMENT_VARIABLES.PROXY_API_KEY,
                 'kilde': 'cv-samtale'
             }
@@ -113,7 +113,7 @@ const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
         method: 'POST',
         headers: {
             'Cookie': req.header('Cookie') || '',
-            'XSRF-TOKEN-ARBEIDSPLASSEN': getCookie('XSRF-TOKEN', req.header('Cookie')),
+            'X-XSRF-TOKEN-ARBEIDSPLASSEN': getCookie('XSRF-TOKEN-ARBEIDSPLASSEN', req.header('Cookie')),
             'x-nav-apiKey': ENVIRONMENT_VARIABLES.PROXY_API_KEY,
             'kilde': kilde
         }
@@ -172,7 +172,8 @@ server.use(
 server.use(
     '/cv-samtale/goto/forsiden*',
     (req: express.Request, res: express.Response) => {
-        loggMetrikkForCvAvslutning('arbeidsplassen-logo', req.query.seksjon);
+        const query = Array.isArray(req.query.seksjon) ? `${req.query.seksjon[0]}` : `${req.query.seksjon}`;
+        loggMetrikkForCvAvslutning('arbeidsplassen-logo', query);
         res.redirect(`https://${req.hostname}/`);
     }
 );
@@ -180,7 +181,9 @@ server.use(
 server.use(
     '/cv-samtale/goto/forhandsvis*',
     (req: express.Request, res: express.Response) => {
-        loggMetrikkForCvAvslutning(req.query.utgang, req.query.seksjon);
+        const utgang = Array.isArray(req.query.utgang) ? `${req.query.utgang[0]}` : `${req.query.utgang}`;
+        const query = Array.isArray(req.query.seksjon) ? `${req.query.seksjon[0]}` : `${req.query.seksjon}`;
+        loggMetrikkForCvAvslutning(utgang, query);
         res.redirect(`https://${req.hostname}/forhandsvis`);
     }
 );
