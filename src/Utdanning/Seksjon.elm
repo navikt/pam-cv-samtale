@@ -86,7 +86,7 @@ type NivåValg
 
 
 type Samtale
-    = BrukerVilSeVitnemaalsportalen (List Utdanning)
+    = SpoerBrukerOmVitnemaalsportalen (List Utdanning)
     | Intro (List Utdanning)
     | BekreftHarIkkeUtdanning
     | VelgEnUtdanningÅRedigere
@@ -243,8 +243,8 @@ tilDatoInfoTilSkjema info år =
 
 
 type Msg
-    = BrukerVilSeUtdanninger (List Utdanning)
-    | BrukerVilIkkeSeUtdanninger (List Utdanning)
+    = BrukerVilSeVitnemaalsportalen (List Utdanning)
+    | BrukerVilIkkeSeVitnemaalsportalen (List Utdanning)
     | BrukerVilRegistrereUtdanning
     | SvarerNeiTilUtdanning
     | BrukerVilRedigereUtdanning
@@ -301,14 +301,14 @@ type SkjemaEndring
 update : Msg -> Model -> SamtaleStatus
 update msg (Model model) =
     case msg of
-        BrukerVilSeUtdanninger utdanninger ->
+        BrukerVilSeVitnemaalsportalen utdanninger ->
             IkkeFerdig
                 ( Intro utdanninger
                     |> oppdaterSamtale model (SvarFraMsg msg)
                 , lagtTilSpørsmålCmd model.debugStatus
                 )
 
-        BrukerVilIkkeSeUtdanninger utdanninger ->
+        BrukerVilIkkeSeVitnemaalsportalen utdanninger ->
             IkkeFerdig
                 ( Intro utdanninger
                     |> oppdaterSamtale model (SvarFraMsg msg)
@@ -1048,7 +1048,7 @@ oppdaterSkjema skjemaEndring skjema =
 settFokus : Samtale -> Cmd Msg
 settFokus samtale =
     case samtale of
-        BrukerVilSeVitnemaalsportalen _ ->
+        SpoerBrukerOmVitnemaalsportalen _ ->
             settFokusCmd VilSeVitnemaalsportalenId
 
         Intro _ ->
@@ -1248,7 +1248,7 @@ utdanningTilTekstområde utdanning =
 samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg utdanningSeksjon =
     case utdanningSeksjon of
-        BrukerVilSeVitnemaalsportalen _ ->
+        SpoerBrukerOmVitnemaalsportalen _ ->
             [ Melding.spørsmål [ "Lurer du på hvilken fullført utdanning du har, kan du se dette på Vitnemålsportalen." ]
             , Melding.spørsmål [ "Vil du se din fullført utdanning?" ]
             ]
@@ -1487,12 +1487,12 @@ modelTilBrukerInput : ModelInfo -> BrukerInput Msg
 modelTilBrukerInput model =
     if MeldingsLogg.visBrukerInput model.seksjonsMeldingsLogg then
         case model.aktivSamtale of
-            BrukerVilSeVitnemaalsportalen utdanninger ->
+            SpoerBrukerOmVitnemaalsportalen utdanninger ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp (BrukerVilSeUtdanninger utdanninger) "Se min fullført utdanning"
+                    [ Knapp.knapp (BrukerVilSeVitnemaalsportalen utdanninger) "Se min fullført utdanning"
                         |> Knapp.withLink "https://www.vitnemalsportalen.no/"
                         |> Knapp.withId (inputIdTilString VilSeVitnemaalsportalenId)
-                    , Knapp.knapp (BrukerVilIkkeSeUtdanninger utdanninger) "Nei, ikke nå"
+                    , Knapp.knapp (BrukerVilIkkeSeVitnemaalsportalen utdanninger) "Nei, ikke nå"
                     ]
 
             Intro _ ->
@@ -2000,7 +2000,7 @@ init : DebugStatus -> Posix -> FerdigAnimertMeldingsLogg -> List Utdanning -> ( 
 init debugStatus sistLagretFraForrigeSeksjon gammelMeldingsLogg utdanningListe =
     let
         aktivSamtale =
-            BrukerVilSeVitnemaalsportalen utdanningListe
+            SpoerBrukerOmVitnemaalsportalen utdanningListe
     in
     ( Model
         { seksjonsMeldingsLogg =
