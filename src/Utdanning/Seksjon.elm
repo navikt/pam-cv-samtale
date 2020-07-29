@@ -1249,8 +1249,8 @@ samtaleTilMeldingsLogg : Samtale -> List Melding
 samtaleTilMeldingsLogg utdanningSeksjon =
     case utdanningSeksjon of
         SpoerBrukerOmVitnemaalsportalen _ ->
-            [ Melding.spørsmål [ "Lurer du på hvilken fullført utdanning du har, kan du se dette på Vitnemålsportalen." ]
-            , Melding.spørsmål [ "Vil du se din fullført utdanning?" ]
+            [ Melding.spørsmål [ "Lurer du på hvilken fullførte utdanning du har, kan du se dette på Vitnemålsportalen." ]
+            , Melding.spørsmål [ "Vil du se din fullførte utdanning?" ]
             ]
 
         Intro utdanninger ->
@@ -1489,7 +1489,7 @@ modelTilBrukerInput model =
         case model.aktivSamtale of
             SpoerBrukerOmVitnemaalsportalen utdanninger ->
                 BrukerInput.knapper Flytende
-                    [ Knapp.knapp (BrukerVilSeVitnemaalsportalen utdanninger) "Se min fullført utdanning"
+                    [ Knapp.knapp (BrukerVilSeVitnemaalsportalen utdanninger) "Ja, se min fullførte utdanning"
                         |> Knapp.withLink "https://www.vitnemalsportalen.no/"
                         |> Knapp.withId (inputIdTilString VilSeVitnemaalsportalenId)
                     , Knapp.knapp (BrukerVilIkkeSeVitnemaalsportalen utdanninger) "Nei, ikke nå"
