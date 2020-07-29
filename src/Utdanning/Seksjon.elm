@@ -170,6 +170,14 @@ maxLengthBeskrivelse =
     2000
 
 
+maxLengthSkole =
+    250
+
+
+maxLengthStudieretning =
+    250
+
+
 forrigeTilRetningInfo : SkoleInfo -> RetningInfo
 forrigeTilRetningInfo skole =
     { forrige = skole, retning = "" }
@@ -400,13 +408,18 @@ update msg (Model model) =
         BrukerVilRegistrereSkole ->
             case model.aktivSamtale of
                 RegistrerSkole skoleinfo ->
-                    IkkeFerdig
-                        ( skoleinfo
-                            |> forrigeTilRetningInfo
-                            |> RegistrerRetning
-                            |> oppdaterSamtale model (SvarFraMsg msg)
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
+                    case Validering.feilmeldingMaxAntallTegn skoleinfo.skole maxLengthSkole of
+                        Nothing ->
+                            IkkeFerdig
+                                ( skoleinfo
+                                    |> forrigeTilRetningInfo
+                                    |> RegistrerRetning
+                                    |> oppdaterSamtale model (SvarFraMsg msg)
+                                , lagtTilSpørsmålCmd model.debugStatus
+                                )
+
+                        Just _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -427,13 +440,18 @@ update msg (Model model) =
         BrukerVilRegistrereRetning ->
             case model.aktivSamtale of
                 RegistrerRetning retninginfo ->
-                    IkkeFerdig
-                        ( retninginfo
-                            |> forrigeTilBeskrivelseInfo
-                            |> RegistrerBeskrivelse (detFinnesEksemplerForNivå retninginfo.forrige.nivå)
-                            |> oppdaterSamtale model (SvarFraMsg msg)
-                        , lagtTilSpørsmålCmd model.debugStatus
-                        )
+                    case Validering.feilmeldingMaxAntallTegn retninginfo.retning maxLengthStudieretning of
+                        Nothing ->
+                            IkkeFerdig
+                                ( retninginfo
+                                    |> forrigeTilBeskrivelseInfo
+                                    |> RegistrerBeskrivelse (detFinnesEksemplerForNivå retninginfo.forrige.nivå)
+                                    |> oppdaterSamtale model (SvarFraMsg msg)
+                                , lagtTilSpørsmålCmd model.debugStatus
+                                )
+
+                        Just _ ->
+                            IkkeFerdig ( Model model, Cmd.none )
 
                 _ ->
                     IkkeFerdig ( Model model, Cmd.none )
@@ -1560,6 +1578,7 @@ modelTilBrukerInput model =
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereSkole }
                     (skoleinfo.skole
                         |> Input.input { msg = OppdaterSkole, label = "Skole/studiested" }
+                        |> Input.withFeilmelding (Validering.feilmeldingMaxAntallTegn skoleinfo.skole maxLengthSkole)
                         |> Input.withOnEnter BrukerVilRegistrereSkole
                         |> Input.withId (inputIdTilString RegistrerSkoleInput)
                     )
@@ -1568,6 +1587,7 @@ modelTilBrukerInput model =
                 BrukerInput.inputMedGåVidereKnapp { onAvbryt = BrukerVilAvbryteRegistreringen, onGåVidere = BrukerVilRegistrereRetning }
                     (retningsinfo.retning
                         |> Input.input { msg = OppdaterRetning, label = "Grad og utdanningsretning" }
+                        |> Input.withFeilmelding (Validering.feilmeldingMaxAntallTegn retningsinfo.retning maxLengthStudieretning)
                         |> Input.withId (inputIdTilString RegistrerRetningInput)
                         |> Input.withOnEnter BrukerVilRegistrereRetning
                     )
@@ -1812,10 +1832,12 @@ viewSkjema utdanningsskjema =
         , utdanningsskjema
             |> Skjema.innholdTekstFelt Studiested
             |> Input.input { label = "Skole/studiested", msg = Tekst Studiested >> OppsummeringEndret }
+            |> Input.withFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Studiested utdanningsskjema) maxLengthSkole)
             |> Input.toHtml
         , utdanningsskjema
             |> Skjema.innholdTekstFelt Utdanningsretning
             |> Input.input { label = "Grad og utdanningsretning", msg = Tekst Utdanningsretning >> OppsummeringEndret }
+            |> Input.withFeilmelding (Validering.feilmeldingMaxAntallTegn (Skjema.innholdTekstFelt Utdanningsretning utdanningsskjema) maxLengthStudieretning)
             |> Input.toHtml
         , utdanningsskjema
             |> Skjema.innholdTekstFelt Beskrivelse
