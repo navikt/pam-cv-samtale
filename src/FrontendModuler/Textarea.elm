@@ -119,7 +119,7 @@ toHtml (Textarea options) =
             Just feilmelding ->
                 div [ role "alert", ariaLive "assertive" ]
                     [ div [ class "skjemaelement__feilmelding" ]
-                        [ text feilmelding ]
+                        [ p [ class "typo-feilmelding" ] [ text feilmelding ] ]
                     ]
 
             Nothing ->

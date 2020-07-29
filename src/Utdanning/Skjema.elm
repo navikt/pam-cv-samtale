@@ -312,6 +312,12 @@ validerSkjema (UtdanningSkjema info) =
     if Validering.feilmeldingMaxAntallTegn info.beskrivelse 2000 /= Nothing then
         Nothing
 
+    else if Validering.feilmeldingMaxAntallTegn info.utdanningsretning 250 /= Nothing then
+        Nothing
+
+    else if Validering.feilmeldingMaxAntallTegn info.studiested 250 /= Nothing then
+        Nothing
+
     else
         Maybe.map2
             (\tilDato fraÅr ->
