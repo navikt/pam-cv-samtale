@@ -50,7 +50,7 @@
     "amplitude-js": "^6.2.0",
     "compression": "^1.7.4",
     "express": "^4.17.1",
-    "express-http-proxy": "^1.6.0",
+    "express-http-proxy": "^1.6.1",
     "fs": "0.0.1-security",
     "helmet": "^3.21.2",
     "parcel-bundler": "^1.12.4",
