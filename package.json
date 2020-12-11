@@ -46,7 +46,7 @@
     "typescript": "^3.7.5"
   },
   "dependencies": {
-    "@types/express-session": "^1.17.0",
+    "@types/express-session": "^1.17.1",
     "amplitude-js": "^6.2.0",
     "compression": "^1.7.4",
     "express": "^4.17.1",
