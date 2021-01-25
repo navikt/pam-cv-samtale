@@ -10,10 +10,10 @@ spec:
   port: 8080
   liveness:
     path: /cv-samtale/internal/isAlive
-    initialDelay: 20
+    initialDelay: 10
   readiness:
     path: /cv-samtale/internal/isReady
-    initialDelay: 20
+    initialDelay: 10
   replicas:
     min: 2
     max: 4
