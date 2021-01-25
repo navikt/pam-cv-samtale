@@ -17,14 +17,14 @@ const getEnvironmentVariable = (key) => {
 };
 
 const ENVIRONMENT_VARIABLES = {
-    API_GATEWAY_HOST: getEnvironmentVariable('API_GATEWAY_HOST'),
+    CV_API_URL: getEnvironmentVariable('CV_API_URL'),
     PROXY_API_KEY: getEnvironmentVariable('PAM_CV_API_PROXY_KEY'),
     LOGINSERVICE_URL: getEnvironmentVariable('LOGINSERVICE_URL'),
     LOGOUTSERVICE_URL: getEnvironmentVariable('LOGOUTSERVICE_URL'),
     AMPLITUDE_TOKEN: getEnvironmentVariable('AMPLITUDE_TOKEN')
 };
 
-console.log(`API_GATEWAY_HOST: ${ENVIRONMENT_VARIABLES.API_GATEWAY_HOST}`);
+console.log(`API_GATEWAY_HOST: ${ENVIRONMENT_VARIABLES.CV_API_URL}`);
 
 const server = express();
 
@@ -71,7 +71,7 @@ server.post('/cv-samtale/log', express.json(), (req, res) => {
 
 server.use(
     '/cv-samtale/api',
-    proxy(ENVIRONMENT_VARIABLES.API_GATEWAY_HOST, {
+    proxy(ENVIRONMENT_VARIABLES.CV_API_URL, {
         https: true,
         proxyReqOptDecorator: (proxyReqOpts: RequestOptions, srcReq: Request) => ({
             ...proxyReqOpts,
@@ -109,7 +109,7 @@ server.use('/cv-samtale/static', express.static(path.resolve(__dirname, 'dist'))
 
 const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
     request({
-        url: `${ENVIRONMENT_VARIABLES.API_GATEWAY_HOST}/pam-cv-api/pam-cv-api/rest/cv/registreringstype`,
+        url: `${ENVIRONMENT_VARIABLES.CV_API_URL}/pam-cv-api/pam-cv-api/rest/cv/registreringstype`,
         method: 'POST',
         headers: {
             'Cookie': req.header('Cookie') || '',

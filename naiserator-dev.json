@@ -1,13 +1,11 @@
 {
-  "namespace": "q0",
   "ingress": [
-    "https://pam-cv-samtale.nais.oera-q.local",
-    "https://arbeidsplassen-q.nav.no/cv-samtale",
-    "https://arbeidsplassen-q.nav.no/logget-inn",
-    "https://arbeidsplassen-q.nav.no/cv-valg"
+    "https://arbeidsplassen.dev.nav.no/cv-samtale",
+    "https://arbeidsplassen.dev.nav.no/logget-inn",
+    "https://arbeidsplassen.dev.nav.no/cv-valg"
   ],
-  "apiGatewayHost": "https://api-gw-q0.oera.no",
-  "loginservice": "https://loginservice-q.nav.no/login",
-  "logoutservice": "https://loginservice-q.nav.no/slo",
+  "cv-api-url": "https://pam-cv-api.dev-fss-pub.nais.io",
+  "loginservice": "https://loginservice.dev.nav.no/login",
+  "logoutservice": "https://loginservice.dev.nav.no/slo",
   "amplitudetoken": "b6143dedf1d17c3e73d3ad440bf54e8b"
 }

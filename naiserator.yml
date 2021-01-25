@@ -2,7 +2,7 @@ apiVersion: "nais.io/v1alpha1"
 kind: "Application"
 metadata:
   name: pam-cv-samtale
-  namespace: {{ namespace }}
+  namespace: teampam
   labels:
     team: teampam
 spec:
@@ -35,8 +35,8 @@ spec:
      - {{url}}
   {{/each}}
   env:
-    - name: API_GATEWAY_HOST
-      value: {{ apiGatewayHost }}
+    - name: CV_API_URL
+      value: {{ cv-api-url }}
     - name: LOGINSERVICE_URL
       value: {{ loginservice }}
     - name: LOGOUTSERVICE_URL
