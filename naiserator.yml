@@ -43,3 +43,7 @@ spec:
       value: {{ logoutservice }}
     - name: AMPLITUDE_TOKEN
       value: {{ amplitudetoken }}
+  accessPolicy:
+    outbound:
+      external:
+        - host: {{ cv-api-host }}
