@@ -18,7 +18,6 @@ const getEnvironmentVariable = (key) => {
 
 const ENVIRONMENT_VARIABLES = {
     CV_API_URL: getEnvironmentVariable('CV_API_URL'),
-    PROXY_API_KEY: getEnvironmentVariable('PAM_CV_API_PROXY_KEY'),
     LOGINSERVICE_URL: getEnvironmentVariable('LOGINSERVICE_URL'),
     LOGOUTSERVICE_URL: getEnvironmentVariable('LOGOUTSERVICE_URL'),
     AMPLITUDE_TOKEN: getEnvironmentVariable('AMPLITUDE_TOKEN')
@@ -78,7 +77,6 @@ server.use(
             headers: {
                 ...proxyReqOpts.headers,
                 'X-XSRF-TOKEN-ARBEIDSPLASSEN': getCookie('XSRF-TOKEN-ARBEIDSPLASSEN', srcReq.header('Cookie')),
-                'x-nav-apiKey': ENVIRONMENT_VARIABLES.PROXY_API_KEY,
                 'kilde': 'cv-samtale'
             }
         }),
@@ -114,7 +112,6 @@ const loggMetrikkForCvValg = (kilde: string, req: express.Request) => {
         headers: {
             'Cookie': req.header('Cookie') || '',
             'X-XSRF-TOKEN-ARBEIDSPLASSEN': getCookie('XSRF-TOKEN-ARBEIDSPLASSEN', req.header('Cookie')),
-            'x-nav-apiKey': ENVIRONMENT_VARIABLES.PROXY_API_KEY,
             'kilde': kilde
         }
     }, (error, response) => {
