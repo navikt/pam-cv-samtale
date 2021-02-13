@@ -32,7 +32,7 @@ spec:
     enabled: false
   ingresses:
   {{#each ingress as |url|}}
-     - "{{url}}"
+     - {{url}}
   {{/each}}
   env:
     - name: CV_API_URL
