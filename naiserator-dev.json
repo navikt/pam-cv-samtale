@@ -1,8 +1,8 @@
 {
   "ingress": [
-    "https://arbeidsplassen.dev.nav.no/cv-samtale",
-    "https://arbeidsplassen.dev.nav.no/logget-inn",
-    "https://arbeidsplassen.dev.nav.no/cv-valg"
+    "https://arbeidsplassen.dev.nav.no/cv\-samtale",
+    "https://arbeidsplassen.dev.nav.no/logget\-inn",
+    "https://arbeidsplassen.dev.nav.no/cv\-valg"
   ],
   "cv-api-url": "https://pam-cv-api.dev-fss-pub.nais.io",
   "cv-api-host": "pam-cv-api.dev-fss-pub.nais.io",
