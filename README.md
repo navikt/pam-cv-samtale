@@ -1,3 +1,5 @@
+Arkivert: erstattes av ny CV i pam-personbruker
+
 # PAM CV-samtale
 
 Frontend for PAM CV-samtale.
